@@ -39,6 +39,7 @@ include(
     "adapters:storage-sqlite",
     "adapters:update-http",
     "platforms:paper:common",
-    "platforms:paper:v26_2",
-    "distributions:paper:v26_2",
+    "platforms:spigot:common",
+    "distributions:paper",
+    "distributions:spigot",
 )

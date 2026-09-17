@@ -1,9 +1,8 @@
-package io.github.kizio806.spectraevents.platform.paper.v26_2;
+package io.github.kizio806.spectraevents.platform.paper;
 
-import io.github.kizio806.spectraevents.platform.paper.PaperBootstrap;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/** Paper 26.2 plugin entrypoint for SpectraEvents. */
+/** Paper family plugin entrypoint for SpectraEvents. */
 public final class SpectraEventsPlugin extends JavaPlugin {
   private PaperBootstrap bootstrap;
 

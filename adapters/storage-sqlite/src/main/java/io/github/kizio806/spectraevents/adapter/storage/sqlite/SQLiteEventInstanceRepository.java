@@ -44,6 +44,12 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
   public SQLiteEventInstanceRepository(Path dbPath) {
     this.dbPath = dbPath;
     this.jdbcUrl = "jdbc:sqlite:" + dbPath.toAbsolutePath();
+    if (dbPath.getParent() != null) {
+      try {
+        java.nio.file.Files.createDirectories(dbPath.getParent());
+      } catch (java.io.IOException ignored) {
+      }
+    }
   }
 
   public void initialize() {

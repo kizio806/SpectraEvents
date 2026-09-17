@@ -18,7 +18,6 @@ dependencies {
     implementation(project(":adapters:storage-sqlite"))
     implementation(project(":adapters:update-http"))
     implementation(project(":platforms:paper:common"))
-    implementation(project(":platforms:paper:v26_2"))
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -37,12 +36,12 @@ val shadowJar =
     tasks.named<ShadowJar>("shadowJar") {
         archiveBaseName.set("SpectraEvents")
         archiveVersion.set(project.version.toString())
-        archiveClassifier.set("")
+        archiveClassifier.set("paper")
         isPreserveFileTimestamps = false
         isReproducibleFileOrder = true
         manifest {
             attributes(
-                "Implementation-Title" to "SpectraEvents",
+                "Implementation-Title" to "SpectraEvents-Paper",
                 "Implementation-Version" to project.version.toString(),
                 "Implementation-Vendor" to "kizio806",
             )
@@ -78,7 +77,7 @@ val verifyPluginArtifact =
             val requiredSuffixes =
                 listOf(
                     "plugin.yml",
-                    "io/github/kizio806/spectraevents/platform/paper/v26_2/SpectraEventsPlugin.class",
+                    "io/github/kizio806/spectraevents/platform/paper/SpectraEventsPlugin.class",
                     "io/github/kizio806/spectraevents/platform/paper/common/PaperLifecycleReporter.class",
                     "io/github/kizio806/spectraevents/application/SpectraEventsApplication.class",
                     "io/github/kizio806/spectraevents/adapter/storage/sqlite/SQLiteEventInstanceRepository.class",
