@@ -1,0 +1,90 @@
+schema-version: 1
+id: vault
+display:
+  name: "<gold>Abandoned Vault</gold>"
+
+spawn:
+  strategy: fixed
+  world: world
+  x: -500
+  y: 30
+  z: -500
+
+models:
+  vault_closed:
+    parts:
+      door:
+        type: block
+        block: IRON_BLOCK
+        scale: [3.0, 3.0, 1.0]
+
+initial-phase: locked
+
+phases:
+  locked:
+    components:
+      model:
+        ref: vault_closed
+      interaction:
+        width: 3.0
+        height: 3.0
+    transitions:
+      - to: hacking
+        when:
+          trigger: player-interact
+
+  hacking:
+    on-enter:
+      - action: broadcast
+        message: "Someone is hacking the vault at {x}, {z}!"
+    components:
+      model:
+        ref: vault_closed
+      timer:
+        duration: 60s
+      area:
+        shape: sphere
+        radius: 10
+        rules:
+          pvp: true
+    transitions:
+      - to: open
+        when:
+          trigger: timer-expired
+      - to: locked
+        when:
+          trigger: player-leave-area
+
+  open:
+    components:
+      model:
+        ref: vault_closed
+      interaction:
+        width: 3.0
+        height: 3.0
+    transitions:
+      - to: empty
+        when:
+          trigger: player-interact
+
+  empty:
+    on-enter:
+      - action: give-reward
+        table: vault_loot
+        distribution: random-participant
+    components:
+      timer:
+        duration: 300s # cooldown before reset
+    transitions:
+      - to: locked
+        when:
+          trigger: timer-expired
+
+loot-tables:
+  vault_loot:
+    rolls: 1
+    entries:
+      - type: vanilla-item
+        material: NETHERITE_INGOT
+        amount: 1
+        weight: 1

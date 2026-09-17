@@ -1,0 +1,79 @@
+schema-version: 1
+id: metin
+display:
+  name: "<dark_purple>Metin Stone</dark_purple>"
+
+spawn:
+  strategy: fixed
+  world: world
+  x: 100
+  y: 65
+  z: 100
+
+models:
+  stone:
+    parts:
+      base:
+        type: block
+        block: CRYING_OBSIDIAN
+        scale: [2.0, 4.0, 2.0]
+
+initial-phase: active
+
+phases:
+  active:
+    components:
+      model:
+        ref: stone
+      health:
+        max: 5000
+      interaction:
+        width: 2.0
+        height: 4.0
+      leaderboard:
+        metric: damage
+    transitions:
+      - to: enraged
+        when:
+          trigger: health-threshold
+          threshold: 0.50
+      - to: defeated
+        when:
+          trigger: health-zero
+
+  enraged:
+    on-enter:
+      - action: spawn-mob
+        mob-type: ZOMBIE
+        amount: 5
+    components:
+      model:
+        ref: stone
+      health:
+        max: 5000
+      interaction:
+        width: 2.0
+        height: 4.0
+      leaderboard:
+        metric: damage
+      mob-wave:
+        track: true
+    transitions:
+      - to: active
+        when:
+          trigger: wave-cleared
+
+  defeated:
+    on-enter:
+      - action: give-reward
+        table: metin_loot
+        distribution: all-participants
+      - action: complete-event
+
+loot-tables:
+  metin_loot:
+    rolls: 1
+    entries:
+      - type: experience
+        amount: 500
+        weight: 1

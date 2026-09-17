@@ -1,0 +1,25 @@
+[versions]
+archunit = "1.5.0"
+checkstyle = "14.1.0"
+googlejavaformat = "1.36.1"
+jacoco = "0.8.15"
+junit = "5.14.4"
+ktlint = "1.8.0"
+paper = "26.2.build.124-stable"
+run-paper = "3.0.0"
+shadow = "9.6.1"
+spotless = "8.10.2"
+snakeyaml = "2.2"
+
+[libraries]
+archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
+snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
+
+[plugins]
+run-paper = { id = "xyz.jpenilla.run-paper", version.ref = "run-paper" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

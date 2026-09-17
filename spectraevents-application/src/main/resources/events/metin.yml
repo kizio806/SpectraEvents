@@ -1,0 +1,83 @@
+id: metin
+schema-version: "1"
+initial-phase: spawning
+
+phases:
+  spawning:
+    on-enter:
+      - type: initialize_health
+        max: 100
+      - type: spawn_model
+        model: dev_metin_model
+        height-offset: 0
+    transitions:
+      - trigger:
+          type: timer_elapsed
+          duration: 2s
+        target: active
+
+  active:
+    transitions:
+      - trigger:
+          type: interaction
+        actions:
+          - type: apply_damage
+            amount: 5
+      - trigger:
+          type: health_threshold_crossed
+          threshold: 60
+        target: enraged
+
+  enraged:
+    on-enter:
+      - type: play_sound
+        sound: minecraft:entity.ender_dragon.growl
+        volume: 1.0
+        pitch: 1.0
+      - type: spawn_particles
+        particle: minecraft:flame
+        count: 50
+    transitions:
+      - trigger:
+          type: interaction
+        actions:
+          - type: apply_damage
+            amount: 5
+      - trigger:
+          type: health_threshold_crossed
+          threshold: 25
+        target: boss
+
+  boss:
+    on-enter:
+      - type: play_sound
+        sound: minecraft:entity.wither.spawn
+        volume: 1.0
+        pitch: 1.0
+      - type: spawn_boss
+        entity_type: minecraft:zombie
+        name: "<red>Metin Defender"
+        offset-x: 2
+    transitions:
+      - trigger:
+          type: interaction
+        actions:
+          - type: send_message
+            message: "<red>Metin is invulnerable! Defeat the boss!"
+      - trigger:
+          type: entity_death
+        target: defeated
+
+  defeated:
+    on-enter:
+      - type: play_sound
+        sound: minecraft:entity.generic.explode
+        volume: 1.0
+        pitch: 1.0
+      - type: spawn_particles
+        particle: minecraft:explosion_emitter
+        count: 1
+      - type: remove_model
+      - type: complete_event
+
+  completed: {}

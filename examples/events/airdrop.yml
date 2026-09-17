@@ -1,0 +1,90 @@
+schema-version: 1
+id: airdrop
+display:
+  name: "<aqua>Supply Drop</aqua>"
+
+spawn:
+  strategy: random-surface
+  world: world
+  min-radius: 500
+  max-radius: 5000
+
+models:
+  crate:
+    parts:
+      box:
+        type: block
+        block: BARREL
+        scale: [1.5, 1.5, 1.5]
+
+initial-phase: falling
+
+phases:
+  falling:
+    on-enter:
+      - action: broadcast
+        message: "An {event_name} is inbound at {x}, {z}!"
+    components:
+      model:
+        ref: crate
+    transitions:
+      - to: landed
+        when:
+          trigger: ground-collision
+
+  landed:
+    components:
+      model:
+        ref: crate
+      timer:
+        duration: 60s
+      area:
+        shape: sphere
+        radius: 30
+        rules:
+          pvp: true
+    transitions:
+      - to: locked
+        when:
+          trigger: timer-expired
+
+  locked:
+    components:
+      model:
+        ref: crate
+      timer:
+        duration: 10s
+    transitions:
+      - to: open
+        when:
+          trigger: timer-expired
+
+  open:
+    components:
+      model:
+        ref: crate
+      interaction:
+        width: 1.5
+        height: 1.5
+    transitions:
+      - to: claimed
+        when:
+          trigger: player-interact
+
+  claimed:
+    on-enter:
+      - action: broadcast
+        message: "The {event_name} has been claimed!"
+      - action: give-reward
+        table: standard_crate
+        distribution: random-participant
+      - action: complete-event
+
+loot-tables:
+  standard_crate:
+    rolls: 5
+    entries:
+      - type: vanilla-item
+        material: GOLDEN_APPLE
+        amount: 2
+        weight: 10
