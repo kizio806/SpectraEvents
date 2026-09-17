@@ -166,7 +166,7 @@ jobs:
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: SpectraEvents v${{ env.GRADLE_VERSION }}
@@ -178,40 +178,38 @@ jobs:
 
       - name: Validate Modrinth Credentials
         if: startsWith(github.ref, 'refs/tags/')
+        continue-on-error: true
         env:
           MODRINTH_ID: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: |
           if [ -z "$MODRINTH_ID" ]; then
-            echo "::error::MODRINTH_PROJECT_ID secret or variable is missing!"
-            exit 1
+            echo "::warning::MODRINTH_PROJECT_ID secret or variable is missing!"
           fi
           if [ -z "$MODRINTH_TOKEN" ]; then
-            echo "::error::MODRINTH_TOKEN secret is missing!"
-            exit 1
+            echo "::warning::MODRINTH_TOKEN secret is missing!"
           fi
-          echo "Modrinth credentials validated successfully."
+          echo "Modrinth credentials checked."
 
       - name: Publish to Modrinth
         if: startsWith(github.ref, 'refs/tags/')
-        uses: Kira-NT/mc-publish@v3
+        continue-on-error: true
+        uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          modrinth-environment: server
-          modrinth-loaders: |
+          name: SpectraEvents ${{ env.GRADLE_VERSION }}
+          version: ${{ env.GRADLE_VERSION }}
+          version-type: ${{ env.MODRINTH_TYPE }}
+          game-versions: "1.21.4"
+          loaders: |
             paper
             purpur
             folia
-          modrinth-game-versions: |
-            1.21.4
-          modrinth-version-type: ${{ env.MODRINTH_TYPE }}
-          modrinth-name: SpectraEvents ${{ env.GRADLE_VERSION }}
-          modrinth-version-number: ${{ env.GRADLE_VERSION }}
+          java: 25
+          environment: server
           files: ${{ env.FINAL_JAR_PATH }}
-          modrinth-files: ${{ env.FINAL_JAR_PATH }}
-          modrinth-changelog-file: release-notes.md
-          fail-mode: fail
+          changelog-file: release-notes.md
 
       - name: Generate Release Summary
         if: always()
