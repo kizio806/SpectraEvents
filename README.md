@@ -26,9 +26,9 @@ The generic event engine features 100% config-driven execution for `Meteor`, `Ai
 
 | Artifact | Target Platform | Compatible Minecraft Versions | Loaders | Status |
 | --- | --- | --- | --- | --- |
-| `SpectraEvents-<version>-paper.jar` | Paper, Purpur, Folia | `26.1`, `26.1.1`, `26.1.2`, `26.2`, `26.3` | `paper`, `purpur`, `folia` | **SUPPORTED / RUNTIME VERIFIED** |
-| `SpectraEvents-<version>-spigot.jar` | Spigot, Bukkit | `26.1`, `26.1.1`, `26.1.2`, `26.2`, `26.3` | `spigot`, `bukkit` | **SUPPORTED / RUNTIME VERIFIED** |
-| `SpectraEvents-<version>-sponge.jar` | Sponge | `26.1`, `26.1.1`, `26.1.2`, `26.2` | `sponge` | **FOUNDATION / VERIFIED** |
+| `SpectraEvents-<version>-paper.jar` | Paper, Purpur, Folia | `26.1.1`, `26.1.2`, `26.2`, `26.3` | `paper`, `purpur`, `folia` | **SUPPORTED / RUNTIME VERIFIED** |
+| `SpectraEvents-<version>-spigot.jar` | Spigot, Bukkit | `26.1.1`, `26.1.2`, `26.2`, `26.3` | `spigot`, `bukkit` | **SUPPORTED / RUNTIME VERIFIED** |
+| `SpectraEvents-<version>-sponge.jar` | Sponge | None | `sponge` | **FOUNDATION / EXPERIMENTAL** |
 
 ---
 

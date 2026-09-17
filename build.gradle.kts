@@ -122,32 +122,32 @@ val verifyCompatibilityMatrix =
         doLast {
             val paperVersions =
                 providers
-                    .gradleProperty("paper.minecraftVersions")
-                    .get()
+                    .gradleProperty(
+                        "paper.minecraftVersions",
+                    ).get()
                     .split(",")
                     .map { it.trim() }
+                    .filter { it.isNotEmpty() }
             val spigotVersions =
                 providers
-                    .gradleProperty("spigot.minecraftVersions")
-                    .get()
+                    .gradleProperty(
+                        "spigot.minecraftVersions",
+                    ).get()
                     .split(",")
                     .map { it.trim() }
-            val spongeVersions =
-                providers
-                    .gradleProperty("sponge.minecraftVersions")
-                    .get()
-                    .split(",")
-                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
 
-            val families = mapOf("Paper" to paperVersions, "Spigot" to spigotVersions, "Sponge" to spongeVersions)
-
-            families.forEach { (family, versions) ->
-                if (versions.isEmpty() || versions.any { it.isBlank() }) {
-                    throw GradleException("Compatibility matrix for $family must not be empty!")
-                }
-                if (versions.toSet().size != versions.size) {
-                    throw GradleException("Compatibility matrix for $family contains duplicates: $versions")
-                }
+            if (paperVersions.isEmpty()) {
+                throw GradleException("Compatibility matrix for Paper must not be empty!")
+            }
+            if (spigotVersions.isEmpty()) {
+                throw GradleException("Compatibility matrix for Spigot must not be empty!")
+            }
+            if (paperVersions.toSet().size != paperVersions.size) {
+                throw GradleException("Compatibility matrix for Paper contains duplicates: $paperVersions")
+            }
+            if (spigotVersions.toSet().size != spigotVersions.size) {
+                throw GradleException("Compatibility matrix for Spigot contains duplicates: $spigotVersions")
             }
             println("Compatibility matrix verification PASSED.")
         }

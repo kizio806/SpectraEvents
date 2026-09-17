@@ -3,15 +3,15 @@ product_version = "0.1.0-beta.2"
 
 [paper]
 baseline = "26.1"
-supported_versions = ["26.1", "26.1.1", "26.1.2", "26.2", "26.3"]
+supported_versions = ["26.1.1", "26.1.2", "26.2", "26.3"]
 loaders = ["paper", "purpur", "folia"]
 
 [spigot]
 baseline = "26.1"
-supported_versions = ["26.1", "26.1.1", "26.1.2", "26.2", "26.3"]
+supported_versions = ["26.1.1", "26.1.2", "26.2", "26.3"]
 loaders = ["spigot", "bukkit"]
 
 [sponge]
 baseline = "12.0.0"
-supported_versions = ["26.1", "26.1.1", "26.1.2", "26.2"]
+supported_versions = []
 loaders = ["sponge"]

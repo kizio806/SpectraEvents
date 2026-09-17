@@ -180,7 +180,6 @@ jobs:
           version: ${{ env.GRADLE_VERSION }}-paper
           version-type: ${{ env.MODRINTH_TYPE }}
           game-versions: |
-            26.1
             26.1.1
             26.1.2
             26.2
@@ -204,7 +203,6 @@ jobs:
           version: ${{ env.GRADLE_VERSION }}-spigot
           version-type: ${{ env.MODRINTH_TYPE }}
           game-versions: |
-            26.1
             26.1.1
             26.1.2
             26.2
@@ -215,27 +213,6 @@ jobs:
           java: 25
           environment: server
           files: release-artifacts/SpectraEvents-*-spigot.jar
-          changelog-file: release-notes.md
-
-      - name: Publish Sponge Family to Modrinth
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: Kir-Antipov/mc-publish@v3.3
-        with:
-          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
-          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          name: SpectraEvents ${{ env.GRADLE_VERSION }} — Sponge
-          version: ${{ env.GRADLE_VERSION }}-sponge
-          version-type: ${{ env.MODRINTH_TYPE }}
-          game-versions: |
-            26.1
-            26.1.1
-            26.1.2
-            26.2
-          loaders: |
-            sponge
-          java: 25
-          environment: server
-          files: release-artifacts/SpectraEvents-*-sponge.jar
           changelog-file: release-notes.md
 
       - name: Generate Release Summary

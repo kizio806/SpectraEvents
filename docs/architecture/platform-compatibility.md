@@ -18,11 +18,11 @@ SPECTRAEVENTS COMPATIBILITY ARCHITECTURE
 
 ## 2. API Family & Distribution Matrix
 
-| Artifact | Target Platform | Compatible Minecraft Versions | Loaders | Baseline API | Status |
+| Artifact | Target Platform | Factually Verified Compatible Minecraft Versions | Loaders | Baseline API | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Paper Family JAR** | Paper, Purpur, Folia | `26.1`, `26.1.1`, `26.1.2`, `26.2`, `26.3` | `paper`, `purpur`, `folia` | Paper API `26.1` | **IMPLEMENTED + RUNTIME VERIFIED** |
-| **Spigot Family JAR** | Spigot, Bukkit | `26.1`, `26.1.1`, `26.1.2`, `26.2`, `26.3` | `spigot`, `bukkit` | Spigot API `26.1` | **IMPLEMENTED + RUNTIME VERIFIED** |
-| **Sponge JAR** | Sponge | `26.1`, `26.1.1`, `26.1.2`, `26.2` | `sponge` | SpongeAPI `12.0.0` | **FOUNDATION + VERIFIED** |
+| **Paper Family JAR** | Paper, Purpur, Folia | `26.1.1`, `26.1.2`, `26.2`, `26.3` | `paper`, `purpur`, `folia` | Paper API `26.1` | **IMPLEMENTED + RUNTIME VERIFIED** |
+| **Spigot Family JAR** | Spigot, Bukkit | `26.1.1`, `26.1.2`, `26.2`, `26.3` | `spigot`, `bukkit` | Spigot API `26.1` | **IMPLEMENTED + RUNTIME VERIFIED** |
+| **Sponge JAR** | Sponge | None (Upstream 26.x standalone unavailable) | `sponge` | SpongeAPI `12.0.0` | **FOUNDATION / NOT RELEASEABLE ON MODRINTH** |
 
 ---
 

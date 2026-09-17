@@ -192,8 +192,6 @@ jobs:
       matrix:
         include:
           - platform: paper
-            version: '26.1'
-          - platform: paper
             version: '26.1.1'
           - platform: paper
             version: '26.1.2'
@@ -202,9 +200,13 @@ jobs:
           - platform: paper
             version: '26.3'
           - platform: spigot
+            version: '26.1.1'
+          - platform: spigot
+            version: '26.1.2'
+          - platform: spigot
             version: '26.2'
-          - platform: sponge
-            version: '26.2'
+          - platform: spigot
+            version: '26.3'
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
