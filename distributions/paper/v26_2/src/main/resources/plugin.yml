@@ -1,7 +1,10 @@
 name: SpectraEvents
 version: '${version}'
-main: dev.spectraevents.platform.paper.v26_2.SpectraEventsPlugin
+main: io.github.kizio806.spectraevents.platform.paper.v26_2.SpectraEventsPlugin
 description: Modular, data-driven 3D event engine for Paper servers.
+authors:
+  - kizio806
+website: https://github.com/kizio806/SpectraEvents
 api-version: '26.2'
 load: POSTWORLD
 

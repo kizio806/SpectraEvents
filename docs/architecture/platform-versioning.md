@@ -53,6 +53,6 @@ To add a new version binding to the `paper` family:
 
 1. Create directory `platforms/paper/v27_0`.
 2. Add `build.gradle.kts` referencing `:platforms:paper:common`.
-3. Implement `dev.spectraevents.platform.paper.v27_0.SpectraEventsPlugin` delegating to `PaperBootstrap.enable(this)`.
+3. Implement `io.github.kizio806.spectraevents.platform.paper.v27_0.SpectraEventsPlugin` delegating to `PaperBootstrap.enable(this)`.
 4. Create distribution `distributions/paper/v27_0` referencing `:platforms:paper:v27_0`.
 5. Update `settings.gradle.kts`.
