@@ -37,7 +37,19 @@ public class SpigotBootstrap {
             actionAdapter,
             sqliteRepository,
             reconciler,
-            new SpigotCapabilityQuery());
+            new SpigotCapabilityQuery(),
+            renderer);
+    actionAdapter.setModelRuntimeService(application.modelRuntimeService());
+
+    try {
+      io.github.kizio806.spectraevents.application.model.loader.FileSystemModelLoader
+          modelFileSystemLoader =
+              new io.github.kizio806.spectraevents.application.model.loader.FileSystemModelLoader(
+                  plugin.getDataFolder().toPath(), application.modelLoader());
+      modelFileSystemLoader.loadFromDisk();
+    } catch (Exception e) {
+      plugin.getLogger().severe("Failed to load 3D models: " + e.getMessage());
+    }
 
     application.start();
   }

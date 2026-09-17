@@ -1,0 +1,26 @@
+id: dev_metin_model
+
+parts:
+  stone:
+    type: item_display
+    item: minecraft:crying_obsidian
+    transform:
+      translation: [0.0, 0.0, 0.0]
+      scale: [2.5, 2.5, 2.5]
+    render:
+      billboard: fixed
+
+  label:
+    type: text_display
+    parent: stone
+    text: "<purple><bold>🪨 METIN STONE"
+    transform:
+      translation: [0.0, 3.0, 0.0]
+    render:
+      billboard: center
+
+interactions:
+  main:
+    parent: stone
+    width: 3.0
+    height: 3.5

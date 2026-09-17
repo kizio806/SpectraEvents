@@ -80,11 +80,23 @@ public final class DiagnosticsCommandHandler {
                     enabledIntegrations + " active",
                     enabledIntegrations > 0 ? NamedTextColor.GREEN : NamedTextColor.GRAY)));
 
+    if (application.modelDefinitionRegistry() != null) {
+      int modelCount = application.modelDefinitionRegistry().all().size();
+      int activeModels =
+          application.modelRuntimeService() != null
+              ? application.modelRuntimeService().getActiveInstances().size()
+              : 0;
+      sender.sendMessage(
+          Component.text(" [5] 3D Models: ", NamedTextColor.GRAY)
+              .append(Component.text(modelCount + " loaded, ", NamedTextColor.GREEN))
+              .append(Component.text(activeModels + " active instances", NamedTextColor.GREEN)));
+    }
+
     io.github.kizio806.spectraevents.application.service.EntityReconciliationReport report =
         application.lastReconciliationReport();
     if (report != null) {
       sender.sendMessage(
-          Component.text(" [5] Last Startup Reconciliation: ", NamedTextColor.GRAY)
+          Component.text(" [6] Last Startup Reconciliation: ", NamedTextColor.GRAY)
               .append(
                   Component.text(
                       report.instancesRecovered() + " recovered, ", NamedTextColor.GREEN))
