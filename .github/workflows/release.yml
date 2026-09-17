@@ -168,6 +168,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
           name: SpectraEvents v${{ env.GRADLE_VERSION }}
           body_path: release-notes.md
           files: |
