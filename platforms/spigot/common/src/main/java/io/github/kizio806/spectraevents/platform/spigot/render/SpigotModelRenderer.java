@@ -324,6 +324,15 @@ public class SpigotModelRenderer implements ModelRendererPort {
   @Override
   public boolean updatePartTransform(
       RenderedModelHandle handle, ModelPartId partId, ModelTransform newLocalTransform) {
+    return updatePartTransform(handle, partId, newLocalTransform, 0);
+  }
+
+  @Override
+  public boolean updatePartTransform(
+      RenderedModelHandle handle,
+      ModelPartId partId,
+      ModelTransform newLocalTransform,
+      int interpolationDurationTicks) {
     Objects.requireNonNull(handle, "handle cannot be null");
     Objects.requireNonNull(partId, "partId cannot be null");
     Objects.requireNonNull(newLocalTransform, "newLocalTransform cannot be null");
@@ -333,6 +342,9 @@ public class SpigotModelRenderer implements ModelRendererPort {
 
     Entity entity = Bukkit.getEntity(partHandle.entityUuid());
     if (entity instanceof Display display && entity.isValid()) {
+      if (interpolationDurationTicks >= 0) {
+        display.setInterpolationDuration(interpolationDurationTicks);
+      }
       display.setTransformationMatrix(toMatrix4f(newLocalTransform));
       return true;
     }
