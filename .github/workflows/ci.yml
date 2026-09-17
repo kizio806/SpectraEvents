@@ -1,31 +1,219 @@
 name: CI
 
 on:
-  push:
   pull_request:
+    branches:
+      - main
+      - 'release/**'
+  push:
+    branches:
+      - main
+      - 'release/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
+env:
+  JAVA_VERSION: '25'
+
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+  lint-and-structure:
+    name: CI / Lint & Structure
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
 
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Set up Java 25
+      - name: Set up Java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
-          java-version: '25'
+          java-version: ${{ env.JAVA_VERSION }}
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@67621b124fd2e251c5e8a0e6e3b91318f2287669 # v6.3.0
         with:
           validate-wrappers: true
 
-      - name: Run full quality gate
-        run: ./gradlew clean check build
+      - name: Run code formatting & boundary checks
+        run: ./gradlew spotlessCheck verifyPlatformBoundaries
+
+  core-tests:
+    name: CI / Core Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@67621b124fd2e251c5e8a0e6e3b91318f2287669 # v6.3.0
+
+      - name: Run Core unit & architecture tests
+        run: ./gradlew :spectraevents-core:check
+
+  application-tests:
+    name: CI / Application Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@67621b124fd2e251c5e8a0e6e3b91318f2287669 # v6.3.0
+
+      - name: Run Application tests & integration suite
+        run: ./gradlew :spectraevents-application:check
+
+      - name: Upload Application test reports
+        if: failure()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: test-reports-application
+          path: spectraevents-application/build/reports/tests/
+
+  adapter-tests:
+    name: CI / Adapter Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@67621b124fd2e251c5e8a0e6e3b91318f2287669 # v6.3.0
+
+      - name: Run Adapter tests
+        run: ./gradlew :adapters:storage-sqlite:check :adapters:update-http:check
+
+      - name: Upload Adapter test reports
+        if: failure()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: test-reports-adapters
+          path: adapters/*/build/reports/tests/
+
+  paper-build-and-tests:
+    name: CI / Paper Build & Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@67621b124fd2e251c5e8a0e6e3b91318f2287669 # v6.3.0
+
+      - name: Run Paper platform checks
+        run: ./gradlew :platforms:paper:common:check :platforms:paper:v26_2:check
+
+  distribution-verification:
+    name: CI / Distribution Verification
+    needs:
+      - lint-and-structure
+      - core-tests
+      - application-tests
+      - adapter-tests
+      - paper-build-and-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@67621b124fd2e251c5e8a0e6e3b91318f2287669 # v6.3.0
+
+      - name: Build distribution artifact
+        run: ./gradlew :distributions:paper:v26_2:build
+
+      - name: Inspect generated JAR
+        run: |
+          JAR_FILE=$(find distributions/paper/v26_2/build/libs/ -name "SpectraEvents-*.jar" ! -name "*-sources.jar" | head -n 1)
+          if [ -z "$JAR_FILE" ]; then
+            echo "::error::Distribution JAR file not found!"
+            exit 1
+          fi
+          echo "Found JAR: $JAR_FILE"
+          jar tf "$JAR_FILE" | grep "plugin.yml"
+          jar tf "$JAR_FILE" | grep "io/github/kizio806/spectraevents/platform/paper/v26_2/SpectraEventsPlugin.class"
+
+      - name: Upload distribution artifact
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: spectraevents-paper
+          path: distributions/paper/v26_2/build/libs/SpectraEvents-*.jar
+          if-no-files-found: error
+
+  release-readiness:
+    name: CI / Release Readiness
+    needs:
+      - distribution-verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@67621b124fd2e251c5e8a0e6e3b91318f2287669 # v6.3.0
+
+      - name: Run root quality gate
+        run: ./gradlew --no-daemon clean check build
+
+      - name: Generate CI Summary
+        run: |
+          echo "# SpectraEvents CI Status" >> $GITHUB_STEP_SUMMARY
+          echo "- **Quality Gate:** PASS" >> $GITHUB_STEP_SUMMARY
+          echo "- **Distribution Verification:** PASS" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target Java:** ${{ env.JAVA_VERSION }}" >> $GITHUB_STEP_SUMMARY

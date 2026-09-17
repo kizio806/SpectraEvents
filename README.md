@@ -1,5 +1,9 @@
 # SpectraEvents
 
+[![CI](https://github.com/kizio806/SpectraEvents/actions/workflows/ci.yml/badge.svg)](https://github.com/kizio806/SpectraEvents/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/kizio806/SpectraEvents/actions/workflows/codeql.yml/badge.svg)](https://github.com/kizio806/SpectraEvents/actions/workflows/codeql.yml)
+[![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-blue.svg)](https://opensource.org/licenses/MPL-2.0)
+
 **SpectraEvents Beta Foundation (v0.1.0-beta.1)**
 
 SpectraEvents is in public Beta. The generic event engine features 100% config-driven execution for Meteor, Airdrop, and Metin, atomic claim logic, damage tracking, transactional YAML reloads, SQLite persistence with restart recovery, an interactive Admin Inventory GUI, native permissions, and an update checker. SpectraEvents provides reusable building blocks that can be combined into completely different experiences.
