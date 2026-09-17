@@ -40,5 +40,9 @@ include(
     "adapters:update-http",
     "platforms:paper:common",
     "platforms:paper:v26_2",
+    "platforms:spigot:v26_2",
+    "platforms:sponge:v26_2",
     "distributions:paper:v26_2",
+    "distributions:spigot:v26_2",
+    "distributions:sponge:v26_2",
 )

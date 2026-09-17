@@ -22,6 +22,17 @@ APIs, configuration formats, and internal architecture are pre-release and subje
 
 The generic event engine features 100% config-driven execution for `Meteor`, `Airdrop`, and `Metin`, atomic claim logic, damage tracking, transactional YAML reloads, SQLite persistence with restart recovery, an interactive Admin Inventory GUI, native permissions, and an update checker.
 
+## Platform Support
+
+| Platform | Artifact | Status | Runtime Tested |
+| --- | --- | --- | --- |
+| Paper | `SpectraEvents-paper.jar` | Supported | Yes |
+| Purpur | `SpectraEvents-paper.jar` | Supported | Yes |
+| Folia | `SpectraEvents-paper.jar` | Supported | Yes |
+| Spigot | `SpectraEvents-spigot.jar` | Supported | No (Compile only) |
+| Bukkit | `SpectraEvents-spigot.jar` | Fallback | No |
+| Sponge | `SpectraEvents-sponge.jar` | Experimental | No (Compile only) |
+
 ---
 
 ## Vision

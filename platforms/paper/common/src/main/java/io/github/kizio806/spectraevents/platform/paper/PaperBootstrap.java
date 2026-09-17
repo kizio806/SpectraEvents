@@ -8,6 +8,7 @@ import io.github.kizio806.spectraevents.application.update.UpdateService;
 import io.github.kizio806.spectraevents.platform.paper.action.PaperActionAdapter;
 import io.github.kizio806.spectraevents.platform.paper.command.SpectraDebugCommand;
 import io.github.kizio806.spectraevents.platform.paper.command.SpectraMainCommand;
+import io.github.kizio806.spectraevents.platform.paper.common.PaperCapabilityQuery;
 import io.github.kizio806.spectraevents.platform.paper.common.PaperLifecycleReporter;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.paper.gui.AdminGuiController;
@@ -64,7 +65,8 @@ public final class PaperBootstrap {
             eventTaskScheduler,
             actionAdapter,
             sqliteRepository,
-            reconciler);
+            reconciler,
+            new PaperCapabilityQuery());
     application.start();
 
     definitionConfigBootstrap =

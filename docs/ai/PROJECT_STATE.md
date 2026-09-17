@@ -39,10 +39,14 @@ Paper 26.2 (Java 25 runtime); Platform-neutral core and application target Java 
   - Hardened absolute timer persistence allowing recovery of queued actions after a crash or restart.
   - Built comprehensive `EntityReconciliationService` to garbage-collect orphaned models and entities at boot or reconnect them to running events.
   - Finalized `/spectra doctor` diagnostics exposing missing optional dependencies and integration status gracefully.
+- [x] Multi-Platform Expansion:
+  - Added full compatibility with Spigot via a dedicated adapter without circular dependencies.
+  - Basic SpongeAPI 12 foundation adapter and capabilities query implemented.
+  - Spigot and Sponge distributions compile gracefully and are packaged independently.
 
 ## In Progress
 
-None.
+- Professional 3D model runtime integration (model hierarchy, interpolation, resources).
 
 ## Next Planned Milestone
 

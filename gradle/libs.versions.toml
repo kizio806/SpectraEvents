@@ -18,6 +18,10 @@ miniplaceholders = "2.2.3"
 nexo = "0.7.0"
 oraxen = "1.182.0"
 itemsadder = "3.6.1"
+spigot = "1.21.3-R0.1-SNAPSHOT"
+sponge = "12.0.0-SNAPSHOT"
+adventure-platform = "4.3.4"
+adventure = "4.17.0"
 
 [libraries]
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
@@ -34,7 +38,10 @@ miniplaceholders-api = { module = "io.github.miniplaceholders:miniplaceholders-a
 nexo-api = { module = "com.nexomc:nexo", version.ref = "nexo" }
 oraxen-api = { module = "io.th0rgal:oraxen", version.ref = "oraxen" }
 itemsadder-api = { module = "com.github.LoneDev6:API-ItemsAdder", version.ref = "itemsadder" }
-
+spigot-api = { module = "org.spigotmc:spigot-api", version.ref = "spigot" }
+sponge-api = { module = "org.spongepowered:spongeapi", version.ref = "sponge" }
+adventure-platform-bukkit = { module = "net.kyori:adventure-platform-bukkit", version.ref = "adventure-platform" }
+adventure-text-minimessage = { module = "net.kyori:adventure-text-minimessage", version.ref = "adventure" }
 [plugins]
 run-paper = { id = "xyz.jpenilla.run-paper", version.ref = "run-paper" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
