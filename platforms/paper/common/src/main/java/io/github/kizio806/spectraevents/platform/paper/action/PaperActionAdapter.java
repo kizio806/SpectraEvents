@@ -3,13 +3,13 @@ package io.github.kizio806.spectraevents.platform.paper.action;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.application.execution.FatalActionException;
+import io.github.kizio806.spectraevents.application.model.runtime.ModelAnchor;
+import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeService;
+import io.github.kizio806.spectraevents.application.model.runtime.RenderedModelHandle;
 import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
 import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
-import io.github.kizio806.spectraevents.core.visual.model.ModelDefinition;
 import io.github.kizio806.spectraevents.core.visual.model.ModelId;
-import io.github.kizio806.spectraevents.core.visual.model.ModelPartDefinition;
-import io.github.kizio806.spectraevents.core.visual.model.Transform;
 import io.github.kizio806.spectraevents.platform.paper.integration.MiniPlaceholdersIntegration;
 import io.github.kizio806.spectraevents.platform.paper.integration.item.CustomItemProvider;
 import io.github.kizio806.spectraevents.platform.paper.integration.item.ItemsAdderItemProvider;
@@ -45,6 +45,7 @@ public final class PaperActionAdapter implements PlatformActionPort {
   private final RegionTaskScheduler regionScheduler;
   private final PaperResourceCleaner cleaner;
   private final List<CustomItemProvider> itemProviders = new ArrayList<>();
+  private ModelRuntimeService modelRuntimeService;
 
   public PaperActionAdapter(
       PaperModelRenderer renderer,
@@ -57,6 +58,10 @@ public final class PaperActionAdapter implements PlatformActionPort {
     itemProviders.add(new NexoItemProvider());
     itemProviders.add(new OraxenItemProvider());
     itemProviders.add(new ItemsAdderItemProvider());
+  }
+
+  public void setModelRuntimeService(ModelRuntimeService modelRuntimeService) {
+    this.modelRuntimeService = modelRuntimeService;
   }
 
   @Override
@@ -126,47 +131,64 @@ public final class PaperActionAdapter implements PlatformActionPort {
           "Cannot spawn model: platform location reference is null for instance " + instance.id());
     }
 
-    int heightOffset = getIntParam(params, "height-offset", 20);
-    if (heightOffset == 20 && params.containsKey("height_offset")) {
-      heightOffset = getIntParam(params, "height_offset", 20);
+    String modelIdStr = getStringParam(params, "model", "meteor");
+    int defaultHeightOffset = "meteor".equalsIgnoreCase(modelIdStr) ? 20 : 0;
+    int heightOffset = getIntParam(params, "height-offset", defaultHeightOffset);
+    if (!params.containsKey("height-offset") && params.containsKey("height_offset")) {
+      heightOffset = getIntParam(params, "height_offset", defaultHeightOffset);
     }
 
     Location spawnLoc = baseLoc.clone().add(0, heightOffset, 0);
-    ModelDefinition modelDef =
-        resolveModelDefinition(getStringParam(params, "model", "dev_meteor_model"));
-
-    int finalHeightOffset = heightOffset;
+    ModelId modelId = new ModelId(modelIdStr);
 
     regionScheduler.executeAt(
         spawnLoc,
         () -> {
-          boolean spawned =
-              renderer.spawnWithTranslation(
-                  instance.id(),
-                  modelDef,
-                  spawnLoc,
-                  new org.joml.Vector3f(0, finalHeightOffset, 0));
+          if (modelRuntimeService == null) {
+            LOGGER.warning("ModelRuntimeService not initialized in PaperActionAdapter");
+            return;
+          }
 
-          if (spawned) {
-            cleaner.registerCustomCleanup(instance.id(), () -> renderer.remove(instance.id()));
+          ModelAnchor anchor =
+              new ModelAnchor(
+                  spawnLoc.getWorld().getName(),
+                  spawnLoc.getX(),
+                  spawnLoc.getY(),
+                  spawnLoc.getZ(),
+                  spawnLoc.getYaw(),
+                  spawnLoc.getPitch());
 
-            boolean animate = getBooleanParam(params, "animate", true);
-            if (animate) {
-              renderer.startTransformAnimation(instance.id(), modelDef, 60);
-            }
+          RenderedModelHandle handle =
+              modelRuntimeService.spawnModel(modelId, anchor, instance.id());
+
+          if (handle != null) {
+            cleaner.registerCustomCleanup(
+                instance.id(), () -> modelRuntimeService.removeModel(handle.runtimeId()));
           } else {
             throw new FatalActionException(
-                "Failed to spawn model entity for instance " + instance.id());
+                "Failed to spawn 3D model '" + modelId.value() + "' for instance " + instance.id());
           }
         });
   }
 
   private void handleMoveModel(EventInstance instance, Location baseLoc) {
-    if (baseLoc == null) return;
+    if (baseLoc == null || modelRuntimeService == null) return;
     regionScheduler.executeAt(
         baseLoc,
         () -> {
-          renderer.move(instance.id(), baseLoc);
+          ModelAnchor anchor =
+              new ModelAnchor(
+                  baseLoc.getWorld().getName(),
+                  baseLoc.getX(),
+                  baseLoc.getY(),
+                  baseLoc.getZ(),
+                  baseLoc.getYaw(),
+                  baseLoc.getPitch());
+          for (RenderedModelHandle handle : modelRuntimeService.getActiveInstances()) {
+            if (instance.id().equals(handle.ownerEventId())) {
+              modelRuntimeService.updateModelTransform(handle.runtimeId(), anchor);
+            }
+          }
         });
   }
 
@@ -302,38 +324,6 @@ public final class PaperActionAdapter implements PlatformActionPort {
                 }
               });
         });
-  }
-
-  private ModelDefinition resolveModelDefinition(String modelId) {
-    if ("dev_airdrop_model".equalsIgnoreCase(modelId) || "airdrop".equalsIgnoreCase(modelId)) {
-      return new ModelDefinition(
-          new ModelId(modelId),
-          List.of(
-              new ModelPartDefinition(
-                  "crate", new Transform(0, 0, 0, 0, 0, 0, 1, 1, 1), "minecraft:barrel"),
-              new ModelPartDefinition(
-                  "parachute",
-                  new Transform(0, 1.2f, 0, 0, 0, 0, 1.5f, 0.2f, 1.5f),
-                  "minecraft:iron_block")));
-    }
-    if ("dev_metin_model".equalsIgnoreCase(modelId) || "metin".equalsIgnoreCase(modelId)) {
-      return new ModelDefinition(
-          new ModelId(modelId),
-          List.of(
-              new ModelPartDefinition(
-                  "stone",
-                  new Transform(0, 1, 0, 0, 0, 0, 1.5f, 3.0f, 1.5f),
-                  "minecraft:obsidian")));
-    }
-    return new ModelDefinition(
-        new ModelId(modelId),
-        List.of(
-            new ModelPartDefinition(
-                "core", new Transform(0, 0, 0, 0, 0, 0, 1, 1, 1), "minecraft:magma_block"),
-            new ModelPartDefinition(
-                "tail",
-                new Transform(0, 1, 0, 0, 0, 0, 0.5f, 1.0f, 0.5f),
-                "minecraft:blackstone")));
   }
 
   private Material resolveMaterial(String name) {

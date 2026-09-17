@@ -1,0 +1,26 @@
+id: dev_airdrop_model
+
+parts:
+  crate:
+    type: item_display
+    item: minecraft:chest
+    transform:
+      translation: [0.0, 0.0, 0.0]
+      scale: [1.5, 1.5, 1.5]
+    render:
+      billboard: fixed
+
+  label:
+    type: text_display
+    parent: crate
+    text: "<gold><bold>🎁 AIRDROP"
+    transform:
+      translation: [0.0, 2.0, 0.0]
+    render:
+      billboard: center
+
+interactions:
+  main:
+    parent: crate
+    width: 2.0
+    height: 2.0

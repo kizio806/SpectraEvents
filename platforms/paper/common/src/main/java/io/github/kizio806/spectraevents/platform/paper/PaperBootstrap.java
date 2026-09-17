@@ -46,9 +46,14 @@ public final class PaperBootstrap {
   }
 
   public void enable() {
-    renderer = new PaperModelRenderer(plugin);
     eventTaskScheduler = new PaperEventTaskScheduler(plugin);
     regionScheduler = new PaperRegionTaskScheduler(plugin);
+
+    integrationRegistry = new IntegrationRegistry();
+    PaperIntegrationManager integrationManager = new PaperIntegrationManager(integrationRegistry);
+    integrationManager.detectAll();
+
+    renderer = new PaperModelRenderer(plugin);
     cleaner = new PaperResourceCleaner(renderer, eventTaskScheduler);
 
     Path dbPath = plugin.getDataFolder().toPath().resolve("spectraevents.db");
@@ -56,7 +61,6 @@ public final class PaperBootstrap {
     sqliteRepository.initialize();
 
     PaperActionAdapter actionAdapter = new PaperActionAdapter(renderer, regionScheduler, cleaner);
-
     PaperEntityReconciler reconciler = new PaperEntityReconciler(plugin, renderer);
 
     application =
@@ -66,8 +70,29 @@ public final class PaperBootstrap {
             actionAdapter,
             sqliteRepository,
             reconciler,
-            new PaperCapabilityQuery());
+            new PaperCapabilityQuery(),
+            renderer);
+    actionAdapter.setModelRuntimeService(application.modelRuntimeService());
     application.start();
+
+    // Load 3D Models
+    try {
+      io.github.kizio806.spectraevents.application.model.loader.FileSystemModelLoader
+          modelFileSystemLoader =
+              new io.github.kizio806.spectraevents.application.model.loader.FileSystemModelLoader(
+                  plugin.getDataFolder().toPath(), application.modelLoader());
+      var modelLoadResult = modelFileSystemLoader.loadFromDisk();
+      plugin
+          .getLogger()
+          .info(
+              "[SpectraEvents] Models: "
+                  + modelLoadResult.loadedCount()
+                  + " loaded, "
+                  + modelLoadResult.invalidCount()
+                  + " invalid.");
+    } catch (Exception e) {
+      plugin.getLogger().severe("Failed to load 3D models: " + e.getMessage());
+    }
 
     definitionConfigBootstrap =
         new PaperDefinitionConfigBootstrap(plugin, application.definitionLoader());
@@ -88,14 +113,11 @@ public final class PaperBootstrap {
                   report.instancesRecovered(),
                   report.entitiesReconnected(),
                   report.orphansRemoved()));
-
     } catch (Exception e) {
-      plugin.getLogger().severe("Failed to load event definitions: " + e.getMessage());
+      plugin
+          .getLogger()
+          .severe("Failed to initialize event definitions or reconciliation: " + e.getMessage());
     }
-
-    integrationRegistry = new IntegrationRegistry();
-    PaperIntegrationManager integrationManager = new PaperIntegrationManager(integrationRegistry);
-    integrationManager.detectAll();
 
     // Initialize specific integrations
     new PlaceholderAPIIntegration(sqliteRepository, application.executionEngine().stateStore());
