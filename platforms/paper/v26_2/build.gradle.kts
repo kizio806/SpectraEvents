@@ -12,7 +12,7 @@ dependencies {
     compileOnly(libs.paper.api)
     testImplementation(libs.paper.api)
     testImplementation(libs.junit.jupiter)
-    testImplementation("org.mockito:mockito-core:5.11.0")
+    testImplementation("org.mockito:mockito-core:5.23.0")
 }
 
 tasks.withType<JavaCompile>().configureEach {
