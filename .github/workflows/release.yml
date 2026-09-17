@@ -177,12 +177,15 @@ jobs:
 
       - name: Validate Modrinth Credentials
         if: startsWith(github.ref, 'refs/tags/')
+        env:
+          MODRINTH_ID: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: |
-          if [ -z "${{ vars.MODRINTH_PROJECT_ID }}" ]; then
-            echo "::error::MODRINTH_PROJECT_ID variable is missing!"
+          if [ -z "$MODRINTH_ID" ]; then
+            echo "::error::MODRINTH_PROJECT_ID secret or variable is missing!"
             exit 1
           fi
-          if [ -z "${{ secrets.MODRINTH_TOKEN }}" ]; then
+          if [ -z "$MODRINTH_TOKEN" ]; then
             echo "::error::MODRINTH_TOKEN secret is missing!"
             exit 1
           fi
@@ -192,7 +195,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: Kira-NT/mc-publish@v3
         with:
-          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           modrinth-environment: server
           modrinth-loaders: |
