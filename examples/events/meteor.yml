@@ -1,0 +1,119 @@
+schema-version: 1
+id: meteor
+display:
+  name: "<gradient:#ff3300:#ffaa00><bold>Meteor</bold></gradient>"
+
+spawn:
+  strategy: random-surface
+  world: world
+  min-radius: 100
+  max-radius: 2000
+  avoid-blocks: [WATER, LAVA, CACTUS]
+
+models:
+  meteor_core:
+    parts:
+      main:
+        type: block
+        block: OBSIDIAN
+        scale: [3.0, 3.0, 3.0]
+
+initial-phase: falling
+
+phases:
+  falling:
+    on-enter:
+      - action: broadcast
+        message: "A {event_name} is falling at {x}, {z}!"
+    components:
+      model:
+        ref: meteor_core
+    transitions:
+      - to: impact
+        when:
+          trigger: ground-collision
+
+  impact:
+    on-enter:
+      - action: play-sound
+        sound: entity.generic.explode
+      - action: spawn-particles
+        type: EXPLOSION_HUGE
+    transitions:
+      - to: locked
+        when:
+          trigger: timer-expired
+    components:
+      timer:
+        duration: 0s
+
+  locked:
+    components:
+      model:
+        ref: meteor_core
+      timer:
+        duration: 30s
+      area:
+        shape: sphere
+        radius: 20
+        rules:
+          pvp: false
+      hologram:
+        offset: [0, 4, 0]
+        text: "Unlocks in {time}"
+    transitions:
+      - to: active
+        when:
+          trigger: timer-expired
+
+  active:
+    components:
+      model:
+        ref: meteor_core
+      health:
+        max: 10000
+      interaction:
+        width: 3.0
+        height: 3.0
+      bossbar:
+        title: "{event_name} - {health_percent}"
+        color: RED
+      leaderboard:
+        metric: damage
+      area:
+        shape: sphere
+        radius: 20
+        rules:
+          pvp: true
+    transitions:
+      - to: destroyed
+        when:
+          trigger: health-zero
+
+  destroyed:
+    on-enter:
+      - action: broadcast
+        message: "The {event_name} was destroyed by {top_1_name}!"
+      - action: give-reward
+        table: meteor_loot
+        distribution: top-3
+    transitions:
+      - to: cleanup
+        when:
+          trigger: timer-expired
+    components:
+      timer:
+        duration: 5s
+
+  cleanup:
+    on-enter:
+      - action: complete-event
+
+loot-tables:
+  meteor_loot:
+    rolls: 1
+    entries:
+      - type: vanilla-item
+        material: DIAMOND
+        amount: 10
+        weight: 1

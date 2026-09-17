@@ -1,0 +1,72 @@
+id: airdrop
+schema-version: "1"
+initial-phase: falling
+
+phases:
+  falling:
+    on-enter:
+      - type: spawn_model
+        model: dev_airdrop_model
+        height-offset: 15
+        animate: true
+    transitions:
+      - trigger:
+          type: timer_elapsed
+          duration: 3s
+        target: locked
+
+  locked:
+    on-enter:
+      - type: move_model
+        target: ground
+      - type: set_locked
+        duration: 5s
+      - type: play_sound
+        sound: minecraft:block.wood.place
+        volume: 1.0
+        pitch: 0.5
+      - type: spawn_particles
+        particle: minecraft:cloud
+        count: 15
+    transitions:
+      - trigger:
+          type: timer_elapsed
+          duration: 5s
+        target: open
+      - trigger:
+          type: interaction
+        actions:
+          - type: send_message
+            message: "<red>Airdrop is locked."
+
+  open:
+    on-enter:
+      - type: play_sound
+        sound: minecraft:block.chest.open
+        volume: 1.0
+        pitch: 1.0
+      - type: spawn_particles
+        particle: minecraft:happy_villager
+        count: 10
+    transitions:
+      - trigger:
+          type: interaction
+        actions:
+          - type: try_claim
+          - type: give_item
+            material: minecraft:diamond
+            amount: 1
+          - type: send_message
+            message: "<green>You claimed the Airdrop!"
+          - type: play_sound
+            sound: minecraft:entity.player.levelup
+            volume: 1.0
+            pitch: 1.0
+        target: claimed
+
+  claimed:
+    on-enter:
+      - type: remove_model
+      - type: complete_event
+
+  completed: {}

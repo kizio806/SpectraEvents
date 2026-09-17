@@ -1,0 +1,68 @@
+id: meteor
+schema-version: "1"
+initial-phase: falling
+
+phases:
+  falling:
+    on-enter:
+      - type: initialize_health
+        max: 20
+      - type: spawn_model
+        model: dev_meteor_model
+        height-offset: 20
+        animate: true
+    transitions:
+      - trigger:
+          type: timer_elapsed
+          duration: 3s
+        target: impact
+
+  impact:
+    on-enter:
+      - type: move_model
+        target: ground
+      - type: play_sound
+        sound: minecraft:entity.generic.explode
+        volume: 1.0
+        pitch: 1.0
+      - type: spawn_particles
+        particle: minecraft:explosion
+        count: 10
+    transitions:
+      - trigger:
+          type: timer_elapsed
+          duration: 1s
+        target: locked
+
+  locked:
+    on-enter:
+      - type: set_locked
+        duration: 10s
+    transitions:
+      - trigger:
+          type: timer_elapsed
+          duration: 10s
+        target: active
+      - trigger:
+          type: interaction
+        actions:
+          - type: send_message
+            message: "<red>Meteor is locked."
+
+  active:
+    transitions:
+      - trigger:
+          type: interaction
+        actions:
+          - type: apply_damage
+            amount: 1
+      - trigger:
+          type: health_depleted
+        target: destroyed
+
+  destroyed:
+    on-enter:
+      - type: remove_model
+      - type: complete_event
+
+  completed: {}

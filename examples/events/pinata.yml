@@ -1,0 +1,67 @@
+schema-version: 1
+id: pinata
+display:
+  name: "<yellow>Llama Pinata</yellow>"
+
+spawn:
+  strategy: random-surface
+  world: world
+  min-radius: 100
+  max-radius: 1000
+
+models:
+  llama:
+    parts:
+      body:
+        type: block
+        block: YELLOW_WOOL
+        scale: [1.0, 1.0, 1.0]
+        offset: [0.0, 1.0, 0.0]
+
+initial-phase: active
+
+phases:
+  active:
+    components:
+      model:
+        ref: llama
+      interaction:
+        width: 1.5
+        height: 2.0
+      hit-counter:
+        max: 50
+    transitions:
+      - to: broken
+        when:
+          trigger: hits-reached
+          threshold: 50
+
+  broken:
+    on-enter:
+      - action: play-sound
+        sound: entity.firework_rocket.large_blast
+      - action: spawn-particles
+        type: TOTEM_OF_UNDYING
+    transitions:
+      - to: rewarding
+        when:
+          trigger: timer-expired
+    components:
+      timer:
+        duration: 0s
+
+  rewarding:
+    on-enter:
+      - action: give-reward
+        table: pinata_loot
+        distribution: random-participant
+      - action: complete-event
+
+loot-tables:
+  pinata_loot:
+    rolls: 1
+    entries:
+      - type: vanilla-item
+        material: EMERALD
+        amount: 32
+        weight: 1

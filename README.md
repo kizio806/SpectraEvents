@@ -1,10 +1,8 @@
 # SpectraEvents
 
-**A modular, data-driven 3D event engine for modern Minecraft servers.**
+**SpectraEvents Beta Foundation (v0.1.0-beta.1)**
 
-SpectraEvents is a next-generation event framework for Paper servers designed to create rich, cinematic and highly configurable server events without writing a separate plugin for every event type.
-
-Instead of hardcoding meteors, airdrops, piñatas, crystals, boss portals or seasonal events, SpectraEvents provides reusable building blocks that can be combined into completely different experiences.
+SpectraEvents is in public Beta. The generic event engine features 100% config-driven execution for Meteor, Airdrop, and Metin, atomic claim logic, damage tracking, transactional YAML reloads, SQLite persistence with restart recovery, an interactive Admin Inventory GUI, native permissions, and an update checker. SpectraEvents provides reusable building blocks that can be combined into completely different experiences.
 
 > **One engine. Any event.**
 
@@ -257,11 +255,7 @@ spectraevents/
 ├── spectraevents-pack/
 │
 ├── spectraevents-integrations/
-│   ├── integration-oraxen/
-│   ├── integration-nexo/
-│   ├── integration-itemsadder/
-│   ├── integration-worldguard/
-│   └── integration-placeholderapi/
+│   └── (Planned integrations)
 │
 ├── spectraevents-testkit/
 │

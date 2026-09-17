@@ -1,0 +1,83 @@
+schema-version: 1
+id: boss-portal
+display:
+  name: "<dark_red>Demon Portal</dark_red>"
+
+spawn:
+  strategy: fixed
+  world: world
+  x: 0
+  y: 70
+  z: 0
+
+models:
+  portal_frame:
+    parts:
+      frame:
+        type: block
+        block: OBSIDIAN
+        scale: [4.0, 5.0, 1.0]
+
+initial-phase: dormant
+
+phases:
+  dormant:
+    components:
+      model:
+        ref: portal_frame
+      interaction:
+        width: 4.0
+        height: 5.0
+    transitions:
+      - to: charging
+        when:
+          trigger: item-delivered
+          item: SOUL_SAND
+
+  charging:
+    components:
+      model:
+        ref: portal_frame
+      interaction:
+        width: 4.0
+        height: 5.0
+      hit-counter:
+        max: 100
+      leaderboard:
+        metric: hits
+    transitions:
+      - to: open
+        when:
+          trigger: hits-reached
+          threshold: 100
+
+  open:
+    on-enter:
+      - action: spawn-mob
+        mob-type: WITHER
+        amount: 1
+    components:
+      model:
+        ref: portal_frame
+      mob-wave:
+        track: true
+    transitions:
+      - to: boss_defeated
+        when:
+          trigger: wave-cleared
+
+  boss_defeated:
+    on-enter:
+      - action: give-reward
+        table: portal_loot
+        distribution: all-participants
+      - action: complete-event
+
+loot-tables:
+  portal_loot:
+    rolls: 1
+    entries:
+      - type: vanilla-item
+        material: NETHER_STAR
+        amount: 1
+        weight: 1

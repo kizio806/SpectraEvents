@@ -1,0 +1,15 @@
+schema-version: "1"
+id: example
+initial-phase: waiting
+phases:
+  waiting:
+    transitions:
+      - trigger:
+          type: manual
+        target: active
+  active:
+    transitions:
+      - trigger:
+          type: manual
+        target: completed
+  completed: {}
