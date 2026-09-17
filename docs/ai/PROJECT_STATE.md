@@ -54,7 +54,14 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
   - Built `ModelDefinitionRegistry` and `ModelRuntimeService` with atomic spawn, rollback on failure, and idempotent removal.
   - Production platform renderers (`PaperModelRenderer` and `SpigotModelRenderer`) utilizing native `ItemDisplay`, `BlockDisplay`, `TextDisplay`, and `Interaction` entities with PDC ownership tagging.
   - Event actions (`spawn_model`, `remove_model`) and events (Meteor, Airdrop, Metin) fully migrated to the new 3D model runtime.
-  - Developer/Admin CLI tool commands (`/spectra model list`, `info`, `validate`, `spawn`, `remove`) and `/spectra doctor` 3D metrics.
+- [x] Professional 3D Animation & Timeline Engine:
+  - Built platform-neutral animation math primitives (`AnimationTime`, `AnimationDuration`, `Easing`, `RotationMode`, `LoopMode`, `Vector3Keyframe`, `RotationKeyframe`, `ScaleKeyframe`, `TimelineCue`, `AnimationDefinition`).
+  - Implemented Quaternion SLERP with shortest-path sign handling ($q$ vs $-q$) and continuous Euler angle lerp ($0^\circ \to 720^\circ$ multi-turn spins).
+  - Built DTO specs (`AnimationSpec`, `KeyframeSpec`, `TimelineCueSpec`) and `AnimationCompiler` with precompiled segment breakdown (50ms sub-steps for non-linear easing curves).
+  - Built `AnimationDefinitionRegistry`, `ActiveAnimationRegistry`, and `AnimationRuntimeService` for playback lifecycle control (`play`, `pause`, `resume`, `stop`, `seek`).
+  - Native client-side Display interpolation (`setInterpolationDuration`) via `ModelRendererPort` updates (`PaperModelRenderer` and `SpigotModelRenderer`), running with zero server tick loops.
+  - Event-driven timeline cue callbacks (`AnimationCueReached`) and recovery policy support (`RESTART`, `RESUME`, `STOP`).
+  - Unit tests covering math, easing, compiler, playback state machine, and interpolation dispatch.
 
 ## In Progress
 
@@ -62,7 +69,7 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
 
 ## Next Planned Milestone
 
-Professional 3D Animation & Timeline Engine (keyframes, timeline, interpolation curves, play/pause/resume, animation state machines).
+Resource-Pack Integration & Model Importer Engine (Blockbench JSON importer, item predicate mapping, custom item model assembly).
 
 ## Important Active Decisions
 
