@@ -2,11 +2,11 @@
 
 ## Current Milestone
 
-Minecraft Version Compatibility & Multi-Platform Release Matrix
+Professional 3D Model Runtime (COMPLETED)
 
 ## Current Target
 
-Minecraft Compatibility Band 26.1 – 26.3 (Java 25 runtime for Paper/Spigot, Java 21 for platform-neutral code).
+Data-driven 3D model engine for Paper and Spigot platform families across Minecraft versions 26.1.1, 26.1.2, 26.2, 26.3.
 
 ## Completed
 
@@ -22,7 +22,7 @@ Minecraft Compatibility Band 26.1 – 26.3 (Java 25 runtime for Paper/Spigot, Ja
   - Application: `io.github.kizio806.spectraevents.application.config.spec`, `io.github.kizio806.spectraevents.application.config.compiled`, `io.github.kizio806.spectraevents.application.config.loader`.
 - [x] Platform family layout created: `platforms/paper/common` and `platforms/paper/v26_2`.
 - [x] Purpur and Folia aligned as native Paper platform family targets (using Paper distribution and RegionTaskScheduler).
-- [x] Decomposed command tree (`SpectraMainCommand`, `EventCommandHandler`, `DefinitionCommandHandler`, `UpdateCommandHandler`, `DiagnosticsCommandHandler`, `IntegrationCommandHandler`, `SpectraDebugCommand`).
+- [x] Decomposed command tree (`SpectraMainCommand`, `EventCommandHandler`, `DefinitionCommandHandler`, `UpdateCommandHandler`, `DiagnosticsCommandHandler`, `IntegrationCommandHandler`, `SpectraDebugCommand`, `ModelCommandHandler`).
 - [x] Decomposed Admin GUI (`AdminGuiController`, `MainScreen`, `ActiveEventsScreen`, `DefinitionsScreen`, `IntegrationsScreen`, `UpdatesScreen`).
 - [x] Composition Root extracted into `PaperBootstrap.java` so plugin entrypoint `SpectraEventsPlugin.java` is a thin wrapper.
 - [x] Multi-platform architecture & compatibility documentation added (`platform-compatibility.md`, `platform-versioning.md`, ADR 0004).
@@ -44,16 +44,25 @@ Minecraft Compatibility Band 26.1 – 26.3 (Java 25 runtime for Paper/Spigot, Ja
   - Paper artifact (`SpectraEvents-<version>-paper.jar`) supports Paper, Purpur, and Folia.
   - Spigot artifact (`SpectraEvents-<version>-spigot.jar`) supports Spigot and Bukkit-compatible servers.
   - Sponge: NOT SUPPORTED, NO ADAPTER, NO ARTIFACT, NO RELEASE. Completely removed per product decision.
-  - Verified 26.1 – 26.3 compatibility band for Paper and Spigot.
+  - Verified 26.1.1 – 26.3 compatibility band for Paper and Spigot.
   - Configured multi-artifact release pipeline with separate Modrinth versions (`-paper`, `-spigot`) and SHA-256 verification.
+- [x] Professional 3D Model Runtime:
+  - Built platform-neutral domain model & math primitives (`Vector3`, `Quaternion`, `EulerRotation`, `ModelTransform`, `ModelDefinition`, `ModelPartDefinition`, `InteractionDefinition`).
+  - Hierarchical matrix, pivot, scale, and intrinsic Z-X-Y Euler-to-Quaternion rotation math.
+  - Data-driven YAML authoring pipeline (`plugins/SpectraEvents/models/*.yml` -> `ModelSpec` -> `ModelCompiler` -> compiled immutable `ModelDefinition`).
+  - Strict validation: DFS cycle detection ($A \to B \to A$), missing parent validation, duplicate ID checks, depth limits (64).
+  - Built `ModelDefinitionRegistry` and `ModelRuntimeService` with atomic spawn, rollback on failure, and idempotent removal.
+  - Production platform renderers (`PaperModelRenderer` and `SpigotModelRenderer`) utilizing native `ItemDisplay`, `BlockDisplay`, `TextDisplay`, and `Interaction` entities with PDC ownership tagging.
+  - Event actions (`spawn_model`, `remove_model`) and events (Meteor, Airdrop, Metin) fully migrated to the new 3D model runtime.
+  - Developer/Admin CLI tool commands (`/spectra model list`, `info`, `validate`, `spawn`, `remove`) and `/spectra doctor` 3D metrics.
 
 ## In Progress
 
-- Milestone cleanup & preparation for Professional 3D Model Runtime.
+- Next milestone preparation.
 
 ## Next Planned Milestone
 
-Professional 3D Model Runtime (model hierarchy, interpolation, Blockbench animations, resource pack integration).
+Professional 3D Animation & Timeline Engine (keyframes, timeline, interpolation curves, play/pause/resume, animation state machines).
 
 ## Important Active Decisions
 

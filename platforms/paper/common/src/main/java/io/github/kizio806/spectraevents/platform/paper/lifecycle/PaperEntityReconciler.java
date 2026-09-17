@@ -5,9 +5,7 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.platform.paper.metadata.SpectraPdcKeys;
 import io.github.kizio806.spectraevents.platform.paper.render.PaperModelRenderer;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -71,22 +69,6 @@ public class PaperEntityReconciler implements PlatformEntityReconcilerPort {
 
   @Override
   public void restoreInstance(EventInstanceId instanceId, List<DiscoveredEntity> entities) {
-    Map<String, UUID> spawnedParts = new HashMap<>();
-    UUID interactionEntityId = null;
-
-    for (DiscoveredEntity de : entities) {
-      if (de.platformReference() instanceof UUID uuid) {
-        if ("INTERACTION".equals(de.role())) {
-          interactionEntityId = uuid;
-        } else if (de.partId() != null) {
-          spawnedParts.put(de.partId(), uuid);
-        }
-      }
-    }
-
-    // We only restore if we have something, but handle interaction missing
-    if (interactionEntityId != null || !spawnedParts.isEmpty()) {
-      renderer.restore(instanceId, spawnedParts, interactionEntityId);
-    }
+    // Platform entities are reconnected via entity reconciliation scan
   }
 }

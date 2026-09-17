@@ -2,10 +2,13 @@ package io.github.kizio806.spectraevents.platform.spigot.action;
 
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.execution.FatalActionException;
+import io.github.kizio806.spectraevents.application.model.runtime.ModelAnchor;
+import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeService;
+import io.github.kizio806.spectraevents.application.model.runtime.RenderedModelHandle;
 import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
 import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
-import io.github.kizio806.spectraevents.core.visual.model.ModelDefinition;
+import io.github.kizio806.spectraevents.core.visual.model.ModelId;
 import io.github.kizio806.spectraevents.platform.spigot.render.SpigotModelRenderer;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -23,6 +26,7 @@ public class SpigotActionAdapter implements PlatformActionPort {
   private final Logger logger;
   private final SpigotModelRenderer renderer;
   private final BukkitAudiences adventure;
+  private ModelRuntimeService modelRuntimeService;
 
   public SpigotActionAdapter(
       Plugin plugin, SpigotModelRenderer renderer, BukkitAudiences adventure) {
@@ -30,6 +34,10 @@ public class SpigotActionAdapter implements PlatformActionPort {
     this.logger = plugin.getLogger();
     this.renderer = renderer;
     this.adventure = adventure;
+  }
+
+  public void setModelRuntimeService(ModelRuntimeService modelRuntimeService) {
+    this.modelRuntimeService = modelRuntimeService;
   }
 
   @Override
@@ -64,17 +72,57 @@ public class SpigotActionAdapter implements PlatformActionPort {
 
   private void handleSpawnModel(
       EventInstance instance, EventRuntimeState state, ActionDefinition action) {
-    ModelDefinition modelDef = (ModelDefinition) action.parameters().get("model");
+    if (modelRuntimeService == null) {
+      logger.warning("ModelRuntimeService not set in SpigotActionAdapter");
+      return;
+    }
+    String modelIdStr = getStringParam(action.parameters(), "model", "meteor");
+    int defaultHeightOffset = "meteor".equalsIgnoreCase(modelIdStr) ? 20 : 0;
+    int heightOffset = getIntParam(action.parameters(), "height-offset", defaultHeightOffset);
+    if (!action.parameters().containsKey("height-offset")
+        && action.parameters().containsKey("height_offset")) {
+      heightOffset = getIntParam(action.parameters(), "height_offset", defaultHeightOffset);
+    }
+
     org.bukkit.Location loc = (org.bukkit.Location) state.platformLocation().orElse(null);
-    if (modelDef != null && loc != null) {
-      renderer.spawn(instance.id(), modelDef, loc);
+    if (loc != null) {
+      org.bukkit.Location spawnLoc = loc.clone().add(0, heightOffset, 0);
+      ModelAnchor anchor =
+          new ModelAnchor(
+              spawnLoc.getWorld().getName(),
+              spawnLoc.getX(),
+              spawnLoc.getY(),
+              spawnLoc.getZ(),
+              spawnLoc.getYaw(),
+              spawnLoc.getPitch());
+
+      modelRuntimeService.spawnModel(new ModelId(modelIdStr), anchor, instance.id());
     }
   }
 
   private void handleRemoveModel(EventInstance instance, ActionDefinition action) {
-    String modelIdStr = (String) action.parameters().get("model_id");
-    if (modelIdStr != null) {
-      logger.info("Spigot: remove_model requested for " + modelIdStr);
+    if (modelRuntimeService != null) {
+      for (RenderedModelHandle handle : modelRuntimeService.getActiveInstances()) {
+        if (instance.id().equals(handle.ownerEventId())) {
+          modelRuntimeService.removeModel(handle.runtimeId());
+        }
+      }
+    }
+  }
+
+  private String getStringParam(Map<String, Object> params, String key, String defaultValue) {
+    Object val = params.get(key);
+    return val != null ? String.valueOf(val) : defaultValue;
+  }
+
+  private int getIntParam(Map<String, Object> params, String key, int defaultValue) {
+    Object val = params.get(key);
+    if (val == null) return defaultValue;
+    if (val instanceof Number n) return n.intValue();
+    try {
+      return Integer.parseInt(String.valueOf(val));
+    } catch (Exception e) {
+      return defaultValue;
     }
   }
 

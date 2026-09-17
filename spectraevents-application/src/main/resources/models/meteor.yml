@@ -1,0 +1,26 @@
+id: dev_meteor_model
+
+parts:
+  core:
+    type: item_display
+    item: minecraft:magma_block
+    transform:
+      translation: [0.0, 0.0, 0.0]
+      scale: [2.0, 2.0, 2.0]
+    render:
+      billboard: fixed
+
+  label:
+    type: text_display
+    parent: core
+    text: "<red><bold>☄ METEOR"
+    transform:
+      translation: [0.0, 2.5, 0.0]
+    render:
+      billboard: center
+
+interactions:
+  main:
+    parent: core
+    width: 3.0
+    height: 3.0

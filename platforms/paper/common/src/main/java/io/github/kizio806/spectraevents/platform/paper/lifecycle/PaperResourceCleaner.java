@@ -24,7 +24,7 @@ public final class PaperResourceCleaner {
 
   /** Cleans up all platform resources and custom states associated with the instance. */
   public void cleanup(EventInstanceId instanceId) {
-    renderer.remove(instanceId);
+    renderer.cleanupInstance(instanceId);
     scheduler.cancelAll(instanceId);
 
     Runnable customCleanup = customCleanups.remove(instanceId);

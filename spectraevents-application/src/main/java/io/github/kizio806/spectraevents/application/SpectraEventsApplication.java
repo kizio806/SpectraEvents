@@ -4,7 +4,12 @@ import io.github.kizio806.spectraevents.application.config.compiler.EventDefinit
 import io.github.kizio806.spectraevents.application.config.loader.DefinitionLoader;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.yaml.EventSpecYamlParser;
+import io.github.kizio806.spectraevents.application.model.compiler.ModelCompiler;
+import io.github.kizio806.spectraevents.application.model.loader.ModelLoader;
+import io.github.kizio806.spectraevents.application.model.registry.ModelDefinitionRegistry;
+import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeService;
 import io.github.kizio806.spectraevents.application.port.LifecycleReporter;
+import io.github.kizio806.spectraevents.application.port.ModelRendererPort;
 import io.github.kizio806.spectraevents.application.port.PlatformCapabilityQuery;
 import io.github.kizio806.spectraevents.application.repository.InMemoryEventInstanceRepository;
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
@@ -24,6 +29,11 @@ public final class SpectraEventsApplication {
       lastReconciliationReport;
   private final PlatformCapabilityQuery capabilityQuery;
 
+  private final ModelDefinitionRegistry modelDefinitionRegistry;
+  private final ModelCompiler modelCompiler;
+  private final ModelLoader modelLoader;
+  private final ModelRuntimeService modelRuntimeService;
+
   /**
    * Creates the application composition root with platform ports.
    *
@@ -33,6 +43,7 @@ public final class SpectraEventsApplication {
    * @param repository event instance repository
    * @param reconcilerPort platform entity reconciler port
    * @param capabilityQuery platform capability query port
+   * @param modelRendererPort platform 3D model renderer port
    */
   public SpectraEventsApplication(
       LifecycleReporter lifecycleReporter,
@@ -40,12 +51,24 @@ public final class SpectraEventsApplication {
       io.github.kizio806.spectraevents.application.port.PlatformActionPort platformActionPort,
       io.github.kizio806.spectraevents.application.port.EventInstanceRepository repository,
       io.github.kizio806.spectraevents.application.port.PlatformEntityReconcilerPort reconcilerPort,
-      PlatformCapabilityQuery capabilityQuery) {
+      PlatformCapabilityQuery capabilityQuery,
+      ModelRendererPort modelRendererPort) {
     this.lifecycleReporter = Objects.requireNonNull(lifecycleReporter, "lifecycleReporter");
     this.definitionRegistry = new EventDefinitionRegistry();
     this.definitionLoader =
         new DefinitionLoader(
             new EventSpecYamlParser(), new EventDefinitionCompiler(), definitionRegistry);
+
+    this.modelDefinitionRegistry = new ModelDefinitionRegistry();
+    this.modelCompiler = new ModelCompiler();
+    this.modelLoader = new ModelLoader(modelCompiler, modelDefinitionRegistry);
+
+    if (modelRendererPort != null) {
+      this.modelRuntimeService =
+          new ModelRuntimeService(modelDefinitionRegistry, modelRendererPort);
+    } else {
+      this.modelRuntimeService = null;
+    }
 
     var targetRepository = repository != null ? repository : new InMemoryEventInstanceRepository();
     var stateStore =
@@ -76,12 +99,29 @@ public final class SpectraEventsApplication {
   public SpectraEventsApplication(
       LifecycleReporter lifecycleReporter,
       io.github.kizio806.spectraevents.application.port.EventTaskScheduler scheduler,
+      io.github.kizio806.spectraevents.application.port.PlatformActionPort platformActionPort,
+      io.github.kizio806.spectraevents.application.port.EventInstanceRepository repository,
+      io.github.kizio806.spectraevents.application.port.PlatformEntityReconcilerPort reconcilerPort,
+      PlatformCapabilityQuery capabilityQuery) {
+    this(
+        lifecycleReporter,
+        scheduler,
+        platformActionPort,
+        repository,
+        reconcilerPort,
+        capabilityQuery,
+        null);
+  }
+
+  public SpectraEventsApplication(
+      LifecycleReporter lifecycleReporter,
+      io.github.kizio806.spectraevents.application.port.EventTaskScheduler scheduler,
       io.github.kizio806.spectraevents.application.port.PlatformActionPort platformActionPort) {
-    this(lifecycleReporter, scheduler, platformActionPort, null, null, null);
+    this(lifecycleReporter, scheduler, platformActionPort, null, null, null, null);
   }
 
   public SpectraEventsApplication(LifecycleReporter lifecycleReporter) {
-    this(lifecycleReporter, null, null, null, null, null);
+    this(lifecycleReporter, null, null, null, null, null, null);
   }
 
   public EventDefinitionRegistry definitionRegistry() {
@@ -90,6 +130,22 @@ public final class SpectraEventsApplication {
 
   public DefinitionLoader definitionLoader() {
     return definitionLoader;
+  }
+
+  public ModelDefinitionRegistry modelDefinitionRegistry() {
+    return modelDefinitionRegistry;
+  }
+
+  public ModelCompiler modelCompiler() {
+    return modelCompiler;
+  }
+
+  public ModelLoader modelLoader() {
+    return modelLoader;
+  }
+
+  public ModelRuntimeService modelRuntimeService() {
+    return modelRuntimeService;
   }
 
   public EventOrchestrationService orchestrationService() {
