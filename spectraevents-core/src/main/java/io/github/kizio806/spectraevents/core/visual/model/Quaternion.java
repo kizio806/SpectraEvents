@@ -90,6 +90,62 @@ public record Quaternion(float x, float y, float z, float w) {
     return new Vector3(rx, ry, rz);
   }
 
+  /** Calculates dot product between this quaternion and another. */
+  public float dot(Quaternion other) {
+    Objects.requireNonNull(other, "other quaternion cannot be null");
+    return x * other.x + y * other.y + z * other.z + w * other.w;
+  }
+
+  /**
+   * Performs Spherical Linear Interpolation (SLERP) between this quaternion and target.
+   * Automatically handles shortest-path orientation (q vs -q) and near-identical angles.
+   *
+   * @param end target quaternion
+   * @param t interpolation factor [0, 1]
+   * @return interpolated unit quaternion
+   */
+  public Quaternion slerp(Quaternion end, float t) {
+    Objects.requireNonNull(end, "end quaternion cannot be null");
+    if (t <= 0.0f) return this;
+    if (t >= 1.0f) return end;
+
+    float cosTheta = this.dot(end);
+    float endX = end.x;
+    float endY = end.y;
+    float endZ = end.z;
+    float endW = end.w;
+
+    // Shortest-path sign handling: if dot product is negative, invert target quaternion
+    if (cosTheta < 0.0f) {
+      cosTheta = -cosTheta;
+      endX = -endX;
+      endY = -endY;
+      endZ = -endZ;
+      endW = -endW;
+    }
+
+    if (cosTheta > 0.9995f) {
+      // Near-identical quaternions, use linear interpolation to avoid division by zero
+      float rx = this.x + (endX - this.x) * t;
+      float ry = this.y + (endY - this.y) * t;
+      float rz = this.z + (endZ - this.z) * t;
+      float rw = this.w + (endW - this.w) * t;
+      return new Quaternion(rx, ry, rz, rw).normalize();
+    }
+
+    double theta = Math.acos(cosTheta);
+    double sinTheta = Math.sin(theta);
+    double w1 = Math.sin((1.0 - t) * theta) / sinTheta;
+    double w2 = Math.sin(t * theta) / sinTheta;
+
+    float rx = (float) (this.x * w1 + endX * w2);
+    float ry = (float) (this.y * w1 + endY * w2);
+    float rz = (float) (this.z * w1 + endZ * w2);
+    float rw = (float) (this.w * w1 + endW * w2);
+
+    return new Quaternion(rx, ry, rz, rw).normalize();
+  }
+
   /** Normalizes this quaternion to ensure unit length. */
   public Quaternion normalize() {
     float lenSq = x * x + y * y + z * z + w * w;

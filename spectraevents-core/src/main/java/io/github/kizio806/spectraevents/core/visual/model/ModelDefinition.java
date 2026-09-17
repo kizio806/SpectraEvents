@@ -1,15 +1,30 @@
 package io.github.kizio806.spectraevents.core.visual.model;
 
+import io.github.kizio806.spectraevents.core.visual.animation.AnimationDefinition;
+import io.github.kizio806.spectraevents.core.visual.animation.AnimationId;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Immutable compiled definition of a multi-part 3D model with visual elements and hitboxes. */
+/**
+ * Immutable compiled definition of a multi-part 3D model with visual elements, hitboxes, and
+ * animations.
+ */
 public record ModelDefinition(
-    ModelId id, List<ModelPartDefinition> parts, List<InteractionDefinition> interactions) {
+    ModelId id,
+    List<ModelPartDefinition> parts,
+    List<InteractionDefinition> interactions,
+    Map<AnimationId, AnimationDefinition> animations) {
 
   public static final int MAX_PARTS_LIMIT = 500;
   public static final int MAX_INTERACTIONS_LIMIT = 100;
+
+  public ModelDefinition(
+      ModelId id, List<ModelPartDefinition> parts, List<InteractionDefinition> interactions) {
+    this(id, parts, interactions, Collections.emptyMap());
+  }
 
   public ModelDefinition {
     Objects.requireNonNull(id, "id cannot be null");
@@ -18,6 +33,7 @@ public record ModelDefinition(
 
     parts = List.copyOf(parts);
     interactions = List.copyOf(interactions);
+    animations = animations != null ? Map.copyOf(animations) : Collections.emptyMap();
 
     if (parts.isEmpty()) {
       throw new IllegalArgumentException("ModelDefinition must contain at least one part");
@@ -57,5 +73,10 @@ public record ModelDefinition(
   public Optional<InteractionDefinition> findInteraction(InteractionId interactionId) {
     Objects.requireNonNull(interactionId, "interactionId cannot be null");
     return interactions.stream().filter(i -> i.interactionId().equals(interactionId)).findFirst();
+  }
+
+  public Optional<AnimationDefinition> findAnimation(AnimationId animationId) {
+    Objects.requireNonNull(animationId, "animationId cannot be null");
+    return Optional.ofNullable(animations.get(animationId));
   }
 }

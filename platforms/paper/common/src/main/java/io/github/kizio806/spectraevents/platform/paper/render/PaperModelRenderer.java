@@ -336,6 +336,15 @@ public class PaperModelRenderer implements ModelRendererPort {
   @Override
   public boolean updatePartTransform(
       RenderedModelHandle handle, ModelPartId partId, ModelTransform newLocalTransform) {
+    return updatePartTransform(handle, partId, newLocalTransform, 0);
+  }
+
+  @Override
+  public boolean updatePartTransform(
+      RenderedModelHandle handle,
+      ModelPartId partId,
+      ModelTransform newLocalTransform,
+      int interpolationDurationTicks) {
     Objects.requireNonNull(handle, "handle cannot be null");
     Objects.requireNonNull(partId, "partId cannot be null");
     Objects.requireNonNull(newLocalTransform, "newLocalTransform cannot be null");
@@ -350,6 +359,9 @@ public class PaperModelRenderer implements ModelRendererPort {
           .execute(
               plugin,
               () -> {
+                if (interpolationDurationTicks >= 0) {
+                  display.setInterpolationDuration(interpolationDurationTicks);
+                }
                 display.setTransformationMatrix(toMatrix4f(newLocalTransform));
               },
               null,

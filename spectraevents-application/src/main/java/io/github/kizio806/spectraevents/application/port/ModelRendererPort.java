@@ -35,9 +35,27 @@ public interface ModelRendererPort {
   /** Updates the spatial anchor of a spawned model. */
   boolean updateModelTransform(RenderedModelHandle handle, ModelAnchor newAnchor);
 
+  /** Updates the spatial anchor of a spawned model with smooth interpolation duration in ticks. */
+  default boolean updateModelTransform(
+      RenderedModelHandle handle, ModelAnchor newAnchor, int interpolationDurationTicks) {
+    return updateModelTransform(handle, newAnchor);
+  }
+
   /** Updates a single part's transform within a spawned model. */
   boolean updatePartTransform(
       RenderedModelHandle handle, ModelPartId partId, ModelTransform newLocalTransform);
+
+  /**
+   * Updates a single part's transform within a spawned model with smooth interpolation duration in
+   * ticks.
+   */
+  default boolean updatePartTransform(
+      RenderedModelHandle handle,
+      ModelPartId partId,
+      ModelTransform newLocalTransform,
+      int interpolationDurationTicks) {
+    return updatePartTransform(handle, partId, newLocalTransform);
+  }
 
   /** Removes all native entities belonging to a rendered model instance. */
   boolean removeModel(RenderedModelHandle handle);
