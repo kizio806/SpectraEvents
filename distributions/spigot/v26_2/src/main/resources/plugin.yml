@@ -1,6 +1,0 @@
-name: SpectraEvents
-version: '${version}'
-main: io.github.kizio806.spectraevents.platform.spigot.v26_2.SpectraEventsSpigotPlugin
-api-version: '1.21'
-authors: [kizio806]
-description: A modular, data-driven 3D event engine

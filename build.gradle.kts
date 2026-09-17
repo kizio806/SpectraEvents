@@ -102,12 +102,63 @@ val verifyPlatformBoundaries =
         }
     }
 
+val printCompatibilityMatrix =
+    tasks.register("printCompatibilityMatrix") {
+        group = "help"
+        description = "Prints the configured Minecraft version compatibility matrix."
+        doLast {
+            println("=== SpectraEvents Compatibility Matrix ===")
+            println("Product Version: $version")
+            println("Paper Family: ${providers.gradleProperty("paper.minecraftVersions").get()}")
+            println("Spigot Family: ${providers.gradleProperty("spigot.minecraftVersions").get()}")
+            println("Sponge: ${providers.gradleProperty("sponge.minecraftVersions").get()}")
+        }
+    }
+
+val verifyCompatibilityMatrix =
+    tasks.register("verifyCompatibilityMatrix") {
+        group = "verification"
+        description = "Validates the Minecraft compatibility matrix configuration."
+        doLast {
+            val paperVersions =
+                providers
+                    .gradleProperty("paper.minecraftVersions")
+                    .get()
+                    .split(",")
+                    .map { it.trim() }
+            val spigotVersions =
+                providers
+                    .gradleProperty("spigot.minecraftVersions")
+                    .get()
+                    .split(",")
+                    .map { it.trim() }
+            val spongeVersions =
+                providers
+                    .gradleProperty("sponge.minecraftVersions")
+                    .get()
+                    .split(",")
+                    .map { it.trim() }
+
+            val families = mapOf("Paper" to paperVersions, "Spigot" to spigotVersions, "Sponge" to spongeVersions)
+
+            families.forEach { (family, versions) ->
+                if (versions.isEmpty() || versions.any { it.isBlank() }) {
+                    throw GradleException("Compatibility matrix for $family must not be empty!")
+                }
+                if (versions.toSet().size != versions.size) {
+                    throw GradleException("Compatibility matrix for $family contains duplicates: $versions")
+                }
+            }
+            println("Compatibility matrix verification PASSED.")
+        }
+    }
+
 tasks.named("check") {
-    dependsOn(verifyPlatformBoundaries)
+    dependsOn(verifyPlatformBoundaries, verifyCompatibilityMatrix)
 }
 
 tasks.register("runServer") {
     group = "application"
-    description = "Runs a local Paper 26.2 development server with the shaded plugin."
-    dependsOn(":distributions:paper:v26_2:runServer")
+    description = "Runs a local Paper development server with the shaded plugin."
+    dependsOn(":distributions:paper:runServer")
 }

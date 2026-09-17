@@ -2,25 +2,33 @@
 
 This document outlines the versioning and compatibility strategy for SpectraEvents across different Minecraft server implementations.
 
+## Strategy: Compatibility Band First
+
+SpectraEvents favors a **Compatibility Band** approach over per-minor-version module duplication:
+- **One JAR per Platform Family**: Serves all compatible Minecraft versions within a band without duplicate code or reflection hacks.
+- **Version-Specific Binding**: Created ONLY when upstream APIs break in an incompatible way that cannot be abstracted cleanly.
+
 ## Terminology
-- **Platform Family**: The overarching server software family (e.g., Paper, Spigot, Sponge).
-- **Minecraft Version**: The underlying Mojang Minecraft release (e.g., 1.20.4, 1.21.3).
-- **Adapter Version**: The SpectraEvents adapter module version (e.g., `v26_2`).
-- **Distribution**: The final compiled JAR artifact intended for server administrators.
+- **Platform Family**: The overarching server software ecosystem (`paper`, `spigot`, `sponge`).
+- **Compatibility Band**: Range of supported game versions served by a single artifact (e.g. `26.1 – 26.3`).
+- **Compile Baseline**: The oldest API version against which the platform module is compiled (`26.1`).
 
 ## Version Mapping
 
-| Platform Family | Target Minecraft | API Version | Adapter Module | Support Level |
-|-----------------|------------------|-------------|----------------|---------------|
-| **Paper**       | 1.20.4 / 1.21.3  | 1.20.4-R0.1 | `v26_2`        | **FULL**      |
-| **Purpur**      | 1.20.4 / 1.21.3  | 1.20.4-R0.1 | `v26_2` (via Paper) | **FULL** |
-| **Folia**       | 1.20.4 / 1.21.3  | 1.20.4-R0.1 | `v26_2` (via Paper) | **FULL** |
-| **Spigot**      | 1.21.3           | 1.21.3-R0.1 | `v26_2`        | **FULL**      |
-| **Sponge**      | 1.20.4 / 1.21.x  | 12.0.0      | `v26_2`        | **FULL**      |
+| Platform Family | Target Artifact | Compatibility Band | Loaders | Baseline API | Strategy |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Paper Family** | `SpectraEvents-<ver>-paper.jar` | `26.1` – `26.3` | `paper`, `purpur`, `folia` | Paper `26.1` | Compatibility Band (Single JAR) |
+| **Spigot Family** | `SpectraEvents-<ver>-spigot.jar` | `26.1` – `26.3` | `spigot`, `bukkit` | Spigot `26.1` | Compatibility Band (Single JAR) |
+| **Sponge** | `SpectraEvents-<ver>-sponge.jar` | `26.1` – `26.2` | `sponge` | SpongeAPI `12.0.0` | Target Verified Band |
 
-## Workflow for New Minecraft Versions
-When a new major Minecraft version is released (e.g., 1.22 / Adapter `v27_1`):
-1. **Analyze API Changes**: Review Bukkit/Paper/Sponge changelogs for breaking API changes, especially around Display Entities, persistence, and scheduling.
-2. **Create New Adapter Module**: If breaking changes exist, create `platforms/paper/v27_1`, `platforms/spigot/v27_1`, etc. Do not mutate `v26_2` if it breaks backwards compatibility.
-3. **Update Distributions**: Map the new adapter to the appropriate distribution module in `settings.gradle.kts`.
-4. **Integration Testing**: Verify against real runtime servers using the scripts in `scripts/runtime-smoke/`.
+## Workflow for New Minecraft Versions (e.g. `26.4`)
+
+When a new minor or patch version of Minecraft is released:
+1. **DO NOTHING to Module Structure by Default**: Do NOT duplicate modules or create `v26_4`.
+2. **Add Candidate Version**: Add `26.4` to candidate metadata in `gradle.properties` / `compatibility.versions.toml`.
+3. **Build & Static Verification**: Compile against current baseline (`26.1`).
+4. **Runtime Smoke Verification**: Boot Paper/Spigot runtime smoke tests on `26.4`.
+5. **If Tests Pass**: Update supported metadata list. The SAME public JAR serves `26.4`.
+6. **If API Incompatibility Discovered**:
+   - Determine if a narrow adapter or capability query solves it.
+   - Only if unavoidable due to breaking API changes, introduce a version-specific module (e.g. `paper/v26_4`).

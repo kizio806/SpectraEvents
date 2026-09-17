@@ -143,7 +143,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Run Platform checks
-        run: ./gradlew :platforms:${{ matrix.platform }}:v26_2:check
+        run: ./gradlew :platforms:${{ matrix.platform }}:common:check
 
   distribution-verification:
     name: CI / Distribution Verification
@@ -172,24 +172,39 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Build distribution artifact
-        run: ./gradlew :distributions:${{ matrix.platform }}:v26_2:build
+        run: ./gradlew :distributions:${{ matrix.platform }}:build
 
       - name: Upload distribution artifact
         uses: actions/upload-artifact@v7
         with:
           name: spectraevents-${{ matrix.platform }}
-          path: distributions/${{ matrix.platform }}/v26_2/build/libs/SpectraEvents-*.jar
+          path: distributions/${{ matrix.platform }}/build/libs/SpectraEvents-*.jar
           if-no-files-found: error
 
   runtime-smoke:
-    name: CI / Runtime Smoke
+    name: CI / Runtime Smoke Matrix (${{ matrix.platform }} ${{ matrix.version }})
     needs:
       - distribution-verification
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
-        platform: [paper, sponge, spigot]
+        include:
+          - platform: paper
+            version: '26.1'
+          - platform: paper
+            version: '26.1.1'
+          - platform: paper
+            version: '26.1.2'
+          - platform: paper
+            version: '26.2'
+          - platform: paper
+            version: '26.3'
+          - platform: spigot
+            version: '26.2'
+          - platform: sponge
+            version: '26.2'
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -202,12 +217,15 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
-        
+
+      - name: Build distribution JARs
+        run: ./gradlew :distributions:${{ matrix.platform }}:build
+
       - name: Make scripts executable
         run: chmod +x scripts/runtime-smoke/*.sh
 
       - name: Run Smoke Test
-        run: ./scripts/runtime-smoke/run-${{ matrix.platform }}-smoke.sh
+        run: ./scripts/runtime-smoke/run-${{ matrix.platform }}-smoke.sh "${{ matrix.version }}"
 
   release-readiness:
     name: CI / Release Readiness

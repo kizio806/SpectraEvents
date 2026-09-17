@@ -2,52 +2,43 @@
 
 ## 1. Overview
 
-SpectraEvents defines platform integration around **API Families** and **Server Implementations**, rather than treating every server jar as a unique ecosystem.
+SpectraEvents defines platform integration around **Compatibility Bands** and **Platform Families**, operating under a single-JAR-per-family release model.
 
 ```text
-                                  +-------------------+
-                                  |    Bukkit API     |
-                                  +---------+---------+
-                                            |
-                                  +---------v---------+
-                                  |     Paper API     |
-                                  +----+----------+---+
-                                       |          |
-                      +----------------+          +----------------+
-                      |                                            |
-            +---------v---------+                        +---------v---------+
-            |      Purpur       |                        |       Folia       |
-            | (Paper Distro)    |                        | (Paper Region Sched)
-            +-------------------+                        +-------------------+
+SPECTRAEVENTS COMPATIBILITY ARCHITECTURE
++-------------------------------------------------------------------------+
+|                  Minecraft Compatibility Band: 26.1 – 26.3               |
++-------------------------------------------------------------------------+
+|  Paper Family Artifact   |   Spigot Family Artifact  |   Sponge Artifact  |
+|  (Paper / Purpur / Folia)|      (Spigot / Bukkit)    |      (Sponge)      |
++-------------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. API Family vs Server Implementation Taxonomy
+## 2. API Family & Distribution Matrix
 
-| Server / Platform | API Family | Primary Target Artifact | Lifecycle / Threading Model | Multi-Platform Status |
-| :--- | :--- | :--- | :--- | :--- |
-| **Paper 26.2** | `paper` | `distributions/paper/v26_2` | Region/Entity Task Schedulers, Adventure, PDC | **SUPPORTED / TESTED** |
-| **Purpur** | `paper` | `distributions/paper/v26_2` | Pure Paper API binary compatible (uses Paper distro) | **PAPER-COMPATIBLE / NOT CERTIFIED** |
-| **Folia** | `paper` | `distributions/paper/v26_2` | Region-aware Paper API (RegionTaskScheduler) | **PAPER-COMPATIBLE / NOT CERTIFIED** |
-| **Spigot / Bukkit** | `bukkit` | `platforms/bukkit/common` *(Planned)* | Main thread loop + sync/async BukkitTask | **PORT-READY** |
-| **Sponge** | `sponge` | `platforms/sponge/v10` *(Planned)* | Sponge CauseStackManager & Scheduler | **PORT-READY** |
+| Artifact | Target Platform | Compatible Minecraft Versions | Loaders | Baseline API | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Paper Family JAR** | Paper, Purpur, Folia | `26.1`, `26.1.1`, `26.1.2`, `26.2`, `26.3` | `paper`, `purpur`, `folia` | Paper API `26.1` | **IMPLEMENTED + RUNTIME VERIFIED** |
+| **Spigot Family JAR** | Spigot, Bukkit | `26.1`, `26.1.1`, `26.1.2`, `26.2`, `26.3` | `spigot`, `bukkit` | Spigot API `26.1` | **IMPLEMENTED + RUNTIME VERIFIED** |
+| **Sponge JAR** | Sponge | `26.1`, `26.1.1`, `26.1.2`, `26.2` | `sponge` | SpongeAPI `12.0.0` | **FOUNDATION + VERIFIED** |
 
 ---
 
 ## 3. Platform Capabilities & Requirements
 
-### Paper Platform Family (`platforms/paper/*`)
-- **Minimum Java**: Java 21 (Paper 26.2 targets Java 25 runtime).
-- **Core Abstractions**: `PaperPlatformRegionTaskScheduler`, `PaperModelRenderer`, `PaperActionAdapter`, `PaperLifecycleReporter`.
+### Paper Platform Family (`platforms/paper/common`)
+- **Minimum Java**: Java 25 runtime for Paper 26.x series; Java 21 for core API.
+- **Core Abstractions**: `PaperRegionTaskScheduler`, `PaperModelRenderer`, `PaperActionAdapter`, `PaperLifecycleReporter`.
 - **Concurrency & Region Threading**: Direct usage of Paper `RegionScheduler` and `EntityScheduler` ensures native Folia region safety without code duplication.
 
-### Spigot / Bukkit Platform Family (`platforms/bukkit/*`)
-- **Minimum Java**: Java 21.
-- **Scheduler Adaptation**: `BukkitSchedulerAdapter` using single-threaded tick tasks.
-- **Model Rendering**: ItemDisplay falling back to ArmorStand head elements for legacy Bukkit versions.
+### Spigot Platform Family (`platforms/spigot/common`)
+- **Minimum Java**: Java 25 runtime.
+- **Scheduler Adaptation**: `SpigotEventTaskScheduler` mapped to Bukkit sync/async scheduler.
+- **Components & Text**: Kyori Adventure relocated into plugin namespace.
 
-### Sponge Platform Family (`platforms/sponge/*`)
-- **Minimum Java**: Java 21.
-- **Scheduler Adaptation**: `SpongeSchedulerAdapter` mapped to `Sponge.asyncScheduler()` and `server().scheduler()`.
-- **Model Rendering**: Sponge Entity display components mapped to custom entity types.
+### Sponge Platform Family (`platforms/sponge/common`)
+- **Minimum Java**: Java 21+.
+- **Scheduler Adaptation**: `SpongeEventTaskScheduler` mapped to Sponge async and server scheduler.
+- **Sponge API Versions**: SpongeAPI 12 / 13 / 14 mapped to Minecraft 1.20.6 through 1.21.4 (26.1 - 26.2 band).

@@ -2,11 +2,11 @@
 
 ## Current Milestone
 
-Namespace Migration & Beta Release Hardening
+Minecraft Version Compatibility & Multi-Platform Release Matrix
 
 ## Current Target
 
-Paper 26.2 (Java 25 runtime); Platform-neutral core and application target Java 21.
+Minecraft Compatibility Band 26.1 – 26.3 (Java 25 runtime for Paper/Spigot, Java 21 for platform-neutral code).
 
 ## Completed
 
@@ -43,7 +43,13 @@ Paper 26.2 (Java 25 runtime); Platform-neutral core and application target Java 
   - Added full compatibility with Spigot via a dedicated adapter (with Adventure relocation). Verified via automated runtime smoke scripts.
   - SpongeAPI 12 fully implemented (ItemDisplay, Interaction, EntityReconciliation, Scheduling) replacing the skeleton.
   - Spigot and Sponge distributions compile gracefully and are packaged independently.
-  - Runtime smoke testing scripts (`run-paper-smoke.sh`, `run-spigot-smoke.sh`, `run-sponge-smoke.sh`) added to `scripts/runtime-smoke/`.
+  - [x] Minecraft Version Compatibility & Multi-Platform Release Matrix:
+  - Transitioned from hardcoded per-minor version modules (`v26_2`) to unified platform family modules (`platforms/paper/common`, `platforms/spigot/common`, `platforms/sponge/common`).
+  - Single JAR per platform family: `SpectraEvents-<version>-paper.jar`, `SpectraEvents-<version>-spigot.jar`, `SpectraEvents-<version>-sponge.jar`.
+  - Defined central single source of truth matrix in `gradle.properties` & `gradle/compatibility.versions.toml`.
+  - Added `./gradlew verifyCompatibilityMatrix` and `./gradlew printCompatibilityMatrix` tasks.
+  - Verified 26.1 – 26.3 compatibility band for Paper and Spigot, and re-audited Sponge targets.
+  - Configured multi-artifact release pipeline with separate Modrinth versions (`-paper`, `-spigot`, `-sponge`) and SHA-256 verification.
 
 ## In Progress
 

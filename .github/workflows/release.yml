@@ -87,7 +87,7 @@ jobs:
         id: artifacts
         run: |
           for platform in paper spigot sponge; do
-            LIBS_DIR="distributions/$platform/v26_2/build/libs"
+            LIBS_DIR="distributions/$platform/build/libs"
             JARS=($(find "$LIBS_DIR" -name "SpectraEvents-*.jar" ! -name "*-sources.jar"))
             if [ ${#JARS[@]} -eq 0 ]; then
               echo "::error::No distribution JAR found for $platform in $LIBS_DIR!"
@@ -99,8 +99,6 @@ jobs:
             fi
             JAR_PATH="${JARS[0]}"
             echo "Verified distribution artifact for $platform: $JAR_PATH"
-            # Basic sanity check
-            jar tf "$JAR_PATH" | grep "plugin.yml" || jar tf "$JAR_PATH" | grep "mcmod.info" || jar tf "$JAR_PATH" | grep "sponge_plugins.json" || true
           done
 
       - name: Generate Release Notes
@@ -108,9 +106,9 @@ jobs:
           cat << EOF > release-notes.md
           # SpectraEvents v${GRADLE_VERSION}
 
-          - **Minecraft Version:** 26.2
-          - **Platforms:** Paper, Spigot, Sponge
-          - **Java Runtime:** 25
+          - **Minecraft Version Compatibility Band:** 26.1 – 26.3
+          - **Platforms:** Paper, Purpur, Folia, Spigot, Sponge
+          - **Java Runtime Requirement:** 25
 
           EOF
 
@@ -137,16 +135,17 @@ jobs:
             git log -n 10 --oneline >> release-notes.md
           fi
 
-      - name: Compute SHA-256 checksums
+      - name: Compute and verify SHA-256 checksums
         run: |
           mkdir -p release-artifacts
           for platform in paper spigot sponge; do
-            cp distributions/$platform/v26_2/build/libs/SpectraEvents-*.jar release-artifacts/
+            cp distributions/$platform/build/libs/SpectraEvents-*.jar release-artifacts/
           done
-          
+
           cd release-artifacts
           sha256sum SpectraEvents-*.jar > SHA256SUMS.txt
           cat SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
           cd ..
 
       - name: Upload Release Artifacts to Actions
@@ -171,41 +170,72 @@ jobs:
           prerelease: false
           make_latest: true
 
-      - name: Validate Modrinth Credentials
+      - name: Publish Paper Family to Modrinth
         if: startsWith(github.ref, 'refs/tags/')
-        continue-on-error: true
-        env:
-          MODRINTH_ID: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-        run: |
-          if [ -z "$MODRINTH_ID" ]; then
-            echo "::warning::MODRINTH_PROJECT_ID secret or variable is missing!"
-          fi
-          if [ -z "$MODRINTH_TOKEN" ]; then
-            echo "::warning::MODRINTH_TOKEN secret is missing!"
-          fi
-          echo "Modrinth credentials checked."
-
-      - name: Publish to Modrinth
-        if: startsWith(github.ref, 'refs/tags/')
-        continue-on-error: true
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          name: SpectraEvents ${{ env.GRADLE_VERSION }}
-          version: ${{ env.GRADLE_VERSION }}
+          name: SpectraEvents ${{ env.GRADLE_VERSION }} — Paper Family
+          version: ${{ env.GRADLE_VERSION }}-paper
           version-type: ${{ env.MODRINTH_TYPE }}
-          game-versions: "1.21.4"
+          game-versions: |
+            26.1
+            26.1.1
+            26.1.2
+            26.2
+            26.3
           loaders: |
             paper
             purpur
             folia
+          java: 25
+          environment: server
+          files: release-artifacts/SpectraEvents-*-paper.jar
+          changelog-file: release-notes.md
+
+      - name: Publish Spigot Family to Modrinth
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          name: SpectraEvents ${{ env.GRADLE_VERSION }} — Spigot Family
+          version: ${{ env.GRADLE_VERSION }}-spigot
+          version-type: ${{ env.MODRINTH_TYPE }}
+          game-versions: |
+            26.1
+            26.1.1
+            26.1.2
+            26.2
+            26.3
+          loaders: |
             spigot
+            bukkit
+          java: 25
+          environment: server
+          files: release-artifacts/SpectraEvents-*-spigot.jar
+          changelog-file: release-notes.md
+
+      - name: Publish Sponge Family to Modrinth
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          name: SpectraEvents ${{ env.GRADLE_VERSION }} — Sponge
+          version: ${{ env.GRADLE_VERSION }}-sponge
+          version-type: ${{ env.MODRINTH_TYPE }}
+          game-versions: |
+            26.1
+            26.1.1
+            26.1.2
+            26.2
+          loaders: |
             sponge
           java: 25
           environment: server
-          files: release-artifacts/SpectraEvents-*.jar
+          files: release-artifacts/SpectraEvents-*-sponge.jar
           changelog-file: release-notes.md
 
       - name: Generate Release Summary

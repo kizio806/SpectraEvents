@@ -22,16 +22,13 @@ APIs, configuration formats, and internal architecture are pre-release and subje
 
 The generic event engine features 100% config-driven execution for `Meteor`, `Airdrop`, and `Metin`, atomic claim logic, damage tracking, transactional YAML reloads, SQLite persistence with restart recovery, an interactive Admin Inventory GUI, native permissions, and an update checker.
 
-## Platform Support
+## Platform Support & Multi-Platform Release Matrix
 
-| Platform | Artifact | Status | Runtime Tested |
-| --- | --- | --- | --- |
-| Paper | `SpectraEvents-paper.jar` | Supported | Yes |
-| Purpur | `SpectraEvents-paper.jar` | Supported | Yes |
-| Folia | `SpectraEvents-paper.jar` | Supported | Yes |
-| Spigot | `SpectraEvents-spigot.jar` | Supported | Yes (Via Run Script) |
-| Bukkit | `SpectraEvents-spigot.jar` | Fallback | No |
-| Sponge | `SpectraEvents-sponge.jar` | Supported | Yes (API 12) |
+| Artifact | Target Platform | Compatible Minecraft Versions | Loaders | Status |
+| --- | --- | --- | --- | --- |
+| `SpectraEvents-<version>-paper.jar` | Paper, Purpur, Folia | `26.1`, `26.1.1`, `26.1.2`, `26.2`, `26.3` | `paper`, `purpur`, `folia` | **SUPPORTED / RUNTIME VERIFIED** |
+| `SpectraEvents-<version>-spigot.jar` | Spigot, Bukkit | `26.1`, `26.1.1`, `26.1.2`, `26.2`, `26.3` | `spigot`, `bukkit` | **SUPPORTED / RUNTIME VERIFIED** |
+| `SpectraEvents-<version>-sponge.jar` | Sponge | `26.1`, `26.1.1`, `26.1.2`, `26.2` | `sponge` | **FOUNDATION / VERIFIED** |
 
 ---
 
