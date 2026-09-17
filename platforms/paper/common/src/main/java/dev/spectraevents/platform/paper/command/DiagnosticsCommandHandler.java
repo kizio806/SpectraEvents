@@ -19,16 +19,19 @@ public final class DiagnosticsCommandHandler {
   private final EventInstanceRepository instanceRepository;
   private final PaperDefinitionConfigBootstrap configBootstrap;
   private final IntegrationRegistry integrationRegistry;
+  private final dev.spectraevents.application.SpectraEventsApplication application;
 
   public DiagnosticsCommandHandler(
       EventDefinitionRegistry definitionRegistry,
       EventInstanceRepository instanceRepository,
       PaperDefinitionConfigBootstrap configBootstrap,
-      IntegrationRegistry integrationRegistry) {
+      IntegrationRegistry integrationRegistry,
+      dev.spectraevents.application.SpectraEventsApplication application) {
     this.definitionRegistry = definitionRegistry;
     this.instanceRepository = instanceRepository;
     this.configBootstrap = configBootstrap;
     this.integrationRegistry = integrationRegistry;
+    this.application = application;
   }
 
   public LiteralArgumentBuilder<CommandSourceStack> build() {
@@ -74,6 +77,19 @@ public final class DiagnosticsCommandHandler {
                 Component.text(
                     enabledIntegrations + " active",
                     enabledIntegrations > 0 ? NamedTextColor.GREEN : NamedTextColor.GRAY)));
+
+    dev.spectraevents.application.service.EntityReconciliationReport report =
+        application.lastReconciliationReport();
+    if (report != null) {
+      sender.sendMessage(
+          Component.text(" [5] Last Startup Reconciliation: ", NamedTextColor.GRAY)
+              .append(
+                  Component.text(
+                      report.instancesRecovered() + " recovered, ", NamedTextColor.GREEN))
+              .append(
+                  Component.text(
+                      report.orphansRemoved() + " orphans removed", NamedTextColor.YELLOW)));
+    }
 
     sender.sendMessage(Component.text("Doctor check finished.", NamedTextColor.DARK_PURPLE));
     return 1;

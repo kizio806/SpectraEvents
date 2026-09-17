@@ -14,6 +14,7 @@ public final class EventRuntimeState {
   private final EventInstanceId instanceId;
   private final AtomicReference<Health> health = new AtomicReference<>(null);
   private final AtomicLong lockedUntilMillis = new AtomicLong(0L);
+  private final AtomicLong timerDeadlineMillis = new AtomicLong(0L);
   private final AtomicReference<Object> platformLocation = new AtomicReference<>(null);
   private final AtomicReference<String> claimant = new AtomicReference<>(null);
   private final AtomicReference<DamageContribution> contribution =
@@ -50,6 +51,14 @@ public final class EventRuntimeState {
 
   public boolean isLocked() {
     return System.currentTimeMillis() < lockedUntilMillis.get();
+  }
+
+  public long timerDeadlineMillis() {
+    return timerDeadlineMillis.get();
+  }
+
+  public void setTimerDeadlineMillis(long millis) {
+    this.timerDeadlineMillis.set(millis);
   }
 
   public Optional<Object> platformLocation() {

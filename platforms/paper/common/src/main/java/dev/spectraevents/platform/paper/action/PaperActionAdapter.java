@@ -10,15 +10,20 @@ import dev.spectraevents.core.visual.model.ModelDefinition;
 import dev.spectraevents.core.visual.model.ModelId;
 import dev.spectraevents.core.visual.model.ModelPartDefinition;
 import dev.spectraevents.core.visual.model.Transform;
+import dev.spectraevents.platform.paper.integration.MiniPlaceholdersIntegration;
+import dev.spectraevents.platform.paper.integration.item.CustomItemProvider;
+import dev.spectraevents.platform.paper.integration.item.ItemsAdderItemProvider;
+import dev.spectraevents.platform.paper.integration.item.NexoItemProvider;
+import dev.spectraevents.platform.paper.integration.item.OraxenItemProvider;
 import dev.spectraevents.platform.paper.lifecycle.PaperResourceCleaner;
 import dev.spectraevents.platform.paper.metadata.SpectraPdcKeys;
 import dev.spectraevents.platform.paper.render.PaperModelRenderer;
 import dev.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Logger;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -39,6 +44,7 @@ public final class PaperActionAdapter implements PlatformActionPort {
   private final PaperModelRenderer renderer;
   private final RegionTaskScheduler regionScheduler;
   private final PaperResourceCleaner cleaner;
+  private final List<CustomItemProvider> itemProviders = new ArrayList<>();
 
   public PaperActionAdapter(
       PaperModelRenderer renderer,
@@ -47,6 +53,10 @@ public final class PaperActionAdapter implements PlatformActionPort {
     this.renderer = Objects.requireNonNull(renderer, "renderer");
     this.regionScheduler = Objects.requireNonNull(regionScheduler, "regionScheduler");
     this.cleaner = Objects.requireNonNull(cleaner, "cleaner");
+
+    itemProviders.add(new NexoItemProvider());
+    itemProviders.add(new OraxenItemProvider());
+    itemProviders.add(new ItemsAdderItemProvider());
   }
 
   @Override
@@ -205,12 +215,32 @@ public final class PaperActionAdapter implements PlatformActionPort {
     }
     String materialName = getStringParam(params, "material", "minecraft:diamond");
     int amount = getIntParam(params, "amount", 1);
-    Material mat = resolveMaterial(materialName);
-    if (mat != null) {
+
+    ItemStack itemStack = null;
+
+    for (CustomItemProvider provider : itemProviders) {
+      if (provider.isAvailable()) {
+        ItemStack custom = provider.resolveItem(materialName, amount);
+        if (custom != null) {
+          itemStack = custom;
+          break;
+        }
+      }
+    }
+
+    if (itemStack == null) {
+      Material mat = resolveMaterial(materialName);
+      if (mat != null) {
+        itemStack = new ItemStack(mat, amount);
+      }
+    }
+
+    if (itemStack != null) {
+      ItemStack finalStack = itemStack;
       regionScheduler.executeFor(
           player,
           () -> {
-            player.getInventory().addItem(new ItemStack(mat, amount));
+            player.getInventory().addItem(finalStack);
           });
     }
   }
@@ -221,14 +251,14 @@ public final class PaperActionAdapter implements PlatformActionPort {
     }
     String msg = getStringParam(params, "message", "");
     if (!msg.isEmpty()) {
-      sender.sendMessage(MiniMessage.miniMessage().deserialize(msg));
+      sender.sendMessage(MiniPlaceholdersIntegration.getMiniMessage().deserialize(msg));
     }
   }
 
   private void handleBroadcastMessage(Map<String, Object> params) {
     String msg = getStringParam(params, "message", "");
     if (!msg.isEmpty()) {
-      Bukkit.broadcast(MiniMessage.miniMessage().deserialize(msg));
+      Bukkit.broadcast(MiniPlaceholdersIntegration.getMiniMessage().deserialize(msg));
     }
   }
 
@@ -255,7 +285,7 @@ public final class PaperActionAdapter implements PlatformActionPort {
           if (world == null) return;
 
           Entity entity = world.spawnEntity(spawnLoc, entityType);
-          entity.customName(MiniMessage.miniMessage().deserialize(name));
+          entity.customName(MiniPlaceholdersIntegration.getMiniMessage().deserialize(name));
           entity.setCustomNameVisible(true);
 
           entity

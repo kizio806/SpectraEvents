@@ -11,9 +11,14 @@ import dev.spectraevents.platform.paper.command.SpectraMainCommand;
 import dev.spectraevents.platform.paper.common.PaperLifecycleReporter;
 import dev.spectraevents.platform.paper.config.PaperDefinitionConfigBootstrap;
 import dev.spectraevents.platform.paper.gui.AdminGuiController;
+import dev.spectraevents.platform.paper.integration.LuckPermsIntegration;
 import dev.spectraevents.platform.paper.integration.PaperIntegrationManager;
+import dev.spectraevents.platform.paper.integration.PlaceholderAPIIntegration;
+import dev.spectraevents.platform.paper.integration.VaultIntegration;
+import dev.spectraevents.platform.paper.integration.WorldGuardIntegration;
 import dev.spectraevents.platform.paper.interaction.PaperEntityDeathRouter;
 import dev.spectraevents.platform.paper.interaction.PaperInteractionRouter;
+import dev.spectraevents.platform.paper.lifecycle.PaperEntityReconciler;
 import dev.spectraevents.platform.paper.lifecycle.PaperResourceCleaner;
 import dev.spectraevents.platform.paper.render.PaperModelRenderer;
 import dev.spectraevents.platform.paper.scheduler.PaperEventTaskScheduler;
@@ -51,12 +56,15 @@ public final class PaperBootstrap {
 
     PaperActionAdapter actionAdapter = new PaperActionAdapter(renderer, regionScheduler, cleaner);
 
+    PaperEntityReconciler reconciler = new PaperEntityReconciler(plugin, renderer);
+
     application =
         new SpectraEventsApplication(
             new PaperLifecycleReporter(plugin),
             eventTaskScheduler,
             actionAdapter,
-            sqliteRepository);
+            sqliteRepository,
+            reconciler);
     application.start();
 
     definitionConfigBootstrap =
@@ -65,6 +73,20 @@ public final class PaperBootstrap {
     try {
       definitionConfigBootstrap.ensureDefaultConfiguration();
       definitionConfigBootstrap.logLoadResult(definitionConfigBootstrap.loadFromDisk());
+
+      // Reconcile entities after definitions are loaded
+      dev.spectraevents.application.service.EntityReconciliationReport report =
+          application.reconciliationService().reconcileAll();
+      application.setLastReconciliationReport(report);
+      plugin
+          .getLogger()
+          .info(
+              String.format(
+                  "[SpectraEvents] Entity Reconciliation Report: %d recovered, %d reconnected, %d orphans removed.",
+                  report.instancesRecovered(),
+                  report.entitiesReconnected(),
+                  report.orphansRemoved()));
+
     } catch (Exception e) {
       plugin.getLogger().severe("Failed to load event definitions: " + e.getMessage());
     }
@@ -72,6 +94,13 @@ public final class PaperBootstrap {
     integrationRegistry = new IntegrationRegistry();
     PaperIntegrationManager integrationManager = new PaperIntegrationManager(integrationRegistry);
     integrationManager.detectAll();
+
+    // Initialize specific integrations
+    new PlaceholderAPIIntegration(sqliteRepository, application.executionEngine().stateStore());
+
+    application.executionEngine().registerConditionResolver(new LuckPermsIntegration());
+    application.executionEngine().registerConditionResolver(new WorldGuardIntegration());
+    application.executionEngine().registerActionResolver(new VaultIntegration());
 
     Path updateDir = plugin.getDataFolder().toPath().resolve("update");
     HttpUpdateAdapter updateAdapter = new HttpUpdateAdapter(updateDir);
@@ -123,7 +152,8 @@ public final class PaperBootstrap {
             definitionConfigBootstrap,
             integrationRegistry,
             updateService,
-            guiController);
+            guiController,
+            application);
 
     SpectraDebugCommand debugCommand =
         new SpectraDebugCommand(application.orchestrationService(), renderer);

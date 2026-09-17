@@ -231,6 +231,21 @@ public class PaperModelRenderer {
     }
   }
 
+  /**
+   * Restores an instance handle into the registry from discovered entities.
+   *
+   * @param instanceId the event instance ID
+   * @param spawnedParts the discovered part entities
+   * @param interactionEntityId the discovered interaction entity, if any
+   */
+  public void restore(
+      EventInstanceId instanceId, Map<String, UUID> spawnedParts, UUID interactionEntityId) {
+    if (!registry.containsKey(instanceId)) {
+      registry.put(
+          instanceId, new PaperModelInstanceHandle(instanceId, spawnedParts, interactionEntityId));
+    }
+  }
+
   private void removeEntityByUuid(UUID uuid) {
     Entity entity = Bukkit.getEntity(uuid);
     if (entity != null && entity.isValid()) {

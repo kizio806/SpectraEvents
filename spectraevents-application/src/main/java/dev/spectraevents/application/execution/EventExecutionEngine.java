@@ -40,6 +40,11 @@ public final class EventExecutionEngine {
   private final PlatformActionPort platformActionPort;
   private final EventRuntimeStateStore stateStore;
 
+  private final java.util.List<IntegrationConditionResolver> conditionResolvers =
+      new java.util.ArrayList<>();
+  private final java.util.List<IntegrationActionResolver> actionResolvers =
+      new java.util.ArrayList<>();
+
   public EventExecutionEngine(
       EventInstanceRepository repository,
       EventDefinitionRegistry definitionRegistry,
@@ -55,6 +60,14 @@ public final class EventExecutionEngine {
 
   public EventRuntimeStateStore stateStore() {
     return stateStore;
+  }
+
+  public void registerConditionResolver(IntegrationConditionResolver resolver) {
+    conditionResolvers.add(resolver);
+  }
+
+  public void registerActionResolver(IntegrationActionResolver resolver) {
+    actionResolvers.add(resolver);
   }
 
   /** Starts a config-driven event instance. */
@@ -111,7 +124,8 @@ public final class EventExecutionEngine {
 
     // Evaluate rules in deterministic list order
     for (TransitionRule rule : phaseDef.rules()) {
-      if (matchesTrigger(rule.trigger(), trigger) && evaluateConditions(rule.conditions(), state)) {
+      if (matchesTrigger(rule.trigger(), trigger)
+          && evaluateConditions(rule.conditions(), state, context)) {
         // Execute rule actions
         boolean actionsOk = executeActions(instance, state, rule.actions(), context);
         if (!actionsOk) {
@@ -164,6 +178,9 @@ public final class EventExecutionEngine {
         Duration duration = parseDuration(rule.trigger().parameters().get("duration"));
         if (duration != null) {
           TriggerDefinition timerTrigger = rule.trigger();
+          long deadline = System.currentTimeMillis() + duration.toMillis();
+          state.setTimerDeadlineMillis(deadline);
+          repository.saveState(state);
           scheduler.schedule(
               instance.id(),
               duration,
@@ -234,6 +251,47 @@ public final class EventExecutionEngine {
     return null;
   }
 
+  /** Recovers persistent phase timers after a system restart. */
+  public void recoverTimers() {
+    for (EventInstance instance : repository.findAll()) {
+      if (instance.state() == EventLifecycleState.RUNNING) {
+        EventRuntimeState state = stateStore.getOrCreate(instance.id());
+        long deadline = state.timerDeadlineMillis();
+        if (deadline > 0) {
+          long remaining = deadline - System.currentTimeMillis();
+          if (remaining < 0) remaining = 0;
+
+          EventDefinition definition = getDefinition(instance.definitionId().value());
+          PhaseId currentPhaseId = instance.currentPhase().orElse(null);
+          if (currentPhaseId != null) {
+            PhaseDefinition phaseDef = definition.phase(currentPhaseId).orElse(null);
+            if (phaseDef != null) {
+              for (TransitionRule rule : phaseDef.rules()) {
+                if ("timer_elapsed".equalsIgnoreCase(rule.trigger().type())) {
+                  TriggerDefinition timerTrigger = rule.trigger();
+                  scheduler.schedule(
+                      instance.id(),
+                      Duration.ofMillis(remaining),
+                      () -> {
+                        try {
+                          evaluateTrigger(instance.id(), timerTrigger, ExecutionContext.EMPTY);
+                        } catch (Exception e) {
+                          LOGGER.log(
+                              Level.SEVERE,
+                              "Error executing recovered timer for " + instance.id(),
+                              e);
+                        }
+                      });
+                  break; // Assume max 1 timer rule per phase
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   private boolean executeActions(
       EventInstance instance,
       EventRuntimeState state,
@@ -275,7 +333,15 @@ public final class EventExecutionEngine {
       EventInstance instance,
       EventRuntimeState state,
       ActionDefinition action,
-      ExecutionContext context) {
+      ExecutionContext context)
+      throws FatalActionException {
+
+    for (IntegrationActionResolver resolver : actionResolvers) {
+      if (resolver.supports(action.type())) {
+        return resolver.execute(action, instance, state, context);
+      }
+    }
+
     String type = action.type().toLowerCase();
     switch (type) {
       case "initialize_health":
@@ -363,9 +429,22 @@ public final class EventExecutionEngine {
   }
 
   private boolean evaluateConditions(
-      List<ConditionDefinition> conditions, EventRuntimeState state) {
+      List<ConditionDefinition> conditions, EventRuntimeState state, ExecutionContext context) {
     for (ConditionDefinition cond : conditions) {
       String type = cond.type().toLowerCase();
+
+      boolean resolvedByIntegration = false;
+      for (IntegrationConditionResolver resolver : conditionResolvers) {
+        if (resolver.supports(type)) {
+          if (!resolver.resolve(cond, null, state, context)) {
+            return false;
+          }
+          resolvedByIntegration = true;
+          break;
+        }
+      }
+      if (resolvedByIntegration) continue;
+
       if ("not_locked".equals(type) && state.isLocked()) {
         return false;
       }

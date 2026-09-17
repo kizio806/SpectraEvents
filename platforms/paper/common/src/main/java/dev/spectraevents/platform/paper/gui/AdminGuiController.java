@@ -98,6 +98,8 @@ public final class AdminGuiController implements Listener {
         if (slot == 49) openMainMenu(player);
         break;
       case INTEGRATIONS:
+        if (slot == 31) openMainMenu(player);
+        break;
       case UPDATES:
         if (slot == 22) openMainMenu(player);
         break;

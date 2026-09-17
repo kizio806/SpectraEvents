@@ -17,7 +17,14 @@ public final class PaperIntegrationManager {
   }
 
   public void detectAll() {
-    // No optional integrations are implemented yet in Beta.
+    detectPlugin("LuckPerms", "Condition resolution for luckperms_group");
+    detectPlugin("WorldGuard", "Condition resolution for worldguard_region");
+    detectPlugin("Vault", "Action resolution for give_money");
+    detectPlugin("PlaceholderAPI", "Spectra placeholder expansion");
+    detectPlugin("MiniPlaceholders", "Global audience parser support");
+    detectPlugin("Nexo", "Custom item provider for give_item");
+    detectPlugin("Oraxen", "Custom item provider for give_item");
+    detectPlugin("ItemsAdder", "Custom item provider for give_item");
   }
 
   private void detectPlugin(String name, String description) {

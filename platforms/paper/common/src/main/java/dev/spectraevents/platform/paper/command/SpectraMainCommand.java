@@ -2,6 +2,7 @@ package dev.spectraevents.platform.paper.command;
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import dev.spectraevents.application.SpectraEventsApplication;
 import dev.spectraevents.application.config.registry.EventDefinitionRegistry;
 import dev.spectraevents.application.integration.IntegrationRegistry;
 import dev.spectraevents.application.port.EventInstanceRepository;
@@ -27,6 +28,7 @@ public final class SpectraMainCommand {
   private final EventDefinitionRegistry definitionRegistry;
   private final EventInstanceRepository instanceRepository;
   private final AdminGuiController guiController;
+  private final SpectraEventsApplication application;
 
   public SpectraMainCommand(
       EventOrchestrationService orchestrationService,
@@ -35,18 +37,24 @@ public final class SpectraMainCommand {
       PaperDefinitionConfigBootstrap configBootstrap,
       IntegrationRegistry integrationRegistry,
       UpdateService updateService,
-      AdminGuiController guiController) {
+      AdminGuiController guiController,
+      SpectraEventsApplication application) {
     this.eventCommandHandler = new EventCommandHandler(orchestrationService, instanceRepository);
     this.definitionCommandHandler =
         new DefinitionCommandHandler(definitionRegistry, configBootstrap);
     this.updateCommandHandler = new UpdateCommandHandler(updateService);
     this.diagnosticsCommandHandler =
         new DiagnosticsCommandHandler(
-            definitionRegistry, instanceRepository, configBootstrap, integrationRegistry);
+            definitionRegistry,
+            instanceRepository,
+            configBootstrap,
+            integrationRegistry,
+            application);
     this.integrationCommandHandler = new IntegrationCommandHandler(integrationRegistry);
     this.definitionRegistry = definitionRegistry;
     this.instanceRepository = instanceRepository;
     this.guiController = guiController;
+    this.application = application;
   }
 
   public LiteralArgumentBuilder<CommandSourceStack> buildCommand() {

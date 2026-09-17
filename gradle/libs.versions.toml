@@ -10,6 +10,14 @@ run-paper = "3.0.0"
 shadow = "9.6.1"
 spotless = "8.10.2"
 snakeyaml = "2.2"
+luckperms = "5.4"
+worldguard = "7.0.9"
+vault = "1.7"
+placeholderapi = "2.11.6"
+miniplaceholders = "2.2.3"
+nexo = "0.7.0"
+oraxen = "1.182.0"
+itemsadder = "3.6.1"
 
 [libraries]
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
@@ -18,6 +26,14 @@ junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
 snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
+luckperms-api = { module = "net.luckperms:api", version.ref = "luckperms" }
+worldguard-api = { module = "com.sk89q.worldguard:worldguard-bukkit", version.ref = "worldguard" }
+vault-api = { module = "com.github.MilkBowl:VaultAPI", version.ref = "vault" }
+placeholderapi = { module = "me.clip:placeholderapi", version.ref = "placeholderapi" }
+miniplaceholders-api = { module = "io.github.miniplaceholders:miniplaceholders-api", version.ref = "miniplaceholders" }
+nexo-api = { module = "com.nexomc:nexo", version.ref = "nexo" }
+oraxen-api = { module = "io.th0rgal:oraxen", version.ref = "oraxen" }
+itemsadder-api = { module = "com.github.LoneDev6:API-ItemsAdder", version.ref = "itemsadder" }
 
 [plugins]
 run-paper = { id = "xyz.jpenilla.run-paper", version.ref = "run-paper" }
