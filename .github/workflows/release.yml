@@ -174,7 +174,8 @@ jobs:
           files: |
             ${{ env.FINAL_JAR_PATH }}
             ${{ env.FINAL_JAR_PATH }}.sha256
-          prerelease: ${{ env.IS_PRERELEASE == 'true' }}
+          prerelease: false
+          make_latest: true
 
       - name: Validate Modrinth Credentials
         if: startsWith(github.ref, 'refs/tags/')
