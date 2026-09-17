@@ -86,7 +86,7 @@ jobs:
       - name: Discover and verify final distribution artifacts
         id: artifacts
         run: |
-          for platform in paper spigot sponge; do
+          for platform in paper spigot; do
             LIBS_DIR="distributions/$platform/build/libs"
             JARS=($(find "$LIBS_DIR" -name "SpectraEvents-*.jar" ! -name "*-sources.jar"))
             if [ ${#JARS[@]} -eq 0 ]; then
@@ -107,7 +107,7 @@ jobs:
           # SpectraEvents v${GRADLE_VERSION}
 
           - **Minecraft Version Compatibility Band:** 26.1 – 26.3
-          - **Platforms:** Paper, Purpur, Folia, Spigot, Sponge
+          - **Platforms:** Paper, Purpur, Folia, Spigot
           - **Java Runtime Requirement:** 25
 
           EOF
@@ -138,11 +138,16 @@ jobs:
       - name: Compute and verify SHA-256 checksums
         run: |
           mkdir -p release-artifacts
-          for platform in paper spigot sponge; do
+          for platform in paper spigot; do
             cp distributions/$platform/build/libs/SpectraEvents-*.jar release-artifacts/
           done
 
           cd release-artifacts
+          TOTAL_JARS=($(find . -name "SpectraEvents-*.jar" ! -name "*-sources.jar"))
+          if [ ${#TOTAL_JARS[@]} -ne 2 ]; then
+            echo "::error::Expected exactly 2 public distribution JARs, found ${#TOTAL_JARS[@]}!"
+            exit 1
+          fi
           sha256sum SpectraEvents-*.jar > SHA256SUMS.txt
           cat SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
@@ -225,7 +230,7 @@ jobs:
           echo "| **Version** | \`${{ env.GRADLE_VERSION }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Release Type** | \`${{ env.RELEASE_TYPE }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Target Minecraft** | \`26.2\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Platform** | \`Paper / Spigot / Sponge\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Platform** | \`Paper / Spigot\` |" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "| **GitHub Release** | Published |" >> $GITHUB_STEP_SUMMARY
             echo "| **Modrinth** | Published |" >> $GITHUB_STEP_SUMMARY

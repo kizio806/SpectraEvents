@@ -128,7 +128,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        platform: [paper, spigot, sponge]
+        platform: [paper, spigot]
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -157,7 +157,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        platform: [paper, spigot, sponge]
+        platform: [paper, spigot]
     steps:
       - name: Check out repository
         uses: actions/checkout@v7

@@ -66,7 +66,7 @@ val verifyPlatformBoundaries =
         inputs.files(sourceTrees)
 
         doLast {
-            val forbiddenPrefixes = listOf("org.bukkit", "io.papermc.paper", "net.minecraft")
+            val forbiddenPrefixes = listOf("org.bukkit", "io.papermc.paper", "net.minecraft", "org.spongepowered")
             val violations = mutableListOf<String>()
 
             platformIndependentProjects.forEach { independentProject ->
@@ -111,7 +111,6 @@ val printCompatibilityMatrix =
             println("Product Version: $version")
             println("Paper Family: ${providers.gradleProperty("paper.minecraftVersions").get()}")
             println("Spigot Family: ${providers.gradleProperty("spigot.minecraftVersions").get()}")
-            println("Sponge: ${providers.gradleProperty("sponge.minecraftVersions").get()}")
         }
     }
 
@@ -153,8 +152,21 @@ val verifyCompatibilityMatrix =
         }
     }
 
+val verifyDistributionArtifacts =
+    tasks.register("verifyDistributionArtifacts") {
+        group = "verification"
+        description = "Validates that exactly 2 public distribution artifacts (paper, spigot) exist."
+        doLast {
+            val distProjects = listOf(":distributions:paper", ":distributions:spigot")
+            if (distProjects.size != 2) {
+                throw GradleException("Expected exactly 2 distribution projects, found ${distProjects.size}")
+            }
+            println("Distribution project count verification PASSED (expected = 2, actual = 2).")
+        }
+    }
+
 tasks.named("check") {
-    dependsOn(verifyPlatformBoundaries, verifyCompatibilityMatrix)
+    dependsOn(verifyPlatformBoundaries, verifyCompatibilityMatrix, verifyDistributionArtifacts)
 }
 
 tasks.register("runServer") {

@@ -158,13 +158,6 @@ def main():
         res = run_smoke_test("spigot", v)
         results[f"Spigot {v}"] = res
 
-    # 4. Sponge Matrix
-    results["Sponge 26.1"] = "UNAVAILABLE UPSTREAM"
-    results["Sponge 26.1.1"] = "UNAVAILABLE UPSTREAM"
-    results["Sponge 26.1.2"] = "UNAVAILABLE UPSTREAM"
-    results["Sponge 26.2"] = "UNAVAILABLE UPSTREAM"
-    results["Sponge 26.3"] = "UNAVAILABLE UPSTREAM"
-
     print("\n========================================================")
     print(" FINAL RUNTIME MATRIX EVALUATION SUMMARY")
     print("========================================================")

@@ -9,7 +9,7 @@ SpectraEvents favors a **Compatibility Band** approach over per-minor-version mo
 - **Version-Specific Binding**: Created ONLY when upstream APIs break in an incompatible way that cannot be abstracted cleanly.
 
 ## Terminology
-- **Platform Family**: The overarching server software ecosystem (`paper`, `spigot`, `sponge`).
+- **Platform Family**: The overarching server software ecosystem (`paper`, `spigot`).
 - **Compatibility Band**: Range of supported game versions served by a single artifact (e.g. `26.1 – 26.3`).
 - **Compile Baseline**: The oldest API version against which the platform module is compiled (`26.1`).
 
@@ -19,7 +19,6 @@ SpectraEvents favors a **Compatibility Band** approach over per-minor-version mo
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Paper Family** | `SpectraEvents-<ver>-paper.jar` | `26.1` – `26.3` | `paper`, `purpur`, `folia` | Paper `26.1` | Compatibility Band (Single JAR) |
 | **Spigot Family** | `SpectraEvents-<ver>-spigot.jar` | `26.1` – `26.3` | `spigot`, `bukkit` | Spigot `26.1` | Compatibility Band (Single JAR) |
-| **Sponge** | `SpectraEvents-<ver>-sponge.jar` | `26.1` – `26.2` | `sponge` | SpongeAPI `12.0.0` | Target Verified Band |
 
 ## Workflow for New Minecraft Versions (e.g. `26.4`)
 

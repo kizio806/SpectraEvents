@@ -8,7 +8,7 @@ package io.github.kizio806.spectraevents.application.port;
 public enum PlatformCapability {
   /**
    * The server natively supports Minecraft Display Entities (Text, Item, Block). Spigot 1.19.4+ /
-   * Paper 1.19.4+ / SpongeAPI 10+.
+   * Paper 1.19.4+.
    */
   DISPLAY_ENTITIES,
 

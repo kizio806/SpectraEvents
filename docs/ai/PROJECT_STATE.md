@@ -39,28 +39,26 @@ Minecraft Compatibility Band 26.1 – 26.3 (Java 25 runtime for Paper/Spigot, Ja
   - Hardened absolute timer persistence allowing recovery of queued actions after a crash or restart.
   - Built comprehensive `EntityReconciliationService` to garbage-collect orphaned models and entities at boot or reconnect them to running events.
   - Finalized `/spectra doctor` diagnostics exposing missing optional dependencies and integration status gracefully.
-- [x] Multi-Platform Expansion:
-  - Added full compatibility with Spigot via a dedicated adapter (with Adventure relocation). Verified via automated runtime smoke scripts.
-  - SpongeAPI 12 fully implemented (ItemDisplay, Interaction, EntityReconciliation, Scheduling) replacing the skeleton.
-  - Spigot and Sponge distributions compile gracefully and are packaged independently.
-  - [x] Minecraft Version Compatibility & Multi-Platform Release Matrix:
-  - Transitioned from hardcoded per-minor version modules (`v26_2`) to unified platform family modules (`platforms/paper/common`, `platforms/spigot/common`, `platforms/sponge/common`).
-  - Single JAR per platform family: `SpectraEvents-<version>-paper.jar`, `SpectraEvents-<version>-spigot.jar`, `SpectraEvents-<version>-sponge.jar`.
-  - Defined central single source of truth matrix in `gradle.properties` & `gradle/compatibility.versions.toml`.
-  - Added `./gradlew verifyCompatibilityMatrix` and `./gradlew printCompatibilityMatrix` tasks.
-  - Verified 26.1 – 26.3 compatibility band for Paper and Spigot, and re-audited Sponge targets.
-  - Configured multi-artifact release pipeline with separate Modrinth versions (`-paper`, `-spigot`, `-sponge`) and SHA-256 verification.
+- [x] Multi-Platform Expansion & Sponge Scope Reduction:
+  - Official platform families: Paper, Spigot.
+  - Paper artifact (`SpectraEvents-<version>-paper.jar`) supports Paper, Purpur, and Folia.
+  - Spigot artifact (`SpectraEvents-<version>-spigot.jar`) supports Spigot and Bukkit-compatible servers.
+  - Sponge: NOT SUPPORTED, NO ADAPTER, NO ARTIFACT, NO RELEASE. Completely removed per product decision.
+  - Verified 26.1 – 26.3 compatibility band for Paper and Spigot.
+  - Configured multi-artifact release pipeline with separate Modrinth versions (`-paper`, `-spigot`) and SHA-256 verification.
 
 ## In Progress
 
-- Professional 3D model runtime integration (model hierarchy, interpolation, resources).
+- Milestone cleanup & preparation for Professional 3D Model Runtime.
 
 ## Next Planned Milestone
 
-SpectraEvents Addon API & Custom Content Expansion (Pinata, Vault, Boss Portal Events)
+Professional 3D Model Runtime (model hierarchy, interpolation, Blockbench animations, resource pack integration).
 
 ## Important Active Decisions
 
+- Official platform scope is strictly limited to Paper Family (Paper, Purpur, Folia) and Spigot Family (Spigot, Bukkit).
+- Sponge is NOT supported; all Sponge modules, artifacts, and release tasks are removed.
 - Dependency direction is strictly `platform -> application -> core`.
 - Core, application, and public API have zero Bukkit, Paper, NMS, or CraftBukkit dependencies.
 - Infrastructure (SQLite storage, HTTP update client) resides in platform-neutral `adapters/*` modules.

@@ -9,8 +9,8 @@ SPECTRAEVENTS COMPATIBILITY ARCHITECTURE
 +-------------------------------------------------------------------------+
 |                  Minecraft Compatibility Band: 26.1 – 26.3               |
 +-------------------------------------------------------------------------+
-|  Paper Family Artifact   |   Spigot Family Artifact  |   Sponge Artifact  |
-|  (Paper / Purpur / Folia)|      (Spigot / Bukkit)    |      (Sponge)      |
+|  Paper Family Artifact   |   Spigot Family Artifact  |
+|  (Paper / Purpur / Folia)|      (Spigot / Bukkit)    |
 +-------------------------------------------------------------------------+
 ```
 
@@ -22,7 +22,6 @@ SPECTRAEVENTS COMPATIBILITY ARCHITECTURE
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Paper Family JAR** | Paper, Purpur, Folia | `26.1.1`, `26.1.2`, `26.2`, `26.3` | `paper`, `purpur`, `folia` | Paper API `26.1` | **IMPLEMENTED + RUNTIME VERIFIED** |
 | **Spigot Family JAR** | Spigot, Bukkit | `26.1.1`, `26.1.2`, `26.2`, `26.3` | `spigot`, `bukkit` | Spigot API `26.1` | **IMPLEMENTED + RUNTIME VERIFIED** |
-| **Sponge JAR** | Sponge | None (Upstream 26.x standalone unavailable) | `sponge` | SpongeAPI `12.0.0` | **FOUNDATION / NOT RELEASEABLE ON MODRINTH** |
 
 ---
 
@@ -37,8 +36,3 @@ SPECTRAEVENTS COMPATIBILITY ARCHITECTURE
 - **Minimum Java**: Java 25 runtime.
 - **Scheduler Adaptation**: `SpigotEventTaskScheduler` mapped to Bukkit sync/async scheduler.
 - **Components & Text**: Kyori Adventure relocated into plugin namespace.
-
-### Sponge Platform Family (`platforms/sponge/common`)
-- **Minimum Java**: Java 21+.
-- **Scheduler Adaptation**: `SpongeEventTaskScheduler` mapped to Sponge async and server scheduler.
-- **Sponge API Versions**: SpongeAPI 12 / 13 / 14 mapped to Minecraft 1.20.6 through 1.21.4 (26.1 - 26.2 band).

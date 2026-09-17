@@ -5,14 +5,14 @@ Because the engine is platform-neutral, its features dynamically adjust based on
 
 ## Capability Matrix
 
-| Capability | Paper | Purpur | Folia | Spigot | Bukkit | Sponge |
-| --- | --- | --- | --- | --- | --- | --- |
-| **DISPLAY_ENTITIES** | DIRECT | SAME ADAPTER | SAME ADAPTER | DIRECT | FALLBACK | UNSUPPORTED |
-| **INTERACTION_ENTITIES**| DIRECT | SAME ADAPTER | SAME ADAPTER | DIRECT | FALLBACK | UNSUPPORTED |
-| **REGION_SCHEDULING** | DIRECT | SAME ADAPTER | DIRECT | UNSUPPORTED | UNSUPPORTED | UNSUPPORTED |
-| **ADMIN_GUI** | DIRECT | SAME ADAPTER | SAME ADAPTER | DIRECT | FALLBACK | UNSUPPORTED |
-| **ADVENTURE_NATIVE** | DIRECT | SAME ADAPTER | SAME ADAPTER | SEPARATE ADAPTER| FALLBACK | DIRECT |
-| **CUSTOM_ITEMS** | DIRECT | SAME ADAPTER | SAME ADAPTER | DIRECT | FALLBACK | UNSUPPORTED |
+| Capability | Paper | Purpur | Folia | Spigot | Bukkit |
+| --- | --- | --- | --- | --- | --- |
+| **DISPLAY_ENTITIES** | DIRECT | SAME ADAPTER | SAME ADAPTER | DIRECT | FALLBACK |
+| **INTERACTION_ENTITIES**| DIRECT | SAME ADAPTER | SAME ADAPTER | DIRECT | FALLBACK |
+| **REGION_SCHEDULING** | DIRECT | SAME ADAPTER | DIRECT | UNSUPPORTED | UNSUPPORTED |
+| **ADMIN_GUI** | DIRECT | SAME ADAPTER | SAME ADAPTER | DIRECT | FALLBACK |
+| **ADVENTURE_NATIVE** | DIRECT | SAME ADAPTER | SAME ADAPTER | SEPARATE ADAPTER| FALLBACK |
+| **CUSTOM_ITEMS** | DIRECT | SAME ADAPTER | SAME ADAPTER | DIRECT | FALLBACK |
 
 ## Legend
 - **DIRECT**: The capability is natively supported and mapped directly by the platform adapter.
@@ -29,6 +29,3 @@ Fully supports all capabilities. Folia utilizes Region Scheduling to maintain sa
 
 ### Bukkit Family (Spigot, CraftBukkit)
 Spigot fully supports basic Bukkit abstractions. Adventure requires shading/platform integration since Spigot doesn't bundle it natively. Display Entities exist in Spigot 1.19.4+ but may lack some asynchronous API conveniences present in Paper, requiring manual task scheduling.
-
-### Sponge
-Sponge API 12 handles entities differently. Capabilities like `DISPLAY_ENTITIES` and `INTERACTION_ENTITIES` are currently `UNSUPPORTED` in the minimal adapter implementation, meaning events like `meteor` will gracefully report themselves as unavailable rather than crashing.
