@@ -204,11 +204,12 @@ jobs:
             purpur
             folia
           modrinth-game-versions: |
-            26.2
+            1.21.4
           modrinth-version-type: ${{ env.MODRINTH_TYPE }}
           modrinth-name: SpectraEvents ${{ env.GRADLE_VERSION }}
           modrinth-version-number: ${{ env.GRADLE_VERSION }}
-          modrinth-file: ${{ env.FINAL_JAR_PATH }}
+          files: ${{ env.FINAL_JAR_PATH }}
+          modrinth-files: ${{ env.FINAL_JAR_PATH }}
           modrinth-changelog-file: release-notes.md
           fail-mode: fail
 
