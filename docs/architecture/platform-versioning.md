@@ -1,58 +1,33 @@
-# Platform Versioning & Addition Guide
+# Platform Versioning Strategy
 
-## 1. Directory Layout Guidelines
+This document outlines the versioning and compatibility strategy for SpectraEvents across different Minecraft server implementations.
 
-All multi-platform adapters and distributions follow strict hierarchical grouping:
+## Strategy: Compatibility Band First
 
-```text
-platforms/
-  ├── paper/
-  │   ├── common/           # Shared version-agnostic Paper logic (GUI, commands, renderers)
-  │   └── v26_2/            # Paper 26.2 NMS/API version bindings & plugin entrypoint
-  ├── bukkit/               # (Future) Spigot/Bukkit common adapters & versions
-  └── sponge/               # (Future) Sponge common adapters & versions
+SpectraEvents favors a **Compatibility Band** approach over per-minor-version module duplication:
+- **One JAR per Platform Family**: Serves all compatible Minecraft versions within a band without duplicate code or reflection hacks.
+- **Version-Specific Binding**: Created ONLY when upstream APIs break in an incompatible way that cannot be abstracted cleanly.
 
-adapters/
-  ├── storage-sqlite/       # Platform-neutral SQLite repository adapter
-  └── update-http/          # Platform-neutral HTTP update adapter
+## Terminology
+- **Platform Family**: The overarching server software ecosystem (`paper`, `spigot`).
+- **Compatibility Band**: Range of supported game versions served by a single artifact (e.g. `26.1 – 26.3`).
+- **Compile Baseline**: The oldest API version against which the platform module is compiled (`26.1`).
 
-distributions/
-  └── paper/
-      └── v26_2/            # Final Paper 26.2 shadowed plugin jar
-```
+## Version Mapping
 
----
+| Platform Family | Target Artifact | Compatibility Band | Loaders | Baseline API | Strategy |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Paper Family** | `SpectraEvents-<ver>-paper.jar` | `26.1` – `26.3` | `paper`, `purpur`, `folia` | Paper `26.1` | Compatibility Band (Single JAR) |
+| **Spigot Family** | `SpectraEvents-<ver>-spigot.jar` | `26.1` – `26.3` | `spigot`, `bukkit` | Spigot `26.1` | Compatibility Band (Single JAR) |
 
-## 2. Step-by-Step Guide for Adding a New Platform Family (e.g. Sponge)
+## Workflow for New Minecraft Versions (e.g. `26.4`)
 
-To add a new platform family (e.g., `sponge`):
-
-1. **Create Module Hierarchy**:
-   - `platforms/sponge/common`: Shared Sponge services, event listeners, and action handlers.
-   - `platforms/sponge/v10`: Sponge API v10 version bindings.
-   - `distributions/sponge/v10`: Final distribution shadowJar.
-
-2. **Implement Application Ports**:
-   - Implement `PlatformActionPort` in `platforms/sponge/common/action/SpongeActionAdapter.java`.
-   - Implement `EventTaskScheduler` in `platforms/sponge/common/scheduler/SpongeEventTaskScheduler.java`.
-   - Implement `PlatformLifecyclePort` in `platforms/sponge/common/lifecycle/SpongeLifecycleReporter.java`.
-
-3. **Wire Composition Root**:
-   - Create `SpongeBootstrap.java` in `platforms/sponge/common` to orchestrate core domain application startup without changing domain code.
-   - Core (`spectraevents-core`) and Application (`spectraevents-application`) require zero edits.
-
-4. **Register in Gradle**:
-   - Include new modules in `settings.gradle.kts`.
-   - Ensure `distributions/sponge/v10` depends on `platforms:sponge:v10`, `adapters:storage-sqlite`, and `adapters:update-http`.
-
----
-
-## 3. Step-by-Step Guide for Adding a New Version to an Existing Family (e.g. Paper v27_0)
-
-To add a new version binding to the `paper` family:
-
-1. Create directory `platforms/paper/v27_0`.
-2. Add `build.gradle.kts` referencing `:platforms:paper:common`.
-3. Implement `io.github.kizio806.spectraevents.platform.paper.v27_0.SpectraEventsPlugin` delegating to `PaperBootstrap.enable(this)`.
-4. Create distribution `distributions/paper/v27_0` referencing `:platforms:paper:v27_0`.
-5. Update `settings.gradle.kts`.
+When a new minor or patch version of Minecraft is released:
+1. **DO NOTHING to Module Structure by Default**: Do NOT duplicate modules or create `v26_4`.
+2. **Add Candidate Version**: Add `26.4` to candidate metadata in `gradle.properties` / `compatibility.versions.toml`.
+3. **Build & Static Verification**: Compile against current baseline (`26.1`).
+4. **Runtime Smoke Verification**: Boot Paper/Spigot runtime smoke tests on `26.4`.
+5. **If Tests Pass**: Update supported metadata list. The SAME public JAR serves `26.4`.
+6. **If API Incompatibility Discovered**:
+   - Determine if a narrow adapter or capability query solves it.
+   - Only if unavoidable due to breaking API changes, introduce a version-specific module (e.g. `paper/v26_4`).

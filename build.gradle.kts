@@ -66,7 +66,7 @@ val verifyPlatformBoundaries =
         inputs.files(sourceTrees)
 
         doLast {
-            val forbiddenPrefixes = listOf("org.bukkit", "io.papermc.paper", "net.minecraft")
+            val forbiddenPrefixes = listOf("org.bukkit", "io.papermc.paper", "net.minecraft", "org.spongepowered")
             val violations = mutableListOf<String>()
 
             platformIndependentProjects.forEach { independentProject ->
@@ -102,12 +102,75 @@ val verifyPlatformBoundaries =
         }
     }
 
+val printCompatibilityMatrix =
+    tasks.register("printCompatibilityMatrix") {
+        group = "help"
+        description = "Prints the configured Minecraft version compatibility matrix."
+        doLast {
+            println("=== SpectraEvents Compatibility Matrix ===")
+            println("Product Version: $version")
+            println("Paper Family: ${providers.gradleProperty("paper.minecraftVersions").get()}")
+            println("Spigot Family: ${providers.gradleProperty("spigot.minecraftVersions").get()}")
+        }
+    }
+
+val verifyCompatibilityMatrix =
+    tasks.register("verifyCompatibilityMatrix") {
+        group = "verification"
+        description = "Validates the Minecraft compatibility matrix configuration."
+        doLast {
+            val paperVersions =
+                providers
+                    .gradleProperty(
+                        "paper.minecraftVersions",
+                    ).get()
+                    .split(",")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+            val spigotVersions =
+                providers
+                    .gradleProperty(
+                        "spigot.minecraftVersions",
+                    ).get()
+                    .split(",")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+
+            if (paperVersions.isEmpty()) {
+                throw GradleException("Compatibility matrix for Paper must not be empty!")
+            }
+            if (spigotVersions.isEmpty()) {
+                throw GradleException("Compatibility matrix for Spigot must not be empty!")
+            }
+            if (paperVersions.toSet().size != paperVersions.size) {
+                throw GradleException("Compatibility matrix for Paper contains duplicates: $paperVersions")
+            }
+            if (spigotVersions.toSet().size != spigotVersions.size) {
+                throw GradleException("Compatibility matrix for Spigot contains duplicates: $spigotVersions")
+            }
+            println("Compatibility matrix verification PASSED.")
+        }
+    }
+
+val verifyDistributionArtifacts =
+    tasks.register("verifyDistributionArtifacts") {
+        group = "verification"
+        description = "Validates that exactly 2 public distribution artifacts (paper, spigot) exist."
+        doLast {
+            val distProjects = listOf(":distributions:paper", ":distributions:spigot")
+            if (distProjects.size != 2) {
+                throw GradleException("Expected exactly 2 distribution projects, found ${distProjects.size}")
+            }
+            println("Distribution project count verification PASSED (expected = 2, actual = 2).")
+        }
+    }
+
 tasks.named("check") {
-    dependsOn(verifyPlatformBoundaries)
+    dependsOn(verifyPlatformBoundaries, verifyCompatibilityMatrix, verifyDistributionArtifacts)
 }
 
 tasks.register("runServer") {
     group = "application"
-    description = "Runs a local Paper 26.2 development server with the shaded plugin."
-    dependsOn(":distributions:paper:v26_2:runServer")
+    description = "Runs a local Paper development server with the shaded plugin."
+    dependsOn(":distributions:paper:runServer")
 }

@@ -1,6 +1,6 @@
 # Target Architecture
 
-SpectraEvents is a general-purpose, data-driven 3D event engine designed for modern Paper servers and multi-platform expansion (Spigot, Folia, Purpur, Sponge). It operates on a strict hexagonal architecture ensuring that domain logic remains entirely agnostic of the underlying server implementation.
+SpectraEvents is a general-purpose, data-driven 3D event engine designed for modern Paper and Spigot ecosystem servers (Paper, Purpur, Folia, Spigot, Bukkit). It operates on a strict hexagonal architecture ensuring that domain logic remains entirely agnostic of the underlying server implementation.
 
 ## Architectural Areas
 

@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Folia Support**: Native region-aware scheduling foundation (`RegionTaskScheduler`, `PaperRegionTaskScheduler`).
 - **Update Checking System**: SemVer-aware GitHub releases update check provider.
 
+### Removed
+- **Sponge Platform Support**: Removed the experimental Sponge platform adapter, distribution module, descriptors, and release workflows to focus official support exclusively on the Paper and Spigot ecosystems.
+
 ### Changed
 - **Namespace Migration**: Standardized Java package root to `io.github.kizio806.spectraevents` and Gradle group to `io.github.kizio806`.
 - **Platform Separation**: Strictly decoupled `platform -> application -> core` architecture with zero platform dependencies in core logic.

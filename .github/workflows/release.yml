@@ -83,43 +83,32 @@ jobs:
       - name: Execute full quality gate & build
         run: ./gradlew --no-daemon --stacktrace clean check build
 
-      - name: Discover and verify final distribution artifact
-        id: artifact
+      - name: Discover and verify final distribution artifacts
+        id: artifacts
         run: |
-          LIBS_DIR="distributions/paper/v26_2/build/libs"
-          JARS=($(find "$LIBS_DIR" -name "SpectraEvents-*.jar" ! -name "*-sources.jar"))
-          if [ ${#JARS[@]} -eq 0 ]; then
-            echo "::error::No distribution JAR found in $LIBS_DIR!"
-            exit 1
-          fi
-          if [ ${#JARS[@]} -gt 1 ]; then
-            echo "::error::Multiple distribution JARs found in $LIBS_DIR: ${JARS[*]}"
-            exit 1
-          fi
-          JAR_PATH="${JARS[0]}"
-          JAR_NAME=$(basename "$JAR_PATH")
-          echo "FINAL_JAR_PATH=$JAR_PATH" >> $GITHUB_ENV
-          echo "FINAL_JAR_NAME=$JAR_NAME" >> $GITHUB_ENV
-          echo "Verified single distribution artifact: $JAR_NAME ($JAR_PATH)"
-
-          echo "Inspecting artifact structure..."
-          jar tf "$JAR_PATH" | grep "plugin.yml"
-          jar tf "$JAR_PATH" | grep "io/github/kizio806/spectraevents/platform/paper/v26_2/SpectraEventsPlugin.class"
-
-          OLD_CLASSES=$(jar tf "$JAR_PATH" | grep "dev/spectraevents" || true)
-          if [ -n "$OLD_CLASSES" ]; then
-            echo "::error::JAR contains legacy dev/spectraevents classes!"
-            exit 1
-          fi
+          for platform in paper spigot; do
+            LIBS_DIR="distributions/$platform/build/libs"
+            JARS=($(find "$LIBS_DIR" -name "SpectraEvents-*.jar" ! -name "*-sources.jar"))
+            if [ ${#JARS[@]} -eq 0 ]; then
+              echo "::error::No distribution JAR found for $platform in $LIBS_DIR!"
+              exit 1
+            fi
+            if [ ${#JARS[@]} -gt 1 ]; then
+              echo "::error::Multiple distribution JARs found for $platform: ${JARS[*]}"
+              exit 1
+            fi
+            JAR_PATH="${JARS[0]}"
+            echo "Verified distribution artifact for $platform: $JAR_PATH"
+          done
 
       - name: Generate Release Notes
         run: |
           cat << EOF > release-notes.md
           # SpectraEvents v${GRADLE_VERSION}
 
-          - **Minecraft Version:** 26.2
-          - **Platform:** Paper
-          - **Java Runtime:** 25
+          - **Minecraft Version Compatibility Band:** 26.1 – 26.3
+          - **Platforms:** Paper, Purpur, Folia, Spigot
+          - **Java Runtime Requirement:** 25
 
           EOF
 
@@ -146,22 +135,31 @@ jobs:
             git log -n 10 --oneline >> release-notes.md
           fi
 
-      - name: Compute SHA-256 checksum
+      - name: Compute and verify SHA-256 checksums
         run: |
-          cd distributions/paper/v26_2/build/libs/
-          sha256sum "$FINAL_JAR_NAME" > "${FINAL_JAR_NAME}.sha256"
-          sha256sum -c "${FINAL_JAR_NAME}.sha256"
-          CHECKSUM=$(cat "${FINAL_JAR_NAME}.sha256" | awk '{print $1}')
-          echo "SHA256_CHECKSUM=$CHECKSUM" >> $GITHUB_ENV
-          echo "SHA-256 Checksum: $CHECKSUM"
+          mkdir -p release-artifacts
+          for platform in paper spigot; do
+            cp distributions/$platform/build/libs/SpectraEvents-*.jar release-artifacts/
+          done
+
+          cd release-artifacts
+          TOTAL_JARS=($(find . -name "SpectraEvents-*.jar" ! -name "*-sources.jar"))
+          if [ ${#TOTAL_JARS[@]} -ne 2 ]; then
+            echo "::error::Expected exactly 2 public distribution JARs, found ${#TOTAL_JARS[@]}!"
+            exit 1
+          fi
+          sha256sum SpectraEvents-*.jar > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+          cd ..
 
       - name: Upload Release Artifacts to Actions
         uses: actions/upload-artifact@v7
         with:
           name: spectraevents-release-artifacts
           path: |
-            ${{ env.FINAL_JAR_PATH }}
-            ${{ env.FINAL_JAR_PATH }}.sha256
+            release-artifacts/SpectraEvents-*.jar
+            release-artifacts/SHA256SUMS.txt
             release-notes.md
 
       - name: Create GitHub Release
@@ -172,44 +170,54 @@ jobs:
           name: SpectraEvents v${{ env.GRADLE_VERSION }}
           body_path: release-notes.md
           files: |
-            ${{ env.FINAL_JAR_PATH }}
-            ${{ env.FINAL_JAR_PATH }}.sha256
+            release-artifacts/SpectraEvents-*.jar
+            release-artifacts/SHA256SUMS.txt
           prerelease: false
           make_latest: true
 
-      - name: Validate Modrinth Credentials
+      - name: Publish Paper Family to Modrinth
         if: startsWith(github.ref, 'refs/tags/')
-        continue-on-error: true
-        env:
-          MODRINTH_ID: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-        run: |
-          if [ -z "$MODRINTH_ID" ]; then
-            echo "::warning::MODRINTH_PROJECT_ID secret or variable is missing!"
-          fi
-          if [ -z "$MODRINTH_TOKEN" ]; then
-            echo "::warning::MODRINTH_TOKEN secret is missing!"
-          fi
-          echo "Modrinth credentials checked."
-
-      - name: Publish to Modrinth
-        if: startsWith(github.ref, 'refs/tags/')
-        continue-on-error: true
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          name: SpectraEvents ${{ env.GRADLE_VERSION }}
-          version: ${{ env.GRADLE_VERSION }}
+          name: SpectraEvents ${{ env.GRADLE_VERSION }} — Paper Family
+          version: ${{ env.GRADLE_VERSION }}-paper
           version-type: ${{ env.MODRINTH_TYPE }}
-          game-versions: "1.21.4"
+          game-versions: |
+            26.1.1
+            26.1.2
+            26.2
+            26.3
           loaders: |
             paper
             purpur
             folia
           java: 25
           environment: server
-          files: ${{ env.FINAL_JAR_PATH }}
+          files: release-artifacts/SpectraEvents-*-paper.jar
+          changelog-file: release-notes.md
+
+      - name: Publish Spigot Family to Modrinth
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          name: SpectraEvents ${{ env.GRADLE_VERSION }} — Spigot Family
+          version: ${{ env.GRADLE_VERSION }}-spigot
+          version-type: ${{ env.MODRINTH_TYPE }}
+          game-versions: |
+            26.1.1
+            26.1.2
+            26.2
+            26.3
+          loaders: |
+            spigot
+            bukkit
+          java: 25
+          environment: server
+          files: release-artifacts/SpectraEvents-*-spigot.jar
           changelog-file: release-notes.md
 
       - name: Generate Release Summary
@@ -222,9 +230,7 @@ jobs:
           echo "| **Version** | \`${{ env.GRADLE_VERSION }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Release Type** | \`${{ env.RELEASE_TYPE }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Target Minecraft** | \`26.2\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Platform** | \`Paper / Purpur / Folia\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Artifact** | \`${{ env.FINAL_JAR_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **SHA-256** | \`${{ env.SHA256_CHECKSUM }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Platform** | \`Paper / Spigot\` |" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "| **GitHub Release** | Published |" >> $GITHUB_STEP_SUMMARY
             echo "| **Modrinth** | Published |" >> $GITHUB_STEP_SUMMARY

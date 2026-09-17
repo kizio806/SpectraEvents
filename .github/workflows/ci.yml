@@ -122,11 +122,13 @@ jobs:
           name: test-reports-adapters
           path: adapters/*/build/reports/tests/
 
-  paper-build-and-tests:
-    name: CI / Paper Build & Tests
+  platform-build-and-tests:
+    name: CI / Platform Build & Tests
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-
+    strategy:
+      matrix:
+        platform: [paper, spigot]
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -140,8 +142,8 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Run Paper platform checks
-        run: ./gradlew :platforms:paper:common:check :platforms:paper:v26_2:check
+      - name: Run Platform checks
+        run: ./gradlew :platforms:${{ matrix.platform }}:common:check
 
   distribution-verification:
     name: CI / Distribution Verification
@@ -150,10 +152,12 @@ jobs:
       - core-tests
       - application-tests
       - adapter-tests
-      - paper-build-and-tests
+      - platform-build-and-tests
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-
+    strategy:
+      matrix:
+        platform: [paper, spigot]
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -168,30 +172,68 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Build distribution artifact
-        run: ./gradlew :distributions:paper:v26_2:build
-
-      - name: Inspect generated JAR
-        run: |
-          JAR_FILE=$(find distributions/paper/v26_2/build/libs/ -name "SpectraEvents-*.jar" ! -name "*-sources.jar" | head -n 1)
-          if [ -z "$JAR_FILE" ]; then
-            echo "::error::Distribution JAR file not found!"
-            exit 1
-          fi
-          echo "Found JAR: $JAR_FILE"
-          jar tf "$JAR_FILE" | grep "plugin.yml"
-          jar tf "$JAR_FILE" | grep "io/github/kizio806/spectraevents/platform/paper/v26_2/SpectraEventsPlugin.class"
+        run: ./gradlew :distributions:${{ matrix.platform }}:build
 
       - name: Upload distribution artifact
         uses: actions/upload-artifact@v7
         with:
-          name: spectraevents-paper
-          path: distributions/paper/v26_2/build/libs/SpectraEvents-*.jar
+          name: spectraevents-${{ matrix.platform }}
+          path: distributions/${{ matrix.platform }}/build/libs/SpectraEvents-*.jar
           if-no-files-found: error
+
+  runtime-smoke:
+    name: CI / Runtime Smoke Matrix (${{ matrix.platform }} ${{ matrix.version }})
+    needs:
+      - distribution-verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: paper
+            version: '26.1.1'
+          - platform: paper
+            version: '26.1.2'
+          - platform: paper
+            version: '26.2'
+          - platform: paper
+            version: '26.3'
+          - platform: spigot
+            version: '26.1.1'
+          - platform: spigot
+            version: '26.1.2'
+          - platform: spigot
+            version: '26.2'
+          - platform: spigot
+            version: '26.3'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Build distribution JARs
+        run: ./gradlew :distributions:${{ matrix.platform }}:build
+
+      - name: Make scripts executable
+        run: chmod +x scripts/runtime-smoke/*.sh
+
+      - name: Run Smoke Test
+        run: ./scripts/runtime-smoke/run-${{ matrix.platform }}-smoke.sh "${{ matrix.version }}"
 
   release-readiness:
     name: CI / Release Readiness
     needs:
       - distribution-verification
+      - runtime-smoke
     runs-on: ubuntu-24.04
     timeout-minutes: 20
 

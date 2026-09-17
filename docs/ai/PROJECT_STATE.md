@@ -2,11 +2,11 @@
 
 ## Current Milestone
 
-Namespace Migration & Beta Release Hardening
+Minecraft Version Compatibility & Multi-Platform Release Matrix
 
 ## Current Target
 
-Paper 26.2 (Java 25 runtime); Platform-neutral core and application target Java 21.
+Minecraft Compatibility Band 26.1 – 26.3 (Java 25 runtime for Paper/Spigot, Java 21 for platform-neutral code).
 
 ## Completed
 
@@ -39,17 +39,26 @@ Paper 26.2 (Java 25 runtime); Platform-neutral core and application target Java 
   - Hardened absolute timer persistence allowing recovery of queued actions after a crash or restart.
   - Built comprehensive `EntityReconciliationService` to garbage-collect orphaned models and entities at boot or reconnect them to running events.
   - Finalized `/spectra doctor` diagnostics exposing missing optional dependencies and integration status gracefully.
+- [x] Multi-Platform Expansion & Sponge Scope Reduction:
+  - Official platform families: Paper, Spigot.
+  - Paper artifact (`SpectraEvents-<version>-paper.jar`) supports Paper, Purpur, and Folia.
+  - Spigot artifact (`SpectraEvents-<version>-spigot.jar`) supports Spigot and Bukkit-compatible servers.
+  - Sponge: NOT SUPPORTED, NO ADAPTER, NO ARTIFACT, NO RELEASE. Completely removed per product decision.
+  - Verified 26.1 – 26.3 compatibility band for Paper and Spigot.
+  - Configured multi-artifact release pipeline with separate Modrinth versions (`-paper`, `-spigot`) and SHA-256 verification.
 
 ## In Progress
 
-None.
+- Milestone cleanup & preparation for Professional 3D Model Runtime.
 
 ## Next Planned Milestone
 
-SpectraEvents Addon API & Custom Content Expansion (Pinata, Vault, Boss Portal Events)
+Professional 3D Model Runtime (model hierarchy, interpolation, Blockbench animations, resource pack integration).
 
 ## Important Active Decisions
 
+- Official platform scope is strictly limited to Paper Family (Paper, Purpur, Folia) and Spigot Family (Spigot, Bukkit).
+- Sponge is NOT supported; all Sponge modules, artifacts, and release tasks are removed.
 - Dependency direction is strictly `platform -> application -> core`.
 - Core, application, and public API have zero Bukkit, Paper, NMS, or CraftBukkit dependencies.
 - Infrastructure (SQLite storage, HTTP update client) resides in platform-neutral `adapters/*` modules.
