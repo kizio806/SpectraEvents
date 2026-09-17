@@ -40,10 +40,7 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: java-kotlin
-          build-mode: manual
-
-      - name: Build analyzed classes
-        run: ./gradlew clean classes testClasses
+          build-mode: autobuild
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3
