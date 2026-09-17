@@ -32,6 +32,13 @@ Paper 26.2 (Java 25 runtime); Platform-neutral core and application target Java 
   - Event Runtime State is fully synchronized with SQLite for zero-data-loss crash recovery.
   - Demonstrated full correctness under intense concurrent load via `SQLiteConcurrencyBenchmarkTest` and `AirdropClaimRaceTest`.
   - Thorough Folia threading model audit confirms correctness (`GlobalRegionScheduler` for timers, `RegionScheduler`/`EntityScheduler` for actions).
+- [x] Production Hardening & Integrations:
+  - Added full dynamic integration resolver via `IntegrationRegistry`.
+  - Integrated Optional dependencies: `LuckPerms`, `WorldGuard`, `Vault`, `PlaceholderAPI`, `MiniPlaceholders`.
+  - Implemented `CustomItemProvider` with `Nexo`, `Oraxen`, and `ItemsAdder` adapters for the `give_item` action.
+  - Hardened absolute timer persistence allowing recovery of queued actions after a crash or restart.
+  - Built comprehensive `EntityReconciliationService` to garbage-collect orphaned models and entities at boot or reconnect them to running events.
+  - Finalized `/spectra doctor` diagnostics exposing missing optional dependencies and integration status gracefully.
 
 ## In Progress
 

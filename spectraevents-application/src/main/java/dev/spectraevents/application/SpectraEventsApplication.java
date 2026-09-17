@@ -16,6 +16,9 @@ public final class SpectraEventsApplication {
   private final DefinitionLoader definitionLoader;
   private final EventOrchestrationService orchestrationService;
   private final dev.spectraevents.application.execution.EventExecutionEngine executionEngine;
+  private final dev.spectraevents.application.service.EntityReconciliationService
+      reconciliationService;
+  private dev.spectraevents.application.service.EntityReconciliationReport lastReconciliationReport;
 
   /**
    * Creates the application composition root with platform ports.
@@ -28,7 +31,8 @@ public final class SpectraEventsApplication {
       LifecycleReporter lifecycleReporter,
       dev.spectraevents.application.port.EventTaskScheduler scheduler,
       dev.spectraevents.application.port.PlatformActionPort platformActionPort,
-      dev.spectraevents.application.port.EventInstanceRepository repository) {
+      dev.spectraevents.application.port.EventInstanceRepository repository,
+      dev.spectraevents.application.port.PlatformEntityReconcilerPort reconcilerPort) {
     this.lifecycleReporter = Objects.requireNonNull(lifecycleReporter, "lifecycleReporter");
     this.definitionRegistry = new EventDefinitionRegistry();
     this.definitionLoader =
@@ -48,13 +52,21 @@ public final class SpectraEventsApplication {
 
     this.orchestrationService =
         new EventOrchestrationService(targetRepository, definitionRegistry, executionEngine);
+
+    if (reconcilerPort != null) {
+      this.reconciliationService =
+          new dev.spectraevents.application.service.EntityReconciliationService(
+              reconcilerPort, targetRepository, stateStore);
+    } else {
+      this.reconciliationService = null;
+    }
   }
 
   public SpectraEventsApplication(
       LifecycleReporter lifecycleReporter,
       dev.spectraevents.application.port.EventTaskScheduler scheduler,
       dev.spectraevents.application.port.PlatformActionPort platformActionPort) {
-    this(lifecycleReporter, scheduler, platformActionPort, null);
+    this(lifecycleReporter, scheduler, platformActionPort, null, null);
   }
 
   public SpectraEventsApplication(LifecycleReporter lifecycleReporter) {
@@ -77,9 +89,26 @@ public final class SpectraEventsApplication {
     return executionEngine;
   }
 
+  public dev.spectraevents.application.service.EntityReconciliationService reconciliationService() {
+    return reconciliationService;
+  }
+
+  public dev.spectraevents.application.service.EntityReconciliationReport
+      lastReconciliationReport() {
+    return lastReconciliationReport;
+  }
+
+  public void setLastReconciliationReport(
+      dev.spectraevents.application.service.EntityReconciliationReport report) {
+    this.lastReconciliationReport = report;
+  }
+
   /** Reports that the application has started. */
   public void start() {
     lifecycleReporter.started();
+    if (executionEngine != null) {
+      executionEngine.recoverTimers();
+    }
   }
 
   /** Reports that the application is stopping. */

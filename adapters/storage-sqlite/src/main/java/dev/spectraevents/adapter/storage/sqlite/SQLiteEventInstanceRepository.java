@@ -31,7 +31,7 @@ import java.util.logging.Logger;
 public final class SQLiteEventInstanceRepository implements EventInstanceRepository {
   private static final Logger LOGGER =
       Logger.getLogger(SQLiteEventInstanceRepository.class.getName());
-  private static final int CURRENT_SCHEMA_VERSION = 2;
+  private static final int CURRENT_SCHEMA_VERSION = 3;
 
   private final Path dbPath;
   private final Map<EventInstanceId, EventInstance> cache = new ConcurrentHashMap<>();
@@ -105,6 +105,16 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
               """);
           stmt.executeUpdate("INSERT OR REPLACE INTO spectra_schema_version (version) VALUES (2);");
         }
+
+        if (currentVer < 3) {
+          if (currentVer > 0) { // If it was already created but < 3
+            stmt.execute("ALTER TABLE spectra_instance_state ADD COLUMN timer_deadline INTEGER;");
+          } else { // Fresh DB, we need to alter it because we created it without timer_deadline
+            // just above
+            stmt.execute("ALTER TABLE spectra_instance_state ADD COLUMN timer_deadline INTEGER;");
+          }
+          stmt.executeUpdate("INSERT OR REPLACE INTO spectra_schema_version (version) VALUES (3);");
+        }
         writerConnection.commit();
       } catch (SQLException e) {
         writerConnection.rollback();
@@ -167,7 +177,7 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
 
   private void loadAllStatesFromDb() {
     String sql =
-        "SELECT instance_id, health_current, health_max, locked_until, claimant, platform_location, boss_entity_id FROM spectra_instance_state";
+        "SELECT instance_id, health_current, health_max, locked_until, claimant, platform_location, boss_entity_id, timer_deadline FROM spectra_instance_state";
     try (Connection conn = getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql);
         ResultSet rs = stmt.executeQuery()) {
@@ -185,6 +195,11 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
           long lockedUntil = rs.getLong("locked_until");
           if (!rs.wasNull()) {
             state.setLockedUntilMillis(lockedUntil);
+          }
+
+          long timerDeadline = rs.getLong("timer_deadline");
+          if (!rs.wasNull()) {
+            state.setTimerDeadlineMillis(timerDeadline);
           }
 
           String claimant = rs.getString("claimant");
@@ -259,8 +274,8 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
 
     String sql =
         """
-        INSERT INTO spectra_instance_state (instance_id, health_current, health_max, locked_until, claimant, platform_location, boss_entity_id, last_updated)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO spectra_instance_state (instance_id, health_current, health_max, locked_until, claimant, platform_location, boss_entity_id, timer_deadline, last_updated)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(instance_id) DO UPDATE SET
           health_current = excluded.health_current,
           health_max = excluded.health_max,
@@ -268,6 +283,7 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
           claimant = excluded.claimant,
           platform_location = excluded.platform_location,
           boss_entity_id = excluded.boss_entity_id,
+          timer_deadline = excluded.timer_deadline,
           last_updated = excluded.last_updated;
         """;
 
@@ -276,6 +292,7 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
     Integer healthCur = state.health().map(Health::current).orElse(null);
     Integer healthMax = state.health().map(Health::max).orElse(null);
     Long lockedUntil = state.lockedUntilMillis() > 0 ? state.lockedUntilMillis() : null;
+    Long timerDeadline = state.timerDeadlineMillis() > 0 ? state.timerDeadlineMillis() : null;
     String claimant = state.claimant().orElse(null);
     String platformLocation = state.platformLocation().map(Object::toString).orElse(null);
     String bossEntityId = state.bossEntityId().map(Object::toString).orElse(null);
@@ -296,7 +313,9 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
             else stmt.setNull(6, java.sql.Types.VARCHAR);
             if (bossEntityId != null) stmt.setString(7, bossEntityId);
             else stmt.setNull(7, java.sql.Types.VARCHAR);
-            stmt.setLong(8, now);
+            if (timerDeadline != null) stmt.setLong(8, timerDeadline);
+            else stmt.setNull(8, java.sql.Types.INTEGER);
+            stmt.setLong(9, now);
             stmt.executeUpdate();
             writerConnection.commit();
           } catch (SQLException e) {

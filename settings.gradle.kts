@@ -21,6 +21,12 @@ dependencyResolutionManagement {
                 includeGroup("net.md-5")
             }
         }
+        maven("https://maven.enginehub.org/repo/") { name = "EngineHub" }
+        maven("https://repo.extendedclip.com/content/repositories/placeholderapi/") { name = "PAPI" }
+        maven("https://jitpack.io") { name = "JitPack" }
+        maven("https://repo.oraxen.com/releases") { name = "Oraxen" }
+        maven("https://repo.nexomc.com/releases") { name = "Nexo" }
+        maven("https://hub.spigotmc.org/nexus/content/repositories/snapshots/") { name = "Spigot" }
     }
 }
 
