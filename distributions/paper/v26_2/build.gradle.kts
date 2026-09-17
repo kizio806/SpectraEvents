@@ -6,12 +6,10 @@ import java.util.zip.ZipFile
 
 plugins {
     id("spectraevents.java-base")
-    id("spectraevents.testing")
     alias(libs.plugins.shadow)
     alias(libs.plugins.run.paper)
 }
-
-group = "dev.spectraevents.distribution"
+group = "io.github.kizio806.distribution"
 
 dependencies {
     implementation(project(":spectraevents-api"))
@@ -27,10 +25,6 @@ tasks.withType<JavaCompile>().configureEach {
     options.release.set(25)
 }
 
-tasks.named<Jar>("jar") {
-    enabled = false
-}
-
 tasks.processResources {
     val pluginVersion = project.version.toString()
     inputs.property("version", pluginVersion)
@@ -44,6 +38,15 @@ val shadowJar =
         archiveBaseName.set("SpectraEvents")
         archiveVersion.set(project.version.toString())
         archiveClassifier.set("")
+        isPreserveFileTimestamps = false
+        isReproducibleFileOrder = true
+        manifest {
+            attributes(
+                "Implementation-Title" to "SpectraEvents",
+                "Implementation-Version" to project.version.toString(),
+                "Implementation-Vendor" to "kizio806",
+            )
+        }
         from(rootProject.file("LICENSE")) {
             into("META-INF")
             rename { "LICENSE.txt" }
@@ -75,11 +78,11 @@ val verifyPluginArtifact =
             val requiredSuffixes =
                 listOf(
                     "plugin.yml",
-                    "dev/spectraevents/platform/paper/v26_2/SpectraEventsPlugin.class",
-                    "dev/spectraevents/platform/paper/common/PaperLifecycleReporter.class",
-                    "dev/spectraevents/application/SpectraEventsApplication.class",
-                    "dev/spectraevents/adapter/storage/sqlite/SQLiteEventInstanceRepository.class",
-                    "dev/spectraevents/adapter/update/http/HttpUpdateAdapter.class",
+                    "io/github/kizio806/spectraevents/platform/paper/v26_2/SpectraEventsPlugin.class",
+                    "io/github/kizio806/spectraevents/platform/paper/common/PaperLifecycleReporter.class",
+                    "io/github/kizio806/spectraevents/application/SpectraEventsApplication.class",
+                    "io/github/kizio806/spectraevents/adapter/storage/sqlite/SQLiteEventInstanceRepository.class",
+                    "io/github/kizio806/spectraevents/adapter/update/http/HttpUpdateAdapter.class",
                 )
             val missing = requiredSuffixes.filter { required -> entries.none { it.endsWith(required) } }
             val forbidden =
@@ -88,7 +91,8 @@ val verifyPluginArtifact =
                         entry.endsWith("Test.class") ||
                         entry.contains(".idea/") ||
                         entry.contains(".gradle/") ||
-                        entry.startsWith("server/")
+                        entry.startsWith("server/") ||
+                        entry.startsWith("dev/spectraevents/")
                 }
 
             if (missing.isNotEmpty() || forbidden.isNotEmpty()) {

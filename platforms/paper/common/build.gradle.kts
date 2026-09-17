@@ -4,8 +4,6 @@ plugins {
     id("spectraevents.java-library")
 }
 
-group = "dev.spectraevents.platform"
-
 dependencies {
     api(project(":spectraevents-application"))
     api(project(":adapters:storage-sqlite"))

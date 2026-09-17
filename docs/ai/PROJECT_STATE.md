@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-SpectraEvents Production Load Testing & Persistence Hardening
+Namespace Migration & Beta Release Hardening
 
 ## Current Target
 
@@ -18,8 +18,8 @@ Paper 26.2 (Java 25 runtime); Platform-neutral core and application target Java 
 - [x] Generic `EventExecutionEngine` stabilized with atomic claims (`try_claim`), damage tracking (`apply_damage`), health thresholds (`health_threshold_crossed`), entity death routing (`entity_death`), item rewards (`give_item`), and boss spawning (`spawn_boss`).
 - [x] Decoupled platform-neutral infrastructure: `adapters/storage-sqlite` and `adapters/update-http` created with zero Bukkit/Minecraft dependencies.
 - [x] Refactored package boundaries:
-  - Core: `dev.spectraevents.core.event.runtime`, `dev.spectraevents.core.event.lifecycle`, `dev.spectraevents.core.visual.model`, `dev.spectraevents.core.gameplay.contribution`.
-  - Application: `dev.spectraevents.application.config.spec`, `dev.spectraevents.application.config.compiled`, `dev.spectraevents.application.config.loader`.
+  - Core: `io.github.kizio806.spectraevents.core.event.runtime`, `io.github.kizio806.spectraevents.core.event.lifecycle`, `io.github.kizio806.spectraevents.core.visual.model`, `io.github.kizio806.spectraevents.core.gameplay.contribution`.
+  - Application: `io.github.kizio806.spectraevents.application.config.spec`, `io.github.kizio806.spectraevents.application.config.compiled`, `io.github.kizio806.spectraevents.application.config.loader`.
 - [x] Platform family layout created: `platforms/paper/common` and `platforms/paper/v26_2`.
 - [x] Purpur and Folia aligned as native Paper platform family targets (using Paper distribution and RegionTaskScheduler).
 - [x] Decomposed command tree (`SpectraMainCommand`, `EventCommandHandler`, `DefinitionCommandHandler`, `UpdateCommandHandler`, `DiagnosticsCommandHandler`, `IntegrationCommandHandler`, `SpectraDebugCommand`).

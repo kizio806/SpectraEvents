@@ -10,13 +10,13 @@ SpectraEvents is in public Beta. The generic event engine features 100% config-d
 
 ## Project Status
 
-> **Early development / pre-alpha**
+> **Public Beta (v0.1.0-beta.1)**
 
-SpectraEvents is currently being designed and built from the ground up.
+SpectraEvents is currently in public beta (`v0.1.0-beta.1`).
 
-APIs, configuration formats and internal architecture may change before the first stable release.
+APIs, configuration formats, and internal architecture are pre-release and subject to SemVer beta refinement.
 
-The first development milestone is a complete vertical slice of a cinematic meteor event.
+The generic event engine features 100% config-driven execution for `Meteor`, `Airdrop`, and `Metin`, atomic claim logic, damage tracking, transactional YAML reloads, SQLite persistence with restart recovery, an interactive Admin Inventory GUI, native permissions, and an update checker.
 
 ---
 
@@ -534,8 +534,6 @@ See `LICENSE` for details.
 
 ---
 
-## Authors
+## Authors & Maintainers
 
-SpectraEvents is currently under active development.
-
-Contributor and maintainer information will be added as the project progresses.
+* **kizio806** (Author & Lead Maintainer)
