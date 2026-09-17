@@ -29,6 +29,9 @@ public class SpongeActionAdapter implements PlatformActionPort {
         case "spawn_model":
           handleSpawnModel(instance, state, action);
           break;
+        case "remove_model":
+          handleRemoveModel(instance, action);
+          break;
         case "broadcast":
         case "broadcast_message":
           handleBroadcast(instance, action);
@@ -48,6 +51,13 @@ public class SpongeActionAdapter implements PlatformActionPort {
     Object loc = state.platformLocation().orElse(null);
     if (modelDef != null && loc != null) {
       renderer.spawn(instance.id(), modelDef, loc);
+    }
+  }
+
+  private void handleRemoveModel(EventInstance instance, ActionDefinition action) {
+    String modelIdStr = (String) action.parameters().get("model_id");
+    if (modelIdStr != null) {
+      renderer.remove(instance.id());
     }
   }
 

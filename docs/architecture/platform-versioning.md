@@ -1,58 +1,26 @@
-# Platform Versioning & Addition Guide
+# Platform Versioning Strategy
 
-## 1. Directory Layout Guidelines
+This document outlines the versioning and compatibility strategy for SpectraEvents across different Minecraft server implementations.
 
-All multi-platform adapters and distributions follow strict hierarchical grouping:
+## Terminology
+- **Platform Family**: The overarching server software family (e.g., Paper, Spigot, Sponge).
+- **Minecraft Version**: The underlying Mojang Minecraft release (e.g., 1.20.4, 1.21.3).
+- **Adapter Version**: The SpectraEvents adapter module version (e.g., `v26_2`).
+- **Distribution**: The final compiled JAR artifact intended for server administrators.
 
-```text
-platforms/
-  ├── paper/
-  │   ├── common/           # Shared version-agnostic Paper logic (GUI, commands, renderers)
-  │   └── v26_2/            # Paper 26.2 NMS/API version bindings & plugin entrypoint
-  ├── bukkit/               # (Future) Spigot/Bukkit common adapters & versions
-  └── sponge/               # (Future) Sponge common adapters & versions
+## Version Mapping
 
-adapters/
-  ├── storage-sqlite/       # Platform-neutral SQLite repository adapter
-  └── update-http/          # Platform-neutral HTTP update adapter
+| Platform Family | Target Minecraft | API Version | Adapter Module | Support Level |
+|-----------------|------------------|-------------|----------------|---------------|
+| **Paper**       | 1.20.4 / 1.21.3  | 1.20.4-R0.1 | `v26_2`        | **FULL**      |
+| **Purpur**      | 1.20.4 / 1.21.3  | 1.20.4-R0.1 | `v26_2` (via Paper) | **FULL** |
+| **Folia**       | 1.20.4 / 1.21.3  | 1.20.4-R0.1 | `v26_2` (via Paper) | **FULL** |
+| **Spigot**      | 1.21.3           | 1.21.3-R0.1 | `v26_2`        | **FULL**      |
+| **Sponge**      | 1.20.4 / 1.21.x  | 12.0.0      | `v26_2`        | **FULL**      |
 
-distributions/
-  └── paper/
-      └── v26_2/            # Final Paper 26.2 shadowed plugin jar
-```
-
----
-
-## 2. Step-by-Step Guide for Adding a New Platform Family (e.g. Sponge)
-
-To add a new platform family (e.g., `sponge`):
-
-1. **Create Module Hierarchy**:
-   - `platforms/sponge/common`: Shared Sponge services, event listeners, and action handlers.
-   - `platforms/sponge/v10`: Sponge API v10 version bindings.
-   - `distributions/sponge/v10`: Final distribution shadowJar.
-
-2. **Implement Application Ports**:
-   - Implement `PlatformActionPort` in `platforms/sponge/common/action/SpongeActionAdapter.java`.
-   - Implement `EventTaskScheduler` in `platforms/sponge/common/scheduler/SpongeEventTaskScheduler.java`.
-   - Implement `PlatformLifecyclePort` in `platforms/sponge/common/lifecycle/SpongeLifecycleReporter.java`.
-
-3. **Wire Composition Root**:
-   - Create `SpongeBootstrap.java` in `platforms/sponge/common` to orchestrate core domain application startup without changing domain code.
-   - Core (`spectraevents-core`) and Application (`spectraevents-application`) require zero edits.
-
-4. **Register in Gradle**:
-   - Include new modules in `settings.gradle.kts`.
-   - Ensure `distributions/sponge/v10` depends on `platforms:sponge:v10`, `adapters:storage-sqlite`, and `adapters:update-http`.
-
----
-
-## 3. Step-by-Step Guide for Adding a New Version to an Existing Family (e.g. Paper v27_0)
-
-To add a new version binding to the `paper` family:
-
-1. Create directory `platforms/paper/v27_0`.
-2. Add `build.gradle.kts` referencing `:platforms:paper:common`.
-3. Implement `io.github.kizio806.spectraevents.platform.paper.v27_0.SpectraEventsPlugin` delegating to `PaperBootstrap.enable(this)`.
-4. Create distribution `distributions/paper/v27_0` referencing `:platforms:paper:v27_0`.
-5. Update `settings.gradle.kts`.
+## Workflow for New Minecraft Versions
+When a new major Minecraft version is released (e.g., 1.22 / Adapter `v27_1`):
+1. **Analyze API Changes**: Review Bukkit/Paper/Sponge changelogs for breaking API changes, especially around Display Entities, persistence, and scheduling.
+2. **Create New Adapter Module**: If breaking changes exist, create `platforms/paper/v27_1`, `platforms/spigot/v27_1`, etc. Do not mutate `v26_2` if it breaks backwards compatibility.
+3. **Update Distributions**: Map the new adapter to the appropriate distribution module in `settings.gradle.kts`.
+4. **Integration Testing**: Verify against real runtime servers using the scripts in `scripts/runtime-smoke/`.

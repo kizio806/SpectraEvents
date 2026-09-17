@@ -29,9 +29,9 @@ The generic event engine features 100% config-driven execution for `Meteor`, `Ai
 | Paper | `SpectraEvents-paper.jar` | Supported | Yes |
 | Purpur | `SpectraEvents-paper.jar` | Supported | Yes |
 | Folia | `SpectraEvents-paper.jar` | Supported | Yes |
-| Spigot | `SpectraEvents-spigot.jar` | Supported | No (Compile only) |
+| Spigot | `SpectraEvents-spigot.jar` | Supported | Yes (Via Run Script) |
 | Bukkit | `SpectraEvents-spigot.jar` | Fallback | No |
-| Sponge | `SpectraEvents-sponge.jar` | Experimental | No (Compile only) |
+| Sponge | `SpectraEvents-sponge.jar` | Supported | Yes (API 12) |
 
 ---
 

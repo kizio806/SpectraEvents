@@ -43,6 +43,7 @@ val shadowJar =
                 "Implementation-Vendor" to "kizio806",
             )
         }
+        relocate("net.kyori", "io.github.kizio806.spectraevents.lib.kyori")
         from(rootProject.file("LICENSE")) {
             into("META-INF")
             rename { "LICENSE.txt" }

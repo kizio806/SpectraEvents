@@ -10,7 +10,11 @@ public final class PaperCapabilityQuery implements PlatformCapabilityQuery {
   }
 
   @Override
-  public String platformFamily() {
-    return "paper";
+  public io.github.kizio806.spectraevents.application.port.PlatformDescriptor platformDescriptor() {
+    return new io.github.kizio806.spectraevents.application.port.PlatformDescriptor(
+        "Paper",
+        org.bukkit.Bukkit.getServer().getName(),
+        org.bukkit.Bukkit.getBukkitVersion().split("-")[0],
+        org.bukkit.Bukkit.getBukkitVersion());
   }
 }

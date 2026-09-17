@@ -12,10 +12,9 @@ public interface PlatformCapabilityQuery {
   boolean hasCapability(PlatformCapability capability);
 
   /**
-   * Retrieves a human-readable identifier of the platform family (e.g., "paper", "spigot",
-   * "sponge").
+   * Retrieves a descriptor of the platform environment.
    *
-   * @return the platform family string
+   * @return the platform descriptor
    */
-  String platformFamily();
+  PlatformDescriptor platformDescriptor();
 }

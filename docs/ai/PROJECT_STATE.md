@@ -40,9 +40,10 @@ Paper 26.2 (Java 25 runtime); Platform-neutral core and application target Java 
   - Built comprehensive `EntityReconciliationService` to garbage-collect orphaned models and entities at boot or reconnect them to running events.
   - Finalized `/spectra doctor` diagnostics exposing missing optional dependencies and integration status gracefully.
 - [x] Multi-Platform Expansion:
-  - Added full compatibility with Spigot via a dedicated adapter without circular dependencies.
-  - Basic SpongeAPI 12 foundation adapter and capabilities query implemented.
+  - Added full compatibility with Spigot via a dedicated adapter (with Adventure relocation). Verified via automated runtime smoke scripts.
+  - SpongeAPI 12 fully implemented (ItemDisplay, Interaction, EntityReconciliation, Scheduling) replacing the skeleton.
   - Spigot and Sponge distributions compile gracefully and are packaged independently.
+  - Runtime smoke testing scripts (`run-paper-smoke.sh`, `run-spigot-smoke.sh`, `run-sponge-smoke.sh`) added to `scripts/runtime-smoke/`.
 
 ## In Progress
 

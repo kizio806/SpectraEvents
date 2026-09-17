@@ -18,7 +18,11 @@ public final class SpigotCapabilityQuery implements PlatformCapabilityQuery {
   }
 
   @Override
-  public String platformFamily() {
-    return "spigot";
+  public io.github.kizio806.spectraevents.application.port.PlatformDescriptor platformDescriptor() {
+    return new io.github.kizio806.spectraevents.application.port.PlatformDescriptor(
+        "Spigot",
+        org.bukkit.Bukkit.getServer().getName(),
+        org.bukkit.Bukkit.getBukkitVersion().split("-")[0],
+        org.bukkit.Bukkit.getBukkitVersion());
   }
 }
