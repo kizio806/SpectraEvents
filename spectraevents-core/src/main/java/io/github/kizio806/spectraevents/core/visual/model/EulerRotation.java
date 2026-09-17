@@ -15,6 +15,14 @@ public record EulerRotation(float pitchX, float yawY, float rollZ) {
     }
   }
 
+  public EulerRotation lerp(EulerRotation target, float t) {
+    java.util.Objects.requireNonNull(target, "target EulerRotation cannot be null");
+    float p = pitchX + (target.pitchX - pitchX) * t;
+    float y = yawY + (target.yawY - yawY) * t;
+    float r = rollZ + (target.rollZ - rollZ) * t;
+    return new EulerRotation(p, y, r);
+  }
+
   public Quaternion toQuaternion() {
     return Quaternion.fromEulerDegrees(pitchX, yawY, rollZ);
   }

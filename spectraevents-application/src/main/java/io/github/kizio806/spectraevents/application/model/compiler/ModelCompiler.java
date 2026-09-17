@@ -2,11 +2,17 @@ package io.github.kizio806.spectraevents.application.model.compiler;
 
 import io.github.kizio806.spectraevents.application.config.validation.ValidationDiagnostic;
 import io.github.kizio806.spectraevents.application.config.validation.ValidationDiagnostic.Severity;
+import io.github.kizio806.spectraevents.application.model.animation.compiler.AnimationCompiler;
+import io.github.kizio806.spectraevents.application.model.animation.compiler.AnimationCompilerException;
+import io.github.kizio806.spectraevents.application.model.animation.compiler.CompiledAnimation;
+import io.github.kizio806.spectraevents.application.model.animation.spec.AnimationSpec;
 import io.github.kizio806.spectraevents.application.model.spec.InteractionSpec;
 import io.github.kizio806.spectraevents.application.model.spec.ModelPartSpec;
 import io.github.kizio806.spectraevents.application.model.spec.ModelSpec;
 import io.github.kizio806.spectraevents.application.model.spec.RenderPropertiesSpec;
 import io.github.kizio806.spectraevents.application.model.spec.TransformSpec;
+import io.github.kizio806.spectraevents.core.visual.animation.AnimationDefinition;
+import io.github.kizio806.spectraevents.core.visual.animation.AnimationId;
 import io.github.kizio806.spectraevents.core.visual.model.BillboardMode;
 import io.github.kizio806.spectraevents.core.visual.model.BlockAssetRef;
 import io.github.kizio806.spectraevents.core.visual.model.DisplayTransformMode;
@@ -248,12 +254,43 @@ public class ModelCompiler {
       }
     }
 
+    // 7. Compile Animations
+    Map<AnimationId, AnimationDefinition> compiledAnimations = new HashMap<>();
+    if (spec.getAnimations() != null && !spec.getAnimations().isEmpty()) {
+      AnimationCompiler animationCompiler = new AnimationCompiler();
+      for (Map.Entry<String, AnimationSpec> entry : spec.getAnimations().entrySet()) {
+        String animIdStr = entry.getKey();
+        AnimationSpec animSpec = entry.getValue();
+
+        if (animIdStr == null || animIdStr.isBlank()) {
+          diagnostics.add(
+              new ValidationDiagnostic(
+                  Severity.ERROR,
+                  "ANIMATION_ID_BLANK",
+                  "animations",
+                  "Animation ID cannot be blank"));
+          continue;
+        }
+
+        AnimationId animId = new AnimationId(animIdStr);
+        if (animSpec != null) {
+          try {
+            CompiledAnimation compiledAnim =
+                animationCompiler.compile(animId, animSpec, partSpecs.keySet());
+            compiledAnimations.put(animId, compiledAnim.definition());
+          } catch (AnimationCompilerException e) {
+            diagnostics.addAll(e.diagnostics());
+          }
+        }
+      }
+    }
+
     if (diagnostics.stream().anyMatch(d -> d.severity() == Severity.ERROR)) {
       throw new ModelCompilerException(
           "Failed to compile model '" + modelId.value() + "'", diagnostics);
     }
 
-    return new ModelDefinition(modelId, compiledParts, compiledInteractions);
+    return new ModelDefinition(modelId, compiledParts, compiledInteractions, compiledAnimations);
   }
 
   private void detectCyclesAndDepth(

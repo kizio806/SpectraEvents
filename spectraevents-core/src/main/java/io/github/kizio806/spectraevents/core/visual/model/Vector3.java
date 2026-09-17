@@ -45,7 +45,11 @@ public record Vector3(float x, float y, float z) {
     return x * x + y * y + z * z;
   }
 
-  public float length() {
-    return (float) Math.sqrt(lengthSquared());
+  public Vector3 lerp(Vector3 target, float t) {
+    Objects.requireNonNull(target, "target vector cannot be null");
+    float rx = this.x + (target.x - this.x) * t;
+    float ry = this.y + (target.y - this.y) * t;
+    float rz = this.z + (target.z - this.z) * t;
+    return new Vector3(rx, ry, rz);
   }
 }
