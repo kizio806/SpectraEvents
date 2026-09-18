@@ -52,3 +52,9 @@ separate `MeteorHealthManager`, `PinataHealthManager`, and `MetinHealthManager` 
 - SpectraEvents may automatically check for updates.
 - Never implement silent in-place JAR replacement, automatic hot reload, or automatic server restart.
 - Any future automatic download must be explicit/configurable and stage updates for a controlled restart.
+
+## Asset Authoring Policy
+
+- Always edit canonical source assets (e.g. Blockbench `.bbmodel`, `.spectra.zip`), never the generated resource-pack JSON output.
+- Custom servers must host their own custom assets (`ManualUrlResourcePackSource`).
+- The official Modrinth CDN project (`spectraevents-assets`) is strictly for maintaining the official baseline packs.

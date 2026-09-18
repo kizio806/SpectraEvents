@@ -6,9 +6,10 @@ This document describes the expected end-to-end experience for a server administ
 
 1. **Install Plugin**
    - The administrator drops the `spectraevents.jar` into the `plugins/` folder and starts the server.
+   - The official SpectraEvents resource pack is handled automatically via Modrinth. No manual ZIP downloads or hosting is required.
 
 2. **Generate Defaults**
-   - On first boot, the engine generates an `examples/` directory containing commented reference configs (e.g., `meteor.yml`, `airdrop.yml`).
+   - On first boot, the engine generates an `events/` directory containing default reference configs (e.g., `meteor.yml`, `airdrop.yml`).
 
 3. **Create Event Definition**
    - The admin copies `meteor.yml` into `definitions/`, names it `my-custom-meteor.yml`, and modifies the values (changing the health, model, or loot).
@@ -19,7 +20,7 @@ This document describes the expected end-to-end experience for a server administ
    - The engine parses the YAML and reports any semantic errors (e.g., missing referenced models, cyclical phases) as `ERROR`, `WARNING`, or `INFO`.
 
 5. **Preview / Test**
-   - The admin uses `/event model preview <model-id>` to spawn the defined visual components locally and ensure they look correct.
+   - The admin uses `/event model spawn <model-id>` to spawn the defined visual components locally and ensure they look correct.
 
 6. **Reload Definition**
    - The admin runs `/event definition reload my-custom-meteor` (or `/event reload`).

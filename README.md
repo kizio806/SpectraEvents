@@ -89,7 +89,25 @@ The event type should be configuration and assets — not another hardcoded Java
 * Automatic cleanup
 * Crash and restart recovery
 
-### 3D Models
+### 3D Models & Assets
+
+SpectraEvents automatically handles the delivery of 3D models and textures through a seamless Modrinth resource pack integration.
+
+```text
+Blockbench
+  → SpectraEvents (Asset Compiler)
+  → Resource Pack ZIP
+  → Modrinth CDN
+  → Minecraft Player
+```
+
+**Server Owners**: You only need to install the `spectraevents.jar`. The official SpectraEvents resource pack is delivered automatically to your players upon joining. You do not need to host or download the resource pack manually!
+
+If you wish to create your own custom 3D models, see the [Asset Pipeline](docs/authoring/asset-pipeline.md) and [Blockbench Authoring Guide](docs/authoring/blockbench.md).
+
+### Planned Features
+
+#### 3D Models
 
 * Native Minecraft Display Entities
 * `ItemDisplay`

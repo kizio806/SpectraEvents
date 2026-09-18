@@ -2,11 +2,19 @@
 
 ## Current Milestone
 
-Professional 3D Model Runtime (COMPLETED)
+Resource Pack Integration & Asset Delivery (COMPLETED)
 
 ## Current Target
 
 Data-driven 3D model engine for Paper and Spigot platform families across Minecraft versions 26.1.1, 26.1.2, 26.2, 26.3.
+
+## Official Asset Workflow
+
+- **Authoring Source**: Assets are strictly authored in Blockbench (`.bbmodel`) and exported via `spectra_exporter.js`.
+- **Generation**: The asset pipeline compiles definitions and generates a full Minecraft resource pack in-memory.
+- **Distribution**: Official visual packs are published to the `SpectraEvents Assets` project on Modrinth.
+- **Delivery**: The SpectraEvents server resolves the Modrinth pack for the correct MC version and caches the exact descriptor. Players receive the pack prompt natively.
+- **Official vs Custom**: Custom servers host their own asset packs using `ManualUrlResourcePackSource`.
 
 ## Completed
 

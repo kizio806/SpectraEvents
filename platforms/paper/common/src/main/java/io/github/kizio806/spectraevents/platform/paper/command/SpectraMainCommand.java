@@ -18,7 +18,7 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-/** Main production command tree for /spectra in Paper platform family. */
+/** Main production command tree for /event in Paper platform family. */
 public final class SpectraMainCommand {
   private final EventCommandHandler eventCommandHandler;
   private final DefinitionCommandHandler definitionCommandHandler;
