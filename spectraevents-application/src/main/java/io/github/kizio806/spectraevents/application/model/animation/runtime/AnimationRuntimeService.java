@@ -70,6 +70,19 @@ public class AnimationRuntimeService {
     Objects.requireNonNull(compiledAnimation, "compiledAnimation cannot be null");
     Objects.requireNonNull(options, "options cannot be null");
 
+    // Deterministic Conflict Policy: Stop any existing active playback of the same animation on
+    // this model handle
+    List<ActiveAnimation> existingList = activeRegistry.findByModelHandle(handle);
+    for (ActiveAnimation existing : existingList) {
+      if (existing
+          .compiledAnimation()
+          .definition()
+          .id()
+          .equals(compiledAnimation.definition().id())) {
+        stop(existing.playbackId());
+      }
+    }
+
     AnimationPlaybackId playbackId = AnimationPlaybackId.random();
     ActiveAnimation activeAnim =
         new ActiveAnimation(
@@ -85,6 +98,52 @@ public class AnimationRuntimeService {
     activeRegistry.register(activeAnim);
     stepAnimation(activeAnim);
     return playbackId;
+  }
+
+  /**
+   * Restores an active animation playback from a persisted state snapshot (e.g. SQLite recovery),
+   * seeking directly to the saved pose without replaying from zero.
+   */
+  public AnimationPlaybackId restorePlayback(AnimationPlaybackState snapshotState) {
+    Objects.requireNonNull(snapshotState, "snapshotState cannot be null");
+
+    CompiledAnimation compiledAnimation =
+        definitionRegistry
+            .find(snapshotState.modelHandle().definitionId(), snapshotState.animationId())
+            .orElse(null);
+
+    if (compiledAnimation == null) {
+      return null;
+    }
+
+    PlaybackOptions options =
+        new PlaybackOptions(
+            snapshotState.speed(),
+            snapshotState.loopMode(),
+            -1,
+            snapshotState.recoveryPolicy(),
+            null);
+
+    ActiveAnimation activeAnim =
+        new ActiveAnimation(
+            snapshotState.playbackId(),
+            snapshotState.modelHandle(),
+            compiledAnimation,
+            options.speed(),
+            options.loopMode(),
+            options.maxLoops(),
+            options.recoveryPolicy(),
+            options.cueListener());
+
+    activeAnim.seekTo(snapshotState.currentTime());
+    activeAnim.setState(snapshotState.state());
+
+    activeRegistry.register(activeAnim);
+
+    if (snapshotState.state() == PlaybackState.PLAYING) {
+      stepAnimation(activeAnim);
+    }
+    return snapshotState.playbackId();
   }
 
   public boolean pause(AnimationPlaybackId playbackId) {

@@ -26,6 +26,7 @@ public final class SpectraMainCommand {
   private final DiagnosticsCommandHandler diagnosticsCommandHandler;
   private final IntegrationCommandHandler integrationCommandHandler;
   private final ModelCommandHandler modelCommandHandler;
+  private final AnimationCommandHandler animationCommandHandler;
   private final EventDefinitionRegistry definitionRegistry;
   private final EventInstanceRepository instanceRepository;
   private final AdminGuiController guiController;
@@ -55,6 +56,12 @@ public final class SpectraMainCommand {
     this.modelCommandHandler =
         new ModelCommandHandler(
             application.modelDefinitionRegistry(), application.modelRuntimeService());
+    this.animationCommandHandler =
+        new AnimationCommandHandler(
+            application.modelDefinitionRegistry(),
+            application.modelRuntimeService(),
+            application.animationDefinitionRegistry(),
+            application.animationRuntimeService());
     this.definitionRegistry = definitionRegistry;
     this.instanceRepository = instanceRepository;
     this.guiController = guiController;
@@ -73,6 +80,7 @@ public final class SpectraMainCommand {
         .then(diagnosticsCommandHandler.build())
         .then(integrationCommandHandler.build())
         .then(modelCommandHandler.build())
+        .then(animationCommandHandler.build())
         .then(
             Commands.literal("admin")
                 .requires(s -> hasPerm(s, "spectraevents.gui"))
