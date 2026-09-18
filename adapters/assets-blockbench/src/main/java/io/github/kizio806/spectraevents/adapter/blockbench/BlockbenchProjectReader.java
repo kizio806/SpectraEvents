@@ -48,6 +48,9 @@ public class BlockbenchProjectReader implements AssetImportPort {
         byte[] data = null;
         if (source.startsWith("data:image")) {
           String base64 = source.substring(source.indexOf(",") + 1);
+          if (base64.length() > 2_000_000) { // arbitrary 1.5MB limit
+            throw new IllegalArgumentException("Embedded texture too large (exceeds size limit)");
+          }
           data = Base64.getDecoder().decode(base64);
           source = null; // Embedded
         }

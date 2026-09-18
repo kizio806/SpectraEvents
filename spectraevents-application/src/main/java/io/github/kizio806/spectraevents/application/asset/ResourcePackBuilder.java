@@ -16,26 +16,33 @@ public class ResourcePackBuilder {
     this.outputDirectory = outputDirectory;
   }
 
-  public void build(Collection<SpectraAssetDocument> documents) throws IOException {
+  public void build(Collection<SpectraAssetDocument> documents, AssetTargetProfile profile)
+      throws IOException {
     if (!Files.exists(outputDirectory)) {
       Files.createDirectories(outputDirectory);
     }
 
     Path tempDir = Files.createTempDirectory(outputDirectory, "pack_build_");
     try {
-      LOGGER.info("Generating resource pack contents in temp directory: " + tempDir);
+      LOGGER.info(
+          "Generating resource pack contents in temp directory: "
+              + tempDir
+              + " for profile "
+              + profile);
 
-      // 1. Pack.mcmeta
+      // 1. Pack.mcmeta with dynamic format
       String mcmeta =
           """
           {
             "pack": {
-              "pack_format": 32,
-              "supported_formats": [32, 34],
-              "description": "SpectraEvents Generated Assets (MC 1.20.5 - 1.21.1)"
+              "pack_format": %d,
+              "description": "SpectraEvents Generated Assets (MC %s)"
             }
           }
-          """;
+          """
+              .formatted(
+                  profile.getPackFormat(),
+                  profile.name().replace("PROFILE_", "").replace("_", "."));
       Files.writeString(tempDir.resolve("pack.mcmeta"), mcmeta);
 
       // 2. Process each document

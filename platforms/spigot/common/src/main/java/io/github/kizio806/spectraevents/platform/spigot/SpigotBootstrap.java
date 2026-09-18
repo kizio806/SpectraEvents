@@ -51,7 +51,8 @@ public class SpigotBootstrap {
             application.modelDefinitionRegistry(),
             application.animationDefinitionRegistry(),
             rpBuilder,
-            plugin.getDataFolder().toPath().resolve("assets").resolve("source"));
+            plugin.getDataFolder().toPath().resolve("assets").resolve("source"),
+            io.github.kizio806.spectraevents.application.asset.AssetTargetProfile.PROFILE_26_1);
     application.setAssetPipelineService(assetPipelineService);
 
     actionAdapter.setModelRuntimeService(application.modelRuntimeService());

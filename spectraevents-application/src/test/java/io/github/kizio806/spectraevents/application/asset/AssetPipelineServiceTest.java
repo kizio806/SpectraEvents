@@ -29,7 +29,9 @@ public class AssetPipelineServiceTest {
         };
     ResourcePackBuilder mockBuilder = new ResourcePackBuilder(tempDir.resolve("out"));
 
-    service = new AssetPipelineService(mockImport, null, null, mockBuilder, tempDir);
+    service =
+        new AssetPipelineService(
+            mockImport, null, null, mockBuilder, tempDir, AssetTargetProfile.PROFILE_26_1);
   }
 
   @Test

@@ -21,6 +21,7 @@ public class AssetPipelineService {
   private final AnimationDefinitionRegistry animationRegistry;
   private final ResourcePackBuilder resourcePackBuilder;
   private final Path sourceDirectory;
+  private final AssetTargetProfile targetProfile;
 
   // Simple incremental cache mapping filename to SHA-256 hash of source
   private final Map<String, String> sourceCache = new HashMap<>();
@@ -32,12 +33,14 @@ public class AssetPipelineService {
       ModelDefinitionRegistry modelRegistry,
       AnimationDefinitionRegistry animationRegistry,
       ResourcePackBuilder resourcePackBuilder,
-      Path sourceDirectory) {
+      Path sourceDirectory,
+      AssetTargetProfile targetProfile) {
     this.importPort = importPort;
     this.modelRegistry = modelRegistry;
     this.animationRegistry = animationRegistry;
     this.resourcePackBuilder = resourcePackBuilder;
     this.sourceDirectory = sourceDirectory;
+    this.targetProfile = targetProfile;
   }
 
   public void buildAssets() {
@@ -83,7 +86,7 @@ public class AssetPipelineService {
 
       if (changesDetected.get() && !compiledDocuments.isEmpty()) {
         LOGGER.info("Rebuilding resource pack...");
-        resourcePackBuilder.build(compiledDocuments.values());
+        resourcePackBuilder.build(compiledDocuments.values(), targetProfile);
         LOGGER.info("Asset Pipeline build complete. Resource pack generated.");
       } else {
         LOGGER.info("No asset changes detected or no documents. Incremental build skipped.");
@@ -95,7 +98,11 @@ public class AssetPipelineService {
   }
 
   public void importFile(String filename) {
-    Path path = sourceDirectory.resolve(filename);
+    Path path = sourceDirectory.resolve(filename).normalize();
+    if (!path.startsWith(sourceDirectory)) {
+      throw new SecurityException("Path traversal attempt detected: " + filename);
+    }
+
     if (!Files.exists(path)
         || (!filename.endsWith(".bbmodel") && !filename.endsWith(".spectra.zip"))) {
       throw new IllegalArgumentException("File not found or invalid format: " + filename);
@@ -103,13 +110,50 @@ public class AssetPipelineService {
 
     try {
       String currentHash = computeSha256(path);
-      String content = Files.readString(path);
+      String content = readAssetFile(path);
       String modelIdStr = filename.replace(".bbmodel", "").replace(".spectra.zip", "");
       SpectraAssetDocument doc = importPort.read(content, modelIdStr);
       compiledDocuments.put(modelIdStr, doc);
       sourceCache.put(filename, currentHash);
     } catch (Exception e) {
       throw new RuntimeException("Import failed: " + e.getMessage(), e);
+    }
+  }
+
+  private String readAssetFile(Path path) throws java.io.IOException {
+    if (path.toString().endsWith(".bbmodel")) {
+      return Files.readString(path);
+    } else {
+      // .spectra.zip - requires secure decompression
+      try (java.util.zip.ZipInputStream zis =
+          new java.util.zip.ZipInputStream(Files.newInputStream(path))) {
+        java.util.zip.ZipEntry entry;
+        long totalDecompressedSize = 0;
+        long MAX_DECOMPRESSED_SIZE = 5_000_000; // 5MB limit
+
+        while ((entry = zis.getNextEntry()) != null) {
+          if (entry.getName().contains("..")
+              || entry.getName().startsWith("/")
+              || entry.getName().startsWith("\\")) {
+            throw new SecurityException("ZIP slip detected: " + entry.getName());
+          }
+          if (entry.getName().endsWith(".bbmodel")) {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] buffer = new byte[8192];
+            int count;
+            while ((count = zis.read(buffer)) != -1) {
+              totalDecompressedSize += count;
+              if (totalDecompressedSize > MAX_DECOMPRESSED_SIZE) {
+                throw new SecurityException(
+                    "Decompression limit exceeded (max " + MAX_DECOMPRESSED_SIZE + " bytes)");
+              }
+              out.write(buffer, 0, count);
+            }
+            return out.toString(java.nio.charset.StandardCharsets.UTF_8);
+          }
+        }
+      }
+      throw new IllegalArgumentException("No .bbmodel found in " + path.getFileName());
     }
   }
 

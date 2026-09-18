@@ -26,6 +26,24 @@ public class BlockbenchProjectReaderTest {
   }
 
   @Test
+  void testParsesVersion4Format() {
+    BlockbenchProjectReader reader = new BlockbenchProjectReader();
+    String json =
+        """
+      {
+        "meta": {
+          "format_version": "4.10.4"
+        },
+        "textures": [],
+        "outliner": [],
+        "animations": []
+      }
+    """;
+    SpectraAssetDocument doc = reader.read(json, "test_bb4");
+    Assertions.assertEquals("test_bb4", doc.modelId());
+  }
+
+  @Test
   void testRejectsUnknownFormat() {
     String json =
         """
@@ -79,5 +97,25 @@ public class BlockbenchProjectReaderTest {
         Assertions.assertThrows(
             IllegalArgumentException.class, () -> reader.read(json, "test_model"));
     Assertions.assertTrue(exception.getMessage().contains("UNSUPPORTED_INTERPOLATION: catmullrom"));
+  }
+
+  @Test
+  void testOversizedEmbeddedTextureRejected() {
+    BlockbenchProjectReader reader = new BlockbenchProjectReader();
+    StringBuilder sb = new StringBuilder();
+    sb.append(
+        "{\"meta\":{\"format_version\":\"5.0.0\"},\"textures\":[{\"id\":\"1\",\"name\":\"tex\",\"source\":\"data:image/png,");
+    for (int i = 0; i < 2_000_001; i++) {
+      sb.append("A"); // Build a base64 string > 2MB
+    }
+    sb.append("\"}]}");
+
+    Exception ex =
+        Assertions.assertThrows(
+            IllegalArgumentException.class,
+            () -> {
+              reader.read(sb.toString(), "test");
+            });
+    Assertions.assertTrue(ex.getMessage().contains("exceeds size limit"));
   }
 }
