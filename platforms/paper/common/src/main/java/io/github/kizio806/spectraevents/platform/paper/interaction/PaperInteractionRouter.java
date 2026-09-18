@@ -14,6 +14,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -44,17 +45,27 @@ public final class PaperInteractionRouter implements Listener {
 
   @EventHandler(ignoreCancelled = true)
   public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {
-    Entity clicked = event.getRightClicked();
-    PersistentDataContainer pdc = clicked.getPersistentDataContainer();
+    if (handleEntityEvent(event.getPlayer(), event.getRightClicked())) {
+      event.setCancelled(true);
+    }
+  }
 
+  @EventHandler(ignoreCancelled = true)
+  public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
+    if (event.getDamager() instanceof Player player) {
+      if (handleEntityEvent(player, event.getEntity())) {
+        event.setCancelled(true);
+      }
+    }
+  }
+
+  private boolean handleEntityEvent(Player player, Entity clicked) {
+    PersistentDataContainer pdc = clicked.getPersistentDataContainer();
     String instanceIdStr = pdc.get(SpectraPdcKeys.INSTANCE_ID, PersistentDataType.STRING);
     if (instanceIdStr == null) {
-      return;
+      return false;
     }
 
-    event.setCancelled(true);
-
-    Player player = event.getPlayer();
     try {
       EventInstanceId instanceId = new EventInstanceId(UUID.fromString(instanceIdStr));
       EventInstance instance = orchestrationService.getEventInfo(instanceId.toString());
@@ -77,6 +88,7 @@ public final class PaperInteractionRouter implements Listener {
               .get(instanceId)
               .ifPresent(
                   state -> {
+                    state.recordDamage(player.getUniqueId(), 1);
                     if (state.isLocked()) {
                       long remaining = state.lockedUntilMillis() - System.currentTimeMillis();
                       player.sendMessage(
@@ -84,28 +96,17 @@ public final class PaperInteractionRouter implements Listener {
                                   String.format(
                                       "Event is locked for another %.1fs.", remaining / 1000.0f))
                               .color(NamedTextColor.RED));
-                    } else if (state.health().isPresent()) {
-                      var h = state.health().get();
-                      player.sendMessage(
-                          Component.text("Event health: " + h.current() + "/" + h.max())
-                              .color(NamedTextColor.GREEN));
                     }
                   });
-        } else {
-          player.sendMessage(
-              Component.text("Interacted with SpectraEvents instance ", NamedTextColor.AQUA)
-                  .append(Component.text(instanceIdStr, NamedTextColor.WHITE)));
         }
-      } else {
-        player.sendMessage(
-            Component.text("Interacted with SpectraEvents instance ", NamedTextColor.AQUA)
-                .append(Component.text(instanceIdStr, NamedTextColor.WHITE)));
       }
+      return true;
 
     } catch (IllegalArgumentException e) {
       player.sendMessage(
           Component.text(
               "Entity tied to unknown/invalid instance: " + instanceIdStr, NamedTextColor.RED));
+      return true;
     }
   }
 }

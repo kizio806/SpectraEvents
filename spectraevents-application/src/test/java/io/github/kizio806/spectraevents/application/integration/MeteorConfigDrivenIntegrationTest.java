@@ -65,7 +65,7 @@ class MeteorConfigDrivenIntegrationTest {
 
     EventRuntimeState state = stateStore.get(instance.id()).orElseThrow();
     assertTrue(state.health().isPresent());
-    assertEquals(20, state.health().get().current());
+    assertEquals(500, state.health().get().current());
     assertTrue(actionPort.containsAction("spawn_model"));
 
     // 2. Timer: falling -> impact
@@ -96,8 +96,8 @@ class MeteorConfigDrivenIntegrationTest {
     EventInstance afterLocked = repository.findById(instance.id()).orElseThrow();
     assertEquals(new PhaseId("active"), afterLocked.currentPhase().orElseThrow());
 
-    // 5. Interactions damage health down to 0
-    for (int i = 1; i <= 20; i++) {
+    // 5. Interactions damage health down to 0 (500 HP / 10 dmg per hit = 50 hits)
+    for (int i = 1; i <= 50; i++) {
       boolean damageHandled =
           engine.evaluateTrigger(instance.id(), new ConfiguredTriggerDefinition("interaction"));
       assertTrue(damageHandled);

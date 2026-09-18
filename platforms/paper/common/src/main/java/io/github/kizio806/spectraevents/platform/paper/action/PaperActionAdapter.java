@@ -10,6 +10,7 @@ import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
 import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.visual.model.ModelId;
+import io.github.kizio806.spectraevents.platform.paper.bossbar.EventBossBarManager;
 import io.github.kizio806.spectraevents.platform.paper.integration.MiniPlaceholdersIntegration;
 import io.github.kizio806.spectraevents.platform.paper.integration.item.CustomItemProvider;
 import io.github.kizio806.spectraevents.platform.paper.integration.item.ItemsAdderItemProvider;
@@ -19,6 +20,7 @@ import io.github.kizio806.spectraevents.platform.paper.lifecycle.PaperResourceCl
 import io.github.kizio806.spectraevents.platform.paper.metadata.SpectraPdcKeys;
 import io.github.kizio806.spectraevents.platform.paper.render.PaperModelRenderer;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
+import io.github.kizio806.spectraevents.platform.paper.scoreboard.EventScoreboardManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +46,8 @@ public final class PaperActionAdapter implements PlatformActionPort {
   private final PaperModelRenderer renderer;
   private final RegionTaskScheduler regionScheduler;
   private final PaperResourceCleaner cleaner;
+  private final EventBossBarManager bossBarManager;
+  private final EventScoreboardManager scoreboardManager;
   private final List<CustomItemProvider> itemProviders = new ArrayList<>();
   private ModelRuntimeService modelRuntimeService;
 
@@ -54,10 +58,20 @@ public final class PaperActionAdapter implements PlatformActionPort {
     this.renderer = Objects.requireNonNull(renderer, "renderer");
     this.regionScheduler = Objects.requireNonNull(regionScheduler, "regionScheduler");
     this.cleaner = Objects.requireNonNull(cleaner, "cleaner");
+    this.bossBarManager = new EventBossBarManager();
+    this.scoreboardManager = new EventScoreboardManager();
 
     itemProviders.add(new NexoItemProvider());
     itemProviders.add(new OraxenItemProvider());
     itemProviders.add(new ItemsAdderItemProvider());
+  }
+
+  public EventBossBarManager bossBarManager() {
+    return bossBarManager;
+  }
+
+  public EventScoreboardManager scoreboardManager() {
+    return scoreboardManager;
   }
 
   public void setModelRuntimeService(ModelRuntimeService modelRuntimeService) {
@@ -104,6 +118,9 @@ public final class PaperActionAdapter implements PlatformActionPort {
       case "give_item":
         handleGiveItem(params, context);
         break;
+      case "drop_loot":
+        handleDropLoot(params, baseLoc);
+        break;
       case "send_message":
         handleSendMessage(params, context);
         break;
@@ -114,6 +131,34 @@ public final class PaperActionAdapter implements PlatformActionPort {
       case "spawn_boss":
       case "spawn_entity":
         handleSpawnBoss(instance, state, params, baseLoc);
+        break;
+      case "spawn_mobs":
+      case "spawn_wave":
+        handleSpawnMobs(instance, state, params, baseLoc);
+        break;
+      case "show_bossbar":
+      case "create_bossbar":
+        bossBarManager.showBossBar(instance, state, params);
+        cleaner.registerCustomCleanup(
+            instance.id(), () -> bossBarManager.removeBossBar(instance.id().value()));
+        break;
+      case "update_bossbar":
+        bossBarManager.updateBossBar(instance, state, params);
+        break;
+      case "remove_bossbar":
+        bossBarManager.removeBossBar(instance.id().value());
+        break;
+      case "show_scoreboard":
+      case "create_scoreboard":
+        scoreboardManager.showScoreboard(instance, state, params);
+        cleaner.registerCustomCleanup(
+            instance.id(), () -> scoreboardManager.removeScoreboard(instance.id().value()));
+        break;
+      case "update_scoreboard":
+        scoreboardManager.updateScoreboard(instance, state, params);
+        break;
+      case "remove_scoreboard":
+        scoreboardManager.removeScoreboard(instance.id().value());
         break;
       default:
         LOGGER.info("Unhandled platform action type: " + type + " for instance " + instance.id());
@@ -395,5 +440,114 @@ public final class PaperActionAdapter implements PlatformActionPort {
     if (val == null) return defaultValue;
     if (val instanceof Boolean b) return b;
     return Boolean.parseBoolean(String.valueOf(val));
+  }
+
+  @SuppressWarnings("unchecked")
+  private void handleDropLoot(Map<String, Object> params, Location baseLoc) {
+    if (baseLoc == null) return;
+    World world = baseLoc.getWorld();
+    if (world == null) return;
+
+    double radius = getFloatParam(params, "radius", 2.0f);
+    Object itemsObj = params.get("items");
+    if (!(itemsObj instanceof List<?> itemsList)) return;
+
+    regionScheduler.executeAt(
+        baseLoc,
+        () -> {
+          java.util.Random rng = new java.util.Random();
+          for (Object itemObj : itemsList) {
+            if (!(itemObj instanceof Map<?, ?> itemMap)) continue;
+            Object matObj = itemMap.get("material");
+            String materialName = matObj != null ? String.valueOf(matObj) : "minecraft:diamond";
+            int amount = 1;
+            if (itemMap.containsKey("amount")) {
+              amount = Integer.parseInt(String.valueOf(itemMap.get("amount")));
+            }
+            int chance = 100;
+            if (itemMap.containsKey("chance")) {
+              chance = Integer.parseInt(String.valueOf(itemMap.get("chance")));
+            }
+
+            if (rng.nextInt(100) < chance) {
+              ItemStack stack = resolveItemStack(materialName, amount);
+              if (stack != null) {
+                double offsetX = (rng.nextDouble() - 0.5) * radius;
+                double offsetZ = (rng.nextDouble() - 0.5) * radius;
+                Location dropLoc = baseLoc.clone().add(offsetX, 0.5, offsetZ);
+                world.dropItemNaturally(dropLoc, stack);
+              }
+            }
+          }
+        });
+  }
+
+  private ItemStack resolveItemStack(String materialName, int amount) {
+    for (CustomItemProvider provider : itemProviders) {
+      if (provider.isAvailable()) {
+        ItemStack custom = provider.resolveItem(materialName, amount);
+        if (custom != null) return custom;
+      }
+    }
+    Material mat = resolveMaterial(materialName);
+    return mat != null ? new ItemStack(mat, amount) : null;
+  }
+
+  @SuppressWarnings("unchecked")
+  private void handleSpawnMobs(
+      EventInstance instance,
+      EventRuntimeState state,
+      Map<String, Object> params,
+      Location baseLoc) {
+    if (baseLoc == null) return;
+
+    Object mobsObj = params.get("mobs");
+    if (!(mobsObj instanceof List<?> mobsList)) return;
+
+    regionScheduler.executeAt(
+        baseLoc,
+        () -> {
+          World world = baseLoc.getWorld();
+          if (world == null) return;
+          java.util.Random rng = new java.util.Random();
+
+          for (Object mobObj : mobsList) {
+            if (!(mobObj instanceof Map<?, ?> mobMap)) continue;
+            Object typeObj = mobMap.get("entity_type");
+            String entityTypeStr = typeObj != null ? String.valueOf(typeObj) : "minecraft:zombie";
+            Object nameObj = mobMap.get("name");
+            String name = nameObj != null ? String.valueOf(nameObj) : "<red>Mob";
+            int amount = 1;
+            if (mobMap.containsKey("amount")) {
+              amount = Integer.parseInt(String.valueOf(mobMap.get("amount")));
+            }
+            double radius = 3.0;
+            if (mobMap.containsKey("radius")) {
+              radius = Double.parseDouble(String.valueOf(mobMap.get("radius")));
+            }
+
+            EntityType type = resolveEntityType(entityTypeStr);
+            for (int i = 0; i < amount; i++) {
+              double offsetX = (rng.nextDouble() - 0.5) * radius * 2;
+              double offsetZ = (rng.nextDouble() - 0.5) * radius * 2;
+              Location spawnLoc = baseLoc.clone().add(offsetX, 0, offsetZ);
+
+              Entity mob = world.spawnEntity(spawnLoc, type);
+              mob.customName(MiniPlaceholdersIntegration.getMiniMessage().deserialize(name));
+              mob.setCustomNameVisible(true);
+              mob.getPersistentDataContainer()
+                  .set(
+                      SpectraPdcKeys.INSTANCE_ID,
+                      PersistentDataType.STRING,
+                      instance.id().toString());
+
+              cleaner.registerCustomCleanup(
+                  instance.id(),
+                  () -> {
+                    if (mob.isValid()) mob.remove();
+                  });
+            }
+          }
+        });
   }
 }
