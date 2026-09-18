@@ -385,16 +385,34 @@ public final class EventExecutionEngine {
           }
 
           if (updated != null) {
-            io.github.kizio806.spectraevents.core.gameplay.health.HealthThresholds thresholds =
-                new io.github.kizio806.spectraevents.core.gameplay.health.HealthThresholds(
-                    List.of(60, 25));
-            List<Integer> crossed = thresholds.checkCrossed(oldHealth, updated);
-            for (Integer threshold : crossed) {
-              evaluateTrigger(
-                  instance.id(),
-                  new ConfiguredTriggerDefinition(
-                      "health_threshold_crossed", java.util.Map.of("threshold", threshold)),
-                  context);
+            EventDefinition definition = getDefinition(instance.definitionId().value());
+            List<Integer> declaredThresholds = new java.util.ArrayList<>();
+            if (definition != null && instance.currentPhase().isPresent()) {
+              PhaseDefinition phaseDef =
+                  definition.phase(instance.currentPhase().get()).orElse(null);
+              if (phaseDef != null) {
+                for (TransitionRule rule : phaseDef.rules()) {
+                  if ("health_threshold_crossed".equalsIgnoreCase(rule.trigger().type())) {
+                    int t = getIntParam(rule.trigger().parameters(), "threshold", -1);
+                    if (t != -1) {
+                      declaredThresholds.add(t);
+                    }
+                  }
+                }
+              }
+            }
+            if (!declaredThresholds.isEmpty()) {
+              io.github.kizio806.spectraevents.core.gameplay.health.HealthThresholds thresholds =
+                  new io.github.kizio806.spectraevents.core.gameplay.health.HealthThresholds(
+                      declaredThresholds);
+              List<Integer> crossed = thresholds.checkCrossed(oldHealth, updated);
+              for (Integer threshold : crossed) {
+                evaluateTrigger(
+                    instance.id(),
+                    new ConfiguredTriggerDefinition(
+                        "health_threshold_crossed", java.util.Map.of("threshold", threshold)),
+                    context);
+              }
             }
             if (updated.isDepleted()) {
               evaluateTrigger(

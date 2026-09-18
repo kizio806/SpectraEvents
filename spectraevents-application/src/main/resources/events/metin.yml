@@ -6,10 +6,12 @@ phases:
   spawning:
     on-enter:
       - type: initialize_health
-        max: 100
+        max: 1000
       - type: spawn_model
         model: dev_metin_model
         height-offset: 0
+      - type: broadcast_message
+        message: "<gold><bold>[SpectraEvents]</bold> <dark_purple>A powerful Metin Stone has landed!</dark_purple>"
     transitions:
       - trigger:
           type: timer_elapsed
@@ -17,19 +19,52 @@ phases:
         target: active
 
   active:
+    on-enter:
+      - type: show_bossbar
+        title: "<dark_purple><bold>METIN STONE</bold> <purple>%health%/%max_health% HP (%health_percent%%)</purple>"
+        color: PURPLE
+        style: NOTCHED_10
+      - type: show_scoreboard
+        title: "<purple><bold>METIN EVENT</bold>"
+        lines:
+          - "<purple>Phase: <white>%phase%</white>"
+          - "<purple>Health: <green>%health%</green>/<green>%max_health%</green>"
+          - "<purple>Status: <light_purple>Active</light_purple>"
     transitions:
       - trigger:
           type: interaction
         actions:
           - type: apply_damage
-            amount: 5
+            amount: 10
+          - type: update_bossbar
+            title: "<dark_purple><bold>METIN STONE</bold> <purple>%health%/%max_health% HP (%health_percent%%)</purple>"
+          - type: update_scoreboard
+            title: "<purple><bold>METIN EVENT</bold>"
+            lines:
+              - "<purple>Phase: <white>%phase%</white>"
+              - "<purple>Health: <green>%health%</green>/<green>%max_health%</green>"
+              - "<purple>Status: <light_purple>Active</light_purple>"
       - trigger:
           type: health_threshold_crossed
-          threshold: 60
+          threshold: 750
+        actions:
+          - type: broadcast_message
+            message: "<gold><bold>[SpectraEvents]</bold> <purple>Metin Stone disturbed! Zombies summoned!</purple>"
+          - type: spawn_mobs
+            mobs:
+              - entity_type: minecraft:zombie
+                name: "<dark_purple>Metin Minion</dark_purple>"
+                amount: 4
+                radius: 5
+      - trigger:
+          type: health_threshold_crossed
+          threshold: 500
         target: enraged
 
   enraged:
     on-enter:
+      - type: broadcast_message
+        message: "<gold><bold>[SpectraEvents]</bold> <red><bold>METIN STONE IS ENRAGED!</bold></red>"
       - type: play_sound
         sound: minecraft:entity.ender_dragon.growl
         volume: 1.0
@@ -37,33 +72,57 @@ phases:
       - type: spawn_particles
         particle: minecraft:flame
         count: 50
+      - type: update_bossbar
+        title: "<red><bold>METIN STONE (ENRAGED)</bold> <yellow>%health%/%max_health% HP (%health_percent%%)</yellow>"
+        color: RED
+        style: NOTCHED_12
+      - type: spawn_mobs
+        mobs:
+          - entity_type: minecraft:skeleton
+            name: "<red>Metin Archer</red>"
+            amount: 4
+            radius: 5
     transitions:
       - trigger:
           type: interaction
         actions:
           - type: apply_damage
-            amount: 5
+            amount: 10
+          - type: update_bossbar
+            title: "<red><bold>METIN STONE (ENRAGED)</bold> <yellow>%health%/%max_health% HP (%health_percent%%)</yellow>"
+          - type: update_scoreboard
+            title: "<purple><bold>METIN EVENT</bold>"
+            lines:
+              - "<purple>Phase: <red>%phase%</red>"
+              - "<purple>Health: <red>%health%</red>/<red>%max_health%</red>"
+              - "<purple>Status: <red>ENRAGED!</red>"
       - trigger:
           type: health_threshold_crossed
-          threshold: 25
+          threshold: 200
         target: boss
 
   boss:
     on-enter:
+      - type: broadcast_message
+        message: "<gold><bold>[SpectraEvents]</bold> <dark_red><bold>FINAL PHASE!</bold> Metin Defender has spawned!</dark_red>"
       - type: play_sound
         sound: minecraft:entity.wither.spawn
         volume: 1.0
         pitch: 1.0
       - type: spawn_boss
         entity_type: minecraft:zombie
-        name: "<red>Metin Defender"
+        name: "<dark_red><bold>Metin Defender Boss</bold></dark_red>"
         offset-x: 2
+      - type: update_bossbar
+        title: "<dark_red><bold>METIN DEFENDER BOSS</bold> <gray>[Kill the Boss!]</gray>"
+        color: PINK
+        style: PROGRESS
     transitions:
       - trigger:
           type: interaction
         actions:
           - type: send_message
-            message: "<red>Metin is invulnerable! Defeat the boss!"
+            message: "<red>Metin Stone is invulnerable! You must defeat the Metin Defender Boss!</red>"
       - trigger:
           type: entity_death
         target: defeated
@@ -71,12 +130,31 @@ phases:
   defeated:
     on-enter:
       - type: play_sound
-        sound: minecraft:entity.generic.explode
+        sound: minecraft:ui.toast.challenge_complete
         volume: 1.0
         pitch: 1.0
       - type: spawn_particles
         particle: minecraft:explosion_emitter
-        count: 1
+        count: 3
+      - type: drop_loot
+        radius: 4.0
+        items:
+          - material: minecraft:netherite_block
+            amount: 1
+            chance: 50
+          - material: minecraft:diamond
+            amount: 12
+            chance: 100
+          - material: minecraft:gold_ingot
+            amount: 32
+            chance: 100
+          - material: minecraft:totem_of_undying
+            amount: 1
+            chance: 75
+      - type: broadcast_message
+        message: "<gold><bold>[SpectraEvents]</bold> <green>The Metin Stone and its Defender have been slain! Rare loot dropped!</green>"
+      - type: remove_bossbar
+      - type: remove_scoreboard
       - type: remove_model
       - type: complete_event
 

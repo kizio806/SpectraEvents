@@ -6,11 +6,13 @@ phases:
   falling:
     on-enter:
       - type: initialize_health
-        max: 20
+        max: 500
       - type: spawn_model
         model: dev_meteor_model
         height-offset: 20
         animate: true
+      - type: broadcast_message
+        message: "<gold><bold>[SpectraEvents]</bold> <red>A fiery Meteor is falling from the sky!</red>"
     transitions:
       - trigger:
           type: timer_elapsed
@@ -27,7 +29,9 @@ phases:
         pitch: 1.0
       - type: spawn_particles
         particle: minecraft:explosion
-        count: 10
+        count: 20
+      - type: broadcast_message
+        message: "<gold><bold>[SpectraEvents]</bold> <yellow>The Meteor has struck the ground!</yellow>"
     transitions:
       - trigger:
           type: timer_elapsed
@@ -38,6 +42,10 @@ phases:
     on-enter:
       - type: set_locked
         duration: 10s
+      - type: show_bossbar
+        title: "<red><bold>METEOR</bold> <gray>[Cooling Down...]</gray>"
+        color: RED
+        style: PROGRESS
     transitions:
       - trigger:
           type: timer_elapsed
@@ -47,21 +55,102 @@ phases:
           type: interaction
         actions:
           - type: send_message
-            message: "<red>Meteor is locked."
+            message: "<red>The Meteor is still burning hot and locked!</red>"
 
   active:
+    on-enter:
+      - type: show_bossbar
+        title: "<gold><bold>METEOR EVENT</bold> <yellow>%health%/%max_health% HP (%health_percent%%)</yellow>"
+        color: GOLD
+        style: NOTCHED_10
+      - type: show_scoreboard
+        title: "<gold><bold>SPECTRA METEOR</bold>"
+        lines:
+          - "<yellow>Phase: <white>%phase%</white>"
+          - "<yellow>Health: <green>%health%</green>/<green>%max_health%</green>"
+          - "<yellow>Status: <red>Attackable!</red>"
     transitions:
       - trigger:
           type: interaction
         actions:
           - type: apply_damage
-            amount: 1
+            amount: 10
+          - type: update_bossbar
+            title: "<gold><bold>METEOR EVENT</bold> <yellow>%health%/%max_health% HP (%health_percent%%)</yellow>"
+          - type: update_scoreboard
+            title: "<gold><bold>SPECTRA METEOR</bold>"
+            lines:
+              - "<yellow>Phase: <white>%phase%</white>"
+              - "<yellow>Health: <green>%health%</green>/<green>%max_health%</green>"
+              - "<yellow>Status: <red>Attackable!</red>"
+      - trigger:
+          type: health_threshold_crossed
+          threshold: 375
+        actions:
+          - type: broadcast_message
+            message: "<gold><bold>[SpectraEvents]</bold> <red>Meteor core at 75%! Alien Guardians spawned!</red>"
+          - type: spawn_mobs
+            mobs:
+              - entity_type: minecraft:magma_cube
+                name: "<red>Meteor Core Slime</red>"
+                amount: 3
+                radius: 4
+      - trigger:
+          type: health_threshold_crossed
+          threshold: 250
+        actions:
+          - type: broadcast_message
+            message: "<gold><bold>[SpectraEvents]</bold> <red>Meteor core at 50%! Blazes emerging!</red>"
+          - type: spawn_mobs
+            mobs:
+              - entity_type: minecraft:blaze
+                name: "<gold>Infernal Blaze</gold>"
+                amount: 3
+                radius: 5
+      - trigger:
+          type: health_threshold_crossed
+          threshold: 125
+        actions:
+          - type: broadcast_message
+            message: "<gold><bold>[SpectraEvents]</bold> <dark_red>Meteor core unstable (25%)! Final Wave!</dark_red>"
+          - type: spawn_mobs
+            mobs:
+              - entity_type: minecraft:wither_skeleton
+                name: "<dark_red>Cosmic Skeleton</dark_red>"
+                amount: 2
+                radius: 4
       - trigger:
           type: health_depleted
         target: destroyed
 
   destroyed:
     on-enter:
+      - type: play_sound
+        sound: minecraft:ui.toast.challenge_complete
+        volume: 1.0
+        pitch: 1.0
+      - type: spawn_particles
+        particle: minecraft:explosion_emitter
+        count: 3
+      - type: drop_loot
+        radius: 3.0
+        items:
+          - material: minecraft:netherite_ingot
+            amount: 2
+            chance: 75
+          - material: minecraft:diamond
+            amount: 8
+            chance: 100
+          - material: minecraft:enchanted_golden_apple
+            amount: 2
+            chance: 50
+          - material: minecraft:emerald
+            amount: 16
+            chance: 100
+      - type: broadcast_message
+        message: "<gold><bold>[SpectraEvents]</bold> <green>The Meteor has been destroyed! Loot has dropped!</green>"
+      - type: remove_bossbar
+      - type: remove_scoreboard
       - type: remove_model
       - type: complete_event
 

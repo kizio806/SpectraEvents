@@ -193,6 +193,8 @@ public final class PaperBootstrap {
 
     org.bukkit.Bukkit.getPluginManager().registerEvents(interactionRouter, plugin);
     org.bukkit.Bukkit.getPluginManager().registerEvents(entityDeathRouter, plugin);
+    org.bukkit.Bukkit.getPluginManager().registerEvents(actionAdapter.bossBarManager(), plugin);
+    org.bukkit.Bukkit.getPluginManager().registerEvents(actionAdapter.scoreboardManager(), plugin);
 
     SpectraMainCommand mainCommand =
         new SpectraMainCommand(

@@ -33,6 +33,16 @@ public final class EventRuntimeState {
     return Optional.ofNullable(health.get());
   }
 
+  public int currentHealth() {
+    Health h = health.get();
+    return h != null ? h.current() : 0;
+  }
+
+  public int maxHealth() {
+    Health h = health.get();
+    return h != null ? h.max() : 0;
+  }
+
   public void setHealth(Health newHealth) {
     this.health.set(newHealth);
   }
