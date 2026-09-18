@@ -52,6 +52,34 @@ public class BlockbenchProjectReader implements AssetImportPort {
             throw new IllegalArgumentException("Embedded texture too large (exceeds size limit)");
           }
           data = Base64.getDecoder().decode(base64);
+
+          try (javax.imageio.stream.ImageInputStream iis =
+              javax.imageio.ImageIO.createImageInputStream(
+                  new java.io.ByteArrayInputStream(data))) {
+            java.util.Iterator<javax.imageio.ImageReader> readers =
+                javax.imageio.ImageIO.getImageReaders(iis);
+            if (readers.hasNext()) {
+              javax.imageio.ImageReader reader = readers.next();
+              try {
+                reader.setInput(iis, true, true);
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+                long pixels = (long) width * height;
+
+                if (width > 1024)
+                  throw new IllegalArgumentException("Texture width exceeds maximum 1024");
+                if (height > 1024)
+                  throw new IllegalArgumentException("Texture height exceeds maximum 1024");
+                if (pixels > 1_048_576)
+                  throw new IllegalArgumentException("Texture pixel count exceeds maximum 1048576");
+              } finally {
+                reader.dispose();
+              }
+            }
+          } catch (java.io.IOException e) {
+            throw new IllegalArgumentException("Failed to read texture dimensions", e);
+          }
+
           source = null; // Embedded
         }
         textures.put(id, new SpectraAssetTexture(name, data, source));

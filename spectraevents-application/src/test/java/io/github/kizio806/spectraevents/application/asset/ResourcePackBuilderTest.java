@@ -19,7 +19,21 @@ public class ResourcePackBuilderTest {
     Path mcmeta =
         Files.walk(tempDir).filter(p -> p.endsWith("pack.mcmeta")).findFirst().orElseThrow();
     String content = Files.readString(mcmeta);
-    Assertions.assertTrue(content.contains("\"pack_format\": 84"), "Expected pack format 84");
+
+    org.yaml.snakeyaml.Yaml yaml = new org.yaml.snakeyaml.Yaml();
+    java.util.Map<String, Object> root = yaml.load(content);
+    java.util.Map<String, Object> pack = (java.util.Map<String, Object>) root.get("pack");
+    Assertions.assertEquals(84, pack.get("pack_format"));
+
+    java.util.Map<String, Object> formats =
+        (java.util.Map<String, Object>) pack.get("supported_formats");
+    java.util.List<Integer> minFormat = (java.util.List<Integer>) formats.get("min_format");
+    java.util.List<Integer> maxFormat = (java.util.List<Integer>) formats.get("max_format");
+
+    Assertions.assertEquals(84, minFormat.get(0));
+    Assertions.assertEquals(0, minFormat.get(1));
+    Assertions.assertEquals(84, maxFormat.get(0));
+    Assertions.assertEquals(0, maxFormat.get(1));
   }
 
   @Test
@@ -30,7 +44,21 @@ public class ResourcePackBuilderTest {
     Path mcmeta =
         Files.walk(tempDir).filter(p -> p.endsWith("pack.mcmeta")).findFirst().orElseThrow();
     String content = Files.readString(mcmeta);
-    Assertions.assertTrue(content.contains("\"pack_format\": 88"), "Expected pack format 88");
+
+    org.yaml.snakeyaml.Yaml yaml = new org.yaml.snakeyaml.Yaml();
+    java.util.Map<String, Object> root = yaml.load(content);
+    java.util.Map<String, Object> pack = (java.util.Map<String, Object>) root.get("pack");
+    Assertions.assertEquals(88, pack.get("pack_format"));
+
+    java.util.Map<String, Object> formats =
+        (java.util.Map<String, Object>) pack.get("supported_formats");
+    java.util.List<Integer> minFormat = (java.util.List<Integer>) formats.get("min_format");
+    java.util.List<Integer> maxFormat = (java.util.List<Integer>) formats.get("max_format");
+
+    Assertions.assertEquals(88, minFormat.get(0));
+    Assertions.assertEquals(0, minFormat.get(1));
+    Assertions.assertEquals(88, maxFormat.get(0));
+    Assertions.assertEquals(0, maxFormat.get(1));
   }
 
   @Test
@@ -41,6 +69,20 @@ public class ResourcePackBuilderTest {
     Path mcmeta =
         Files.walk(tempDir).filter(p -> p.endsWith("pack.mcmeta")).findFirst().orElseThrow();
     String content = Files.readString(mcmeta);
-    Assertions.assertTrue(content.contains("\"pack_format\": 97"), "Expected pack format 97");
+
+    org.yaml.snakeyaml.Yaml yaml = new org.yaml.snakeyaml.Yaml();
+    java.util.Map<String, Object> root = yaml.load(content);
+    java.util.Map<String, Object> pack = (java.util.Map<String, Object>) root.get("pack");
+    Assertions.assertEquals(97, pack.get("pack_format"));
+
+    java.util.Map<String, Object> formats =
+        (java.util.Map<String, Object>) pack.get("supported_formats");
+    java.util.List<Integer> minFormat = (java.util.List<Integer>) formats.get("min_format");
+    java.util.List<Integer> maxFormat = (java.util.List<Integer>) formats.get("max_format");
+
+    Assertions.assertEquals(97, minFormat.get(0));
+    Assertions.assertEquals(1, minFormat.get(1));
+    Assertions.assertEquals(97, maxFormat.get(0));
+    Assertions.assertEquals(1, maxFormat.get(1));
   }
 }

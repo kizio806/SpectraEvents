@@ -118,4 +118,23 @@ public class BlockbenchProjectReaderTest {
             });
     Assertions.assertTrue(ex.getMessage().contains("exceeds size limit"));
   }
+
+  @Test
+  void testOversizedEmbeddedTextureDimensionsRejected() throws Exception {
+    java.awt.image.BufferedImage img =
+        new java.awt.image.BufferedImage(2000, 2000, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+    java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+    javax.imageio.ImageIO.write(img, "png", out);
+    String base64 = java.util.Base64.getEncoder().encodeToString(out.toByteArray());
+
+    BlockbenchProjectReader reader = new BlockbenchProjectReader();
+    String json =
+        "{\"meta\":{\"format_version\":\"5.0.0\"},\"textures\":[{\"id\":\"1\",\"name\":\"tex\",\"source\":\"data:image/png,"
+            + base64
+            + "\"}]}";
+
+    Exception ex =
+        Assertions.assertThrows(IllegalArgumentException.class, () -> reader.read(json, "test"));
+    Assertions.assertTrue(ex.getMessage().contains("exceeds maximum"));
+  }
 }

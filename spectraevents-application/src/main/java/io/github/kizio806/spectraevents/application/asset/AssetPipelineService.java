@@ -129,28 +129,52 @@ public class AssetPipelineService {
           new java.util.zip.ZipInputStream(Files.newInputStream(path))) {
         java.util.zip.ZipEntry entry;
         long totalDecompressedSize = 0;
-        long MAX_DECOMPRESSED_SIZE = 5_000_000; // 5MB limit
+        int entryCount = 0;
+        final int MAX_ZIP_ENTRIES = 50;
+        final long MAX_ENTRY_UNCOMPRESSED_BYTES = 2_000_000;
+        final long MAX_TOTAL_UNCOMPRESSED_BYTES = 5_000_000;
+
+        String bbmodelContent = null;
 
         while ((entry = zis.getNextEntry()) != null) {
+          entryCount++;
+          if (entryCount > MAX_ZIP_ENTRIES) {
+            throw new SecurityException("Too many entries in ZIP file");
+          }
           if (entry.getName().contains("..")
               || entry.getName().startsWith("/")
               || entry.getName().startsWith("\\")) {
             throw new SecurityException("ZIP slip detected: " + entry.getName());
           }
-          if (entry.getName().endsWith(".bbmodel")) {
-            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
-            byte[] buffer = new byte[8192];
-            int count;
-            while ((count = zis.read(buffer)) != -1) {
-              totalDecompressedSize += count;
-              if (totalDecompressedSize > MAX_DECOMPRESSED_SIZE) {
-                throw new SecurityException(
-                    "Decompression limit exceeded (max " + MAX_DECOMPRESSED_SIZE + " bytes)");
-              }
+
+          java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+          byte[] buffer = new byte[8192];
+          int count;
+          long entryBytes = 0;
+          while ((count = zis.read(buffer)) != -1) {
+            entryBytes += count;
+            totalDecompressedSize += count;
+
+            if (entryBytes > MAX_ENTRY_UNCOMPRESSED_BYTES) {
+              throw new SecurityException(
+                  "Single entry exceeded decompression limit (max "
+                      + MAX_ENTRY_UNCOMPRESSED_BYTES
+                      + " bytes)");
+            }
+            if (totalDecompressedSize > MAX_TOTAL_UNCOMPRESSED_BYTES) {
+              throw new SecurityException(
+                  "Decompression limit exceeded (max " + MAX_TOTAL_UNCOMPRESSED_BYTES + " bytes)");
+            }
+            if (entry.getName().endsWith(".bbmodel")) {
               out.write(buffer, 0, count);
             }
-            return out.toString(java.nio.charset.StandardCharsets.UTF_8);
           }
+          if (entry.getName().endsWith(".bbmodel")) {
+            bbmodelContent = out.toString(java.nio.charset.StandardCharsets.UTF_8);
+          }
+        }
+        if (bbmodelContent != null) {
+          return bbmodelContent;
         }
       }
       throw new IllegalArgumentException("No .bbmodel found in " + path.getFileName());

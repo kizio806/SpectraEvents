@@ -36,12 +36,20 @@ public class ResourcePackBuilder {
           {
             "pack": {
               "pack_format": %d,
+              "supported_formats": {
+                "min_format": [%d, %d],
+                "max_format": [%d, %d]
+              },
               "description": "SpectraEvents Generated Assets (MC %s)"
             }
           }
           """
               .formatted(
-                  profile.getPackFormat(),
+                  profile.getMajorFormat(),
+                  profile.getMajorFormat(),
+                  profile.getMinorFormat(),
+                  profile.getMajorFormat(),
+                  profile.getMinorFormat(),
                   profile.name().replace("PROFILE_", "").replace("_", "."));
       Files.writeString(tempDir.resolve("pack.mcmeta"), mcmeta);
 

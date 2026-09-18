@@ -5,17 +5,23 @@ package io.github.kizio806.spectraevents.application.asset;
  * 88) 26.3 -> RP 97.1 (represented as 97)
  */
 public enum AssetTargetProfile {
-  PROFILE_26_1(84),
-  PROFILE_26_2(88),
-  PROFILE_26_3(97);
+  PROFILE_26_1(84, 0),
+  PROFILE_26_2(88, 0),
+  PROFILE_26_3(97, 1);
 
-  private final int packFormat;
+  private final int majorFormat;
+  private final int minorFormat;
 
-  AssetTargetProfile(int packFormat) {
-    this.packFormat = packFormat;
+  AssetTargetProfile(int majorFormat, int minorFormat) {
+    this.majorFormat = majorFormat;
+    this.minorFormat = minorFormat;
   }
 
-  public int getPackFormat() {
-    return packFormat;
+  public int getMajorFormat() {
+    return majorFormat;
+  }
+
+  public int getMinorFormat() {
+    return minorFormat;
   }
 }

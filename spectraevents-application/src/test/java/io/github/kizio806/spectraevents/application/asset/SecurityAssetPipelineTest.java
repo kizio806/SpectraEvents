@@ -76,13 +76,56 @@ public class SecurityAssetPipelineTest {
   }
 
   @Test
-  void testDecompressionLimitEnforced() throws Exception {
+  void testZipTotalDecompressionLimitEnforced() throws Exception {
     Path zipPath = sourceDir.resolve("bomb.spectra.zip");
     try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(zipPath.toFile()))) {
-      zos.putNextEntry(new ZipEntry("bomb.bbmodel"));
+      byte[] chunk = new byte[1100000]; // 1.1MB
+      // 5 entries of 1.1MB = 5.5MB total. Should fail total limit.
+      for (int i = 0; i < 5; i++) {
+        zos.putNextEntry(new ZipEntry("bomb" + i + ".bbmodel"));
+        zos.write(chunk);
+        zos.closeEntry();
+      }
+    }
+
+    Exception ex =
+        Assertions.assertThrows(
+            RuntimeException.class,
+            () -> {
+              service.importFile("bomb.spectra.zip");
+            });
+    Assertions.assertTrue(ex.getMessage().contains("Decompression limit exceeded (max 5000000"));
+  }
+
+  @Test
+  void testZipTooManyEntriesRejected() throws Exception {
+    Path zipPath = sourceDir.resolve("many.spectra.zip");
+    try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(zipPath.toFile()))) {
+      // Exceed MAX_ZIP_ENTRIES = 50
+      for (int i = 0; i < 55; i++) {
+        zos.putNextEntry(new ZipEntry("file" + i + ".txt"));
+        zos.write("a".getBytes());
+        zos.closeEntry();
+      }
+    }
+
+    Exception ex =
+        Assertions.assertThrows(
+            RuntimeException.class,
+            () -> {
+              service.importFile("many.spectra.zip");
+            });
+    Assertions.assertTrue(ex.getMessage().contains("Too many entries in ZIP file"));
+  }
+
+  @Test
+  void testZipSingleEntrySizeRejected() throws Exception {
+    Path zipPath = sourceDir.resolve("huge_entry.spectra.zip");
+    try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(zipPath.toFile()))) {
+      zos.putNextEntry(new ZipEntry("huge.bbmodel"));
       byte[] chunk = new byte[100000];
-      // Write ~5.1MB which exceeds 5MB limit
-      for (int i = 0; i < 52; i++) {
+      // 22 * 100kb = 2.2MB single entry (limit is 2MB)
+      for (int i = 0; i < 22; i++) {
         zos.write(chunk);
       }
       zos.closeEntry();
@@ -92,8 +135,9 @@ public class SecurityAssetPipelineTest {
         Assertions.assertThrows(
             RuntimeException.class,
             () -> {
-              service.importFile("bomb.spectra.zip");
+              service.importFile("huge_entry.spectra.zip");
             });
-    Assertions.assertTrue(ex.getMessage().contains("Decompression limit exceeded"));
+    Assertions.assertTrue(
+        ex.getMessage().contains("Single entry exceeded decompression limit (max 2000000"));
   }
 }
