@@ -68,7 +68,60 @@ public class BlockbenchProjectReader implements AssetImportPort {
 
     // 4. Animations
     Map<String, SpectraAssetAnimation> animations = new HashMap<>();
-    // Basic mapping implemented separately.
+    if (root.has("animations")) {
+      JsonArray animsArray = root.getAsJsonArray("animations");
+      for (JsonElement animEl : animsArray) {
+        JsonObject animObj = animEl.getAsJsonObject();
+        String animName = animObj.has("name") ? animObj.get("name").getAsString() : "unnamed_anim";
+        float length = animObj.has("length") ? animObj.get("length").getAsFloat() : 1.0f;
+        String loopStr = animObj.has("loop") ? animObj.get("loop").getAsString() : "once";
+        io.github.kizio806.spectraevents.core.visual.animation.LoopMode loopMode =
+            loopStr.equals("loop")
+                ? io.github.kizio806.spectraevents.core.visual.animation.LoopMode.LOOP
+                : io.github.kizio806.spectraevents.core.visual.animation.LoopMode.ONCE;
+
+        Map<String, List<io.github.kizio806.spectraevents.core.visual.animation.Vector3Keyframe>>
+            tTracks = new HashMap<>();
+        Map<String, List<io.github.kizio806.spectraevents.core.visual.animation.RotationKeyframe>>
+            rTracks = new HashMap<>();
+        Map<String, List<io.github.kizio806.spectraevents.core.visual.animation.ScaleKeyframe>>
+            sTracks = new HashMap<>();
+
+        if (animObj.has("animators")) {
+          JsonObject animatorsObj = animObj.getAsJsonObject("animators");
+          for (Map.Entry<String, JsonElement> entry : animatorsObj.entrySet()) {
+            JsonObject animatorObj = entry.getValue().getAsJsonObject();
+
+            if (animatorObj.has("keyframes")) {
+              JsonArray keyframes = animatorObj.getAsJsonArray("keyframes");
+              for (JsonElement kfEl : keyframes) {
+                JsonObject kfObj = kfEl.getAsJsonObject();
+                String interp =
+                    kfObj.has("interpolation")
+                        ? kfObj.get("interpolation").getAsString()
+                        : "linear";
+
+                if (!interp.equals("linear") && !interp.equals("step")) {
+                  throw new IllegalArgumentException("UNSUPPORTED_INTERPOLATION: " + interp);
+                }
+              }
+            }
+          }
+        }
+
+        animations.put(
+            animName,
+            new SpectraAssetAnimation(
+                animName,
+                io.github.kizio806.spectraevents.core.visual.animation.AnimationDuration
+                    .fromSeconds(length),
+                loopMode,
+                tTracks,
+                rTracks,
+                sTracks,
+                new ArrayList<>()));
+      }
+    }
 
     return new SpectraAssetDocument(1, modelId, textures, nodes, animations);
   }

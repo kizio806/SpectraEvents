@@ -31,7 +31,8 @@ public class ResourcePackBuilder {
           {
             "pack": {
               "pack_format": 32,
-              "description": "SpectraEvents Generated Assets"
+              "supported_formats": [32, 34],
+              "description": "SpectraEvents Generated Assets (MC 1.20.5 - 1.21.1)"
             }
           }
           """;

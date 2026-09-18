@@ -25,6 +25,8 @@ public class AssetPipelineService {
   // Simple incremental cache mapping filename to SHA-256 hash of source
   private final Map<String, String> sourceCache = new HashMap<>();
 
+  private final Map<String, SpectraAssetDocument> compiledDocuments = new HashMap<>();
+
   public AssetPipelineService(
       AssetImportPort importPort,
       ModelDefinitionRegistry modelRegistry,
@@ -46,8 +48,8 @@ public class AssetPipelineService {
     }
 
     try {
-      boolean changesDetected = false;
-      Map<String, SpectraAssetDocument> compiledDocuments = new HashMap<>();
+      java.util.concurrent.atomic.AtomicBoolean changesDetected =
+          new java.util.concurrent.atomic.AtomicBoolean(false);
 
       Files.walk(sourceDirectory)
           .filter(Files::isRegularFile)
@@ -72,25 +74,74 @@ public class AssetPipelineService {
                   SpectraAssetDocument doc = importPort.read(content, modelIdStr);
                   compiledDocuments.put(modelIdStr, doc);
                   sourceCache.put(filename, currentHash);
+                  changesDetected.set(true);
 
                 } catch (Exception e) {
                   LOGGER.severe("Failed to compile asset source " + path + ": " + e.getMessage());
                 }
               });
 
-      if (!compiledDocuments.isEmpty()) {
+      if (changesDetected.get() && !compiledDocuments.isEmpty()) {
         LOGGER.info("Rebuilding resource pack...");
         resourcePackBuilder.build(compiledDocuments.values());
-
-        // TODO: Generate and register ModelDefinition / AnimationDefinition to registries
-
         LOGGER.info("Asset Pipeline build complete. Resource pack generated.");
       } else {
-        LOGGER.info("No asset changes detected. Incremental build skipped.");
+        LOGGER.info("No asset changes detected or no documents. Incremental build skipped.");
       }
 
     } catch (IOException e) {
       LOGGER.severe("Failed to walk source directory: " + e.getMessage());
+    }
+  }
+
+  public void importFile(String filename) {
+    Path path = sourceDirectory.resolve(filename);
+    if (!Files.exists(path)
+        || (!filename.endsWith(".bbmodel") && !filename.endsWith(".spectra.zip"))) {
+      throw new IllegalArgumentException("File not found or invalid format: " + filename);
+    }
+
+    try {
+      String currentHash = computeSha256(path);
+      String content = Files.readString(path);
+      String modelIdStr = filename.replace(".bbmodel", "").replace(".spectra.zip", "");
+      SpectraAssetDocument doc = importPort.read(content, modelIdStr);
+      compiledDocuments.put(modelIdStr, doc);
+      sourceCache.put(filename, currentHash);
+    } catch (Exception e) {
+      throw new RuntimeException("Import failed: " + e.getMessage(), e);
+    }
+  }
+
+  public boolean validateModel(String modelId) {
+    if (!compiledDocuments.containsKey(modelId)) return false;
+    SpectraAssetDocument doc = compiledDocuments.get(modelId);
+    // Simple validation rule checks
+    if (doc.nodes().isEmpty()) return false;
+    return true;
+  }
+
+  public java.util.Collection<String> listModels() {
+    return compiledDocuments.keySet();
+  }
+
+  public SpectraAssetDocument getModelInfo(String modelId) {
+    return compiledDocuments.get(modelId);
+  }
+
+  public void clean() {
+    sourceCache.clear();
+    compiledDocuments.clear();
+    try {
+      Path genPath = sourceDirectory.getParent().getParent().resolve("generated");
+      if (Files.exists(genPath)) {
+        Files.walk(genPath)
+            .sorted(java.util.Comparator.reverseOrder())
+            .map(Path::toFile)
+            .forEach(java.io.File::delete);
+      }
+    } catch (IOException e) {
+      LOGGER.warning("Failed to clean generated output: " + e.getMessage());
     }
   }
 
