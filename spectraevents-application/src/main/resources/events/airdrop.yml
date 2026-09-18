@@ -9,6 +9,8 @@ phases:
         model: dev_airdrop_model
         height-offset: 15
         animate: true
+      - type: broadcast_message
+        message: "<gold><bold>[SpectraEvents]</bold> <yellow>A Supply Airdrop is descending from the sky!</yellow>"
     transitions:
       - trigger:
           type: timer_elapsed
@@ -20,24 +22,35 @@ phases:
       - type: move_model
         target: ground
       - type: set_locked
-        duration: 5s
+        duration: 30s
       - type: play_sound
         sound: minecraft:block.wood.place
         volume: 1.0
         pitch: 0.5
       - type: spawn_particles
         particle: minecraft:cloud
-        count: 15
+        count: 20
+      - type: show_bossbar
+        title: "<yellow><bold>AIRDROP CRATE</bold> <gray>[Unlocking in 30s...]</gray>"
+        color: YELLOW
+        style: PROGRESS
+      - type: show_scoreboard
+        title: "<yellow><bold>AIRDROP EVENT</bold>"
+        lines:
+          - "<yellow>Phase: <white>%phase%</white>"
+          - "<yellow>Status: <red>Locked (30s)</red>"
+      - type: broadcast_message
+        message: "<gold><bold>[SpectraEvents]</bold> <yellow>Airdrop landed! Supply Crate unlocking in 30 seconds!</yellow>"
     transitions:
       - trigger:
           type: timer_elapsed
-          duration: 5s
+          duration: 30s
         target: open
       - trigger:
           type: interaction
         actions:
           - type: send_message
-            message: "<red>Airdrop is locked."
+            message: "<red>The Supply Crate is locked! Please wait for the countdown timer.</red>"
 
   open:
     on-enter:
@@ -47,7 +60,18 @@ phases:
         pitch: 1.0
       - type: spawn_particles
         particle: minecraft:happy_villager
-        count: 10
+        count: 20
+      - type: update_bossbar
+        title: "<green><bold>AIRDROP CRATE UNLOCKED!</bold> <white>[Right-click to claim!]</white>"
+        color: GREEN
+        style: PROGRESS
+      - type: update_scoreboard
+        title: "<yellow><bold>AIRDROP EVENT</bold>"
+        lines:
+          - "<yellow>Phase: <green>Unlocked!</green>"
+          - "<yellow>Status: <green>Ready to Claim!</green>"
+      - type: broadcast_message
+        message: "<gold><bold>[SpectraEvents]</bold> <green><bold>Supply Crate Unlocked!</bold> Right-click to claim rewards!</green>"
     transitions:
       - trigger:
           type: interaction
@@ -55,17 +79,33 @@ phases:
           - type: try_claim
           - type: give_item
             material: minecraft:diamond
-            amount: 1
+            amount: 5
+          - type: drop_loot
+            radius: 2.0
+            items:
+              - material: minecraft:golden_apple
+                amount: 4
+                chance: 100
+              - material: minecraft:netherite_upgrade_smithing_template
+                amount: 1
+                chance: 50
+              - material: minecraft:experience_bottle
+                amount: 16
+                chance: 100
           - type: send_message
-            message: "<green>You claimed the Airdrop!"
+            message: "<green><bold>You claimed the Supply Airdrop Crate!</bold></green>"
           - type: play_sound
             sound: minecraft:entity.player.levelup
             volume: 1.0
             pitch: 1.0
+          - type: broadcast_message
+            message: "<gold><bold>[SpectraEvents]</bold> <green>The Supply Airdrop Crate has been claimed!</green>"
         target: claimed
 
   claimed:
     on-enter:
+      - type: remove_bossbar
+      - type: remove_scoreboard
       - type: remove_model
       - type: complete_event
 

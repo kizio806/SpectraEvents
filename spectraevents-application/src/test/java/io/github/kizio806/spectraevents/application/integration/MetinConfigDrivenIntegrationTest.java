@@ -65,7 +65,7 @@ class MetinConfigDrivenIntegrationTest {
 
     EventRuntimeState state = stateStore.get(instance.id()).orElseThrow();
     assertTrue(state.health().isPresent());
-    assertEquals(100, state.health().get().current());
+    assertEquals(1000, state.health().get().current());
     assertTrue(actionPort.containsAction("spawn_model"));
 
     // 2. Timer: spawning -> active
@@ -76,10 +76,8 @@ class MetinConfigDrivenIntegrationTest {
     EventInstance afterSpawning = repository.findById(instance.id()).orElseThrow();
     assertEquals(new PhaseId("active"), afterSpawning.currentPhase().orElseThrow());
 
-    // 3. Active: hit until health < 60%
-    // Currently health is 100. Each hit deals 5 damage. We need 8 hits to reach 60, 9 to cross it.
-    // 100 - 8*5 = 60. 100 - 9*5 = 55 (crosses 60 threshold).
-    for (int i = 1; i <= 9; i++) {
+    // 3. Active: hit until health < 500 (1000 HP, 10 dmg per hit: 51 hits -> 490 HP)
+    for (int i = 1; i <= 51; i++) {
       engine.evaluateTrigger(instance.id(), new ConfiguredTriggerDefinition("interaction"));
     }
 
@@ -88,10 +86,8 @@ class MetinConfigDrivenIntegrationTest {
     assertTrue(actionPort.containsAction("play_sound"));
     assertTrue(actionPort.containsAction("spawn_particles"));
 
-    // 4. Enraged: hit until health < 25%
-    // Current health is 55. We need to reach < 25.
-    // 55 - 6*5 = 25. 55 - 7*5 = 20 (crosses 25 threshold).
-    for (int i = 1; i <= 7; i++) {
+    // 4. Enraged: hit until health < 200 (490 HP -> 30 hits * 10 dmg = 190 HP)
+    for (int i = 1; i <= 30; i++) {
       engine.evaluateTrigger(instance.id(), new ConfiguredTriggerDefinition("interaction"));
     }
 
