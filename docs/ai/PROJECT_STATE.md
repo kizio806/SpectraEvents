@@ -2,11 +2,19 @@
 
 ## Current Milestone
 
-Professional 3D Model Runtime (COMPLETED)
+Resource Pack Integration & Asset Delivery (COMPLETED)
 
 ## Current Target
 
 Data-driven 3D model engine for Paper and Spigot platform families across Minecraft versions 26.1.1, 26.1.2, 26.2, 26.3.
+
+## Official Asset Workflow
+
+- **Authoring Source**: Assets are strictly authored in Blockbench (`.bbmodel`) and exported via `spectra_exporter.js`.
+- **Generation**: The asset pipeline compiles definitions and generates a full Minecraft resource pack in-memory.
+- **Distribution**: Official visual packs are published to the `SpectraEvents Assets` project on Modrinth.
+- **Delivery**: The SpectraEvents server resolves the Modrinth pack for the correct MC version and caches the exact descriptor. Players receive the pack prompt natively.
+- **Official vs Custom**: Custom servers host their own asset packs using `ManualUrlResourcePackSource`.
 
 ## Completed
 
@@ -38,7 +46,7 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
   - Implemented `CustomItemProvider` with `Nexo`, `Oraxen`, and `ItemsAdder` adapters for the `give_item` action.
   - Hardened absolute timer persistence allowing recovery of queued actions after a crash or restart.
   - Built comprehensive `EntityReconciliationService` to garbage-collect orphaned models and entities at boot or reconnect them to running events.
-  - Finalized `/spectra doctor` diagnostics exposing missing optional dependencies and integration status gracefully.
+  - Finalized `/event doctor` diagnostics exposing missing optional dependencies and integration status gracefully.
 - [x] Multi-Platform Expansion & Sponge Scope Reduction:
   - Official platform families: Paper, Spigot.
   - Paper artifact (`SpectraEvents-<version>-paper.jar`) supports Paper, Purpur, and Folia.

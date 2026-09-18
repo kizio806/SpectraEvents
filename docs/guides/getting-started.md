@@ -14,16 +14,16 @@ Welcome to **SpectraEvents**, a data-driven 3D event engine for Paper servers!
 
 | Command | Permission | Description |
 | :--- | :--- | :--- |
-| `/spectra status` | `spectraevents.status` | Views runtime status & active stats |
-| `/spectra doctor` | `spectraevents.doctor` | Performs installation health checks |
-| `/spectra admin` | `spectraevents.gui` | Opens the interactive Admin GUI |
-| `/spectra definition list` | `spectraevents.definition.list` | Lists loaded YAML event definitions |
-| `/spectra definition validate` | `spectraevents.definition.validate` | Validates YAML event definitions |
-| `/spectra definition reload-all` | `spectraevents.definition.reload` | Reloads all definitions from disk |
-| `/spectra event start <id>` | `spectraevents.event.start` | Starts an event instance by definition ID |
-| `/spectra event list` | `spectraevents.event.list` | Lists all active running instances |
-| `/spectra event cancel <instance>` | `spectraevents.event.cancel` | Cancels a running instance |
-| `/spectra update check` | `spectraevents.update.check` | Checks for plugin updates |
+| `/event status` | `spectraevents.status` | Views runtime status & active stats |
+| `/event doctor` | `spectraevents.doctor` | Performs installation health checks |
+| `/event admin` | `spectraevents.gui` | Opens the interactive Admin GUI |
+| `/event definition list` | `spectraevents.definition.list` | Lists loaded YAML event definitions |
+| `/event definition validate` | `spectraevents.definition.validate` | Validates YAML event definitions |
+| `/event definition reload-all` | `spectraevents.definition.reload` | Reloads all definitions from disk |
+| `/event event start <id>` | `spectraevents.event.start` | Starts an event instance by definition ID |
+| `/event event list` | `spectraevents.event.list` | Lists all active running instances |
+| `/event event cancel <instance>` | `spectraevents.event.cancel` | Cancels a running instance |
+| `/event update check` | `spectraevents.update.check` | Checks for plugin updates |
 
 ## Default Included Events
 

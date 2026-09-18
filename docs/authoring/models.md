@@ -1,5 +1,8 @@
 # 3D Model Authoring Guide
 
+> [!NOTE]
+> New to SpectraEvents? Start with [The Asset Pipeline](asset-pipeline.md), learn about [Blockbench Authoring](blockbench.md), or [Create Your First Model](create-your-first-model.md).
+
 SpectraEvents supports data-driven 3D model definitions stored as YAML files in the `plugins/SpectraEvents/models/` directory.
 
 ## Model YAML Structure
@@ -88,8 +91,8 @@ interactions:
 
 ## Administrative Commands
 
-- `/spectra model list`: Lists all compiled and registered 3D model definitions.
-- `/spectra model info <id>`: Displays detailed hierarchy and part properties for a model.
-- `/spectra model validate <id>`: Validates a compiled model definition.
-- `/spectra model spawn <id>`: Spawns a 3D model instance preview at player location.
-- `/spectra model remove <runtime-id>`: Despawns an active 3D model instance.
+- `/event model list`: Lists all compiled and registered 3D model definitions.
+- `/event model info <id>`: Displays detailed hierarchy and part properties for a model.
+- `/event model validate <id>`: Validates a compiled model definition.
+- `/event model spawn <id>`: Spawns a 3D model instance preview at player location.
+- `/event model remove <runtime-id>`: Despawns an active 3D model instance.

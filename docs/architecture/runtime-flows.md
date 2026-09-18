@@ -20,7 +20,7 @@ Command / Trigger (e.g. Timer Expired)
 The current implementation uses a vertical slice approach to validate the engine architecture on a real server.
 
 ```text
-Admin Command `/spectra dev meteor start`
+Admin Command `/event dev meteor start`
   → DevMeteorCoordinator (Platform)
       → OrchestrationService.startDevMeteor (Application)
           → Creates EventInstance with MeteorFixture (Core)

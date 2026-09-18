@@ -25,8 +25,8 @@ public final class SpectraDebugCommand {
   }
 
   public LiteralArgumentBuilder<CommandSourceStack> buildCommand() {
-    return Commands.literal("spectradebug")
-        .requires(source -> source.getSender().hasPermission("spectra.dev"))
+    return Commands.literal("eventdebug")
+        .requires(source -> source.getSender().hasPermission("spectraevents.dev"))
         .then(
             Commands.literal("event")
                 .requires(s -> s.getSender().hasPermission("spectraevents.debug.event"))

@@ -46,6 +46,15 @@ public final class PaperBootstrap {
   }
 
   public void enable() {
+    plugin
+        .getLogger()
+        .info("[SpectraEvents] SpectraEvents " + plugin.getPluginMeta().getVersion() + " starting");
+    plugin
+        .getLogger()
+        .info(
+            "[SpectraEvents] Platform: Paper (API: "
+                + plugin.getPluginMeta().getAPIVersion()
+                + ")");
     eventTaskScheduler = new PaperEventTaskScheduler(plugin);
     regionScheduler = new PaperRegionTaskScheduler(plugin);
 
@@ -125,7 +134,8 @@ public final class PaperBootstrap {
           .getLogger()
           .info(
               String.format(
-                  "[SpectraEvents] Entity Reconciliation Report: %d recovered, %d reconnected, %d orphans removed.",
+                  "[SpectraEvents] Definitions: %d events registered. Entity Reconciliation: %d recovered, %d reconnected, %d orphans removed.",
+                  application.definitionRegistry().getAll().size(),
                   report.instancesRecovered(),
                   report.entitiesReconnected(),
                   report.orphansRemoved()));
@@ -157,7 +167,7 @@ public final class PaperBootstrap {
                             + info.currentVersion()
                             + " -> "
                             + info.latestVersion()
-                            + ". Run /spectra update info");
+                            + ". Run /event update info");
               }
             });
     org.bukkit.Bukkit.getPluginManager()
@@ -222,5 +232,6 @@ public final class PaperBootstrap {
       application.stop();
       application = null;
     }
+    plugin.getLogger().info("[SpectraEvents] SpectraEvents disabled cleanly.");
   }
 }

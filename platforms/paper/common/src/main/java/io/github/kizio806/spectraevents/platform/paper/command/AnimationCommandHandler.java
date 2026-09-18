@@ -27,7 +27,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.command.CommandSender;
 
-/** Brigadier command handler for 3D model animation management (/spectra animation). */
+/** Brigadier command handler for 3D model animation management (/event animation). */
 public final class AnimationCommandHandler {
 
   private final ModelDefinitionRegistry modelRegistry;

@@ -49,4 +49,4 @@ Each diagnostic contains:
 `DefinitionLoader` skips files that fail parse, compile, or registration. Other files in the same
 batch still load successfully.
 
-Use `/spectra dev definition validate` on a running Paper server to reload and inspect diagnostics.
+Use `/event dev definition validate` on a running Paper server to reload and inspect diagnostics.
