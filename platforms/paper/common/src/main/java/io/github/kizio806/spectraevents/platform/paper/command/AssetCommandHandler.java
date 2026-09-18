@@ -40,18 +40,37 @@ public final class AssetCommandHandler {
                 .requires(s -> hasPerm(s, "spectraevents.admin.assets.import"))
                 .then(
                     Commands.argument("file", StringArgumentType.string())
+                        .suggests(this::suggestAssetIds)
                         .executes(this::importAsset)))
         .then(
             Commands.literal("info")
                 .requires(s -> hasPerm(s, "spectraevents.admin.assets.info"))
                 .then(
-                    Commands.argument("id", StringArgumentType.string()).executes(this::assetInfo)))
+                    Commands.argument("id", StringArgumentType.string())
+                        .suggests(this::suggestAssetIds)
+                        .executes(this::assetInfo)))
         .then(
             Commands.literal("validate")
                 .requires(s -> hasPerm(s, "spectraevents.admin.assets.validate"))
                 .then(
                     Commands.argument("id", StringArgumentType.string())
+                        .suggests(this::suggestAssetIds)
                         .executes(this::validateAsset)));
+  }
+
+  private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions>
+      suggestAssetIds(
+          CommandContext<CommandSourceStack> ctx,
+          com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
+    String remaining = builder.getRemaining().toLowerCase();
+    if (assetPipelineService != null) {
+      for (String modelId : assetPipelineService.listModels()) {
+        if (modelId.toLowerCase().startsWith(remaining)) {
+          builder.suggest(modelId);
+        }
+      }
+    }
+    return builder.buildFuture();
   }
 
   private boolean hasPerm(CommandSourceStack source, String perm) {

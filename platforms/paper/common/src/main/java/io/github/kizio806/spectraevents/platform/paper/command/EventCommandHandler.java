@@ -3,6 +3,7 @@ package io.github.kizio806.spectraevents.platform.paper.command;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
@@ -18,11 +19,20 @@ import org.bukkit.entity.Player;
 public final class EventCommandHandler {
   private final EventOrchestrationService orchestrationService;
   private final EventInstanceRepository instanceRepository;
+  private final EventDefinitionRegistry definitionRegistry;
+
+  public EventCommandHandler(
+      EventOrchestrationService orchestrationService,
+      EventInstanceRepository instanceRepository,
+      EventDefinitionRegistry definitionRegistry) {
+    this.orchestrationService = orchestrationService;
+    this.instanceRepository = instanceRepository;
+    this.definitionRegistry = definitionRegistry;
+  }
 
   public EventCommandHandler(
       EventOrchestrationService orchestrationService, EventInstanceRepository instanceRepository) {
-    this.orchestrationService = orchestrationService;
-    this.instanceRepository = instanceRepository;
+    this(orchestrationService, instanceRepository, null);
   }
 
   public LiteralArgumentBuilder<CommandSourceStack> build() {
@@ -36,19 +46,54 @@ public final class EventCommandHandler {
                 .requires(s -> s.getSender().hasPermission("spectraevents.event.start"))
                 .then(
                     Commands.argument("definition", StringArgumentType.word())
+                        .suggests(
+                            (ctx, builder) -> {
+                              String remaining = builder.getRemaining().toLowerCase();
+                              if (definitionRegistry != null) {
+                                for (var def : definitionRegistry.getAll()) {
+                                  String id = def.definition().id().value();
+                                  if (id.toLowerCase().startsWith(remaining)) {
+                                    builder.suggest(id);
+                                  }
+                                }
+                              }
+                              return builder.buildFuture();
+                            })
                         .executes(this::eventStart)))
         .then(
             Commands.literal("stop")
                 .requires(s -> s.getSender().hasPermission("spectraevents.event.stop"))
                 .then(
                     Commands.argument("instance", StringArgumentType.word())
+                        .suggests(this::suggestActiveInstances)
                         .executes(this::eventStop)))
         .then(
             Commands.literal("cancel")
                 .requires(s -> s.getSender().hasPermission("spectraevents.event.cancel"))
                 .then(
                     Commands.argument("instance", StringArgumentType.word())
+                        .suggests(this::suggestActiveInstances)
                         .executes(this::eventCancel)));
+  }
+
+  private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions>
+      suggestActiveInstances(
+          CommandContext<CommandSourceStack> ctx,
+          com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
+    String remaining = builder.getRemaining().toLowerCase();
+    if (instanceRepository != null) {
+      for (EventInstance inst : instanceRepository.findAll()) {
+        String idStr = inst.id().toString();
+        String defStr = inst.definitionId().value();
+        if (idStr.toLowerCase().startsWith(remaining)) {
+          builder.suggest(idStr);
+        }
+        if (defStr.toLowerCase().startsWith(remaining)) {
+          builder.suggest(defStr);
+        }
+      }
+    }
+    return builder.buildFuture();
   }
 
   private int eventList(CommandContext<CommandSourceStack> ctx) {
