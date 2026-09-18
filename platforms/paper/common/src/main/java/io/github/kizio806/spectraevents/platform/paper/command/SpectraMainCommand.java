@@ -89,10 +89,6 @@ public final class SpectraMainCommand {
             Commands.literal("admin")
                 .requires(s -> hasPerm(s, "spectraevents.gui"))
                 .executes(this::openGui))
-        .then(
-            Commands.literal("gui")
-                .requires(s -> hasPerm(s, "spectraevents.gui"))
-                .executes(this::openGui))
         .then(eventCommandHandler.build())
         .then(definitionCommandHandler.build())
         .then(updateCommandHandler.build());
@@ -137,7 +133,7 @@ public final class SpectraMainCommand {
 
     sender.sendMessage(Component.text("\n[Administration]", NamedTextColor.AQUA));
     sender.sendMessage(
-        Component.text(" /event gui - Open admin inventory GUI", NamedTextColor.GRAY));
+        Component.text(" /event admin - Open admin inventory GUI", NamedTextColor.GRAY));
     sender.sendMessage(
         Component.text(
             " /event definition <list|reload|validate> - Manage configs", NamedTextColor.GRAY));

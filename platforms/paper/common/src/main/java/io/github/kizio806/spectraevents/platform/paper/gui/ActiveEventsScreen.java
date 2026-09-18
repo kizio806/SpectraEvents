@@ -14,7 +14,10 @@ public final class ActiveEventsScreen {
 
   public static Inventory createInventory(EventInstanceRepository instanceRepository) {
     Inventory inv =
-        Bukkit.createInventory(null, 54, Component.text("Active Events", NamedTextColor.GOLD));
+        Bukkit.createInventory(
+            new AdminGuiHolder(AdminGuiController.MenuType.ACTIVE_EVENTS),
+            54,
+            Component.text("Active Events", NamedTextColor.GOLD));
 
     int slot = 0;
     for (EventInstance instance : instanceRepository.findAll()) {

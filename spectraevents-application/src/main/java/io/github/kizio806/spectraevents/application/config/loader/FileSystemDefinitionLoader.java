@@ -83,6 +83,12 @@ public final class FileSystemDefinitionLoader {
               .filter(
                   path -> {
                     String name = path.getFileName().toString().toLowerCase();
+                    if (name.equals("example.yml")
+                        || name.equals("example.yaml")
+                        || name.startsWith("example-")
+                        || name.startsWith("example_")) {
+                      return false;
+                    }
                     return name.endsWith(".yml") || name.endsWith(".yaml");
                   })
               .sorted()

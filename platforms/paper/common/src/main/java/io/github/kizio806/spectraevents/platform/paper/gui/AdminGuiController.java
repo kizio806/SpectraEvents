@@ -78,15 +78,14 @@ public final class AdminGuiController implements Listener {
 
   @EventHandler
   public void onInventoryClick(InventoryClickEvent event) {
-    if (!(event.getWhoClicked() instanceof Player player)) return;
-
-    MenuType currentMenu = openSessions.get(player.getUniqueId());
-    if (currentMenu == null) return;
+    if (!(event.getInventory().getHolder() instanceof AdminGuiHolder holder)) return;
 
     event.setCancelled(true);
 
+    if (!(event.getWhoClicked() instanceof Player player)) return;
+
     int slot = event.getRawSlot();
-    switch (currentMenu) {
+    switch (holder.menuType()) {
       case MAIN:
         if (slot == 10) openActiveEventsMenu(player);
         else if (slot == 12) openDefinitionsMenu(player);

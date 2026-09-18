@@ -14,7 +14,10 @@ public final class DefinitionsScreen {
 
   public static Inventory createInventory(EventDefinitionRegistry definitionRegistry) {
     Inventory inv =
-        Bukkit.createInventory(null, 54, Component.text("Event Definitions", NamedTextColor.GREEN));
+        Bukkit.createInventory(
+            new AdminGuiHolder(AdminGuiController.MenuType.DEFINITIONS),
+            54,
+            Component.text("Event Definitions", NamedTextColor.GREEN));
 
     int slot = 0;
     for (RegisteredEventDefinition registered : definitionRegistry.getAll()) {
