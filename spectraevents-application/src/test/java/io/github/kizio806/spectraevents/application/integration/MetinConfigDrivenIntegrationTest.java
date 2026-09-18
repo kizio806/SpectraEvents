@@ -63,7 +63,6 @@ class MetinConfigDrivenIntegrationTest {
     assertEquals(EventLifecycleState.RUNNING, instance.state());
     assertEquals(new PhaseId("spawning"), instance.currentPhase().orElseThrow());
 
-    // Check health initialized
     EventRuntimeState state = stateStore.get(instance.id()).orElseThrow();
     assertTrue(state.health().isPresent());
     assertEquals(100, state.health().get().current());

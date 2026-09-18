@@ -14,6 +14,17 @@ Thank you for contributing to SpectraEvents! Please follow these guidelines when
 - **Platform Code**: Minecraft API code belongs strictly inside platform modules (`platforms/paper/...`).
 - **No Global Singletons**: Avoid global singletons, service locators, NMS hacks, or giant manager classes.
 
+## Asset Contribution Rules
+
+When contributing official visual assets (models, animations, textures) to SpectraEvents:
+- **Edit Source Assets**: Always edit the Blockbench `.bbmodel` or `.spectra.zip` sources.
+- **Do Not Edit Generated JSON**: Never hand-edit the generated resource-pack JSON output (e.g. `pack.mcmeta` or model definitions). Your changes will be overwritten by the automated pipeline.
+- **Stable IDs**: Keep model hierarchy node IDs stable. They are used for targeting in animations and interaction logic.
+- **Descriptive Names**: Use descriptive group names in your hierarchy (e.g. `right_arm` instead of `group2`).
+- **Git Policy**:
+  - **Commit**: Canonical source assets, `.bbmodel`, `.spectra.zip`, textures, exporter scripts, and test fixtures.
+  - **Do NOT Commit**: Runtime caches, temporary build outputs, temporary resource pack ZIPs, or local server output.
+
 ## Quality Gate
 
 Before submitting a Pull Request, ensure all checks pass cleanly:

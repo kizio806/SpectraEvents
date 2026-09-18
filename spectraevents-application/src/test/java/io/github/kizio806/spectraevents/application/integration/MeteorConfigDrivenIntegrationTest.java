@@ -63,7 +63,6 @@ class MeteorConfigDrivenIntegrationTest {
     assertEquals(EventLifecycleState.RUNNING, instance.state());
     assertEquals(new PhaseId("falling"), instance.currentPhase().orElseThrow());
 
-    // Check health initialized
     EventRuntimeState state = stateStore.get(instance.id()).orElseThrow();
     assertTrue(state.health().isPresent());
     assertEquals(20, state.health().get().current());

@@ -18,7 +18,7 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-/** Main production command tree for /spectra in Paper platform family. */
+/** Main production command tree for /event in Paper platform family. */
 public final class SpectraMainCommand {
   private final EventCommandHandler eventCommandHandler;
   private final DefinitionCommandHandler definitionCommandHandler;
@@ -71,7 +71,7 @@ public final class SpectraMainCommand {
   }
 
   public LiteralArgumentBuilder<CommandSourceStack> buildCommand() {
-    return Commands.literal("spectra")
+    return Commands.literal("event")
         .executes(this::help)
         .then(Commands.literal("help").executes(this::help))
         .then(Commands.literal("version").executes(this::version))
@@ -108,26 +108,44 @@ public final class SpectraMainCommand {
     CommandSender sender = ctx.getSource().getSender();
     sender.sendMessage(
         Component.text(
-            "SpectraEvents Management Commands", NamedTextColor.DARK_PURPLE, TextDecoration.BOLD));
-    sender.sendMessage(Component.text(" /spectra help - Show this help menu", NamedTextColor.GRAY));
+            "SpectraEvents Management", NamedTextColor.DARK_PURPLE, TextDecoration.BOLD));
+
+    sender.sendMessage(Component.text("\n[General]", NamedTextColor.AQUA));
+    sender.sendMessage(Component.text(" /event help - Show this help menu", NamedTextColor.GRAY));
     sender.sendMessage(
-        Component.text(" /spectra version - Display plugin version", NamedTextColor.GRAY));
-    sender.sendMessage(
-        Component.text(" /spectra status - Quick status overview", NamedTextColor.GRAY));
-    sender.sendMessage(
-        Component.text(" /spectra doctor - Run full diagnostic health check", NamedTextColor.GRAY));
-    sender.sendMessage(
-        Component.text(" /spectra gui - Open admin inventory GUI", NamedTextColor.GRAY));
+        Component.text(" /event status - Quick status overview", NamedTextColor.GRAY));
     sender.sendMessage(
         Component.text(
-            " /spectra event <list|start|stop|cancel> - Manage instances", NamedTextColor.GRAY));
+            " /event event <list|start|stop|cancel> - Manage instances", NamedTextColor.GRAY));
+
+    sender.sendMessage(Component.text("\n[Models & Animations]", NamedTextColor.AQUA));
     sender.sendMessage(
         Component.text(
-            " /spectra definition <list|reload|validate> - Manage configs", NamedTextColor.GRAY));
+            " /event model <list|info|validate|spawn|remove> - Manage models",
+            NamedTextColor.GRAY));
     sender.sendMessage(
-        Component.text(" /spectra integrations - View integration status", NamedTextColor.GRAY));
+        Component.text(
+            " /event animation <list|info|play|pause|resume|seek|stop> - Manage animations",
+            NamedTextColor.GRAY));
+
+    sender.sendMessage(Component.text("\n[Assets]", NamedTextColor.AQUA));
     sender.sendMessage(
-        Component.text(" /spectra update <check|info> - Check for updates", NamedTextColor.GRAY));
+        Component.text(
+            " /event assets <list|info|import|validate|build|refresh|clean> - Asset pipeline",
+            NamedTextColor.GRAY));
+
+    sender.sendMessage(Component.text("\n[Administration]", NamedTextColor.AQUA));
+    sender.sendMessage(
+        Component.text(" /event gui - Open admin inventory GUI", NamedTextColor.GRAY));
+    sender.sendMessage(
+        Component.text(
+            " /event definition <list|reload|validate> - Manage configs", NamedTextColor.GRAY));
+    sender.sendMessage(
+        Component.text(" /event doctor - Run diagnostic health check", NamedTextColor.GRAY));
+    sender.sendMessage(
+        Component.text(" /event integrations - View integration status", NamedTextColor.GRAY));
+    sender.sendMessage(
+        Component.text(" /event update <check|info> - Check for updates", NamedTextColor.GRAY));
     return 1;
   }
 

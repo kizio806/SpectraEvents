@@ -7,13 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0-beta.1] - Unreleased
 
+### Changed
+- **Administration Command**: Changed the primary administration command from `/spectra` to `/event`.
+- **Quality Refactor**: Improved server console logging and developer code-comment standards.
+
 ### Added
 - **Config-Driven Event Engine**: Purely event-driven, data-driven 3D event kernel for Minecraft Paper servers.
 - **Built-in Event Definitions**: Ships with production-ready YAML event definitions for `Meteor`, `Airdrop`, and `Metin`.
 - **Atomic Gameplay Actions**: Support for `try_claim`, `apply_damage`, `spawn_boss`, `give_item`, `give_money`, and `health_threshold_crossed` triggers.
 - **Asynchronous SQLite Persistence**: High-performance SQLite persistence with Single-Writer queue architecture and crash recovery.
 - **Restart & Crash Recovery**: Automatic state recovery for active events, boss entity reconciliation, and pending timer recovery.
-- **Admin Tooling & GUI**: Full admin command suite (`/spectra`) and interactive inventory GUI for managing events, definitions, and updates.
+- **Admin Tooling & GUI**: Full admin command suite (`/event`) and interactive inventory GUI for managing events, definitions, and updates.
 - **Optional Plugin Integrations**: Safe integration adapters for `LuckPerms`, `WorldGuard`, `Vault`, `PlaceholderAPI`, `MiniPlaceholders`, `Nexo`, `Oraxen`, and `ItemsAdder`.
 - **Folia Support**: Native region-aware scheduling foundation (`RegionTaskScheduler`, `PaperRegionTaskScheduler`).
 - **Update Checking System**: SemVer-aware GitHub releases update check provider.

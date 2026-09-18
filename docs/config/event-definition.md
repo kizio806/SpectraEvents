@@ -38,5 +38,5 @@ phases:
 ## Runtime behavior
 
 The engine never reads raw YAML during gameplay. Files are parsed at startup (or on
-`/spectra dev definition validate`), compiled into immutable objects, and registered by `id`.
+`/event dev definition validate`), compiled into immutable objects, and registered by `id`.
 Running instances reference the compiled definition snapshot.

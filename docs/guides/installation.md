@@ -18,12 +18,12 @@ This guide covers setting up **SpectraEvents** on your Minecraft Paper server.
 3. **Start the Server**:
    Start your Paper server. On first startup, SpectraEvents will automatically create:
    - `plugins/SpectraEvents/config.yml` (main plugin configuration)
-   - `plugins/SpectraEvents/spectraevents.db` (SQLite persistence database)
+   - `plugins/SpectraEvents/eventevents.db` (SQLite persistence database)
    - `plugins/SpectraEvents/events/` directory containing executable default definitions (`meteor.yml`, `airdrop.yml`, `metin.yml`).
 
 4. **Verify Installation**:
-   Run `/spectra doctor` in server console or as an OP in-game. You should see:
+   Run `/event doctor` in server console or as an OP in-game. You should see:
    `Doctor complete: No critical errors detected.`
 
 5. **Open Admin Panel**:
-   In-game as an admin, run `/spectra admin` to view the interactive GUI panel.
+   In-game as an admin, run `/event admin` to view the interactive GUI panel.

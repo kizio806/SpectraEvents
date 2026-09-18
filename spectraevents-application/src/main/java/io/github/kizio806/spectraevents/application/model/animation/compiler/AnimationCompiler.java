@@ -197,7 +197,6 @@ public class AnimationCompiler {
       Collections.sort(compiledCues);
     }
 
-    // Check total segment budget
     int totalSegments = 0;
     for (CompiledTrack track : compiledTracks) {
       if (track.segments().size() > MAX_TRACK_SEGMENTS_LIMIT) {
@@ -226,7 +225,6 @@ public class AnimationCompiler {
                   + MAX_TOTAL_SEGMENTS_LIMIT));
     }
 
-    // Check errors
     if (diagnostics.stream().anyMatch(d -> d.severity() == Severity.ERROR)) {
       throw new AnimationCompilerException(
           "Failed to compile animation '" + animationId.value() + "'", diagnostics);

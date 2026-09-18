@@ -22,7 +22,7 @@ import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-/** Brigadier command handler for 3D model management (/spectra model). */
+/** Brigadier command handler for 3D model management (/event model). */
 public final class ModelCommandHandler {
   private final ModelDefinitionRegistry modelRegistry;
   private final ModelRuntimeService modelRuntimeService;

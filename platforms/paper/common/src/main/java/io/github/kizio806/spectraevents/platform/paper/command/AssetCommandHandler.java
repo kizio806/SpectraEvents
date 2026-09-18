@@ -11,7 +11,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 
-/** Brigadier command handler for Asset Pipeline management (/spectra assets). */
+/** Brigadier command handler for Asset Pipeline management (/event assets). */
 public final class AssetCommandHandler {
 
   private final AssetPipelineService assetPipelineService;
