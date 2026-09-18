@@ -55,38 +55,45 @@ public final class AnimationCommandHandler {
                 .requires(s -> hasPerm(s, "spectraevents.admin.animation.list"))
                 .then(
                     Commands.argument("modelId", StringArgumentType.string())
+                        .suggests(this::suggestModelIds)
                         .executes(this::listAnimations)))
         .then(
             Commands.literal("play")
                 .requires(s -> hasPerm(s, "spectraevents.admin.animation.play"))
                 .then(
                     Commands.argument("runtimeId", StringArgumentType.string())
+                        .suggests(this::suggestActiveModelRuntimeIds)
                         .then(
                             Commands.argument("animationId", StringArgumentType.string())
+                                .suggests(this::suggestAnimationIds)
                                 .executes(this::playAnimation))))
         .then(
             Commands.literal("pause")
                 .requires(s -> hasPerm(s, "spectraevents.admin.animation.pause"))
                 .then(
                     Commands.argument("playbackId", StringArgumentType.string())
+                        .suggests(this::suggestPlaybackIds)
                         .executes(this::pauseAnimation)))
         .then(
             Commands.literal("resume")
                 .requires(s -> hasPerm(s, "spectraevents.admin.animation.resume"))
                 .then(
                     Commands.argument("playbackId", StringArgumentType.string())
+                        .suggests(this::suggestPlaybackIds)
                         .executes(this::resumeAnimation)))
         .then(
             Commands.literal("stop")
                 .requires(s -> hasPerm(s, "spectraevents.admin.animation.stop"))
                 .then(
                     Commands.argument("playbackId", StringArgumentType.string())
+                        .suggests(this::suggestPlaybackIds)
                         .executes(this::stopAnimation)))
         .then(
             Commands.literal("seek")
                 .requires(s -> hasPerm(s, "spectraevents.admin.animation.seek"))
                 .then(
                     Commands.argument("playbackId", StringArgumentType.string())
+                        .suggests(this::suggestPlaybackIds)
                         .then(
                             Commands.argument("time", StringArgumentType.string())
                                 .executes(this::seekAnimation))))
@@ -95,7 +102,72 @@ public final class AnimationCommandHandler {
                 .requires(s -> hasPerm(s, "spectraevents.admin.animation.info"))
                 .then(
                     Commands.argument("playbackId", StringArgumentType.string())
+                        .suggests(this::suggestPlaybackIds)
                         .executes(this::playbackInfo)));
+  }
+
+  private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions>
+      suggestModelIds(
+          CommandContext<CommandSourceStack> ctx,
+          com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
+    String remaining = builder.getRemaining().toLowerCase();
+    if (modelRegistry != null) {
+      for (ModelDefinition model : modelRegistry.all()) {
+        String id = model.id().value();
+        if (id.toLowerCase().startsWith(remaining)) {
+          builder.suggest(id);
+        }
+      }
+    }
+    return builder.buildFuture();
+  }
+
+  private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions>
+      suggestActiveModelRuntimeIds(
+          CommandContext<CommandSourceStack> ctx,
+          com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
+    String remaining = builder.getRemaining().toLowerCase();
+    if (modelRuntimeService != null) {
+      for (RenderedModelHandle handle : modelRuntimeService.getActiveInstances()) {
+        String rId = handle.runtimeId().value();
+        if (rId.toLowerCase().startsWith(remaining)) {
+          builder.suggest(rId);
+        }
+      }
+    }
+    return builder.buildFuture();
+  }
+
+  private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions>
+      suggestAnimationIds(
+          CommandContext<CommandSourceStack> ctx,
+          com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
+    String remaining = builder.getRemaining().toLowerCase();
+    if (animationRegistry != null) {
+      for (var compiledAnim : animationRegistry.all()) {
+        String id = compiledAnim.definition().id().value();
+        if (id.toLowerCase().startsWith(remaining)) {
+          builder.suggest(id);
+        }
+      }
+    }
+    return builder.buildFuture();
+  }
+
+  private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions>
+      suggestPlaybackIds(
+          CommandContext<CommandSourceStack> ctx,
+          com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
+    String remaining = builder.getRemaining().toLowerCase();
+    if (animationRuntimeService != null) {
+      for (AnimationPlaybackState pb : animationRuntimeService.getActivePlaybacks()) {
+        String pId = pb.playbackId().value();
+        if (pId.toLowerCase().startsWith(remaining)) {
+          builder.suggest(pId);
+        }
+      }
+    }
+    return builder.buildFuture();
   }
 
   private boolean hasPerm(CommandSourceStack source, String perm) {

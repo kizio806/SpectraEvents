@@ -41,6 +41,10 @@ public class AnimationDefinitionRegistry {
     animations.clear();
   }
 
+  public java.util.Collection<CompiledAnimation> all() {
+    return animations.values();
+  }
+
   public int count() {
     return animations.size();
   }
