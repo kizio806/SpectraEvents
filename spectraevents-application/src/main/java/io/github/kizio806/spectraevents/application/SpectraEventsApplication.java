@@ -4,6 +4,9 @@ import io.github.kizio806.spectraevents.application.config.compiler.EventDefinit
 import io.github.kizio806.spectraevents.application.config.loader.DefinitionLoader;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.yaml.EventSpecYamlParser;
+import io.github.kizio806.spectraevents.application.model.animation.registry.AnimationDefinitionRegistry;
+import io.github.kizio806.spectraevents.application.model.animation.runtime.ActiveAnimationRegistry;
+import io.github.kizio806.spectraevents.application.model.animation.runtime.AnimationRuntimeService;
 import io.github.kizio806.spectraevents.application.model.compiler.ModelCompiler;
 import io.github.kizio806.spectraevents.application.model.loader.ModelLoader;
 import io.github.kizio806.spectraevents.application.model.registry.ModelDefinitionRegistry;
@@ -34,6 +37,10 @@ public final class SpectraEventsApplication {
   private final ModelLoader modelLoader;
   private final ModelRuntimeService modelRuntimeService;
 
+  private final AnimationDefinitionRegistry animationDefinitionRegistry;
+  private final ActiveAnimationRegistry activeAnimationRegistry;
+  private final AnimationRuntimeService animationRuntimeService;
+
   /**
    * Creates the application composition root with platform ports.
    *
@@ -63,11 +70,25 @@ public final class SpectraEventsApplication {
     this.modelCompiler = new ModelCompiler();
     this.modelLoader = new ModelLoader(modelCompiler, modelDefinitionRegistry);
 
+    this.animationDefinitionRegistry = new AnimationDefinitionRegistry();
+    this.activeAnimationRegistry = new ActiveAnimationRegistry();
+
     if (modelRendererPort != null) {
       this.modelRuntimeService =
           new ModelRuntimeService(modelDefinitionRegistry, modelRendererPort);
     } else {
       this.modelRuntimeService = null;
+    }
+
+    if (modelRendererPort != null && scheduler != null) {
+      this.animationRuntimeService =
+          new AnimationRuntimeService(
+              animationDefinitionRegistry,
+              activeAnimationRegistry,
+              modelRendererPort,
+              (delay, task) -> scheduler.schedule(null, delay, task));
+    } else {
+      this.animationRuntimeService = null;
     }
 
     var targetRepository = repository != null ? repository : new InMemoryEventInstanceRepository();
@@ -146,6 +167,24 @@ public final class SpectraEventsApplication {
 
   public ModelRuntimeService modelRuntimeService() {
     return modelRuntimeService;
+  }
+
+  public io.github.kizio806.spectraevents.application.model.animation.registry
+          .AnimationDefinitionRegistry
+      animationDefinitionRegistry() {
+    return animationDefinitionRegistry;
+  }
+
+  public io.github.kizio806.spectraevents.application.model.animation.runtime
+          .ActiveAnimationRegistry
+      activeAnimationRegistry() {
+    return activeAnimationRegistry;
+  }
+
+  public io.github.kizio806.spectraevents.application.model.animation.runtime
+          .AnimationRuntimeService
+      animationRuntimeService() {
+    return animationRuntimeService;
   }
 
   public EventOrchestrationService orchestrationService() {

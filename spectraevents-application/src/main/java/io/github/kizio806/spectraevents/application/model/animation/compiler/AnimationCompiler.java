@@ -41,6 +41,8 @@ import java.util.Set;
 public class AnimationCompiler {
 
   public static final long MAX_ANIMATION_DURATION_NANOS = 3600L * 1_000_000_000L; // 1 hour
+  public static final int MAX_TRACK_SEGMENTS_LIMIT = 1000;
+  public static final int MAX_TOTAL_SEGMENTS_LIMIT = 10000;
 
   public CompiledAnimation compile(
       AnimationId animationId, AnimationSpec spec, Set<String> validPartIds) {
@@ -193,6 +195,35 @@ public class AnimationCompiler {
         }
       }
       Collections.sort(compiledCues);
+    }
+
+    // Check total segment budget
+    int totalSegments = 0;
+    for (CompiledTrack track : compiledTracks) {
+      if (track.segments().size() > MAX_TRACK_SEGMENTS_LIMIT) {
+        diagnostics.add(
+            new ValidationDiagnostic(
+                Severity.ERROR,
+                "TRACK_SEGMENTS_EXCEED_BUDGET",
+                "tracks." + track.target(),
+                "Track contains "
+                    + track.segments().size()
+                    + " segments, exceeding limit of "
+                    + MAX_TRACK_SEGMENTS_LIMIT));
+      }
+      totalSegments += track.segments().size();
+    }
+
+    if (totalSegments > MAX_TOTAL_SEGMENTS_LIMIT) {
+      diagnostics.add(
+          new ValidationDiagnostic(
+              Severity.ERROR,
+              "ANIMATION_SEGMENTS_EXCEED_BUDGET",
+              "tracks",
+              "Animation total segments count is "
+                  + totalSegments
+                  + ", exceeding limit of "
+                  + MAX_TOTAL_SEGMENTS_LIMIT));
     }
 
     // Check errors
