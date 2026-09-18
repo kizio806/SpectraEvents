@@ -15,7 +15,9 @@ public final class UpdatesScreen {
   public static Inventory createInventory(UpdateService updateService) {
     Inventory inv =
         Bukkit.createInventory(
-            null, 27, Component.text("Update System", NamedTextColor.LIGHT_PURPLE));
+            new AdminGuiHolder(AdminGuiController.MenuType.UPDATES),
+            27,
+            Component.text("Update System", NamedTextColor.LIGHT_PURPLE));
 
     UpdateInfo info = updateService.currentInfo();
     Material mat = info.updateAvailable() ? Material.NETHER_STAR : Material.EMERALD;
