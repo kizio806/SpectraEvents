@@ -40,6 +40,8 @@ public final class SpectraEventsApplication {
   private final AnimationDefinitionRegistry animationDefinitionRegistry;
   private final ActiveAnimationRegistry activeAnimationRegistry;
   private final AnimationRuntimeService animationRuntimeService;
+  private io.github.kizio806.spectraevents.application.asset.AssetPipelineService
+      assetPipelineService;
 
   /**
    * Creates the application composition root with platform ports.
@@ -105,6 +107,8 @@ public final class SpectraEventsApplication {
 
     this.orchestrationService =
         new EventOrchestrationService(targetRepository, definitionRegistry, executionEngine);
+
+    this.assetPipelineService = null; // Will be properly wired by Bootstrap later
 
     if (reconcilerPort != null) {
       this.reconciliationService =
@@ -185,6 +189,17 @@ public final class SpectraEventsApplication {
           .AnimationRuntimeService
       animationRuntimeService() {
     return animationRuntimeService;
+  }
+
+  public io.github.kizio806.spectraevents.application.asset.AssetPipelineService
+      assetPipelineService() {
+    return assetPipelineService;
+  }
+
+  public void setAssetPipelineService(
+      io.github.kizio806.spectraevents.application.asset.AssetPipelineService
+          assetPipelineService) {
+    this.assetPipelineService = assetPipelineService;
   }
 
   public EventOrchestrationService orchestrationService() {

@@ -72,6 +72,21 @@ public final class PaperBootstrap {
             reconciler,
             new PaperCapabilityQuery(),
             renderer);
+
+    io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchProjectReader bbReader =
+        new io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchProjectReader();
+    io.github.kizio806.spectraevents.application.asset.ResourcePackBuilder rpBuilder =
+        new io.github.kizio806.spectraevents.application.asset.ResourcePackBuilder(
+            plugin.getDataFolder().toPath().resolve("generated").resolve("resource-pack"));
+    io.github.kizio806.spectraevents.application.asset.AssetPipelineService assetPipelineService =
+        new io.github.kizio806.spectraevents.application.asset.AssetPipelineService(
+            bbReader,
+            application.modelDefinitionRegistry(),
+            application.animationDefinitionRegistry(),
+            rpBuilder,
+            plugin.getDataFolder().toPath().resolve("assets").resolve("source"));
+    application.setAssetPipelineService(assetPipelineService);
+
     actionAdapter.setModelRuntimeService(application.modelRuntimeService());
     application.start();
 
