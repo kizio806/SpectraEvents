@@ -16,7 +16,7 @@ public final class MainScreen {
   public static Inventory createInventory() {
     Inventory inv =
         Bukkit.createInventory(
-            null,
+            new AdminGuiHolder(AdminGuiController.MenuType.MAIN),
             27,
             Component.text(
                 "SpectraEvents Admin Panel", NamedTextColor.DARK_PURPLE, TextDecoration.BOLD));

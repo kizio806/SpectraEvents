@@ -15,7 +15,9 @@ public final class IntegrationsScreen {
   public static Inventory createInventory(IntegrationRegistry integrationRegistry) {
     Inventory inv =
         Bukkit.createInventory(
-            null, 36, Component.text("Integrations Status", NamedTextColor.AQUA));
+            new AdminGuiHolder(AdminGuiController.MenuType.INTEGRATIONS),
+            36,
+            Component.text("Integrations Status", NamedTextColor.AQUA));
 
     int slot = 9;
     for (var entry : integrationRegistry.getAll().entrySet()) {
