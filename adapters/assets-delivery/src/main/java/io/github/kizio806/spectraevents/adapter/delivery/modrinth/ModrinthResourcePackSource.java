@@ -17,6 +17,10 @@ public class ModrinthResourcePackSource implements ResourcePackSourcePort {
 
   public ModrinthResourcePackSource(
       ModrinthApiClient apiClient, String projectId, String gameVersion) {
+    if (projectId == null || projectId.isBlank() || projectId.startsWith("<")) {
+      throw new IllegalArgumentException(
+          "Modrinth project-id is missing or unconfigured. Please specify a valid Modrinth Project ID (e.g. 'Rg1nw8IW') in resource-pack configuration.");
+    }
     this.apiClient = apiClient;
     this.projectId = projectId;
     this.gameVersion = gameVersion;

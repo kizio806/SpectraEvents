@@ -25,7 +25,7 @@ A: If the server marks the pack as required, you may be disconnected. Otherwise,
 A: **No.** Server owners only need to download the SpectraEvents plugin `.jar`. The resource pack logic is entirely handled internally.
 
 **Q: Do I need to host the official resource pack on a web server?**
-A: **No.** SpectraEvents connects to the official Modrinth project (`spectraevents-assets`) and serves the download URLs from there directly to the joining players.
+A: **No.** SpectraEvents connects to the official Modrinth project (ID: `Rg1nw8IW`, slug: `spectraevents-assets`) and serves the download URLs from there directly to the joining players.
 
 **Q: Do I need a Modrinth API token?**
 A: **No.** Retrieving public versions from Modrinth does not require authentication.
@@ -53,7 +53,7 @@ A: **Never.** Any manual changes to `pack.mcmeta`, `models/`, or `textures/` in 
 A: Resource packs are bound to the Plugin Version + Minecraft Version Band (e.g., `0.1.0-beta.2+26.1`). SpectraEvents strictly matches this version contract.
 
 **Q: Where are official packs published?**
-A: They are published to the official **SpectraEvents Assets** project on Modrinth.
+A: They are published to the official **SpectraEvents Assets** project on Modrinth (Project ID: `Rg1nw8IW`).
 
 **Q: What happens when Minecraft adds a new resource-pack format?**
-A: A new asset profile is added (e.g., `26.2` mapped to `min_format: 88, max_format: 88`), and the CI builds a specific version of the ZIP tailored for that Minecraft version.
+A: A new asset profile is added (e.g., `26.2` mapped to `min_format: [88, 0], max_format: [88, 0]`), and the CI builds a specific version of the ZIP tailored for that Minecraft version.

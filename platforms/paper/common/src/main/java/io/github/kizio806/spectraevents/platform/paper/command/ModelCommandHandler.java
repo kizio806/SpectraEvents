@@ -44,19 +44,55 @@ public final class ModelCommandHandler {
             Commands.literal("info")
                 .requires(s -> hasPerm(s, "spectraevents.admin.model.info"))
                 .then(
-                    Commands.argument("id", StringArgumentType.string()).executes(this::modelInfo)))
+                    Commands.argument("id", StringArgumentType.string())
+                        .suggests(this::suggestModelIds)
+                        .executes(this::modelInfo)))
         .then(
             Commands.literal("spawn")
                 .requires(s -> hasPerm(s, "spectraevents.admin.model.spawn"))
                 .then(
                     Commands.argument("id", StringArgumentType.string())
+                        .suggests(this::suggestModelIds)
                         .executes(this::spawnModel)))
         .then(
             Commands.literal("remove")
                 .requires(s -> hasPerm(s, "spectraevents.admin.model.remove"))
                 .then(
                     Commands.argument("runtimeId", StringArgumentType.string())
+                        .suggests(this::suggestActiveModelRuntimeIds)
                         .executes(this::removeModel)));
+  }
+
+  private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions>
+      suggestModelIds(
+          CommandContext<CommandSourceStack> ctx,
+          com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
+    String remaining = builder.getRemaining().toLowerCase();
+    if (modelRegistry != null) {
+      for (ModelDefinition model : modelRegistry.all()) {
+        String id = model.id().value();
+        if (id.toLowerCase().startsWith(remaining)) {
+          builder.suggest(id);
+        }
+      }
+    }
+    return builder.buildFuture();
+  }
+
+  private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions>
+      suggestActiveModelRuntimeIds(
+          CommandContext<CommandSourceStack> ctx,
+          com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
+    String remaining = builder.getRemaining().toLowerCase();
+    if (modelRuntimeService != null) {
+      for (RenderedModelHandle handle : modelRuntimeService.getActiveInstances()) {
+        String rId = handle.runtimeId().value();
+        if (rId.toLowerCase().startsWith(remaining)) {
+          builder.suggest(rId);
+        }
+      }
+    }
+    return builder.buildFuture();
   }
 
   private boolean hasPerm(CommandSourceStack source, String perm) {

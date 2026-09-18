@@ -34,11 +34,42 @@ public final class DefinitionCommandHandler {
         .then(
             Commands.literal("reload")
                 .requires(s -> s.getSender().hasPermission("spectraevents.definition.reload"))
-                .executes(this::definitionReload))
+                .executes(this::definitionReload)
+                .then(
+                    Commands.argument(
+                            "definitionId",
+                            com.mojang.brigadier.arguments.StringArgumentType.string())
+                        .suggests(this::suggestDefinitionIds)
+                        .executes(this::definitionReload)))
         .then(
             Commands.literal("validate")
                 .requires(s -> s.getSender().hasPermission("spectraevents.definition.validate"))
-                .executes(this::definitionValidate));
+                .executes(this::definitionValidate)
+                .then(
+                    Commands.argument(
+                            "definitionId",
+                            com.mojang.brigadier.arguments.StringArgumentType.string())
+                        .suggests(this::suggestDefinitionIds)
+                        .executes(this::definitionValidate)));
+  }
+
+  private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions>
+      suggestDefinitionIds(
+          CommandContext<CommandSourceStack> ctx,
+          com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
+    String remaining = builder.getRemaining().toLowerCase();
+    if ("all".startsWith(remaining)) {
+      builder.suggest("all");
+    }
+    if (definitionRegistry != null) {
+      for (RegisteredEventDefinition reg : definitionRegistry.getAll()) {
+        String id = reg.definition().id().value();
+        if (id.toLowerCase().startsWith(remaining)) {
+          builder.suggest(id);
+        }
+      }
+    }
+    return builder.buildFuture();
   }
 
   private int definitionList(CommandContext<CommandSourceStack> ctx) {

@@ -42,7 +42,8 @@ public final class SpectraMainCommand {
       UpdateService updateService,
       AdminGuiController guiController,
       SpectraEventsApplication application) {
-    this.eventCommandHandler = new EventCommandHandler(orchestrationService, instanceRepository);
+    this.eventCommandHandler =
+        new EventCommandHandler(orchestrationService, instanceRepository, definitionRegistry);
     this.definitionCommandHandler =
         new DefinitionCommandHandler(definitionRegistry, configBootstrap);
     this.updateCommandHandler = new UpdateCommandHandler(updateService);

@@ -1,8 +1,13 @@
 package io.github.kizio806.spectraevents.application.asset;
 
 /**
- * Defines the strict resource pack target profile. 26.1.x -> RP 84 26.2 -> RP 88.0 (represented as
- * 88) 26.3 -> RP 97.1 (represented as 97)
+ * Defines the strict resource pack target profile:
+ *
+ * <ul>
+ *   <li>Minecraft 26.1.x -> RP min_format: [84, 0], max_format: [84, 0]
+ *   <li>Minecraft 26.2 -> RP min_format: [88, 0], max_format: [88, 0]
+ *   <li>Minecraft 26.3 -> RP min_format: [97, 1], max_format: [97, 1]
+ * </ul>
  */
 public enum AssetTargetProfile {
   PROFILE_26_1(84, 0),

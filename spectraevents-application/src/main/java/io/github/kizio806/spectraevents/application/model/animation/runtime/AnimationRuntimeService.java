@@ -241,6 +241,15 @@ public class AnimationRuntimeService {
     return result;
   }
 
+  public List<AnimationPlaybackState> getActivePlaybacks() {
+    List<ActiveAnimation> list = activeRegistry.getAll();
+    List<AnimationPlaybackState> result = new ArrayList<>();
+    for (ActiveAnimation anim : list) {
+      result.add(anim.toSnapshotState());
+    }
+    return result;
+  }
+
   private void stepAnimation(ActiveAnimation activeAnim) {
     synchronized (activeAnim) {
       if (activeAnim.state() != PlaybackState.PLAYING) {

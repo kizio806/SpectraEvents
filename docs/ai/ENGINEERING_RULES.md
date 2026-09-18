@@ -57,4 +57,4 @@ separate `MeteorHealthManager`, `PinataHealthManager`, and `MetinHealthManager` 
 
 - Always edit canonical source assets (e.g. Blockbench `.bbmodel`, `.spectra.zip`), never the generated resource-pack JSON output.
 - Custom servers must host their own custom assets (`ManualUrlResourcePackSource`).
-- The official Modrinth CDN project (`spectraevents-assets`) is strictly for maintaining the official baseline packs.
+- The official Modrinth CDN project (ID: `Rg1nw8IW`, slug: `spectraevents-assets`) is strictly for maintaining the official baseline packs.

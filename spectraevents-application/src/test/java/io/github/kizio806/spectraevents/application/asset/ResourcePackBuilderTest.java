@@ -30,8 +30,11 @@ public class ResourcePackBuilderTest {
     java.util.List<Integer> minFormat = (java.util.List<Integer>) formats.get("min_format");
     java.util.List<Integer> maxFormat = (java.util.List<Integer>) formats.get("max_format");
 
+    Assertions.assertEquals(2, minFormat.size());
     Assertions.assertEquals(84, minFormat.get(0));
     Assertions.assertEquals(0, minFormat.get(1));
+
+    Assertions.assertEquals(2, maxFormat.size());
     Assertions.assertEquals(84, maxFormat.get(0));
     Assertions.assertEquals(0, maxFormat.get(1));
   }
@@ -55,8 +58,11 @@ public class ResourcePackBuilderTest {
     java.util.List<Integer> minFormat = (java.util.List<Integer>) formats.get("min_format");
     java.util.List<Integer> maxFormat = (java.util.List<Integer>) formats.get("max_format");
 
+    Assertions.assertEquals(2, minFormat.size());
     Assertions.assertEquals(88, minFormat.get(0));
     Assertions.assertEquals(0, minFormat.get(1));
+
+    Assertions.assertEquals(2, maxFormat.size());
     Assertions.assertEquals(88, maxFormat.get(0));
     Assertions.assertEquals(0, maxFormat.get(1));
   }
@@ -80,8 +86,11 @@ public class ResourcePackBuilderTest {
     java.util.List<Integer> minFormat = (java.util.List<Integer>) formats.get("min_format");
     java.util.List<Integer> maxFormat = (java.util.List<Integer>) formats.get("max_format");
 
+    Assertions.assertEquals(2, minFormat.size());
     Assertions.assertEquals(97, minFormat.get(0));
     Assertions.assertEquals(1, minFormat.get(1));
+
+    Assertions.assertEquals(2, maxFormat.size());
     Assertions.assertEquals(97, maxFormat.get(0));
     Assertions.assertEquals(1, maxFormat.get(1));
   }
