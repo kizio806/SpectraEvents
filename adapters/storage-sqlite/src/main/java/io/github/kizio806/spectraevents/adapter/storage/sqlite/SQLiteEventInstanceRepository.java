@@ -31,7 +31,7 @@ import java.util.logging.Logger;
 public final class SQLiteEventInstanceRepository implements EventInstanceRepository {
   private static final Logger LOGGER =
       Logger.getLogger(SQLiteEventInstanceRepository.class.getName());
-  private static final int CURRENT_SCHEMA_VERSION = 3;
+  private static final int CURRENT_SCHEMA_VERSION = 4;
 
   private final Path dbPath;
   private final Map<EventInstanceId, EventInstance> cache = new ConcurrentHashMap<>();
@@ -120,6 +120,26 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
             stmt.execute("ALTER TABLE spectra_instance_state ADD COLUMN timer_deadline INTEGER;");
           }
           stmt.executeUpdate("INSERT OR REPLACE INTO spectra_schema_version (version) VALUES (3);");
+        }
+
+        if (currentVer < 4) {
+          stmt.execute(
+              """
+              CREATE TABLE IF NOT EXISTS spectra_active_animations (
+                playback_id TEXT PRIMARY KEY,
+                model_runtime_id TEXT NOT NULL,
+                model_definition_id TEXT NOT NULL,
+                animation_id TEXT NOT NULL,
+                state TEXT NOT NULL,
+                current_time_nanos INTEGER NOT NULL,
+                speed REAL NOT NULL,
+                loop_mode TEXT NOT NULL,
+                current_loop INTEGER NOT NULL,
+                recovery_policy TEXT NOT NULL,
+                last_updated INTEGER NOT NULL
+              );
+              """);
+          stmt.executeUpdate("INSERT OR REPLACE INTO spectra_schema_version (version) VALUES (4);");
         }
         writerConnection.commit();
       } catch (SQLException e) {

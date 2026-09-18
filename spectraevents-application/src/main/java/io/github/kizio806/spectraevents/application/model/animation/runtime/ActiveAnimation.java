@@ -91,7 +91,39 @@ public class ActiveAnimation {
   }
 
   public synchronized void setCurrentTime(AnimationTime currentTime) {
-    this.currentTime = Objects.requireNonNull(currentTime, "currentTime cannot be null");
+    seekTo(currentTime);
+  }
+
+  /**
+   * Seeks the playhead to a specific target time, aligning track segment indices and timeline cues.
+   */
+  public synchronized void seekTo(AnimationTime targetTime) {
+    this.currentTime = Objects.requireNonNull(targetTime, "targetTime cannot be null");
+
+    // Align segment indices for each track to match targetTime playhead
+    for (CompiledTrack track : compiledAnimation.tracks()) {
+      int matchingIndex = 0;
+      List<CompiledSegment> segments = track.segments();
+      for (int i = 0; i < segments.size(); i++) {
+        CompiledSegment seg = segments.get(i);
+        if (targetTime.compareTo(seg.startTime()) >= 0
+            && targetTime.compareTo(seg.endTime()) <= 0) {
+          matchingIndex = i;
+          break;
+        } else if (targetTime.compareTo(seg.endTime()) > 0) {
+          matchingIndex = i + 1;
+        }
+      }
+      trackSegmentIndices.put(track, Math.min(matchingIndex, segments.size()));
+    }
+
+    // Align fired cues to prevent duplicate/skipped cue emission
+    firedCueIds.clear();
+    for (TimelineCue cue : compiledAnimation.definition().cues()) {
+      if (cue.time().compareTo(targetTime) <= 0) {
+        firedCueIds.add(cue.cueId());
+      }
+    }
   }
 
   public synchronized float speed() {
@@ -137,7 +169,7 @@ public class ActiveAnimation {
     checkCues(currentTime, AnimationTime.fromNanos(newNanos));
 
     if (newNanos >= durationNanos) {
-      if (loopMode == LoopMode.LOOP) {
+      if (loopMode == LoopMode.LOOP || loopMode == LoopMode.PING_PONG) {
         currentLoop++;
         if (maxLoops > 0 && currentLoop >= maxLoops) {
           state = PlaybackState.COMPLETED;
