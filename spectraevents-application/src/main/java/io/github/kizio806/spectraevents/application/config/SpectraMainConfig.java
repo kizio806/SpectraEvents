@@ -14,7 +14,8 @@ public record SpectraMainConfig(
     boolean placeholderApiIntegration,
     boolean worldGuardIntegration,
     boolean vaultIntegration,
-    boolean debugEnabled) {
+    boolean debugEnabled,
+    ResourcePackConfig resourcePack) {
 
   public static SpectraMainConfig defaultConfig() {
     return new SpectraMainConfig(
@@ -30,6 +31,30 @@ public record SpectraMainConfig(
         true,
         true,
         true,
-        false);
+        false,
+        ResourcePackConfig.defaultConfig());
+  }
+
+  public record ResourcePackConfig(
+      boolean enabled,
+      boolean required,
+      String sourceType,
+      String modrinthProjectId,
+      String manualUrl,
+      String manualSha1,
+      String prompt,
+      String failurePolicy) {
+
+    public static ResourcePackConfig defaultConfig() {
+      return new ResourcePackConfig(
+          true,
+          true,
+          "modrinth",
+          "",
+          "",
+          "",
+          "<gold>This server uses SpectraEvents assets.",
+          "deny-assets");
+    }
   }
 }

@@ -39,6 +39,7 @@ include(
     "adapters:storage-sqlite",
     "adapters:update-http",
     "adapters:assets-blockbench",
+    "adapters:assets-delivery",
     "platforms:paper:common",
     "platforms:spigot:common",
     "distributions:paper",
