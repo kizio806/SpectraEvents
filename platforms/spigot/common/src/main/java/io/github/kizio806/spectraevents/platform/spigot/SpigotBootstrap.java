@@ -21,6 +21,12 @@ public class SpigotBootstrap {
   }
 
   public void onEnable() {
+    plugin
+        .getLogger()
+        .info(
+            "[SpectraEvents] SpectraEvents " + plugin.getDescription().getVersion() + " starting");
+    plugin.getLogger().info("[SpectraEvents] Platform: Spigot");
+
     plugin.getDataFolder().mkdirs();
     Path dbPath = plugin.getDataFolder().toPath().resolve("events.db");
     SQLiteEventInstanceRepository sqliteRepository = new SQLiteEventInstanceRepository(dbPath);
@@ -62,7 +68,15 @@ public class SpigotBootstrap {
           modelFileSystemLoader =
               new io.github.kizio806.spectraevents.application.model.loader.FileSystemModelLoader(
                   plugin.getDataFolder().toPath(), application.modelLoader());
-      modelFileSystemLoader.loadFromDisk();
+      var modelLoadResult = modelFileSystemLoader.loadFromDisk();
+      plugin
+          .getLogger()
+          .info(
+              "[SpectraEvents] Models: "
+                  + modelLoadResult.loadedCount()
+                  + " loaded, "
+                  + modelLoadResult.invalidCount()
+                  + " invalid.");
     } catch (Exception e) {
       plugin.getLogger().severe("Failed to load 3D models: " + e.getMessage());
     }
@@ -74,5 +88,6 @@ public class SpigotBootstrap {
     if (application != null) {
       application.stop();
     }
+    plugin.getLogger().info("[SpectraEvents] SpectraEvents disabled cleanly.");
   }
 }

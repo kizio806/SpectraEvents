@@ -57,4 +57,4 @@ phases:
       - type: complete_event
 ```
 
-Validate your event with `/spectra definition validate` and test it with `/spectra event start my_event`!
+Validate your event with `/event definition validate` and test it with `/event event start my_event`!

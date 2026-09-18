@@ -38,7 +38,7 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
   - Implemented `CustomItemProvider` with `Nexo`, `Oraxen`, and `ItemsAdder` adapters for the `give_item` action.
   - Hardened absolute timer persistence allowing recovery of queued actions after a crash or restart.
   - Built comprehensive `EntityReconciliationService` to garbage-collect orphaned models and entities at boot or reconnect them to running events.
-  - Finalized `/spectra doctor` diagnostics exposing missing optional dependencies and integration status gracefully.
+  - Finalized `/event doctor` diagnostics exposing missing optional dependencies and integration status gracefully.
 - [x] Multi-Platform Expansion & Sponge Scope Reduction:
   - Official platform families: Paper, Spigot.
   - Paper artifact (`SpectraEvents-<version>-paper.jar`) supports Paper, Purpur, and Folia.

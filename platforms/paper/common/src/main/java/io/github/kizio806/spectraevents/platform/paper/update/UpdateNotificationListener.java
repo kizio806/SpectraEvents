@@ -43,7 +43,7 @@ public final class UpdateNotificationListener implements Listener {
               .append(
                   Component.text(
                       info.currentVersion() + " -> " + info.latestVersion(), NamedTextColor.GREEN))
-              .append(Component.text(". Run /spectra update info", NamedTextColor.GRAY)));
+              .append(Component.text(". Run /event update info", NamedTextColor.GRAY)));
     }
   }
 }

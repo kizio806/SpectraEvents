@@ -165,7 +165,6 @@ public class ActiveAnimation {
     long newNanos = currentTime.nanoseconds() + scaledNanos;
     long durationNanos = compiledAnimation.definition().duration().toNanos();
 
-    // Check cues
     checkCues(currentTime, AnimationTime.fromNanos(newNanos));
 
     if (newNanos >= durationNanos) {
@@ -176,7 +175,6 @@ public class ActiveAnimation {
           currentTime = AnimationTime.fromNanos(durationNanos);
           return true;
         } else {
-          // Loop around
           long overflow = newNanos % durationNanos;
           currentTime = AnimationTime.fromNanos(overflow);
           firedCueIds.clear();

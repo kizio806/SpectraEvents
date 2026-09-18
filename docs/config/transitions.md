@@ -33,7 +33,7 @@ The parser reads `target` (not design-draft `to:`). Trigger type lives at `trigg
 
 ## Manual transitions in development
 
-When `trigger.type` is `manual`, `/spectra dev event next <instance>` selects the first matching
+When `trigger.type` is `manual`, `/event dev event next <instance>` selects the first matching
 rule in declaration order and moves the instance to `target`.
 
 Conditions and actions are compiled but not evaluated or executed in the current milestone.

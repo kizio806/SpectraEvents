@@ -38,7 +38,7 @@ Notes:
 - `schema-version: 1` is required. Other values are rejected at load time.
 - `initial-phase` must reference a key under `phases`.
 - Each transition uses `trigger.type` and `target` (not the future design-doc aliases).
-- The `manual` trigger is advanced with `/spectra dev event next <instance>`.
+- The `manual` trigger is advanced with `/event dev event next <instance>`.
 
 ## Developer commands
 
@@ -46,21 +46,21 @@ Requires permission `spectra.dev`.
 
 | Command | Purpose |
 | :--- | :--- |
-| `/spectra dev definition list` | Lists loaded definition IDs |
-| `/spectra dev definition info <id>` | Shows source file, initial phase, and phase count |
-| `/spectra dev definition validate` | Reloads `events/*.yml` and prints validation diagnostics |
-| `/spectra dev definition start <id>` | Starts a new instance from a loaded definition |
-| `/spectra dev event next <instance>` | Fires the first `manual` transition in the current phase |
+| `/event dev definition list` | Lists loaded definition IDs |
+| `/event dev definition info <id>` | Shows source file, initial phase, and phase count |
+| `/event dev definition validate` | Reloads `events/*.yml` and prints validation diagnostics |
+| `/event dev definition start <id>` | Starts a new instance from a loaded definition |
+| `/event dev event next <instance>` | Fires the first `manual` transition in the current phase |
 
 ## Smoke test workflow
 
 1. Start the Paper server with SpectraEvents enabled.
 2. Confirm `plugins/SpectraEvents/events/example.yml` exists.
-3. Run `/spectra dev definition list` and verify `example` appears.
-4. Run `/spectra dev definition start example`.
+3. Run `/event dev definition list` and verify `example` appears.
+4. Run `/event dev definition start example`.
 5. Copy the returned instance UUID.
-6. Run `/spectra dev event info <instance>` and verify phase `waiting`.
-7. Run `/spectra dev event next <instance>` and verify phase `active`.
+6. Run `/event dev event info <instance>` and verify phase `waiting`.
+7. Run `/event dev event next <instance>` and verify phase `active`.
 
 ## Config-Driven Meteor Event Example
 
@@ -137,7 +137,7 @@ phases:
 
 ## Running the Meteor Event
 
-1. Run `/spectra dev definition validate` to ensure definitions compile.
-2. Run `/spectra dev definition start meteor` or `/spectra dev meteor start`.
+1. Run `/event dev definition validate` to ensure definitions compile.
+2. Run `/event dev definition start meteor` or `/event dev meteor start`.
 3. Watch the automated falling -> impact -> locked -> active lifecycle.
 4. Interact (right-click) with the active meteor to deal damage. When health reaches 0, the meteor completes cleanly.

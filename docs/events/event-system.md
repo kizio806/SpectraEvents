@@ -36,4 +36,4 @@ Players who interact with the event (deal damage, click, deliver items) are trac
 
 ## Configuration Snapshot Behavior
 
-When an instance is created, it references a specific version of its `EventDefinition`. If the administrator runs `/spectra reload` and modifies the definition, the running instance **must not** abruptly change its behavior. It should retain a snapshot or pin to the older version to ensure runtime stability.
+When an instance is created, it references a specific version of its `EventDefinition`. If the administrator runs `/event reload` and modifies the definition, the running instance **must not** abruptly change its behavior. It should retain a snapshot or pin to the older version to ensure runtime stability.
