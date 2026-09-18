@@ -107,4 +107,15 @@ class ModrinthResourcePackSourceTest {
             });
     Assertions.assertTrue(ex.getCause().getMessage().contains("invalid"));
   }
+
+  @Test
+  void testUnconfiguredProjectIdRejected() {
+    StubClient mockClient = new StubClient("[]");
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () -> new ModrinthResourcePackSource(mockClient, "<PROJECT_ID>", "26.1.1"));
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () -> new ModrinthResourcePackSource(mockClient, "", "26.1.1"));
+  }
 }
