@@ -8,6 +8,7 @@ dependencies {
     api(project(":spectraevents-application"))
     api(project(":adapters:storage-sqlite"))
     api(project(":adapters:update-http"))
+    implementation(project(":adapters:assets-blockbench"))
     compileOnly(libs.paper.api)
     compileOnly(libs.luckperms.api)
     compileOnly(libs.worldguard.api)

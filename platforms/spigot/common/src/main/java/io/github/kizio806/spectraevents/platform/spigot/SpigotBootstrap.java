@@ -39,6 +39,22 @@ public class SpigotBootstrap {
             reconciler,
             new SpigotCapabilityQuery(),
             renderer);
+
+    io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchProjectReader bbReader =
+        new io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchProjectReader();
+    io.github.kizio806.spectraevents.application.asset.ResourcePackBuilder rpBuilder =
+        new io.github.kizio806.spectraevents.application.asset.ResourcePackBuilder(
+            plugin.getDataFolder().toPath().resolve("generated").resolve("resource-pack"));
+    io.github.kizio806.spectraevents.application.asset.AssetPipelineService assetPipelineService =
+        new io.github.kizio806.spectraevents.application.asset.AssetPipelineService(
+            bbReader,
+            application.modelDefinitionRegistry(),
+            application.animationDefinitionRegistry(),
+            rpBuilder,
+            plugin.getDataFolder().toPath().resolve("assets").resolve("source"),
+            io.github.kizio806.spectraevents.application.asset.AssetTargetProfile.PROFILE_26_1);
+    application.setAssetPipelineService(assetPipelineService);
+
     actionAdapter.setModelRuntimeService(application.modelRuntimeService());
 
     try {

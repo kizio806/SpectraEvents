@@ -38,6 +38,7 @@ include(
     "spectraevents-application",
     "adapters:storage-sqlite",
     "adapters:update-http",
+    "adapters:assets-blockbench",
     "platforms:paper:common",
     "platforms:spigot:common",
     "distributions:paper",

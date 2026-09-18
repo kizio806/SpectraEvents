@@ -21,8 +21,10 @@ itemsadder = "3.6.1"
 spigot = "1.21.3-R0.1-SNAPSHOT"
 adventure-platform = "4.3.4"
 adventure = "4.17.0"
+gson = "2.11.0"
 
 [libraries]
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }

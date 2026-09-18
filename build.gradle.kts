@@ -52,6 +52,7 @@ val platformIndependentProjects =
         project(":spectraevents-application"),
         project(":adapters:storage-sqlite"),
         project(":adapters:update-http"),
+        project(":adapters:assets-blockbench"),
     )
 
 val verifyPlatformBoundaries =
