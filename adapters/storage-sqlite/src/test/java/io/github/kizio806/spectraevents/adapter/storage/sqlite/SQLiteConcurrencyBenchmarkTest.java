@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -52,10 +53,9 @@ public class SQLiteConcurrencyBenchmarkTest {
     runBenchmarkScenario(50);
   }
 
-  private void runBenchmarkScenario(int threads) throws Exception {
+  private void runBenchmarkScenario(int threads) throws InterruptedException {
     System.out.println("--- BENCHMARK SCENARIO: " + threads + " concurrent writers ---");
 
-    ExecutorService executor = Executors.newFixedThreadPool(threads);
     AtomicInteger successCount = new AtomicInteger(0);
     AtomicInteger busyCount = new AtomicInteger(0);
     AtomicInteger otherErrorCount = new AtomicInteger(0);
@@ -68,39 +68,42 @@ public class SQLiteConcurrencyBenchmarkTest {
 
     long startTime = System.currentTimeMillis();
 
-    List<Callable<Void>> tasks = new ArrayList<>();
-    for (int i = 0; i < totalOperations; i++) {
-      tasks.add(
-          () -> {
-            long startOp = System.nanoTime();
-            try {
-              EventInstance instance =
-                  EventInstance.reconstitute(
-                      EventInstanceId.generate(), defId, EventLifecycleState.RUNNING, phaseId);
-              repository.save(instance);
-              successCount.incrementAndGet();
-              latencies.add((System.nanoTime() - startOp) / 1_000_000); // ms
-            } catch (Exception e) {
-              if (e.getMessage() != null && e.getMessage().contains("SQLITE_BUSY")) {
-                busyCount.incrementAndGet();
-              } else {
-                otherErrorCount.incrementAndGet();
-                e.printStackTrace();
+    try (ExecutorService executor = Executors.newFixedThreadPool(threads)) {
+      List<Callable<Void>> tasks = new ArrayList<>();
+      for (int i = 0; i < totalOperations; i++) {
+        tasks.add(
+            () -> {
+              long startOp = System.nanoTime();
+              try {
+                EventInstance instance =
+                    EventInstance.reconstitute(
+                        EventInstanceId.generate(), defId, EventLifecycleState.RUNNING, phaseId);
+                repository.save(instance);
+                successCount.incrementAndGet();
+                latencies.add((System.nanoTime() - startOp) / 1_000_000); // ms
+              } catch (RuntimeException e) {
+                if (e.getMessage() != null && e.getMessage().contains("SQLITE_BUSY")) {
+                  busyCount.incrementAndGet();
+                } else {
+                  otherErrorCount.incrementAndGet();
+                  e.printStackTrace();
+                }
               }
-            }
-            return null;
-          });
-    }
-
-    List<Future<Void>> futures = executor.invokeAll(tasks);
-    for (Future<Void> f : futures) {
-      try {
-        f.get();
-      } catch (Exception ignored) {
+              return null;
+            });
       }
+
+      List<Future<Void>> futures = executor.invokeAll(tasks);
+      for (Future<Void> f : futures) {
+        try {
+          f.get();
+        } catch (ExecutionException e) {
+          throw new RuntimeException(e);
+        }
+      }
+      executor.shutdown();
+      executor.awaitTermination(10, TimeUnit.SECONDS);
     }
-    executor.shutdown();
-    executor.awaitTermination(10, TimeUnit.SECONDS);
 
     long endTime = System.currentTimeMillis();
     long durationMs = endTime - startTime;

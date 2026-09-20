@@ -21,18 +21,18 @@ class RecoveryStressTest {
   private Path dbPath;
 
   @BeforeEach
-  void setUp() throws Exception {
+  void setUp() throws ClassNotFoundException, java.io.IOException {
     Class.forName("org.sqlite.JDBC");
     dbPath = Files.createTempFile("recovery_test", ".db");
   }
 
   @AfterEach
-  void tearDown() throws Exception {
+  void tearDown() throws java.io.IOException {
     Files.deleteIfExists(dbPath);
   }
 
   @Test
-  void testStateAndInstanceRecovery() throws Exception {
+  void testStateAndInstanceRecovery() {
     EventInstanceId id = EventInstanceId.generate();
     EventDefinitionId defId = new EventDefinitionId("test_def");
 
@@ -85,5 +85,27 @@ class RecoveryStressTest {
 
       repo2.shutdown();
     }
+  }
+
+  @Test
+  void durableStartIsVisibleToAnotherConnectionBeforeShutdown() {
+    EventInstanceId id = EventInstanceId.generate();
+    EventDefinitionId definitionId = new EventDefinitionId("durable_start");
+    SQLiteEventInstanceRepository writer = new SQLiteEventInstanceRepository(dbPath);
+    writer.initialize();
+    EventInstance instance =
+        EventInstance.reconstitute(
+            id, definitionId, EventLifecycleState.RUNNING, new PhaseId("active"));
+    EventRuntimeState state = new EventRuntimeState(id);
+    assertTrue(state.tryClaim("player"));
+
+    writer.saveWithStateDurably(instance, state);
+
+    SQLiteEventInstanceRepository reader = new SQLiteEventInstanceRepository(dbPath);
+    reader.initialize();
+    assertTrue(reader.findById(id).isPresent());
+    assertEquals("player", reader.findState(id).orElseThrow().claimant().orElseThrow());
+    reader.shutdown();
+    writer.shutdown();
   }
 }
