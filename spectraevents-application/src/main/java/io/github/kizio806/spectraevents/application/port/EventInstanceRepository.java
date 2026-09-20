@@ -26,9 +26,32 @@ public interface EventInstanceRepository {
   default void saveState(
       io.github.kizio806.spectraevents.application.execution.EventRuntimeState state) {}
 
+  /**
+   * Stores runtime state and returns only after the storage implementation has durably accepted the
+   * write. Implementations that do not buffer writes may use the default implementation.
+   */
+  default void saveStateDurably(
+      io.github.kizio806.spectraevents.application.execution.EventRuntimeState state) {
+    saveState(state);
+  }
+
+  /**
+   * Stores a newly-created instance and its initial runtime state as one durable unit when the
+   * backing store supports transactions.
+   */
+  default void saveWithStateDurably(
+      EventInstance eventInstance,
+      io.github.kizio806.spectraevents.application.execution.EventRuntimeState state) {
+    save(eventInstance);
+    saveStateDurably(state);
+  }
+
   /** Finds the runtime state by identity, if previously saved. */
   default Optional<io.github.kizio806.spectraevents.application.execution.EventRuntimeState>
       findState(EventInstanceId eventInstanceId) {
     return Optional.empty();
   }
+
+  /** Flushes pending writes and releases repository resources. */
+  default void close() {}
 }

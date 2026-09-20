@@ -7,6 +7,7 @@ import java.util.regex.Pattern;
  * Semantic Versioning (SemVer 2.0.0) parser and comparator. Handles major, minor, patch, and
  * prerelease identifiers (e.g. 0.1.0-beta.1 < 0.1.0-beta.2 < 0.1.0).
  */
+@SuppressWarnings("PMD.AvoidFieldNameMatchingMethodName")
 public final class SemVer implements Comparable<SemVer> {
   private static final Pattern DOT = Pattern.compile("\\.");
 
@@ -41,7 +42,7 @@ public final class SemVer implements Comparable<SemVer> {
       preReleaseStr = cleaned.substring(hyphenIndex + 1);
     }
 
-    String[] parts = DOT.split(coreStr);
+    String[] parts = DOT.split(coreStr, -1);
     int maj = parts.length > 0 ? parseSafeInt(parts[0]) : 0;
     int min = parts.length > 1 ? parseSafeInt(parts[1]) : 0;
     int pat = parts.length > 2 ? parseSafeInt(parts[2]) : 0;
@@ -97,8 +98,8 @@ public final class SemVer implements Comparable<SemVer> {
     }
 
     // Both have pre-release strings
-    String[] thisTokens = DOT.split(this.preRelease);
-    String[] otherTokens = DOT.split(other.preRelease);
+    String[] thisTokens = DOT.split(this.preRelease, -1);
+    String[] otherTokens = DOT.split(other.preRelease, -1);
     int minLen = Math.min(thisTokens.length, otherTokens.length);
 
     for (int i = 0; i < minLen; i++) {

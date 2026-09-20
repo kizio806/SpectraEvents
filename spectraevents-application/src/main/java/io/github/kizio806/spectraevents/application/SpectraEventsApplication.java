@@ -31,6 +31,8 @@ public final class SpectraEventsApplication {
   private io.github.kizio806.spectraevents.application.service.EntityReconciliationReport
       lastReconciliationReport;
   private final PlatformCapabilityQuery capabilityQuery;
+  private final io.github.kizio806.spectraevents.application.port.EventInstanceRepository
+      repository;
 
   private final ModelDefinitionRegistry modelDefinitionRegistry;
   private final ModelCompiler modelCompiler;
@@ -94,6 +96,7 @@ public final class SpectraEventsApplication {
     }
 
     var targetRepository = repository != null ? repository : new InMemoryEventInstanceRepository();
+    this.repository = targetRepository;
     var stateStore =
         new io.github.kizio806.spectraevents.application.execution.EventRuntimeStateStore();
 
@@ -236,6 +239,10 @@ public final class SpectraEventsApplication {
 
   /** Reports that the application is stopping. */
   public void stop() {
+    if (executionEngine != null) {
+      executionEngine.shutdown();
+    }
+    repository.close();
     lifecycleReporter.stopped();
   }
 

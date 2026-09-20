@@ -17,6 +17,10 @@ public final class EventRuntimeStateStore {
     return Optional.ofNullable(states.get(instanceId));
   }
 
+  public void put(EventRuntimeState state) {
+    states.put(state.instanceId(), state);
+  }
+
   public void remove(EventInstanceId instanceId) {
     states.remove(instanceId);
   }

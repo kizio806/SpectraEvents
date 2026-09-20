@@ -114,20 +114,15 @@ class MetinConfigDrivenIntegrationTest {
   }
 
   private static class FakeEventTaskScheduler implements EventTaskScheduler {
-    boolean cancelled = false;
 
     @Override
     public void schedule(EventInstanceId eventId, Duration delay, Runnable task) {}
 
     @Override
-    public void cancelAll(EventInstanceId eventId) {
-      cancelled = true;
-    }
+    public void cancelAll(EventInstanceId eventId) {}
 
     @Override
-    public void cancelAll() {
-      cancelled = true;
-    }
+    public void cancelAll() {}
   }
 
   private static class RecordingPlatformActionPort implements PlatformActionPort {

@@ -2,6 +2,7 @@ package io.github.kizio806.spectraevents.application.integration;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -18,11 +19,11 @@ public final class IntegrationRegistry {
   }
 
   public void register(String name, IntegrationState state, String details) {
-    integrations.put(name.toLowerCase(), new IntegrationInfo(name, state, details));
+    integrations.put(name.toLowerCase(Locale.ROOT), new IntegrationInfo(name, state, details));
   }
 
   public Optional<IntegrationInfo> get(String name) {
-    return Optional.ofNullable(integrations.get(name.toLowerCase()));
+    return Optional.ofNullable(integrations.get(name.toLowerCase(Locale.ROOT)));
   }
 
   public Map<String, IntegrationInfo> getAll() {

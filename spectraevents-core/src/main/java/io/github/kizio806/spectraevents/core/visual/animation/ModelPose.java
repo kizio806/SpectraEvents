@@ -2,7 +2,6 @@ package io.github.kizio806.spectraevents.core.visual.animation;
 
 import io.github.kizio806.spectraevents.core.visual.model.ModelPartId;
 import io.github.kizio806.spectraevents.core.visual.model.ModelTransform;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 
@@ -12,11 +11,16 @@ public record ModelPose(
 
   public ModelPose {
     Objects.requireNonNull(rootTransform, "rootTransform cannot be null");
-    partTransforms = partTransforms != null ? Map.copyOf(partTransforms) : Collections.emptyMap();
+    partTransforms = partTransforms == null ? Map.of() : Map.copyOf(partTransforms);
   }
 
   public static ModelPose of(
       ModelTransform rootTransform, Map<ModelPartId, ModelTransform> partTransforms) {
     return new ModelPose(rootTransform, partTransforms);
+  }
+
+  @Override
+  public Map<ModelPartId, ModelTransform> partTransforms() {
+    return Map.copyOf(partTransforms);
   }
 }

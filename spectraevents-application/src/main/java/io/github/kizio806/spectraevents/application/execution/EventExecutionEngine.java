@@ -23,6 +23,9 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -33,12 +36,31 @@ import java.util.logging.Logger;
  */
 public final class EventExecutionEngine {
   private static final Logger LOGGER = Logger.getLogger(EventExecutionEngine.class.getName());
+  private static final int MAX_RUNNING_INSTANCES = 64;
+  private static final Duration MAX_TIMER_DURATION = Duration.ofDays(7);
 
   private final EventInstanceRepository repository;
   private final EventDefinitionRegistry definitionRegistry;
   private final EventTaskScheduler scheduler;
   private final PlatformActionPort platformActionPort;
   private final EventRuntimeStateStore stateStore;
+  private final ConcurrentHashMap<EventInstanceId, ReentrantLock> instanceLocks =
+      new ConcurrentHashMap<>();
+  private static final Set<String> REWARD_ACTION_TYPES = Set.of("give_item", "drop_loot");
+  private static final Set<String> RECOVERABLE_RESOURCE_ACTION_TYPES =
+      Set.of(
+          "spawn_model",
+          "move_model",
+          "spawn_boss",
+          "spawn_entity",
+          "spawn_mobs",
+          "spawn_wave",
+          "show_bossbar",
+          "create_bossbar",
+          "update_bossbar",
+          "show_scoreboard",
+          "create_scoreboard",
+          "update_scoreboard");
 
   private final java.util.List<IntegrationConditionResolver> conditionResolvers =
       new java.util.ArrayList<>();
@@ -56,6 +78,8 @@ public final class EventExecutionEngine {
     this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
     this.platformActionPort = Objects.requireNonNull(platformActionPort, "platformActionPort");
     this.stateStore = Objects.requireNonNull(stateStore, "stateStore");
+    this.platformActionPort.setFatalActionHandler(
+        (instanceId, cause) -> failEvent(instanceId, cause));
   }
 
   public EventRuntimeStateStore stateStore() {
@@ -72,6 +96,14 @@ public final class EventExecutionEngine {
 
   /** Starts a config-driven event instance. */
   public EventInstance startEvent(String definitionId, Object platformLocationReference) {
+    long runningInstances =
+        repository.findAll().stream()
+            .filter(instance -> instance.state() == EventLifecycleState.RUNNING)
+            .count();
+    if (runningInstances >= MAX_RUNNING_INSTANCES) {
+      throw new IllegalStateException(
+          "Refusing to start event: maximum of " + MAX_RUNNING_INSTANCES + " running instances");
+    }
     EventDefinition definition = getDefinition(definitionId);
     EventInstanceId id = EventInstanceId.generate();
     EventInstance created = EventInstance.create(id, definition.id());
@@ -79,14 +111,18 @@ public final class EventExecutionEngine {
     EventLifecycleTransition transition = created.start(definition);
     EventInstance running = transition.eventInstance();
 
-    repository.save(running);
-
     EventRuntimeState state = stateStore.getOrCreate(id);
     if (platformLocationReference != null) {
       state.setPlatformLocation(platformLocationReference);
     }
+    repository.saveWithStateDurably(running, state);
 
-    executePhaseEntry(running, definition, definition.initialPhase());
+    try {
+      executePhaseEntry(running, definition, definition.initialPhase());
+    } catch (RuntimeException exception) {
+      failEvent(running.id(), exception);
+      throw exception;
+    }
     return running;
   }
 
@@ -97,6 +133,17 @@ public final class EventExecutionEngine {
 
   /** Evaluates an incoming trigger with execution context. */
   public boolean evaluateTrigger(
+      EventInstanceId instanceId, TriggerDefinition trigger, ExecutionContext context) {
+    ReentrantLock lock = instanceLocks.computeIfAbsent(instanceId, ignored -> new ReentrantLock());
+    lock.lock();
+    try {
+      return evaluateTriggerLocked(instanceId, trigger, context);
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  private boolean evaluateTriggerLocked(
       EventInstanceId instanceId, TriggerDefinition trigger, ExecutionContext context) {
     Optional<EventInstance> instanceOpt = repository.findById(instanceId);
     if (instanceOpt.isEmpty()) {
@@ -126,6 +173,9 @@ public final class EventExecutionEngine {
     for (TransitionRule rule : phaseDef.rules()) {
       if (matchesTrigger(rule.trigger(), trigger)
           && evaluateConditions(rule.conditions(), state, context)) {
+        if (containsRewardAction(rule.actions()) && !acceptRewardClaim(state, trigger, context)) {
+          return false;
+        }
         // Execute rule actions
         boolean actionsOk = executeActions(instance, state, rule.actions(), context);
         if (!actionsOk) {
@@ -139,7 +189,12 @@ public final class EventExecutionEngine {
           EventInstance nextInstance = transition.eventInstance();
           repository.save(nextInstance);
 
-          executePhaseEntry(nextInstance, definition, targetPhase, context);
+          try {
+            executePhaseEntry(nextInstance, definition, targetPhase, context);
+          } catch (RuntimeException exception) {
+            failEvent(nextInstance.id(), exception);
+            throw exception;
+          }
         }
         return true;
       }
@@ -176,86 +231,102 @@ public final class EventExecutionEngine {
     for (TransitionRule rule : phaseDef.rules()) {
       if ("timer_elapsed".equalsIgnoreCase(rule.trigger().type())) {
         Duration duration = parseDuration(rule.trigger().parameters().get("duration"));
-        if (duration != null) {
-          TriggerDefinition timerTrigger = rule.trigger();
-          long deadline = System.currentTimeMillis() + duration.toMillis();
-          state.setTimerDeadlineMillis(deadline);
-          repository.saveState(state);
-          scheduler.schedule(
-              instance.id(),
-              duration,
-              () -> {
-                try {
-                  evaluateTrigger(instance.id(), timerTrigger, context);
-                } catch (Exception e) {
-                  LOGGER.log(
-                      Level.SEVERE, "Error executing timer trigger for event " + instance.id(), e);
-                }
-              });
-        }
+        validateTimerDuration(duration, "timer_elapsed.duration");
+        TriggerDefinition timerTrigger = rule.trigger();
+        long deadline = Math.addExact(System.currentTimeMillis(), duration.toMillis());
+        state.setTimerDeadlineMillis(deadline);
+        repository.saveState(state);
+        scheduler.schedule(
+            instance.id(),
+            duration,
+            () -> {
+              try {
+                evaluateTrigger(instance.id(), timerTrigger, context);
+              } catch (Exception e) {
+                LOGGER.log(
+                    Level.SEVERE, "Error executing timer trigger for event " + instance.id(), e);
+              }
+            });
       }
     }
   }
 
   /** Cancels an event instance and cleans up runtime state and scheduled timers. */
   public EventInstance cancelEvent(EventInstanceId instanceId) {
-    scheduler.cancelAll(instanceId);
-    Optional<EventInstance> instanceOpt = repository.findById(instanceId);
-    if (instanceOpt.isPresent()) {
-      EventInstance instance = instanceOpt.get();
-      if (instance.state() == EventLifecycleState.RUNNING) {
-        EventLifecycleTransition transition = instance.cancel();
-        EventInstance cancelled = transition.eventInstance();
-        repository.save(cancelled);
-        stateStore.remove(instanceId);
-        return cancelled;
+    ReentrantLock lock = instanceLocks.computeIfAbsent(instanceId, ignored -> new ReentrantLock());
+    lock.lock();
+    try {
+      Optional<EventInstance> instanceOpt = repository.findById(instanceId);
+      if (instanceOpt.isPresent()) {
+        EventInstance instance = instanceOpt.get();
+        if (instance.state() == EventLifecycleState.RUNNING) {
+          EventLifecycleTransition transition = instance.cancel();
+          EventInstance cancelled = transition.eventInstance();
+          repository.save(cancelled);
+          cleanupInstance(instanceId);
+          return cancelled;
+        }
       }
+      cleanupInstance(instanceId);
+      return null;
+    } finally {
+      lock.unlock();
     }
-    stateStore.remove(instanceId);
-    return null;
   }
 
   /** Completes an event instance and cleans up. */
   public EventInstance completeEvent(EventInstanceId instanceId) {
-    scheduler.cancelAll(instanceId);
-    Optional<EventInstance> instanceOpt = repository.findById(instanceId);
-    if (instanceOpt.isPresent()) {
-      EventInstance instance = instanceOpt.get();
-      if (instance.state() == EventLifecycleState.RUNNING) {
-        EventLifecycleTransition transition = instance.complete();
-        EventInstance completed = transition.eventInstance();
-        repository.save(completed);
-        stateStore.remove(instanceId);
-        return completed;
+    ReentrantLock lock = instanceLocks.computeIfAbsent(instanceId, ignored -> new ReentrantLock());
+    lock.lock();
+    try {
+      Optional<EventInstance> instanceOpt = repository.findById(instanceId);
+      if (instanceOpt.isPresent()) {
+        EventInstance instance = instanceOpt.get();
+        if (instance.state() == EventLifecycleState.RUNNING) {
+          EventLifecycleTransition transition = instance.complete();
+          EventInstance completed = transition.eventInstance();
+          repository.save(completed);
+          cleanupInstance(instanceId);
+          return completed;
+        }
       }
+      cleanupInstance(instanceId);
+      return null;
+    } finally {
+      lock.unlock();
     }
-    stateStore.remove(instanceId);
-    return null;
   }
 
   /** Fails an event instance cleanly. */
   public EventInstance failEvent(EventInstanceId instanceId, Throwable cause) {
-    scheduler.cancelAll(instanceId);
-    Optional<EventInstance> instanceOpt = repository.findById(instanceId);
-    if (instanceOpt.isPresent()) {
-      EventInstance instance = instanceOpt.get();
-      if (instance.state() == EventLifecycleState.RUNNING) {
-        EventLifecycleTransition transition = instance.fail();
-        EventInstance failed = transition.eventInstance();
-        repository.save(failed);
-        stateStore.remove(instanceId);
-        return failed;
+    ReentrantLock lock = instanceLocks.computeIfAbsent(instanceId, ignored -> new ReentrantLock());
+    lock.lock();
+    try {
+      Optional<EventInstance> instanceOpt = repository.findById(instanceId);
+      if (instanceOpt.isPresent()) {
+        EventInstance instance = instanceOpt.get();
+        if (instance.state() == EventLifecycleState.RUNNING) {
+          EventLifecycleTransition transition = instance.fail();
+          EventInstance failed = transition.eventInstance();
+          repository.save(failed);
+          cleanupInstance(instanceId);
+          return failed;
+        }
       }
+      cleanupInstance(instanceId);
+      return null;
+    } finally {
+      lock.unlock();
     }
-    stateStore.remove(instanceId);
-    return null;
   }
 
   /** Recovers persistent phase timers after a system restart. */
   public void recoverTimers() {
     for (EventInstance instance : repository.findAll()) {
       if (instance.state() == EventLifecycleState.RUNNING) {
+        repository.findState(instance.id()).ifPresent(stateStore::put);
         EventRuntimeState state = stateStore.getOrCreate(instance.id());
+        recoverPlatformResources(instance, state);
         long deadline = state.timerDeadlineMillis();
         if (deadline > 0) {
           long remaining = deadline - System.currentTimeMillis();
@@ -292,6 +363,75 @@ public final class EventExecutionEngine {
     }
   }
 
+  /** Cancels all execution work and releases platform-owned resources. */
+  public void shutdown() {
+    scheduler.cancelAll();
+    platformActionPort.cleanupAll();
+    stateStore.clear();
+    instanceLocks.clear();
+  }
+
+  public ExecutionDiagnostics diagnostics(EventInstanceId instanceId) {
+    return new ExecutionDiagnostics(
+        stateStore.get(instanceId).isPresent(),
+        scheduler.pendingTaskCount(instanceId),
+        platformActionPort.resourceCount(instanceId));
+  }
+
+  public record ExecutionDiagnostics(
+      boolean runtimeStatePresent, int pendingTasks, int platformResources) {}
+
+  private boolean containsRewardAction(List<ActionDefinition> actions) {
+    return actions.stream()
+        .anyMatch(
+            action ->
+                REWARD_ACTION_TYPES.contains(action.type().toLowerCase(java.util.Locale.ROOT)));
+  }
+
+  private boolean acceptRewardClaim(
+      EventRuntimeState state, TriggerDefinition trigger, ExecutionContext context) {
+    String claimantId =
+        context != null && context.actor() != null
+            ? context.actor().toString()
+            : "system:" + trigger.type().toLowerCase(java.util.Locale.ROOT);
+    if (state.isClaimed() || !state.tryClaim(claimantId)) {
+      return false;
+    }
+    repository.saveStateDurably(state);
+    return true;
+  }
+
+  private void recoverPlatformResources(EventInstance instance, EventRuntimeState state) {
+    PhaseId currentPhase = instance.currentPhase().orElse(null);
+    if (currentPhase == null) {
+      return;
+    }
+    EventDefinition definition = getDefinition(instance.definitionId().value());
+    PhaseDefinition phase = definition.phase(currentPhase).orElse(null);
+    if (phase == null) {
+      return;
+    }
+
+    platformActionPort.cleanupEvent(instance.id());
+    for (ActionDefinition action : phase.onEnterActions()) {
+      if (RECOVERABLE_RESOURCE_ACTION_TYPES.contains(
+          action.type().toLowerCase(java.util.Locale.ROOT))) {
+        try {
+          platformActionPort.executeAction(instance, state, action, ExecutionContext.EMPTY);
+        } catch (RuntimeException exception) {
+          failEvent(instance.id(), exception);
+          throw exception;
+        }
+      }
+    }
+  }
+
+  private void cleanupInstance(EventInstanceId instanceId) {
+    scheduler.cancelAll(instanceId);
+    platformActionPort.cleanupEvent(instanceId);
+    stateStore.remove(instanceId);
+  }
+
   private boolean executeActions(
       EventInstance instance,
       EventRuntimeState state,
@@ -315,15 +455,12 @@ public final class EventExecutionEngine {
         failEvent(instance.id(), e);
         throw e;
       } catch (Exception e) {
-        LOGGER.log(
-            Level.WARNING,
-            "Non-fatal action failure during action "
-                + action.type()
-                + " for event "
-                + instance.id()
-                + ": "
-                + e.getMessage(),
-            e);
+        FatalActionException fatal =
+            new FatalActionException(
+                "Action " + action.type() + " failed for event " + instance.id(), e);
+        LOGGER.log(Level.SEVERE, fatal.getMessage(), fatal);
+        failEvent(instance.id(), fatal);
+        throw fatal;
       }
     }
     return true;
@@ -342,20 +479,23 @@ public final class EventExecutionEngine {
       }
     }
 
-    String type = action.type().toLowerCase();
+    String type = action.type().toLowerCase(java.util.Locale.ROOT);
     switch (type) {
-      case "initialize_health":
+      case "initialize_health" -> {
         int maxHealth = getIntParam(action.parameters(), "max", 20);
         state.setHealth(new Health(maxHealth, maxHealth));
         repository.saveState(state);
         return Boolean.TRUE;
-      case "set_locked":
+      }
+      case "set_locked" -> {
         Duration lockDuration = parseDuration(action.parameters().get("duration"));
-        long durationMs = lockDuration != null ? lockDuration.toMillis() : 10000L;
+        validateTimerDuration(lockDuration, "set_locked.duration");
+        long durationMs = lockDuration.toMillis();
         state.setLockedUntilMillis(System.currentTimeMillis() + durationMs);
         repository.saveState(state);
         return Boolean.TRUE;
-      case "try_claim":
+      }
+      case "try_claim" -> {
         String claimantId =
             context != null && context.actor() != null ? context.actor().toString() : "unknown";
         boolean claimed = state.tryClaim(claimantId);
@@ -363,7 +503,8 @@ public final class EventExecutionEngine {
           repository.saveState(state);
         }
         return claimed ? Boolean.TRUE : Boolean.FALSE;
-      case "apply_damage":
+      }
+      case "apply_damage" -> {
         int amount = getIntParam(action.parameters(), "amount", 1);
         if (state.health().isPresent()) {
           Health oldHealth = state.health().get();
@@ -380,6 +521,7 @@ public final class EventExecutionEngine {
                   state.recordDamage(uuid, amount);
                 }
               } catch (Exception ignored) {
+                // ignoring reflection failures
               }
             }
           }
@@ -422,14 +564,18 @@ public final class EventExecutionEngine {
           repository.saveState(state);
         }
         return Boolean.TRUE;
-      case "complete_event":
+      }
+      case "complete_event" -> {
         completeEvent(instance.id());
         return Boolean.TRUE;
-      case "cancel_event":
+      }
+      case "cancel_event" -> {
         cancelEvent(instance.id());
         return Boolean.TRUE;
-      default:
+      }
+      default -> {
         return null;
+      }
     }
   }
 
@@ -450,7 +596,7 @@ public final class EventExecutionEngine {
   private boolean evaluateConditions(
       List<ConditionDefinition> conditions, EventRuntimeState state, ExecutionContext context) {
     for (ConditionDefinition cond : conditions) {
-      String type = cond.type().toLowerCase();
+      String type = cond.type().toLowerCase(java.util.Locale.ROOT);
 
       boolean resolvedByIntegration = false;
       for (IntegrationConditionResolver resolver : conditionResolvers) {
@@ -470,6 +616,10 @@ public final class EventExecutionEngine {
       if ("is_locked".equals(type) && !state.isLocked()) {
         return false;
       }
+      if (!"not_locked".equals(type) && !"is_locked".equals(type)) {
+        LOGGER.warning("Unsupported condition type rejected: " + cond.type());
+        return false;
+      }
     }
     return true;
   }
@@ -487,13 +637,13 @@ public final class EventExecutionEngine {
     if (obj == null) return null;
     if (obj instanceof Duration d) return d;
     String str = String.valueOf(obj).trim();
-    if (str.endsWith("s")) {
-      long sec = Long.parseLong(str.substring(0, str.length() - 1));
-      return Duration.ofSeconds(sec);
-    }
     if (str.endsWith("ms")) {
       long ms = Long.parseLong(str.substring(0, str.length() - 2));
       return Duration.ofMillis(ms);
+    }
+    if (str.endsWith("s")) {
+      long sec = Long.parseLong(str.substring(0, str.length() - 1));
+      return Duration.ofSeconds(sec);
     }
     if (str.endsWith("m")) {
       long min = Long.parseLong(str.substring(0, str.length() - 1));
@@ -516,6 +666,15 @@ public final class EventExecutionEngine {
       return Integer.parseInt(String.valueOf(val));
     } catch (NumberFormatException e) {
       return defaultValue;
+    }
+  }
+
+  private void validateTimerDuration(Duration duration, String field) {
+    if (duration == null || duration.isZero() || duration.isNegative()) {
+      throw new FatalActionException(field + " must be a positive duration");
+    }
+    if (duration.compareTo(MAX_TIMER_DURATION) > 0) {
+      throw new FatalActionException(field + " must not exceed " + MAX_TIMER_DURATION);
     }
   }
 }

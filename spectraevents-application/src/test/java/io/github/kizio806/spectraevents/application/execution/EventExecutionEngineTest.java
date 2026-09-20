@@ -26,6 +26,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -85,7 +88,8 @@ class EventExecutionEngineTest {
                     Set.of(new PhaseId("phase2")),
                     List.of(
                         new TransitionRule(
-                            new ConfiguredTriggerDefinition("timer_elapsed"),
+                            new ConfiguredTriggerDefinition(
+                                "timer_elapsed", Map.of("duration", "10s")),
                             List.of(),
                             Optional.of(new PhaseId("phase2")),
                             List.of(new ConfiguredActionDefinition("rule_action")))),
@@ -159,6 +163,154 @@ class EventExecutionEngineTest {
     assertEquals(EventLifecycleState.CANCELLED, updated.state());
     assertTrue(stateStore.get(instance.id()).isEmpty());
     assertTrue(scheduler.cancelledAllForInstance);
+    assertEquals(instance.id(), actionPort.cleanedInstance);
+  }
+
+  @Test
+  void acceptsOnlyOneLogicalRewardClaimWithoutYamlTryClaimAction() throws Exception {
+    EventDefinition definition =
+        new EventDefinition(
+            new EventDefinitionId("reward_event"),
+            new PhaseId("open"),
+            Map.of(
+                new PhaseId("open"),
+                new PhaseDefinition(
+                    new PhaseId("open"),
+                    Set.of(),
+                    List.of(
+                        new TransitionRule(
+                            new ConfiguredTriggerDefinition("interaction"),
+                            List.of(),
+                            Optional.empty(),
+                            List.of(new ConfiguredActionDefinition("give_item")))),
+                    List.of())));
+    registry.register(definition, "reward_event.yml");
+    EventInstance instance = engine.startEvent("reward_event", null);
+
+    try (var executor = Executors.newFixedThreadPool(16)) {
+      List<Callable<Boolean>> attempts = new ArrayList<>();
+      for (int i = 0; i < 100; i++) {
+        UUID actor = UUID.randomUUID();
+        attempts.add(
+            () ->
+                engine.evaluateTrigger(
+                    instance.id(),
+                    new ConfiguredTriggerDefinition("interaction"),
+                    ExecutionContext.withActor(actor)));
+      }
+      long accepted = executor.invokeAll(attempts).stream().filter(this::successful).count();
+      assertEquals(1, accepted);
+    }
+
+    assertEquals(1, actionPort.executedActions.size());
+    assertEquals("give_item", actionPort.executedActions.getFirst().type());
+    assertTrue(repository.findState(instance.id()).orElseThrow().isClaimed());
+  }
+
+  @Test
+  void sameActorCannotRepeatRewardRuleWithoutPhaseTransition() {
+    EventDefinition definition =
+        new EventDefinition(
+            new EventDefinitionId("repeat_reward"),
+            new PhaseId("open"),
+            Map.of(
+                new PhaseId("open"),
+                new PhaseDefinition(
+                    new PhaseId("open"),
+                    Set.of(),
+                    List.of(
+                        new TransitionRule(
+                            new ConfiguredTriggerDefinition("interaction"),
+                            List.of(),
+                            Optional.empty(),
+                            List.of(new ConfiguredActionDefinition("give_item")))),
+                    List.of())));
+    registry.register(definition, "repeat-reward.yml");
+    EventInstance instance = engine.startEvent("repeat_reward", null);
+    UUID actor = UUID.randomUUID();
+
+    assertTrue(
+        engine.evaluateTrigger(
+            instance.id(),
+            new ConfiguredTriggerDefinition("interaction"),
+            ExecutionContext.withActor(actor)));
+    assertFalse(
+        engine.evaluateTrigger(
+            instance.id(),
+            new ConfiguredTriggerDefinition("interaction"),
+            ExecutionContext.withActor(actor)));
+    assertEquals(1, actionPort.executedActions.size());
+  }
+
+  @Test
+  void hydratesPersistedRuntimeStateBeforeRecoveringTimer() {
+    EventDefinition definition =
+        new EventDefinition(
+            new EventDefinitionId("recoverable"),
+            new PhaseId("waiting"),
+            Map.of(
+                new PhaseId("waiting"),
+                new PhaseDefinition(
+                    new PhaseId("waiting"),
+                    Set.of(),
+                    List.of(
+                        new TransitionRule(
+                            new ConfiguredTriggerDefinition(
+                                "timer_elapsed", Map.of("duration", "10s")),
+                            List.of(),
+                            Optional.empty(),
+                            List.of())),
+                    List.of())));
+    registry.register(definition, "recoverable.yml");
+    EventInstanceId id = EventInstanceId.generate();
+    repository.save(
+        EventInstance.reconstitute(
+            id, definition.id(), EventLifecycleState.RUNNING, new PhaseId("waiting")));
+    EventRuntimeState persisted = new EventRuntimeState(id);
+    persisted.setTimerDeadlineMillis(System.currentTimeMillis() + 10_000L);
+    repository.saveState(persisted);
+
+    engine.recoverTimers();
+
+    assertEquals(persisted, stateStore.get(id).orElseThrow());
+    assertEquals(1, scheduler.scheduledTasks.size());
+  }
+
+  @Test
+  void recreatesCurrentPhaseResourcesDuringRecovery() {
+    EventDefinition definition =
+        new EventDefinition(
+            new EventDefinitionId("recover_resources"),
+            new PhaseId("active"),
+            Map.of(
+                new PhaseId("active"),
+                new PhaseDefinition(
+                    new PhaseId("active"),
+                    Set.of(),
+                    List.of(),
+                    List.of(
+                        new ConfiguredActionDefinition("spawn_model"),
+                        new ConfiguredActionDefinition("broadcast_message")))));
+    registry.register(definition, "recover-resources.yml");
+    EventInstanceId id = EventInstanceId.generate();
+    repository.save(
+        EventInstance.reconstitute(
+            id, definition.id(), EventLifecycleState.RUNNING, new PhaseId("active")));
+    repository.saveState(new EventRuntimeState(id));
+
+    engine.recoverTimers();
+
+    assertEquals(id, actionPort.cleanedInstance);
+    assertEquals(1, actionPort.executedActions.size());
+    assertEquals("spawn_model", actionPort.executedActions.getFirst().type());
+  }
+
+  private boolean successful(java.util.concurrent.Future<Boolean> future) {
+    try {
+      return future.get();
+    } catch (Exception e) {
+      throw new AssertionError(e);
+    }
   }
 
   private static class FakeEventTaskScheduler implements EventTaskScheduler {
@@ -183,11 +335,17 @@ class EventExecutionEngineTest {
 
   private static class FakePlatformActionPort implements PlatformActionPort {
     List<ActionDefinition> executedActions = new ArrayList<>();
+    EventInstanceId cleanedInstance;
 
     @Override
     public void executeAction(
         EventInstance instance, EventRuntimeState state, ActionDefinition action) {
       executedActions.add(action);
+    }
+
+    @Override
+    public void cleanupEvent(EventInstanceId instanceId) {
+      cleanedInstance = instanceId;
     }
   }
 }

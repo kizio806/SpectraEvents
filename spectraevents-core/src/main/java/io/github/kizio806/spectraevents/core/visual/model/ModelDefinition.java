@@ -79,4 +79,9 @@ public record ModelDefinition(
     Objects.requireNonNull(animationId, "animationId cannot be null");
     return Optional.ofNullable(animations.get(animationId));
   }
+
+  @Override
+  public Map<AnimationId, AnimationDefinition> animations() {
+    return Map.copyOf(animations);
+  }
 }

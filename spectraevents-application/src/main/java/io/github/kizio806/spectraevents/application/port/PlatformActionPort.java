@@ -4,6 +4,8 @@ import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
+import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
+import java.util.function.BiConsumer;
 
 /**
  * Port implemented by platform adapters to execute domain actions that require platform
@@ -29,4 +31,18 @@ public interface PlatformActionPort {
       ExecutionContext context) {
     executeAction(instance, state, action);
   }
+
+  /** Removes all platform resources owned by one event instance. */
+  default void cleanupEvent(EventInstanceId instanceId) {}
+
+  /** Removes all platform resources owned by the plugin during shutdown. */
+  default void cleanupAll() {}
+
+  /** Returns tracked platform resources for diagnostics, or {@code -1} when unavailable. */
+  default int resourceCount(EventInstanceId instanceId) {
+    return -1;
+  }
+
+  /** Registers the engine callback used when an asynchronously scheduled platform action fails. */
+  default void setFatalActionHandler(BiConsumer<EventInstanceId, Throwable> handler) {}
 }

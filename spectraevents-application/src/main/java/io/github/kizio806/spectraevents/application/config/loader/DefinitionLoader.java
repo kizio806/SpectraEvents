@@ -8,7 +8,6 @@ import io.github.kizio806.spectraevents.application.config.registry.RegisteredEv
 import io.github.kizio806.spectraevents.application.config.yaml.EventSpecYamlParser;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -86,7 +85,17 @@ public final class DefinitionLoader {
       }
     }
 
+    registry.retainSources(sources.keySet());
+
     return new DefinitionLoadResult(loaded, failures);
+  }
+
+  /** Parses and compiles sources against an isolated registry without mutating live definitions. */
+  public DefinitionLoadResult validate(Map<String, String> sources) {
+    Objects.requireNonNull(sources, "sources");
+    DefinitionLoader isolated =
+        new DefinitionLoader(parser, compiler, new EventDefinitionRegistry());
+    return isolated.load(sources);
   }
 
   /**
@@ -95,7 +104,7 @@ public final class DefinitionLoader {
    * @param orderedSources insertion-ordered map of source file to YAML content
    * @return load result
    */
-  public DefinitionLoadResult loadOrdered(LinkedHashMap<String, String> orderedSources) {
+  public DefinitionLoadResult loadOrdered(java.util.SequencedMap<String, String> orderedSources) {
     return load(orderedSources);
   }
 

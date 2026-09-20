@@ -18,7 +18,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * Application service orchestrating 3D model definition lookups, spawning, transform updates,
  * despawning, and active runtime instance tracking.
  */
-public class ModelRuntimeService {
+public final class ModelRuntimeService {
+  private static final String RUNTIME_ID_NULL = "runtimeId cannot be null";
+
   private final ModelDefinitionRegistry definitionRegistry;
   private final ModelRendererPort rendererPort;
   private final Map<ModelRuntimeId, RenderedModelHandle> activeInstances =
@@ -57,7 +59,7 @@ public class ModelRuntimeService {
 
   /** Updates a model instance spatial anchor location. */
   public boolean updateModelTransform(ModelRuntimeId runtimeId, ModelAnchor newAnchor) {
-    Objects.requireNonNull(runtimeId, "runtimeId cannot be null");
+    Objects.requireNonNull(runtimeId, RUNTIME_ID_NULL);
     Objects.requireNonNull(newAnchor, "newAnchor cannot be null");
 
     RenderedModelHandle handle = activeInstances.get(runtimeId);
@@ -82,7 +84,7 @@ public class ModelRuntimeService {
   /** Updates a single part's local transform within a active model instance. */
   public boolean updatePartTransform(
       ModelRuntimeId runtimeId, ModelPartId partId, ModelTransform newLocalTransform) {
-    Objects.requireNonNull(runtimeId, "runtimeId cannot be null");
+    Objects.requireNonNull(runtimeId, RUNTIME_ID_NULL);
     Objects.requireNonNull(partId, "partId cannot be null");
     Objects.requireNonNull(newLocalTransform, "newLocalTransform cannot be null");
 
@@ -95,7 +97,7 @@ public class ModelRuntimeService {
 
   /** Idempotently removes a spawned 3D model instance. */
   public boolean removeModel(ModelRuntimeId runtimeId) {
-    Objects.requireNonNull(runtimeId, "runtimeId cannot be null");
+    Objects.requireNonNull(runtimeId, RUNTIME_ID_NULL);
     RenderedModelHandle handle = activeInstances.remove(runtimeId);
     if (handle == null) {
       return false;
@@ -104,7 +106,7 @@ public class ModelRuntimeService {
   }
 
   public Optional<RenderedModelHandle> getHandle(ModelRuntimeId runtimeId) {
-    Objects.requireNonNull(runtimeId, "runtimeId cannot be null");
+    Objects.requireNonNull(runtimeId, RUNTIME_ID_NULL);
     return Optional.ofNullable(activeInstances.get(runtimeId));
   }
 

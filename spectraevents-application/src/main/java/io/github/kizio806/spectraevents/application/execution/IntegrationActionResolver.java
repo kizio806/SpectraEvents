@@ -17,7 +17,10 @@ public interface IntegrationActionResolver {
       throws FatalActionException;
 
   /**
-   * @return true if this resolver supports the given action type.
+   * Checks if this resolver supports the given action type.
+   *
+   * @param actionType the action type to check
+   * @return true if this resolver supports the given action type
    */
   boolean supports(String actionType);
 }
