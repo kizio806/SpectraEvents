@@ -1,7 +1,5 @@
 package io.github.kizio806.spectraevents.application.asset;
 
-import io.github.kizio806.spectraevents.application.model.animation.registry.AnimationDefinitionRegistry;
-import io.github.kizio806.spectraevents.application.model.registry.ModelDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.port.AssetImportPort;
 import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetDocument;
 import java.io.IOException;
@@ -17,8 +15,6 @@ public class AssetPipelineService {
 
   private static final Logger LOGGER = Logger.getLogger(AssetPipelineService.class.getName());
   private final AssetImportPort importPort;
-  private final ModelDefinitionRegistry modelRegistry;
-  private final AnimationDefinitionRegistry animationRegistry;
   private final ResourcePackBuilder resourcePackBuilder;
   private final Path sourceDirectory;
   private final AssetTargetProfile targetProfile;
@@ -30,14 +26,10 @@ public class AssetPipelineService {
 
   public AssetPipelineService(
       AssetImportPort importPort,
-      ModelDefinitionRegistry modelRegistry,
-      AnimationDefinitionRegistry animationRegistry,
       ResourcePackBuilder resourcePackBuilder,
       Path sourceDirectory,
       AssetTargetProfile targetProfile) {
     this.importPort = importPort;
-    this.modelRegistry = modelRegistry;
-    this.animationRegistry = animationRegistry;
     this.resourcePackBuilder = resourcePackBuilder;
     this.sourceDirectory = sourceDirectory;
     this.targetProfile = targetProfile;
@@ -54,35 +46,38 @@ public class AssetPipelineService {
       java.util.concurrent.atomic.AtomicBoolean changesDetected =
           new java.util.concurrent.atomic.AtomicBoolean(false);
 
-      Files.walk(sourceDirectory)
-          .filter(Files::isRegularFile)
-          .filter(p -> p.toString().endsWith(".bbmodel") || p.toString().endsWith(".spectra.zip"))
-          .forEach(
-              path -> {
-                try {
-                  String filename = path.getFileName().toString();
-                  String currentHash = computeSha256(path);
+      try (java.util.stream.Stream<Path> stream = Files.walk(sourceDirectory)) {
+        stream
+            .filter(Files::isRegularFile)
+            .filter(p -> p.toString().endsWith(".bbmodel") || p.toString().endsWith(".spectra.zip"))
+            .forEach(
+                path -> {
+                  try {
+                    String filename = path.getFileName().toString();
+                    String currentHash = computeSha256(path);
 
-                  if (currentHash.equals(sourceCache.get(filename))) {
-                    LOGGER.fine("Skipping unchanged asset source: " + filename);
-                    return;
+                    if (currentHash.equals(sourceCache.get(filename))) {
+                      LOGGER.fine("Skipping unchanged asset source: " + filename);
+                      return;
+                    }
+
+                    LOGGER.info("Compiling asset source: " + filename);
+                    String content = Files.readString(path);
+
+                    // Extract model ID from filename (remove extension)
+                    String modelIdStr =
+                        filename.replace(".bbmodel", "").replace(".spectra.zip", "");
+
+                    SpectraAssetDocument doc = importPort.read(content, modelIdStr);
+                    compiledDocuments.put(modelIdStr, doc);
+                    sourceCache.put(filename, currentHash);
+                    changesDetected.set(true);
+
+                  } catch (Exception e) {
+                    LOGGER.severe("Failed to compile asset source " + path + ": " + e.getMessage());
                   }
-
-                  LOGGER.info("Compiling asset source: " + filename);
-                  String content = Files.readString(path);
-
-                  // Extract model ID from filename (remove extension)
-                  String modelIdStr = filename.replace(".bbmodel", "").replace(".spectra.zip", "");
-
-                  SpectraAssetDocument doc = importPort.read(content, modelIdStr);
-                  compiledDocuments.put(modelIdStr, doc);
-                  sourceCache.put(filename, currentHash);
-                  changesDetected.set(true);
-
-                } catch (Exception e) {
-                  LOGGER.severe("Failed to compile asset source " + path + ": " + e.getMessage());
-                }
-              });
+                });
+      }
 
       if (changesDetected.get() && !compiledDocuments.isEmpty()) {
         LOGGER.info("Rebuilding resource pack...");
@@ -203,10 +198,12 @@ public class AssetPipelineService {
     try {
       Path genPath = sourceDirectory.getParent().getParent().resolve("generated");
       if (Files.exists(genPath)) {
-        Files.walk(genPath)
-            .sorted(java.util.Comparator.reverseOrder())
-            .map(Path::toFile)
-            .forEach(java.io.File::delete);
+        try (java.util.stream.Stream<Path> stream = Files.walk(genPath)) {
+          stream
+              .sorted(java.util.Comparator.reverseOrder())
+              .map(Path::toFile)
+              .forEach(java.io.File::delete);
+        }
       }
     } catch (IOException e) {
       LOGGER.warning("Failed to clean generated output: " + e.getMessage());

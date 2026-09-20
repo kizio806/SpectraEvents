@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 public class BlockbenchProjectReaderTest {
 
+  private static final String TEST_MODEL = "test_model";
   private final BlockbenchProjectReader reader = new BlockbenchProjectReader();
 
   @Test
@@ -21,8 +22,8 @@ public class BlockbenchProjectReaderTest {
         "animations": []
       }
     """;
-    SpectraAssetDocument doc = reader.read(json, "test_model");
-    Assertions.assertEquals("test_model", doc.modelId());
+    SpectraAssetDocument doc = reader.read(json, TEST_MODEL);
+    Assertions.assertEquals(TEST_MODEL, doc.modelId());
   }
 
   @Test
@@ -58,7 +59,7 @@ public class BlockbenchProjectReaderTest {
     """;
     Exception exception =
         Assertions.assertThrows(
-            IllegalArgumentException.class, () -> reader.read(json, "test_model"));
+            IllegalArgumentException.class, () -> reader.read(json, TEST_MODEL));
     Assertions.assertTrue(
         exception.getMessage().contains("Unsupported Blockbench format version: 6.0.0"));
   }
@@ -95,7 +96,7 @@ public class BlockbenchProjectReaderTest {
     """;
     Exception exception =
         Assertions.assertThrows(
-            IllegalArgumentException.class, () -> reader.read(json, "test_model"));
+            IllegalArgumentException.class, () -> reader.read(json, TEST_MODEL));
     Assertions.assertTrue(exception.getMessage().contains("UNSUPPORTED_INTERPOLATION: catmullrom"));
   }
 
@@ -134,7 +135,8 @@ public class BlockbenchProjectReaderTest {
             + "\"}]}";
 
     Exception ex =
-        Assertions.assertThrows(IllegalArgumentException.class, () -> reader.read(json, "test"));
+        Assertions.assertThrows(
+            IllegalArgumentException.class, () -> reader.read(json, TEST_MODEL));
     Assertions.assertTrue(ex.getMessage().contains("exceeds maximum"));
   }
 }

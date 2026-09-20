@@ -32,7 +32,7 @@ public class SecurityAssetPipelineTest {
 
     service =
         new AssetPipelineService(
-            mockImport, null, null, mockBuilder, sourceDir, AssetTargetProfile.PROFILE_26_1);
+            mockImport, mockBuilder, sourceDir, AssetTargetProfile.PROFILE_26_1);
   }
 
   @Test
@@ -62,7 +62,7 @@ public class SecurityAssetPipelineTest {
     Path zipPath = sourceDir.resolve("malicious.spectra.zip");
     try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(zipPath.toFile()))) {
       zos.putNextEntry(new ZipEntry("../../../malicious.bbmodel"));
-      zos.write("{}".getBytes());
+      zos.write("{}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
       zos.closeEntry();
     }
 
@@ -104,7 +104,7 @@ public class SecurityAssetPipelineTest {
       // Exceed MAX_ZIP_ENTRIES = 50
       for (int i = 0; i < 55; i++) {
         zos.putNextEntry(new ZipEntry("file" + i + ".txt"));
-        zos.write("a".getBytes());
+        zos.write("a".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         zos.closeEntry();
       }
     }

@@ -6,7 +6,7 @@ import io.github.kizio806.spectraevents.application.asset.delivery.ResourcePackS
 import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 
-public class ManualUrlResourcePackSource implements ResourcePackSourcePort {
+public final class ManualUrlResourcePackSource implements ResourcePackSourcePort {
 
   private final String url;
   private final String sha1;
@@ -33,7 +33,7 @@ public class ManualUrlResourcePackSource implements ResourcePackSourcePort {
           }
           try {
             URI.create(url); // Validate URL format
-          } catch (Exception e) {
+          } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid manual source URL format", e);
           }
 

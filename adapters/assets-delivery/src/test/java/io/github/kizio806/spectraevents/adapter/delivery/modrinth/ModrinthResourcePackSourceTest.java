@@ -9,10 +9,13 @@ import org.junit.jupiter.api.Test;
 
 class ModrinthResourcePackSourceTest {
 
+  private static final String TEST_MINECRAFT_VERSION = "26.1.1";
+  private static final String TEST_PLUGIN_VERSION = "1.0.0";
+
   private static class StubClient extends ModrinthApiClient {
     private final String fixture;
 
-    public StubClient(String fixture) {
+    StubClient(String fixture) {
       super("1.0");
       this.fixture = fixture;
     }
@@ -28,7 +31,8 @@ class ModrinthResourcePackSourceTest {
   }
 
   @Test
-  void testExactVersionSelected() throws Exception {
+  void testExactVersionSelected()
+      throws InterruptedException, java.util.concurrent.ExecutionException {
     String fixture =
         """
         [
@@ -51,8 +55,10 @@ class ModrinthResourcePackSourceTest {
         """;
     StubClient mockClient = new StubClient(fixture);
 
-    ModrinthResourcePackSource source = new ModrinthResourcePackSource(mockClient, "xyz", "26.1.1");
-    ResourcePackDescriptor desc = source.resolve("1.0.0", AssetTargetProfile.PROFILE_26_1).get();
+    ModrinthResourcePackSource source =
+        new ModrinthResourcePackSource(mockClient, "xyz", TEST_MINECRAFT_VERSION);
+    ResourcePackDescriptor desc =
+        source.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_1).get();
 
     Assertions.assertEquals("1.0.0+26.1", desc.version());
     Assertions.assertEquals("https://cdn.modrinth.com/data/xyz/versions/v1/pack.zip", desc.url());
@@ -70,7 +76,7 @@ class ModrinthResourcePackSourceTest {
         Assertions.assertThrows(
             ExecutionException.class,
             () -> {
-              source.resolve("1.0.0", AssetTargetProfile.PROFILE_26_3).get();
+              source.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_3).get();
             });
     Assertions.assertTrue(ex.getCause().getMessage().contains("not found"));
   }
@@ -98,12 +104,13 @@ class ModrinthResourcePackSourceTest {
         """;
     StubClient mockClient = new StubClient(fixture);
 
-    ModrinthResourcePackSource source = new ModrinthResourcePackSource(mockClient, "xyz", "26.1.1");
+    ModrinthResourcePackSource source =
+        new ModrinthResourcePackSource(mockClient, "xyz", TEST_MINECRAFT_VERSION);
     ExecutionException ex =
         Assertions.assertThrows(
             ExecutionException.class,
             () -> {
-              source.resolve("1.0.0", AssetTargetProfile.PROFILE_26_1).get();
+              source.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_1).get();
             });
     Assertions.assertTrue(ex.getCause().getMessage().contains("invalid"));
   }

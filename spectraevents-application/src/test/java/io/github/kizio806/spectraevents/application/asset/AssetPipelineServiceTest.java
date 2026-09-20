@@ -17,6 +17,8 @@ public class AssetPipelineServiceTest {
 
   @TempDir Path tempDir;
 
+  private static final String TEST_MODEL = "test.bbmodel";
+
   @BeforeEach
   void setUp() {
     AssetImportPort mockImport =
@@ -30,16 +32,15 @@ public class AssetPipelineServiceTest {
     ResourcePackBuilder mockBuilder = new ResourcePackBuilder(tempDir.resolve("out"));
 
     service =
-        new AssetPipelineService(
-            mockImport, null, null, mockBuilder, tempDir, AssetTargetProfile.PROFILE_26_1);
+        new AssetPipelineService(mockImport, mockBuilder, tempDir, AssetTargetProfile.PROFILE_26_1);
   }
 
   @Test
   void testImportFileSuccess() throws Exception {
-    Path dummyFile = tempDir.resolve("test.bbmodel");
+    Path dummyFile = tempDir.resolve(TEST_MODEL);
     Files.writeString(dummyFile, "{}");
 
-    service.importFile("test.bbmodel");
+    service.importFile(TEST_MODEL);
 
     Assertions.assertTrue(service.listModels().contains("test"));
     Assertions.assertNotNull(service.getModelInfo("test"));
@@ -47,10 +48,10 @@ public class AssetPipelineServiceTest {
 
   @Test
   void testCleanRemovesCache() throws Exception {
-    Path dummyFile = tempDir.resolve("test.bbmodel");
+    Path dummyFile = tempDir.resolve(TEST_MODEL);
     Files.writeString(dummyFile, "{}");
 
-    service.importFile("test.bbmodel");
+    service.importFile(TEST_MODEL);
     service.clean();
 
     Assertions.assertTrue(service.listModels().isEmpty());
