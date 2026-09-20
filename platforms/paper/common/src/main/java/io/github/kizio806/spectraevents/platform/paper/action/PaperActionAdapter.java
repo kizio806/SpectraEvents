@@ -4,6 +4,7 @@ import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.application.execution.FatalActionException;
+import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelAnchor;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeService;
 import io.github.kizio806.spectraevents.application.model.runtime.RenderedModelHandle;
@@ -56,6 +57,7 @@ public final class PaperActionAdapter implements PlatformActionPort {
   private final EventScoreboardManager scoreboardManager;
   private final List<CustomItemProvider> itemProviders = new ArrayList<>();
   private ModelRuntimeService modelRuntimeService;
+  private ModelAnimationActionService modelAnimationActionService;
   private BiConsumer<EventInstanceId, Throwable> fatalActionHandler =
       (instanceId, throwable) ->
           LOGGER.severe(
@@ -84,6 +86,11 @@ public final class PaperActionAdapter implements PlatformActionPort {
     this.modelRuntimeService = modelRuntimeService;
   }
 
+  public void setModelAnimationActionService(
+      ModelAnimationActionService modelAnimationActionService) {
+    this.modelAnimationActionService = modelAnimationActionService;
+  }
+
   @Override
   public void setFatalActionHandler(BiConsumer<EventInstanceId, Throwable> handler) {
     this.fatalActionHandler = Objects.requireNonNull(handler, "handler");
@@ -91,11 +98,19 @@ public final class PaperActionAdapter implements PlatformActionPort {
 
   @Override
   public void cleanupEvent(EventInstanceId instanceId) {
+    if (modelAnimationActionService != null) {
+      modelAnimationActionService.stopForEvent(instanceId);
+    }
     cleaner.cleanup(instanceId);
   }
 
   @Override
   public void cleanupAll() {
+    if (modelAnimationActionService != null && modelRuntimeService != null) {
+      for (RenderedModelHandle handle : modelRuntimeService.getActiveInstances()) {
+        modelAnimationActionService.stopForModel(handle);
+      }
+    }
     cleaner.cleanupAll();
   }
 
@@ -125,6 +140,7 @@ public final class PaperActionAdapter implements PlatformActionPort {
       case "spawn_model" -> handleSpawnModel(instance, params, baseLoc);
       case "move_model" -> handleMoveModel(instance, baseLoc);
       case "remove_model" -> removeModels(instance.id());
+      case "play_animation", "play-animation" -> handlePlayAnimation(instance, params, baseLoc);
       case "play_sound" -> handlePlaySound(instance, params, baseLoc);
       case "spawn_particles" -> handleSpawnParticles(instance, params, baseLoc);
       case "give_item" -> handleGiveItem(instance, params, context);
@@ -227,7 +243,13 @@ public final class PaperActionAdapter implements PlatformActionPort {
 
           if (handle != null) {
             cleaner.registerCustomCleanup(
-                instance.id(), () -> modelRuntimeService.removeModel(handle.runtimeId()));
+                instance.id(),
+                () -> {
+                  if (modelAnimationActionService != null) {
+                    modelAnimationActionService.stopForModel(handle);
+                  }
+                  modelRuntimeService.removeModel(handle.runtimeId());
+                });
           } else {
             throw new FatalActionException(
                 "Failed to spawn 3D model '" + modelId.value() + "' for instance " + instance.id());
@@ -260,12 +282,25 @@ public final class PaperActionAdapter implements PlatformActionPort {
         });
   }
 
+  private void handlePlayAnimation(
+      EventInstance instance, Map<String, Object> params, Location baseLoc) {
+    requireLocation(baseLoc, "play_animation");
+    if (modelAnimationActionService == null) {
+      throw new FatalActionException("Model animation runtime is unavailable on Paper");
+    }
+    executeAt(
+        instance.id(), baseLoc, () -> modelAnimationActionService.play(instance.id(), params));
+  }
+
   private void removeModels(EventInstanceId instanceId) {
     if (modelRuntimeService == null) {
       return;
     }
     for (RenderedModelHandle handle : List.copyOf(modelRuntimeService.getActiveInstances())) {
       if (instanceId.equals(handle.ownerEventId())) {
+        if (modelAnimationActionService != null) {
+          modelAnimationActionService.stopForModel(handle);
+        }
         modelRuntimeService.removeModel(handle.runtimeId());
       }
     }

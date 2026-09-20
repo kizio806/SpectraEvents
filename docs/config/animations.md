@@ -27,4 +27,24 @@ animations:
 - `easing`: Supported easings include `LINEAR`, `EASE_IN`, `EASE_OUT`, `EASE_IN_OUT`.
 
 ## Execution
-Animations are triggered via the `play-animation` Action. The engine calculates the required `interpolation_duration` and updates the display entity data over time to create smooth movement without needing to send a packet every single tick.
+Animations are triggered explicitly with the `play_animation` action after the model has been
+spawned. The engine looks up the compiled animation registered for the model, starts a playback
+owned by the event, and stops it automatically before the model is removed.
+
+```yaml
+phases:
+  active:
+    on-enter:
+      - type: spawn_model
+        model: meteor
+      - type: play_animation
+        model: meteor
+        animation: meteor_spin
+        loop: LOOP
+        speed: 1.0
+```
+
+The action also accepts the `play-animation` spelling for compatibility. Use the underscore form
+in new definitions. `model` may be omitted when an event owns only one model. The engine calculates
+the required `interpolation_duration` and updates display entity data over time to create smooth
+movement without sending a packet every server tick.

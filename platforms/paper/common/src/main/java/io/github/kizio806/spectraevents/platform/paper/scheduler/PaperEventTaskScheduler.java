@@ -15,6 +15,7 @@ import org.bukkit.plugin.Plugin;
 public final class PaperEventTaskScheduler implements EventTaskScheduler {
   private final Plugin plugin;
   private final Map<EventInstanceId, List<ScheduledTask>> tasks = new ConcurrentHashMap<>();
+  private final List<ScheduledTask> globalTasks = new CopyOnWriteArrayList<>();
 
   public PaperEventTaskScheduler(Plugin plugin) {
     this.plugin = plugin;
@@ -48,6 +49,28 @@ public final class PaperEventTaskScheduler implements EventTaskScheduler {
   }
 
   @Override
+  public void scheduleGlobal(Duration delay, Runnable task) {
+    long ticks = Math.max(1L, delay.toMillis() / 50L);
+    ScheduledTask scheduledTask =
+        Bukkit.getGlobalRegionScheduler()
+            .runDelayed(
+                plugin,
+                ignored -> {
+                  try {
+                    task.run();
+                  } finally {
+                    globalTasks.removeIf(
+                        scheduled ->
+                            scheduled.isCancelled()
+                                || scheduled.getExecutionState()
+                                    == ScheduledTask.ExecutionState.FINISHED);
+                  }
+                },
+                ticks);
+    globalTasks.add(scheduledTask);
+  }
+
+  @Override
   public void cancelAll(EventInstanceId eventId) {
     List<ScheduledTask> instanceTasks = tasks.remove(eventId);
     if (instanceTasks != null) {
@@ -62,6 +85,10 @@ public final class PaperEventTaskScheduler implements EventTaskScheduler {
     for (EventInstanceId id : tasks.keySet()) {
       cancelAll(id);
     }
+    for (ScheduledTask task : globalTasks) {
+      task.cancel();
+    }
+    globalTasks.clear();
   }
 
   @Override

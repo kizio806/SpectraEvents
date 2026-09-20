@@ -10,7 +10,9 @@ group IDs, deliberate pivots and bounded texture sizes are the intended authorin
 Do not treat exporter output as deployable content. The current beta does not import the bundle into
 the server, compile Minecraft model/texture JSON, build a verified ZIP, publish it to Modrinth, or
 send it to players. The supported runtime visuals come from native YAML model definitions extracted
-to `plugins/SpectraEvents/models/`.
+to `plugins/SpectraEvents/models/`. Once a model YAML is loaded, its named animations can be attached
+to an event with `play_animation` (see `docs/config/actions.md`); the Blockbench-to-YAML importer is
+still part of milestone M2 and is not completed yet.
 
 Security and compatibility checks for archive entry count, total expanded bytes, JSON depth, model
 complexity, texture dimensions and animation tracks are release requirements for the deferred asset

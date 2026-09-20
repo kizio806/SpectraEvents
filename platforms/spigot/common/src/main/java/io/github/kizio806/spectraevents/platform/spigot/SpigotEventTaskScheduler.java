@@ -14,6 +14,7 @@ import org.bukkit.scheduler.BukkitTask;
 public final class SpigotEventTaskScheduler implements EventTaskScheduler {
   private final Plugin plugin;
   private final Map<EventInstanceId, List<BukkitTask>> tasks = new ConcurrentHashMap<>();
+  private final List<BukkitTask> globalTasks = new CopyOnWriteArrayList<>();
 
   public SpigotEventTaskScheduler(Plugin plugin) {
     this.plugin = plugin;
@@ -44,6 +45,24 @@ public final class SpigotEventTaskScheduler implements EventTaskScheduler {
   }
 
   @Override
+  public void scheduleGlobal(Duration delay, Runnable task) {
+    long ticks = Math.max(1L, delay.toMillis() / 50L);
+    BukkitTask bukkitTask =
+        Bukkit.getScheduler()
+            .runTaskLater(
+                plugin,
+                () -> {
+                  try {
+                    task.run();
+                  } finally {
+                    globalTasks.removeIf(BukkitTask::isCancelled);
+                  }
+                },
+                ticks);
+    globalTasks.add(bukkitTask);
+  }
+
+  @Override
   public void cancelAll(EventInstanceId eventId) {
     List<BukkitTask> eventTasks = tasks.remove(eventId);
     if (eventTasks != null) {
@@ -61,6 +80,10 @@ public final class SpigotEventTaskScheduler implements EventTaskScheduler {
       }
     }
     tasks.clear();
+    for (BukkitTask task : globalTasks) {
+      task.cancel();
+    }
+    globalTasks.clear();
   }
 
   @Override
