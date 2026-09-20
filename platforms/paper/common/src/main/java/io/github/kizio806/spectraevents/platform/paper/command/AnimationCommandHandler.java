@@ -21,6 +21,7 @@ import io.github.kizio806.spectraevents.core.visual.model.ModelId;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -110,11 +111,11 @@ public final class AnimationCommandHandler {
       suggestModelIds(
           CommandContext<CommandSourceStack> ctx,
           com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
-    String remaining = builder.getRemaining().toLowerCase();
+    String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
     if (modelRegistry != null) {
       for (ModelDefinition model : modelRegistry.all()) {
         String id = model.id().value();
-        if (id.toLowerCase().startsWith(remaining)) {
+        if (id.toLowerCase(Locale.ROOT).startsWith(remaining)) {
           builder.suggest(id);
         }
       }
@@ -126,11 +127,11 @@ public final class AnimationCommandHandler {
       suggestActiveModelRuntimeIds(
           CommandContext<CommandSourceStack> ctx,
           com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
-    String remaining = builder.getRemaining().toLowerCase();
+    String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
     if (modelRuntimeService != null) {
       for (RenderedModelHandle handle : modelRuntimeService.getActiveInstances()) {
         String rId = handle.runtimeId().value();
-        if (rId.toLowerCase().startsWith(remaining)) {
+        if (rId.toLowerCase(Locale.ROOT).startsWith(remaining)) {
           builder.suggest(rId);
         }
       }
@@ -142,11 +143,11 @@ public final class AnimationCommandHandler {
       suggestAnimationIds(
           CommandContext<CommandSourceStack> ctx,
           com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
-    String remaining = builder.getRemaining().toLowerCase();
+    String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
     if (animationRegistry != null) {
       for (var compiledAnim : animationRegistry.all()) {
         String id = compiledAnim.definition().id().value();
-        if (id.toLowerCase().startsWith(remaining)) {
+        if (id.toLowerCase(Locale.ROOT).startsWith(remaining)) {
           builder.suggest(id);
         }
       }
@@ -158,11 +159,11 @@ public final class AnimationCommandHandler {
       suggestPlaybackIds(
           CommandContext<CommandSourceStack> ctx,
           com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
-    String remaining = builder.getRemaining().toLowerCase();
+    String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
     if (animationRuntimeService != null) {
       for (AnimationPlaybackState pb : animationRuntimeService.getActivePlaybacks()) {
         String pId = pb.playbackId().value();
-        if (pId.toLowerCase().startsWith(remaining)) {
+        if (pId.toLowerCase(Locale.ROOT).startsWith(remaining)) {
           builder.suggest(pId);
         }
       }

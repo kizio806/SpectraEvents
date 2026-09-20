@@ -63,4 +63,9 @@ public final class PaperEventTaskScheduler implements EventTaskScheduler {
       cancelAll(id);
     }
   }
+
+  @Override
+  public int pendingTaskCount(EventInstanceId eventId) {
+    return tasks.getOrDefault(eventId, List.of()).size();
+  }
 }

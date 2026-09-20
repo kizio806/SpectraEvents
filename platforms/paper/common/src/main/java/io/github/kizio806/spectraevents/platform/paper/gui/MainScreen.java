@@ -4,7 +4,6 @@ import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -15,8 +14,8 @@ public final class MainScreen {
 
   public static Inventory createInventory() {
     Inventory inv =
-        Bukkit.createInventory(
-            new AdminGuiHolder(AdminGuiController.MenuType.MAIN),
+        AdminGuiHolder.createInventory(
+            AdminGuiController.MenuType.MAIN,
             27,
             Component.text(
                 "SpectraEvents Admin Panel", NamedTextColor.DARK_PURPLE, TextDecoration.BOLD));
@@ -57,7 +56,9 @@ public final class MainScreen {
     if (meta != null) {
       meta.displayName(name);
       meta.lore(lore);
-      item.setItemMeta(meta);
+      if (!item.setItemMeta(meta)) {
+        throw new IllegalStateException("Could not apply GUI item metadata");
+      }
     }
     return item;
   }

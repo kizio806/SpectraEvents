@@ -6,6 +6,7 @@ authors:
   - kizio806
 website: https://github.com/kizio806/SpectraEvents
 api-version: '26.1'
+folia-supported: true
 load: POSTWORLD
 
 permissions:
@@ -30,6 +31,8 @@ permissions:
       spectraevents.event.start: true
       spectraevents.event.stop: true
       spectraevents.event.cancel: true
+      spectraevents.event.trigger: true
+      spectraevents.event.inspect: true
 
   spectraevents.event.list:
     description: "Allows listing active events."
@@ -45,6 +48,14 @@ permissions:
 
   spectraevents.event.cancel:
     description: "Allows cancelling events."
+    default: op
+
+  spectraevents.event.trigger:
+    description: "Allows manually triggering an event transition for diagnostics."
+    default: op
+
+  spectraevents.event.inspect:
+    description: "Allows inspecting event runtime cleanup and recovery state."
     default: op
 
   spectraevents.definition.*:

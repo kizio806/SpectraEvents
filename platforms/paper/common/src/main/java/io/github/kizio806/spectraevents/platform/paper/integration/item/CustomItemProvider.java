@@ -13,6 +13,8 @@ public interface CustomItemProvider {
   ItemStack resolveItem(String id, int amount);
 
   /**
+   * Returns true if this provider is active and available.
+   *
    * @return true if this provider is active and available
    */
   boolean isAvailable();

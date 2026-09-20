@@ -5,7 +5,6 @@ import io.github.kizio806.spectraevents.application.config.registry.RegisteredEv
 import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
 
@@ -14,8 +13,8 @@ public final class DefinitionsScreen {
 
   public static Inventory createInventory(EventDefinitionRegistry definitionRegistry) {
     Inventory inv =
-        Bukkit.createInventory(
-            new AdminGuiHolder(AdminGuiController.MenuType.DEFINITIONS),
+        AdminGuiHolder.createInventory(
+            AdminGuiController.MenuType.DEFINITIONS,
             54,
             Component.text("Event Definitions", NamedTextColor.GREEN));
 

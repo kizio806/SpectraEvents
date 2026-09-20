@@ -33,6 +33,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
@@ -61,6 +62,8 @@ public class PaperModelRenderer implements ModelRendererPort {
   private final Plugin plugin;
   private final CustomItemProvider customItemProvider;
   private final Map<ModelRuntimeId, RenderedModelHandle> activeHandles = new ConcurrentHashMap<>();
+  private final Map<ModelRuntimeId, CompletableFuture<Void>> inFlightTransforms =
+      new ConcurrentHashMap<>();
 
   public PaperModelRenderer(Plugin plugin, CustomItemProvider customItemProvider) {
     this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
@@ -270,6 +273,7 @@ public class PaperModelRenderer implements ModelRendererPort {
         display.setGlowColorOverride(
             Color.fromRGB(Integer.parseInt(props.glowColor().replace("#", ""), 16)));
       } catch (Exception ignored) {
+        plugin.getLogger().warning("Failed to parse glow color: " + ignored.getMessage());
       }
     }
     if (props.interpolationDurationTicks() > 0) {
@@ -309,18 +313,33 @@ public class PaperModelRenderer implements ModelRendererPort {
         new Location(
             world, newAnchor.x(), newAnchor.y(), newAnchor.z(), newAnchor.yaw(), newAnchor.pitch());
 
+    List<CompletableFuture<?>> teleportFutures = new ArrayList<>();
     for (RenderedPartHandle partHandle : handle.parts().values()) {
       Entity entity = Bukkit.getEntity(partHandle.entityUuid());
       if (entity != null && entity.isValid()) {
-        entity.teleportAsync(newLoc);
+        teleportFutures.add(entity.teleportAsync(newLoc));
       }
     }
     for (UUID interactionUuid : handle.interactions().values()) {
       Entity entity = Bukkit.getEntity(interactionUuid);
       if (entity != null && entity.isValid()) {
-        entity.teleportAsync(newLoc);
+        teleportFutures.add(entity.teleportAsync(newLoc));
       }
     }
+    CompletableFuture<Void> transformFuture =
+        CompletableFuture.allOf(teleportFutures.toArray(CompletableFuture<?>[]::new))
+            .exceptionally(
+                exception -> {
+                  plugin
+                      .getLogger()
+                      .warning(
+                          "Failed to move model "
+                              + handle.runtimeId()
+                              + ": "
+                              + exception.getMessage());
+                  return null;
+                });
+    inFlightTransforms.put(handle.runtimeId(), transformFuture);
     activeHandles.put(
         handle.runtimeId(),
         new RenderedModelHandle(
@@ -375,6 +394,7 @@ public class PaperModelRenderer implements ModelRendererPort {
   public boolean removeModel(RenderedModelHandle handle) {
     Objects.requireNonNull(handle, "handle cannot be null");
     activeHandles.remove(handle.runtimeId());
+    inFlightTransforms.remove(handle.runtimeId());
 
     for (RenderedPartHandle partHandle : handle.parts().values()) {
       removeEntityUuid(partHandle.entityUuid());
@@ -394,12 +414,20 @@ public class PaperModelRenderer implements ModelRendererPort {
     }
   }
 
+  public int resourceCount(EventInstanceId ownerEventId) {
+    return activeHandles.values().stream()
+        .filter(handle -> ownerEventId.equals(handle.ownerEventId()))
+        .mapToInt(handle -> handle.parts().size() + handle.interactions().size())
+        .sum();
+  }
+
   @Override
   public void removeAll() {
     for (RenderedModelHandle handle : List.copyOf(activeHandles.values())) {
       removeModel(handle);
     }
     activeHandles.clear();
+    inFlightTransforms.clear();
   }
 
   @Override
@@ -439,7 +467,11 @@ public class PaperModelRenderer implements ModelRendererPort {
   private void removeEntityUuid(UUID uuid) {
     Entity entity = Bukkit.getEntity(uuid);
     if (entity != null && entity.isValid()) {
-      entity.getScheduler().execute(plugin, entity::remove, null, 1);
+      if (Bukkit.isPrimaryThread()) {
+        entity.remove();
+      } else {
+        entity.getScheduler().execute(plugin, entity::remove, null, 1);
+      }
     }
   }
 

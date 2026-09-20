@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.paper.action;
 
+import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.application.execution.FatalActionException;
@@ -9,6 +10,7 @@ import io.github.kizio806.spectraevents.application.model.runtime.RenderedModelH
 import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
 import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
+import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.core.visual.model.ModelId;
 import io.github.kizio806.spectraevents.platform.paper.bossbar.EventBossBarManager;
 import io.github.kizio806.spectraevents.platform.paper.integration.MiniPlaceholdersIntegration;
@@ -18,13 +20,15 @@ import io.github.kizio806.spectraevents.platform.paper.integration.item.NexoItem
 import io.github.kizio806.spectraevents.platform.paper.integration.item.OraxenItemProvider;
 import io.github.kizio806.spectraevents.platform.paper.lifecycle.PaperResourceCleaner;
 import io.github.kizio806.spectraevents.platform.paper.metadata.SpectraPdcKeys;
-import io.github.kizio806.spectraevents.platform.paper.render.PaperModelRenderer;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import io.github.kizio806.spectraevents.platform.paper.scoreboard.EventScoreboardManager;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.BiConsumer;
 import java.util.logging.Logger;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -42,24 +46,26 @@ import org.bukkit.persistence.PersistentDataType;
 /** Paper platform action adapter implementing {@link PlatformActionPort}. */
 public final class PaperActionAdapter implements PlatformActionPort {
   private static final Logger LOGGER = Logger.getLogger(PaperActionAdapter.class.getName());
+  private static final int MAX_PARTICLES_PER_ACTION = 10_000;
+  private static final int MAX_MOBS_PER_ACTION = 128;
+  private static final int MAX_LOOT_ENTRIES = 64;
 
-  private final PaperModelRenderer renderer;
   private final RegionTaskScheduler regionScheduler;
   private final PaperResourceCleaner cleaner;
   private final EventBossBarManager bossBarManager;
   private final EventScoreboardManager scoreboardManager;
   private final List<CustomItemProvider> itemProviders = new ArrayList<>();
   private ModelRuntimeService modelRuntimeService;
+  private BiConsumer<EventInstanceId, Throwable> fatalActionHandler =
+      (instanceId, throwable) ->
+          LOGGER.severe(
+              "Asynchronous action failed for " + instanceId + ": " + throwable.getMessage());
 
-  public PaperActionAdapter(
-      PaperModelRenderer renderer,
-      RegionTaskScheduler regionScheduler,
-      PaperResourceCleaner cleaner) {
-    this.renderer = Objects.requireNonNull(renderer, "renderer");
+  public PaperActionAdapter(RegionTaskScheduler regionScheduler, PaperResourceCleaner cleaner) {
     this.regionScheduler = Objects.requireNonNull(regionScheduler, "regionScheduler");
     this.cleaner = Objects.requireNonNull(cleaner, "cleaner");
-    this.bossBarManager = new EventBossBarManager();
-    this.scoreboardManager = new EventScoreboardManager();
+    this.bossBarManager = new EventBossBarManager(regionScheduler);
+    this.scoreboardManager = new EventScoreboardManager(regionScheduler);
 
     itemProviders.add(new NexoItemProvider());
     itemProviders.add(new OraxenItemProvider());
@@ -79,6 +85,26 @@ public final class PaperActionAdapter implements PlatformActionPort {
   }
 
   @Override
+  public void setFatalActionHandler(BiConsumer<EventInstanceId, Throwable> handler) {
+    this.fatalActionHandler = Objects.requireNonNull(handler, "handler");
+  }
+
+  @Override
+  public void cleanupEvent(EventInstanceId instanceId) {
+    cleaner.cleanup(instanceId);
+  }
+
+  @Override
+  public void cleanupAll() {
+    cleaner.cleanupAll();
+  }
+
+  @Override
+  public int resourceCount(EventInstanceId instanceId) {
+    return cleaner.resourceCount(instanceId);
+  }
+
+  @Override
   public void executeAction(
       EventInstance instance, EventRuntimeState state, ActionDefinition action) {
     executeAction(instance, state, action, ExecutionContext.EMPTY);
@@ -90,87 +116,80 @@ public final class PaperActionAdapter implements PlatformActionPort {
       EventRuntimeState state,
       ActionDefinition action,
       ExecutionContext context) {
-    String type = action.type().toLowerCase();
+    String type = action.type().toLowerCase(Locale.ROOT);
     Map<String, Object> params = action.parameters();
 
-    Location baseLoc = null;
-    if (state.platformLocation().isPresent()
-        && state.platformLocation().get() instanceof Location loc) {
-      baseLoc = loc;
-    }
+    Location baseLoc = resolveLocation(state);
 
     switch (type) {
-      case "spawn_model":
-        handleSpawnModel(instance, state, params, baseLoc);
-        break;
-      case "move_model":
-        handleMoveModel(instance, baseLoc);
-        break;
-      case "remove_model":
-        cleaner.cleanup(instance.id());
-        break;
-      case "play_sound":
-        handlePlaySound(params, baseLoc);
-        break;
-      case "spawn_particles":
-        handleSpawnParticles(params, baseLoc);
-        break;
-      case "give_item":
-        handleGiveItem(params, context);
-        break;
-      case "drop_loot":
-        handleDropLoot(params, baseLoc);
-        break;
-      case "send_message":
-        handleSendMessage(params, context);
-        break;
-      case "broadcast_message":
-      case "broadcast":
-        handleBroadcastMessage(params);
-        break;
-      case "spawn_boss":
-      case "spawn_entity":
-        handleSpawnBoss(instance, state, params, baseLoc);
-        break;
-      case "spawn_mobs":
-      case "spawn_wave":
-        handleSpawnMobs(instance, state, params, baseLoc);
-        break;
-      case "show_bossbar":
-      case "create_bossbar":
-        bossBarManager.showBossBar(instance, state, params);
-        cleaner.registerCustomCleanup(
-            instance.id(), () -> bossBarManager.removeBossBar(instance.id().value()));
-        break;
-      case "update_bossbar":
-        bossBarManager.updateBossBar(instance, state, params);
-        break;
-      case "remove_bossbar":
-        bossBarManager.removeBossBar(instance.id().value());
-        break;
-      case "show_scoreboard":
-      case "create_scoreboard":
-        scoreboardManager.showScoreboard(instance, state, params);
-        cleaner.registerCustomCleanup(
-            instance.id(), () -> scoreboardManager.removeScoreboard(instance.id().value()));
-        break;
-      case "update_scoreboard":
-        scoreboardManager.updateScoreboard(instance, state, params);
-        break;
-      case "remove_scoreboard":
-        scoreboardManager.removeScoreboard(instance.id().value());
-        break;
-      default:
-        LOGGER.info("Unhandled platform action type: " + type + " for instance " + instance.id());
-        break;
+      case "spawn_model" -> handleSpawnModel(instance, params, baseLoc);
+      case "move_model" -> handleMoveModel(instance, baseLoc);
+      case "remove_model" -> removeModels(instance.id());
+      case "play_sound" -> handlePlaySound(instance, params, baseLoc);
+      case "spawn_particles" -> handleSpawnParticles(instance, params, baseLoc);
+      case "give_item" -> handleGiveItem(instance, params, context);
+      case "drop_loot" -> handleDropLoot(instance, params, baseLoc);
+      case "send_message" -> handleSendMessage(instance, params, context);
+      case "broadcast_message", "broadcast" -> handleBroadcastMessage(instance, params);
+      case "spawn_boss", "spawn_entity" -> handleSpawnBoss(instance, state, params, baseLoc);
+      case "spawn_mobs", "spawn_wave" -> handleSpawnMobs(instance, params, baseLoc);
+      case "show_bossbar", "create_bossbar" ->
+          executeGlobal(
+              instance.id(),
+              () -> {
+                bossBarManager.showBossBar(instance, state, params);
+                cleaner.registerCustomCleanup(
+                    instance.id(),
+                    () ->
+                        executeGlobal(
+                            instance.id(),
+                            () -> bossBarManager.removeBossBar(instance.id().value())));
+              });
+      case "update_bossbar" ->
+          executeGlobal(instance.id(), () -> bossBarManager.updateBossBar(instance, state, params));
+      case "remove_bossbar" ->
+          executeGlobal(instance.id(), () -> bossBarManager.removeBossBar(instance.id().value()));
+      case "show_scoreboard", "create_scoreboard" ->
+          executeGlobal(
+              instance.id(),
+              () -> {
+                scoreboardManager.showScoreboard(instance, state, params);
+                cleaner.registerCustomCleanup(
+                    instance.id(),
+                    () ->
+                        executeGlobal(
+                            instance.id(),
+                            () -> scoreboardManager.removeScoreboard(instance.id().value())));
+              });
+      case "update_scoreboard" ->
+          executeGlobal(
+              instance.id(), () -> scoreboardManager.updateScoreboard(instance, state, params));
+      case "remove_scoreboard" ->
+          executeGlobal(
+              instance.id(), () -> scoreboardManager.removeScoreboard(instance.id().value()));
+      default ->
+          throw new FatalActionException(
+              "Unsupported Paper action type '" + type + "' for instance " + instance.id());
     }
   }
 
+  private Location resolveLocation(EventRuntimeState state) {
+    Object stored = state.platformLocation().orElse(null);
+    if (stored instanceof Location location) {
+      return location;
+    }
+    if (stored instanceof EventLocation location) {
+      World world = Bukkit.getWorld(location.world());
+      if (world != null) {
+        return new Location(
+            world, location.x(), location.y(), location.z(), location.yaw(), location.pitch());
+      }
+    }
+    return null;
+  }
+
   private void handleSpawnModel(
-      EventInstance instance,
-      EventRuntimeState state,
-      Map<String, Object> params,
-      Location baseLoc) {
+      EventInstance instance, Map<String, Object> params, Location baseLoc) {
     if (baseLoc == null) {
       throw new FatalActionException(
           "Cannot spawn model: platform location reference is null for instance " + instance.id());
@@ -186,12 +205,12 @@ public final class PaperActionAdapter implements PlatformActionPort {
     Location spawnLoc = baseLoc.clone().add(0, heightOffset, 0);
     ModelId modelId = new ModelId(modelIdStr);
 
-    regionScheduler.executeAt(
+    executeAt(
+        instance.id(),
         spawnLoc,
         () -> {
           if (modelRuntimeService == null) {
-            LOGGER.warning("ModelRuntimeService not initialized in PaperActionAdapter");
-            return;
+            throw new FatalActionException("Model runtime is unavailable on Paper");
           }
 
           ModelAnchor anchor =
@@ -217,8 +236,12 @@ public final class PaperActionAdapter implements PlatformActionPort {
   }
 
   private void handleMoveModel(EventInstance instance, Location baseLoc) {
-    if (baseLoc == null || modelRuntimeService == null) return;
-    regionScheduler.executeAt(
+    requireLocation(baseLoc, "move_model");
+    if (modelRuntimeService == null) {
+      throw new FatalActionException("Model runtime is unavailable on Paper");
+    }
+    executeAt(
+        instance.id(),
         baseLoc,
         () -> {
           ModelAnchor anchor =
@@ -237,17 +260,30 @@ public final class PaperActionAdapter implements PlatformActionPort {
         });
   }
 
-  private void handlePlaySound(Map<String, Object> params, Location baseLoc) {
-    if (baseLoc == null) return;
+  private void removeModels(EventInstanceId instanceId) {
+    if (modelRuntimeService == null) {
+      return;
+    }
+    for (RenderedModelHandle handle : List.copyOf(modelRuntimeService.getActiveInstances())) {
+      if (instanceId.equals(handle.ownerEventId())) {
+        modelRuntimeService.removeModel(handle.runtimeId());
+      }
+    }
+  }
+
+  private void handlePlaySound(
+      EventInstance instance, Map<String, Object> params, Location baseLoc) {
+    requireLocation(baseLoc, "play_sound");
     World world = baseLoc.getWorld();
-    if (world == null) return;
+    if (world == null) throw new FatalActionException("play_sound requires a loaded world");
 
     String soundName = getStringParam(params, "sound", "minecraft:entity.generic.explode");
     float volume = getFloatParam(params, "volume", 1.0f);
     float pitch = getFloatParam(params, "pitch", 1.0f);
 
     Sound sound = resolveSound(soundName);
-    regionScheduler.executeAt(
+    executeAt(
+        instance.id(),
         baseLoc,
         () -> {
           if (sound != null) {
@@ -258,16 +294,19 @@ public final class PaperActionAdapter implements PlatformActionPort {
         });
   }
 
-  private void handleSpawnParticles(Map<String, Object> params, Location baseLoc) {
-    if (baseLoc == null) return;
+  private void handleSpawnParticles(
+      EventInstance instance, Map<String, Object> params, Location baseLoc) {
+    requireLocation(baseLoc, "spawn_particles");
     World world = baseLoc.getWorld();
-    if (world == null) return;
+    if (world == null) throw new FatalActionException("spawn_particles requires a loaded world");
 
     String particleName = getStringParam(params, "particle", "minecraft:explosion");
     int count = getIntParam(params, "count", 10);
+    requireRange(count, 0, MAX_PARTICLES_PER_ACTION, "spawn_particles.count");
 
     Particle particle = resolveParticle(particleName);
-    regionScheduler.executeAt(
+    executeAt(
+        instance.id(),
         baseLoc,
         () -> {
           if (particle != null) {
@@ -276,12 +315,14 @@ public final class PaperActionAdapter implements PlatformActionPort {
         });
   }
 
-  private void handleGiveItem(Map<String, Object> params, ExecutionContext context) {
+  private void handleGiveItem(
+      EventInstance instance, Map<String, Object> params, ExecutionContext context) {
     if (context == null || !(context.actor() instanceof Player player)) {
-      return;
+      throw new FatalActionException("give_item requires a player interaction context");
     }
     String materialName = getStringParam(params, "material", "minecraft:diamond");
     int amount = getIntParam(params, "amount", 1);
+    requireRange(amount, 1, 64, "give_item.amount");
 
     ItemStack itemStack = null;
 
@@ -304,28 +345,39 @@ public final class PaperActionAdapter implements PlatformActionPort {
 
     if (itemStack != null) {
       ItemStack finalStack = itemStack;
-      regionScheduler.executeFor(
+      executeFor(
+          instance.id(),
           player,
           () -> {
             player.getInventory().addItem(finalStack);
           });
+    } else {
+      throw new FatalActionException("Unknown item material or provider item: " + materialName);
     }
   }
 
-  private void handleSendMessage(Map<String, Object> params, ExecutionContext context) {
+  private void handleSendMessage(
+      EventInstance instance, Map<String, Object> params, ExecutionContext context) {
     if (context == null || !(context.actor() instanceof CommandSender sender)) {
-      return;
+      throw new FatalActionException("send_message requires a command-sender context");
     }
     String msg = getStringParam(params, "message", "");
     if (!msg.isEmpty()) {
-      sender.sendMessage(MiniPlaceholdersIntegration.getMiniMessage().deserialize(msg));
+      var component = MiniPlaceholdersIntegration.getMiniMessage().deserialize(msg);
+      if (sender instanceof Player player) {
+        executeFor(instance.id(), player, () -> player.sendMessage(component));
+      } else {
+        sender.sendMessage(component);
+      }
     }
   }
 
-  private void handleBroadcastMessage(Map<String, Object> params) {
+  private void handleBroadcastMessage(EventInstance instance, Map<String, Object> params) {
     String msg = getStringParam(params, "message", "");
     if (!msg.isEmpty()) {
-      Bukkit.broadcast(MiniPlaceholdersIntegration.getMiniMessage().deserialize(msg));
+      executeGlobal(
+          instance.id(),
+          () -> Bukkit.broadcast(MiniPlaceholdersIntegration.getMiniMessage().deserialize(msg)));
     }
   }
 
@@ -334,7 +386,7 @@ public final class PaperActionAdapter implements PlatformActionPort {
       EventRuntimeState state,
       Map<String, Object> params,
       Location baseLoc) {
-    if (baseLoc == null) return;
+    requireLocation(baseLoc, "spawn_boss");
 
     int offsetX = getIntParam(params, "offset-x", 2);
     int offsetY = getIntParam(params, "offset-y", 0);
@@ -345,7 +397,8 @@ public final class PaperActionAdapter implements PlatformActionPort {
     Location spawnLoc = baseLoc.clone().add(offsetX, offsetY, offsetZ);
     EntityType entityType = resolveEntityType(typeName);
 
-    regionScheduler.executeAt(
+    executeAt(
+        instance.id(),
         spawnLoc,
         () -> {
           World world = spawnLoc.getWorld();
@@ -372,27 +425,27 @@ public final class PaperActionAdapter implements PlatformActionPort {
   }
 
   private Material resolveMaterial(String name) {
-    try {
-      String formatted = name.replace("minecraft:", "").toUpperCase();
-      return Material.matchMaterial(formatted);
-    } catch (Exception e) {
-      return Material.DIAMOND;
+    String formatted = name.replace("minecraft:", "").toUpperCase(Locale.ROOT);
+    Material material = Material.matchMaterial(formatted);
+    if (material == null) {
+      throw new FatalActionException("Unknown material: " + name);
     }
+    return material;
   }
 
   private EntityType resolveEntityType(String name) {
     try {
-      String formatted = name.replace("minecraft:", "").toUpperCase();
+      String formatted = name.replace("minecraft:", "").toUpperCase(Locale.ROOT);
       return EntityType.valueOf(formatted);
-    } catch (Exception e) {
-      return EntityType.ZOMBIE;
+    } catch (IllegalArgumentException e) {
+      throw new FatalActionException("Unknown entity type: " + name, e);
     }
   }
 
   @SuppressWarnings("removal")
   private Sound resolveSound(String name) {
     try {
-      String formatted = name.replace("minecraft:", "").replace('.', '_').toUpperCase();
+      String formatted = name.replace("minecraft:", "").replace('.', '_').toUpperCase(Locale.ROOT);
       return Sound.valueOf(formatted);
     } catch (Exception e) {
       return Sound.ENTITY_GENERIC_EXPLODE;
@@ -401,10 +454,10 @@ public final class PaperActionAdapter implements PlatformActionPort {
 
   private Particle resolveParticle(String name) {
     try {
-      String formatted = name.replace("minecraft:", "").toUpperCase();
+      String formatted = name.replace("minecraft:", "").toUpperCase(Locale.ROOT);
       return Particle.valueOf(formatted);
-    } catch (Exception e) {
-      return Particle.EXPLOSION;
+    } catch (IllegalArgumentException e) {
+      throw new FatalActionException("Unknown particle: " + name, e);
     }
   }
 
@@ -435,27 +488,29 @@ public final class PaperActionAdapter implements PlatformActionPort {
     }
   }
 
-  private boolean getBooleanParam(Map<String, Object> params, String key, boolean defaultValue) {
-    Object val = params.get(key);
-    if (val == null) return defaultValue;
-    if (val instanceof Boolean b) return b;
-    return Boolean.parseBoolean(String.valueOf(val));
-  }
-
   @SuppressWarnings("unchecked")
-  private void handleDropLoot(Map<String, Object> params, Location baseLoc) {
-    if (baseLoc == null) return;
+  private void handleDropLoot(
+      EventInstance instance, Map<String, Object> params, Location baseLoc) {
+    requireLocation(baseLoc, "drop_loot");
     World world = baseLoc.getWorld();
-    if (world == null) return;
+    if (world == null) throw new FatalActionException("drop_loot requires a loaded world");
 
     double radius = getFloatParam(params, "radius", 2.0f);
     Object itemsObj = params.get("items");
-    if (!(itemsObj instanceof List<?> itemsList)) return;
+    if (!(itemsObj instanceof List<?> itemsList)) {
+      throw new FatalActionException("drop_loot requires an items list");
+    }
+    if (itemsList.size() > MAX_LOOT_ENTRIES) {
+      throw new FatalActionException(
+          "drop_loot exceeds the limit of " + MAX_LOOT_ENTRIES + " item entries");
+    }
+    requireRange((int) Math.ceil(radius), 0, 128, "drop_loot.radius");
 
-    regionScheduler.executeAt(
+    executeAt(
+        instance.id(),
         baseLoc,
         () -> {
-          java.util.Random rng = new java.util.Random();
+          ThreadLocalRandom rng = ThreadLocalRandom.current();
           for (Object itemObj : itemsList) {
             if (!(itemObj instanceof Map<?, ?> itemMap)) continue;
             Object matObj = itemMap.get("material");
@@ -464,10 +519,12 @@ public final class PaperActionAdapter implements PlatformActionPort {
             if (itemMap.containsKey("amount")) {
               amount = Integer.parseInt(String.valueOf(itemMap.get("amount")));
             }
+            requireRange(amount, 1, 64, "drop_loot.items.amount");
             int chance = 100;
             if (itemMap.containsKey("chance")) {
               chance = Integer.parseInt(String.valueOf(itemMap.get("chance")));
             }
+            requireRange(chance, 0, 100, "drop_loot.items.chance");
 
             if (rng.nextInt(100) < chance) {
               ItemStack stack = resolveItemStack(materialName, amount);
@@ -495,21 +552,35 @@ public final class PaperActionAdapter implements PlatformActionPort {
 
   @SuppressWarnings("unchecked")
   private void handleSpawnMobs(
-      EventInstance instance,
-      EventRuntimeState state,
-      Map<String, Object> params,
-      Location baseLoc) {
-    if (baseLoc == null) return;
+      EventInstance instance, Map<String, Object> params, Location baseLoc) {
+    requireLocation(baseLoc, "spawn_mobs");
 
     Object mobsObj = params.get("mobs");
-    if (!(mobsObj instanceof List<?> mobsList)) return;
+    if (!(mobsObj instanceof List<?> mobsList)) {
+      throw new FatalActionException("spawn_mobs requires a mobs list");
+    }
+    int totalMobs = 0;
+    for (Object mobObj : mobsList) {
+      if (!(mobObj instanceof Map<?, ?> mobMap)) {
+        throw new FatalActionException("spawn_mobs entries must be objects");
+      }
+      int amount =
+          mobMap.containsKey("amount") ? Integer.parseInt(String.valueOf(mobMap.get("amount"))) : 1;
+      requireRange(amount, 1, MAX_MOBS_PER_ACTION, "spawn_mobs.mobs.amount");
+      totalMobs = Math.addExact(totalMobs, amount);
+    }
+    if (totalMobs > MAX_MOBS_PER_ACTION) {
+      throw new FatalActionException(
+          "spawn_mobs exceeds the limit of " + MAX_MOBS_PER_ACTION + " entities per action");
+    }
 
-    regionScheduler.executeAt(
+    executeAt(
+        instance.id(),
         baseLoc,
         () -> {
           World world = baseLoc.getWorld();
           if (world == null) return;
-          java.util.Random rng = new java.util.Random();
+          ThreadLocalRandom rng = ThreadLocalRandom.current();
 
           for (Object mobObj : mobsList) {
             if (!(mobObj instanceof Map<?, ?> mobMap)) continue;
@@ -525,6 +596,7 @@ public final class PaperActionAdapter implements PlatformActionPort {
             if (mobMap.containsKey("radius")) {
               radius = Double.parseDouble(String.valueOf(mobMap.get("radius")));
             }
+            requireRange((int) Math.ceil(radius), 0, 128, "spawn_mobs.mobs.radius");
 
             EntityType type = resolveEntityType(entityTypeStr);
             for (int i = 0; i < amount; i++) {
@@ -549,5 +621,69 @@ public final class PaperActionAdapter implements PlatformActionPort {
             }
           }
         });
+  }
+
+  private void executeAt(EventInstanceId instanceId, Location location, Runnable action) {
+    try {
+      regionScheduler.executeAt(location, () -> runGuarded(instanceId, action));
+    } catch (RuntimeException exception) {
+      runFailureHandler(instanceId, exception);
+      throw exception;
+    }
+  }
+
+  private void executeGlobal(EventInstanceId instanceId, Runnable action) {
+    try {
+      regionScheduler.executeGlobal(() -> runGuarded(instanceId, action));
+    } catch (RuntimeException exception) {
+      runFailureHandler(instanceId, exception);
+      throw exception;
+    }
+  }
+
+  private void executeFor(EventInstanceId instanceId, Player player, Runnable action) {
+    try {
+      regionScheduler.executeFor(player, () -> runGuarded(instanceId, action));
+    } catch (RuntimeException exception) {
+      runFailureHandler(instanceId, exception);
+      throw exception;
+    }
+  }
+
+  private void runGuarded(EventInstanceId instanceId, Runnable action) {
+    try {
+      action.run();
+    } catch (RuntimeException throwable) {
+      runFailureHandler(instanceId, throwable);
+    }
+  }
+
+  private void runFailureHandler(EventInstanceId instanceId, Throwable throwable) {
+    LOGGER.log(
+        java.util.logging.Level.SEVERE,
+        "Asynchronous platform action failed for event " + instanceId,
+        throwable);
+    try {
+      fatalActionHandler.accept(instanceId, throwable);
+    } catch (RuntimeException handlerFailure) {
+      LOGGER.severe(
+          "Could not fail event "
+              + instanceId
+              + " after action error: "
+              + handlerFailure.getMessage());
+    }
+  }
+
+  private void requireLocation(Location location, String action) {
+    if (location == null) {
+      throw new FatalActionException(action + " requires a persisted event location");
+    }
+  }
+
+  private void requireRange(int value, int minimum, int maximum, String field) {
+    if (value < minimum || value > maximum) {
+      throw new FatalActionException(
+          field + " must be between " + minimum + " and " + maximum + ", got " + value);
+    }
   }
 }

@@ -62,4 +62,9 @@ public final class SpigotEventTaskScheduler implements EventTaskScheduler {
     }
     tasks.clear();
   }
+
+  @Override
+  public int pendingTaskCount(EventInstanceId eventId) {
+    return tasks.getOrDefault(eventId, List.of()).size();
+  }
 }

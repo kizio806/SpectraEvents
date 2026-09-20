@@ -78,7 +78,7 @@ public final class UpdateCommandHandler {
             .append(
                 Component.text(
                     info.updateAvailable() ? "Update Available" : "Up to date",
-                    info.updateAvailable() ? NamedTextColor.GREEN : NamedTextColor.GREEN)));
+                    info.updateAvailable() ? NamedTextColor.GREEN : NamedTextColor.GRAY)));
     if (!info.releaseNotes().isEmpty()) {
       sender.sendMessage(
           Component.text(" Notes: ", NamedTextColor.GRAY)

@@ -5,7 +5,6 @@ import io.github.kizio806.spectraevents.application.integration.IntegrationState
 import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
 
@@ -14,8 +13,8 @@ public final class IntegrationsScreen {
 
   public static Inventory createInventory(IntegrationRegistry integrationRegistry) {
     Inventory inv =
-        Bukkit.createInventory(
-            new AdminGuiHolder(AdminGuiController.MenuType.INTEGRATIONS),
+        AdminGuiHolder.createInventory(
+            AdminGuiController.MenuType.INTEGRATIONS,
             36,
             Component.text("Integrations Status", NamedTextColor.AQUA));
 

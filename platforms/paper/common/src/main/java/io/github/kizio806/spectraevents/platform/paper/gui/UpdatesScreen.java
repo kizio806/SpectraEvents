@@ -5,7 +5,6 @@ import io.github.kizio806.spectraevents.application.update.UpdateService;
 import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
 
@@ -14,8 +13,8 @@ public final class UpdatesScreen {
 
   public static Inventory createInventory(UpdateService updateService) {
     Inventory inv =
-        Bukkit.createInventory(
-            new AdminGuiHolder(AdminGuiController.MenuType.UPDATES),
+        AdminGuiHolder.createInventory(
+            AdminGuiController.MenuType.UPDATES,
             27,
             Component.text("Update System", NamedTextColor.LIGHT_PURPLE));
 

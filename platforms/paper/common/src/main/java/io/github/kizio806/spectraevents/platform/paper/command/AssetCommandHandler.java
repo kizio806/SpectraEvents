@@ -7,6 +7,7 @@ import io.github.kizio806.spectraevents.application.asset.AssetPipelineService;
 import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetDocument;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
+import java.util.Locale;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
@@ -62,10 +63,10 @@ public final class AssetCommandHandler {
       suggestAssetIds(
           CommandContext<CommandSourceStack> ctx,
           com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
-    String remaining = builder.getRemaining().toLowerCase();
+    String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
     if (assetPipelineService != null) {
       for (String modelId : assetPipelineService.listModels()) {
-        if (modelId.toLowerCase().startsWith(remaining)) {
+        if (modelId.toLowerCase(Locale.ROOT).startsWith(remaining)) {
           builder.suggest(modelId);
         }
       }
@@ -105,7 +106,7 @@ public final class AssetCommandHandler {
 
   private int listAssets(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
-    if (assetPipelineService == null) return 0;
+    if (assetPipelineService == null) return unavailable(sender);
     var models = assetPipelineService.listModels();
     sender.sendMessage(
         Component.text("Compiled Assets (" + models.size() + "):", NamedTextColor.YELLOW));
@@ -117,7 +118,7 @@ public final class AssetCommandHandler {
 
   private int cleanAssets(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
-    if (assetPipelineService == null) return 0;
+    if (assetPipelineService == null) return unavailable(sender);
     assetPipelineService.clean();
     sender.sendMessage(
         Component.text("Asset generated cache and files cleaned.", NamedTextColor.GREEN));
@@ -126,7 +127,7 @@ public final class AssetCommandHandler {
 
   private int importAsset(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
-    if (assetPipelineService == null) return 0;
+    if (assetPipelineService == null) return unavailable(sender);
     String file = StringArgumentType.getString(ctx, "file");
     try {
       assetPipelineService.importFile(file);
@@ -140,7 +141,7 @@ public final class AssetCommandHandler {
 
   private int assetInfo(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
-    if (assetPipelineService == null) return 0;
+    if (assetPipelineService == null) return unavailable(sender);
     String id = StringArgumentType.getString(ctx, "id");
     SpectraAssetDocument doc = assetPipelineService.getModelInfo(id);
     if (doc == null) {
@@ -157,7 +158,7 @@ public final class AssetCommandHandler {
 
   private int validateAsset(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
-    if (assetPipelineService == null) return 0;
+    if (assetPipelineService == null) return unavailable(sender);
     String id = StringArgumentType.getString(ctx, "id");
     boolean valid = assetPipelineService.validateModel(id);
     if (valid) {
@@ -167,5 +168,13 @@ public final class AssetCommandHandler {
           Component.text("Asset " + id + " is invalid or missing.", NamedTextColor.RED));
     }
     return 1;
+  }
+
+  private int unavailable(CommandSender sender) {
+    sender.sendMessage(
+        Component.text(
+            "Asset import and resource-pack generation are unavailable in this release.",
+            NamedTextColor.RED));
+    return 0;
   }
 }
