@@ -25,7 +25,7 @@ This roadmap is aligned with [`PROJECT_MASTER_PLAN.md`](../../PROJECT_MASTER_PLA
 - [x] Verify platform boundaries and both distribution artifacts.
 - [x] Inventory the large pre-existing worktree and classify it into coherent packages.
 - [x] Create eight safe local checkpoints for the mixed worktree without staging unrelated user changes or pushing them.
-- [ ] Re-run the real-server matrix after the current change set is assigned to release checkpoints.
+- [ ] Re-run the remaining Spigot/CraftBukkit rows of the real-server matrix after the current change set is assigned to release checkpoints.
 
 The current full build is green, but publication remains separate from compilation. The declared Folia 26.3 row is unavailable until an official upstream server build exists.
 
@@ -65,7 +65,7 @@ The current full build is green, but publication remains separate from compilati
 
 **Goal:** server operators know exactly which artifact and version combination is supported.
 
-- [ ] Complete the real-server matrix for every declared Paper, Purpur, Folia, Spigot, and CraftBukkit row that is available.
+- [ ] Complete the real-server matrix for every declared Paper, Purpur, Folia, Spigot, and CraftBukkit row that is available. The available Paper-family rows are now verified; Spigot-family rows remain.
 - [ ] Keep publication blocked for required rows that have not passed.
 - [ ] Verify upgrade, restart, recovery, cleanup, checksums, manifests, and release notes.
 - [ ] Document SQLite backup/recovery and manual reconciliation of accepted-but-undelivered external effects.
