@@ -2,6 +2,12 @@ package io.github.kizio806.spectraevents.core.visual.animation;
 
 /** Easing curves for keyframe parameter interpolation. */
 public enum Easing {
+  STEP {
+    @Override
+    public double evaluate(double t) {
+      return clamp(t) < 1.0 ? 0.0 : 1.0;
+    }
+  },
   LINEAR {
     @Override
     public double evaluate(double t) {

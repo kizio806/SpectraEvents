@@ -4,8 +4,6 @@ import io.github.kizio806.spectraevents.application.port.AssetImportPort;
 import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetDocument;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,18 +15,14 @@ public class AssetPipelineServiceTest {
 
   @TempDir Path tempDir;
 
-  private static final String TEST_MODEL = "test.bbmodel";
+  private static final String TEST_MODEL = "test.spectra.zip";
 
   @BeforeEach
   void setUp() {
     AssetImportPort mockImport =
-        new AssetImportPort() {
-          @Override
-          public SpectraAssetDocument read(String content, String modelId) {
-            return new SpectraAssetDocument(
-                1, modelId, new HashMap<>(), new ArrayList<>(), new HashMap<>());
-          }
-        };
+        source ->
+            new SpectraAssetDocument(
+                1, "test", java.util.Map.of(), java.util.List.of(), java.util.Map.of());
     ResourcePackBuilder mockBuilder = new ResourcePackBuilder(tempDir.resolve("out"));
 
     service =
@@ -38,7 +32,7 @@ public class AssetPipelineServiceTest {
   @Test
   void testImportFileSuccess() throws Exception {
     Path dummyFile = tempDir.resolve(TEST_MODEL);
-    Files.writeString(dummyFile, "{}");
+    Files.writeString(dummyFile, "bundle");
 
     service.importFile(TEST_MODEL);
 
@@ -49,7 +43,7 @@ public class AssetPipelineServiceTest {
   @Test
   void testCleanRemovesCache() throws Exception {
     Path dummyFile = tempDir.resolve(TEST_MODEL);
-    Files.writeString(dummyFile, "{}");
+    Files.writeString(dummyFile, "bundle");
 
     service.importFile(TEST_MODEL);
     service.clean();
