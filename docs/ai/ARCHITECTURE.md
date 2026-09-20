@@ -10,26 +10,27 @@ Paper / infrastructure
         Core
 ```
 
-Core must not depend on Bukkit, Paper, Minecraft internals, or any platform adapter. Application and
-public API are also platform-neutral. Dependencies point inward; infrastructure implements ports
-owned by inner layers.
+Core must not depend on Bukkit, Paper, Minecraft internals, or any platform adapter. Application is
+also platform-neutral. Dependencies point inward; infrastructure implements ports owned by inner
+layers. There is no public addon API in the current beta; ADR 0005 records why it was deferred.
 
 ## Modules
 
-- `spectraevents-api`: intentionally small public contracts for future addon developers.
 - `spectraevents-core`: pure domain code and engine invariants; Java 21, no platform types.
 - `spectraevents-application`: use cases, orchestration, and infrastructure ports; Java 21.
-- `platforms/paper-common`: stable Paper adapter code reusable across supported Paper lines.
-- `platforms/paper-26_2`: Paper 26.2 and Java 25 bootstrap and version-specific behavior.
-- `distributions/paper-26_2`: shaded, deployable Paper 26.2 plugin and local server task.
+- `adapters/*`: platform-neutral storage, update, and currently disabled asset adapters.
+- `platforms/paper/common`: Paper/Purpur/Folia platform implementation, compiled against Paper 26.1.
+- `platforms/spigot/common`: Spigot/CraftBukkit platform implementation, compiled against Spigot 26.1.
+- `distributions/paper`: shaded Paper-family plugin.
+- `distributions/spigot`: shaded Spigot-family plugin.
 
 The intended version-support shape is:
 
 ```text
-core
- ├── Paper 26.2 adapter
- └── future Paper 1.21 adapter
+core <- application <- platform family <- distribution
 ```
 
-Compatibility belongs in versioned adapters, not in hundreds of scattered runtime version checks.
-`paper-common` contains only behavior proven stable across the versions that use it.
+Both artifacts use the oldest supported API as their compile baseline. A release claim is valid only
+after the command-driven runtime and restart workflow passes for every declared server/version row.
+If a platform API is unavailable, the adapter must report that capability as unsupported rather than
+silently ignore the action.

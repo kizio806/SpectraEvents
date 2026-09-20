@@ -8,20 +8,23 @@ or CraftBukkit.
 
 | Module | Responsibility | Java | Paper API |
 | --- | --- | ---: | --- |
-| `spectraevents-api` | Future public addon contracts | 21 | Forbidden |
 | `spectraevents-core` | Domain model and invariants | 21 | Forbidden |
 | `spectraevents-application` | Use cases and ports | 21 | Forbidden |
-| `platforms/paper-common` | Cross-version Paper adapters | 25 | Compile only |
-| `platforms/paper-26_2` | Paper 26.2 bootstrap and adapters | 25 | Compile only |
-| `distributions/paper-26_2` | Shaded deployable plugin | 25 | Server-provided |
+| `adapters/*` | Platform-neutral infrastructure | 21 | Forbidden |
+| `platforms/paper/common` | Paper/Purpur/Folia adapter and bootstrap | 25 | Compile only |
+| `platforms/spigot/common` | Spigot/CraftBukkit adapter and bootstrap | 25 | Forbidden |
+| `distributions/paper` | Shaded Paper-family plugin | 25 | Server-provided |
+| `distributions/spigot` | Shaded Spigot-family plugin | 25 | Forbidden |
 
-Future Paper lines receive separate adapters. Version-specific compatibility must not spread through
-core as runtime conditionals.
+Both platform families compile against the oldest supported `26.1` API. Compatibility claims are
+gated by real-server workflows for `26.1`, `26.2`, and `26.3`, not by compilation alone.
+
+The public addon API is intentionally absent in beta; see ADR 0005.
 
 ## Testing
 
 JUnit tests verify behavior, ArchUnit and the `verifyPlatformBoundaries` task enforce isolation, and
 JaCoCo produces XML and HTML coverage reports. The `integrationTest` convention is available for real
-infrastructure tests. `runServer` is the controlled Paper smoke-test entry point.
+infrastructure tests. `scripts/runtime-smoke/runtime_workflow.py` is the real-server release gate.
 
 See `docs/architecture/adr/` for durable decisions and `docs/ai/` for operational engineering rules.

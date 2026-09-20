@@ -116,7 +116,7 @@ Legenda:
 | Publiczne API dodatków | Do zrobienia świadomie | nie ma stabilnego publicznego API | dopiero po ustaleniu realnego use case'u, wersjonowania, testów i polityki kompatybilności |
 | GUI edytora | Do zrobienia po V1 | istnieje administracyjne GUI/diagnostyka, nie pełny editor | GUI jest tylko frontendem stabilnego YAML, nigdy osobnym źródłem prawdy |
 
-## 6. Najważniejszy aktualny blocker jakości
+## 6. Aktualny stan jakości i ograniczenia
 
 Pełna wymagana bramka:
 
@@ -124,17 +124,17 @@ Pełna wymagana bramka:
 ./gradlew clean check build
 ```
 
-została uruchomiona 2026-09-20 na aktualnym checkoutcie i **nie przeszła**. Zablokowała ją Gradle dependency verification: `gradle/verification-metadata.xml` nie zawiera wpisów dla części pobieranych artefaktów (m.in. Adventure, bStats, Flyway i Rhino). Błąd dotknął zadań SpotBugs, PMD, JaCoCo i Spotless.
+została uruchomiona 2026-09-20 na aktualnym checkoutcie i zakończyła się **`BUILD SUCCESSFUL`**. Przeszły testy, formatowanie, Checkstyle, PMD, SpotBugs, JaCoCo, weryfikacja granic platform oraz budowanie artefaktów Paper i Spigot. Strict dependency verification pozostaje włączone i ma aktualne sumy SHA-256.
 
-To nie dowodzi błędu funkcjonalnego w tych modułach, ale oznacza, że aktualnego stanu nie wolno oznaczać jako w pełni zweryfikowanego ani publikować jako release.
+Zielona bramka nie oznacza jeszcze gotowego release'u. Nadal otwarte są przede wszystkim: bezpieczne rozdzielenie mieszanego worktree na checkpointy, ponowne uruchomienie real-server matrix dla bieżącego zestawu zmian oraz niezweryfikowany end-to-end pipeline Blockbench → resource-pack → klient.
 
-### Kolejność naprawy blockera
+### Kolejność dalszej weryfikacji
 
-1. Ustalić źródło i oczekiwane sumy kontrolne każdego nowego artefaktu.
-2. Uzupełnić metadata wyłącznie zweryfikowanymi wpisami.
-3. Ponownie uruchomić pełną bramkę.
-4. Naprawić każdy błąd ujawniony po przejściu dependency verification.
-5. Zapisać wynik i datę w tym dokumencie oraz `docs/ai/PROJECT_STATE.md`.
+1. Zachować wynik zielonej pełnej bramki jako punkt odniesienia.
+2. Rozdzielić istniejące zmiany na spójne checkpointy bez resetowania ani masowego stagingu cudzych zmian.
+3. Dla każdego checkpointu uruchomić testy zakresowe i pełną bramkę.
+4. Ponownie uruchomić real-server matrix dla zadeklarowanych platform i wersji.
+5. Dopiero po tych dowodach aktualizować status release'u oraz przechodzić do kolejnych milestone'ów.
 
 ## 7. Plan dojścia do najlepszego pluginu
 
@@ -143,13 +143,38 @@ To nie dowodzi błędu funkcjonalnego w tych modułach, ale oznacza, że aktualn
 **Cel:** dokładnie wiedzieć, co działa na obecnym checkoutcie.
 
 - [x] Naprawić dependency verification bez wyłączania ochrony.
-- [ ] Uruchomić `./gradlew clean check build` z wynikiem `BUILD SUCCESSFUL`.
-- [ ] Uruchomić testy granic platform i sprawdzić, że core/application nie importują Minecraft API.
-- [ ] Przejrzeć duży obecny diff i podzielić go logicznie na spójne zmiany/milestone'y.
-- [ ] Ujednolicić `README.md`, roadmapę produktu i `docs/ai/PROJECT_STATE.md` z tym dokumentem.
-- [ ] Zapisać dokładne dowody: komenda, data, wynik, wersje JDK/Gradle i wynik testów runtime.
+- [x] Uruchomić `./gradlew clean check build` z wynikiem `BUILD SUCCESSFUL`.
+- [x] Uruchomić testy granic platform i sprawdzić, że core/application nie importują Minecraft API.
+- [x] Przejrzeć duży obecny diff i podzielić go logicznie na spójne zmiany/milestone'y.
+- [x] Ujednolicić `README.md`, roadmapę produktu i `docs/ai/PROJECT_STATE.md` z tym dokumentem.
+- [x] Zapisać dokładne dowody: komenda, data, wynik, wersje JDK/Gradle i wynik testów runtime.
 
 **Nie przechodzimy dalej, dopóki M0 nie jest zielone.**
+
+### Inwentaryzacja bieżącego dużego diffu
+
+Stan po przeglądzie worktree: **147 zmienionych ścieżek tracked oraz dodatkowe pliki untracked**. To nie jest jeden bezpieczny commit funkcjonalny. Zmiany mieszają kilka niezależnych tematów:
+
+| Proponowany pakiet | Główne ścieżki | Zakres | Status organizacyjny |
+| --- | --- | --- | --- |
+| Q0 — build i jakość | `build.gradle.kts`, `build-logic/`, `config/`, `gradle/`, `settings.gradle.kts`, `.github/workflows/` | Gradle, dependency verification, Checkstyle/PMD/SpotBugs, CI i release checks | dependency verification ma osobny commit `7846e28`; pozostałe zmiany wymagają osobnego checkpointu |
+| E1 — wspólny runtime eventów | `spectraevents-core/`, `spectraevents-application/`, `examples/events/` | lifecycle, YAML, execution engine, conditions/actions, lokacje, testy i definicje referencyjne | zaimplementowane w worktree, wymaga rozdzielenia od platform |
+| E2 — platformy i dystrybucje | `platforms/paper/`, `platforms/spigot/`, `distributions/` | adaptery Paper/Spigot, schedulery, komendy, GUI, renderery, integracje, JAR-y | zaimplementowane w worktree, wymaga osobnego testu runtime per rodzina |
+| E3 — trwałość i adaptery | `adapters/storage-sqlite/`, `adapters/update-http/` | SQLite single-writer, recovery, update HTTP, testy obciążeniowe | zaimplementowane w worktree, wymaga osobnej weryfikacji recovery |
+| E4 — Blockbench i resource-pack | `adapters/assets-*`, `spectraevents-application/src/main/.../asset/`, `tools/blockbench/`, `docs/authoring/`, `docs/config/` | importer, budowanie ZIP, delivery, Modrinth, testy bezpieczeństwa | częściowe; nie wolno jeszcze oznaczać pełnego pipeline jako gotowego |
+| E5 — runtime smoke i kompatybilność | `scripts/runtime-smoke/`, manifesty pluginów, dokumentacja platform | Paper/Purpur/Folia/Spigot/CraftBukkit i macierz wersji | częściowe; Folia 26.3 nadal zależy od dostępności buildu upstream |
+| D1 — dokumentacja produktu | `README.md`, `docs/ai/`, `docs/architecture/`, `docs/product/` | kontrakt produktu, workflow administratora, architektura, roadmapa i ograniczenia | zsynchronizowane z bieżącym kierunkiem, nadal wymagają kontroli po rozdzieleniu kodu |
+| A0 — odroczenie public API | `spectraevents-api/`, ADR 0005 | usunięcie przedwczesnego modułu public API | decyzja architektoniczna; nie przywracać bez udowodnionego use case'u |
+
+### Bezpieczna kolejność dalszego porządkowania
+
+1. Zachować bieżący zielony punkt kontrolny `./gradlew clean check build`.
+2. Zidentyfikować, które z powyższych pakietów należą do już rozpoczętej pracy użytkownika, a które są nową zmianą do osobnego commitu.
+3. Przy kolejnych zmianach dotykać tylko jednego pakietu na raz.
+4. Dla każdego pakietu uruchamiać jego testy, potem pełną bramkę i dopisywać dowód do dziennika.
+5. Dopiero po stabilizacji E1–E5 przejść do M1 i M2; nie dodawać kolejnych eventów tylko po to, aby zwiększać liczbę funkcji.
+
+Fizyczne rozbijanie istniejących zmian na commity wymaga zachowania ich autorstwa i kontekstu. Nie wykonujemy automatycznego `reset`, `checkout` ani masowego stagingu, ponieważ worktree zawiera zmiany obecne przed bieżącym porządkowaniem.
 
 ### M1 — kontrakt autora eventu
 
@@ -261,7 +286,13 @@ Przy każdej znaczącej zmianie:
 
 | Data | Zakres | Dowód | Wynik | Następny krok |
 | --- | --- | --- | --- | --- |
-| 2026-09-20 | Dependency verification | `./gradlew --write-verification-metadata sha256 :platforms:paper:common:pmdMain` | **PASS** — SHA-256 dodane dla 10 brakujących artefaktów; verification przeszła | Uruchomić pełną bramkę; aktualnie zatrzymuje się na niezależnym PMD `EmptyCatchBlock` w `PaperEntityDeathRouter` |
+| 2026-09-20 | Dependency verification | `./gradlew --write-verification-metadata sha256 :platforms:paper:common:pmdMain` | **PASS** — SHA-256 dodane dla brakujących artefaktów; strict verification pozostaje włączone | Utrzymywać metadata przy kolejnych zmianach zależności |
+| 2026-09-20 | Naprawy jakości po pełnej bramce | `./gradlew :platforms:paper:common:check spotlessJavaCheck` | **PASS** — PMD, SpotBugs, Checkstyle i formatowanie przeszły po poprawkach | Uruchomić pełną bramkę na aktualnym checkoutcie |
+| 2026-09-20 | Pełna bramka aktualnego checkoutu | `./gradlew clean check build` | **PASS** — testy, format, analiza statyczna, granice platform i oba artefakty przeszły; 124 zadania actionable | M0: bezpieczne checkpointy oraz real-server matrix |
+| 2026-09-20 | Paper 26.2 runtime smoke | `./gradlew :distributions:paper:build && python3 scripts/runtime-smoke/runtime_workflow.py --server paper --version 26.2 --artifact distributions/paper/build/libs/SpectraEvents-*-paper.jar` | **PASS** — start, przejście fazy, cleanup, restart/recovery, ponowny cleanup i clean shutdown | Powtórzyć dla pozostałych dostępnych wierszy macierzy |
+| 2026-09-20 | Spigot 26.2 runtime smoke | `./gradlew :distributions:spigot:build && python3 scripts/runtime-smoke/runtime_workflow.py --server spigot --version 26.2 --artifact distributions/spigot/build/libs/SpectraEvents-*-spigot.jar` | **PASS** — start, przejście fazy, cleanup, restart/recovery, ponowny cleanup i clean shutdown | Powtórzyć dla pozostałych dostępnych wierszy macierzy |
+| 2026-09-20 | Poprawka runtime smoke i recovery | `./gradlew clean check build` po poprawkach `READY`, shutdown writer'a, workflow stop oraz kolejności ładowania Paper | **PASS** — 124 zadania actionable; Paper 26.2 przechodzi również restart/recovery bez błędu rejestracji definicji | Zachować jako punkt odniesienia przed kolejnym checkpointem |
+| 2026-09-20 | Synchronizacja dokumentacji | `./gradlew spotlessMarkdownCheck` oraz `git diff --check` | **PASS** — plan, roadmapa i status projektu opisują ten sam kierunek; brak błędów whitespace | M0: zamknąć checkpointy bez naruszania cudzych zmian |
 
 ---
 

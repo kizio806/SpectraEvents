@@ -4,9 +4,9 @@
 [![CodeQL](https://github.com/kizio806/SpectraEvents/actions/workflows/codeql.yml/badge.svg)](https://github.com/kizio806/SpectraEvents/actions/workflows/codeql.yml)
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-blue.svg)](https://opensource.org/licenses/MPL-2.0)
 
-**SpectraEvents Beta Foundation (v0.1.0-beta.1)**
+**SpectraEvents Beta Foundation (v0.1.0-beta.2)**
 
-SpectraEvents is in public Beta. The generic event engine features 100% config-driven execution for Meteor, Airdrop, and Metin, atomic claim logic, damage tracking, transactional YAML reloads, SQLite persistence with restart recovery, an interactive Admin Inventory GUI, native permissions, and an update checker. SpectraEvents provides reusable building blocks that can be combined into completely different experiences.
+SpectraEvents is a data-driven event engine for modern Minecraft servers. YAML definitions compose phases, triggers, conditions and actions; the bundled Meteor, Airdrop and Metin definitions exercise the same generic runtime. The beta includes SQLite-backed lifecycle recovery, native Display/Interaction entities, operator diagnostics, and separate Paper-family and Spigot-family distributions.
 
 > **One engine. Any event.**
 
@@ -14,20 +14,29 @@ SpectraEvents is in public Beta. The generic event engine features 100% config-d
 
 ## Project Status
 
-> **Public Beta (v0.1.0-beta.1)**
+> **Public Beta (v0.1.0-beta.2)**
 
-SpectraEvents is currently in public beta (`v0.1.0-beta.1`).
+SpectraEvents is currently in public beta (`v0.1.0-beta.2`).
 
 APIs, configuration formats, and internal architecture are pre-release and subject to SemVer beta refinement.
 
-The generic event engine features 100% config-driven execution for `Meteor`, `Airdrop`, and `Metin`, atomic claim logic, damage tracking, transactional YAML reloads, SQLite persistence with restart recovery, an interactive Admin Inventory GUI, native permissions, and an update checker.
+Reward claims are durably accepted before delivery and are at-most-once in-process and across a committed restart. A process or host crash between claim commit and the external Minecraft inventory mutation can leave an accepted-but-undelivered reward; `/event doctor` exposes claims for operator reconciliation. The project does not claim impossible exactly-once delivery of an external side effect.
 
 ## Platform Support & Multi-Platform Release Matrix
 
 | Artifact | Target Platform | Compatible Minecraft Versions | Loaders | Status |
 | --- | --- | --- | --- | --- |
-| `SpectraEvents-<version>-paper.jar` | Paper, Purpur, Folia | `26.1.1`, `26.1.2`, `26.2`, `26.3` | `paper`, `purpur`, `folia` | **SUPPORTED / RUNTIME VERIFIED** |
-| `SpectraEvents-<version>-spigot.jar` | Spigot, Bukkit | `26.1.1`, `26.1.2`, `26.2`, `26.3` | `spigot`, `bukkit` | **SUPPORTED / RUNTIME VERIFIED** |
+| `SpectraEvents-<version>-paper.jar` | Paper, Purpur | `26.1`, `26.2`, `26.3` | `paper`, `purpur` | Local runtime workflow passed |
+| `SpectraEvents-<version>-paper.jar` | Folia | `26.1`, `26.2` | `folia` | Local runtime workflow passed; upstream Folia 26.3 is not published |
+| `SpectraEvents-<version>-spigot.jar` | Spigot, CraftBukkit | `26.1`, `26.2`, `26.3` | `spigot`, `bukkit` | Local runtime workflow passed |
+
+Download the Paper JAR for Paper, Purpur or Folia. Download the Spigot JAR for Spigot/CraftBukkit.
+
+**Do not install the Paper JAR on Spigot. Do not install the Spigot JAR on Paper, Purpur or Folia if you need Paper/Folia behavior.**
+
+Every published release must pass its declared runtime workflow. The intended combined Modrinth Paper-family entry remains blocked until an official Folia 26.3 runtime exists and passes; the release workflow deliberately fails that missing row. A source checkout or untagged build is not described as fully release verified merely because it compiles.
+
+Folia does not implement Bukkit scoreboard creation. A scoreboard action therefore logs a clear `unsupported` warning and the event continues without a sidebar; use bossbars for UI shared across Paper, Purpur, and Folia.
 
 ---
 
@@ -91,19 +100,9 @@ The event type should be configuration and assets — not another hardcoded Java
 
 ### 3D Models & Assets
 
-SpectraEvents automatically handles the delivery of 3D models and textures through a seamless Modrinth resource pack integration.
+The runtime can render server-authored model definitions with native Display and Interaction entities. Blockbench import, resource-pack ZIP compilation, Modrinth asset publishing and automatic player delivery are **disabled in this beta** because the repository does not yet produce a verified pack. Asset commands fail closed instead of reporting false success.
 
-```text
-Blockbench
-  → SpectraEvents (Asset Compiler)
-  → Resource Pack ZIP
-  → Modrinth CDN
-  → Minecraft Player
-```
-
-**Server Owners**: You only need to install the `spectraevents.jar`. The official SpectraEvents resource pack is delivered automatically to your players upon joining. You do not need to host or download the resource pack manually!
-
-If you wish to create your own custom 3D models, see the [Asset Pipeline](docs/authoring/asset-pipeline.md) and [Blockbench Authoring Guide](docs/authoring/blockbench.md).
+The [Blockbench Authoring Guide](docs/authoring/blockbench.md) documents the experimental exporter format; it is not a promise of an end-to-end resource-pack pipeline.
 
 ### Planned Features
 
@@ -277,7 +276,6 @@ Minecraft-specific behavior belongs in platform adapters.
 ```text
 spectraevents/
 │
-├── spectraevents-api/
 ├── spectraevents-core/
 ├── spectraevents-paper/
 ├── spectraevents-storage/
@@ -297,76 +295,30 @@ The distributed server plugin will still be provided as a normal `.jar`.
 
 ## Example Event
 
-A future event definition may look similar to:
+A minimal definition accepted by the current strict schema looks like:
 
 ```yaml
-id: meteor
-
-model:
-  id: meteor
-
-spawn:
-  strategy: random-surface
-  world: world
-
+schema-version: "1"
+id: example
+initial-phase: waiting
 phases:
-
-  falling:
+  waiting:
     on-enter:
-      - type: spawn-model
-
-      - type: animation
-        animation: meteor_fall
-
+      - type: broadcast_message
+        message: "<yellow>Event started.</yellow>"
     transitions:
       - trigger:
-          type: animation-finished
-
-        next: impact
-
-  impact:
-    on-enter:
-      - type: animation
-        animation: meteor_impact
-
-      - type: particle
-        preset: massive_explosion
-
-    transitions:
-      - trigger:
-          type: timer
-          duration: 3s
-
-        next: locked
-
-  locked:
-    transitions:
-      - trigger:
-          type: timer
-          duration: 5m
-
-        next: active
-
+          type: timer_elapsed
+          duration: 5s
+        target: active
   active:
-    health:
-      max: 10000
-
-    leaderboard:
-      metric: damage
-
     transitions:
       - trigger:
-          type: health-zero
-
-        next: destroyed
-
-  destroyed:
+          type: manual
+        target: completed
+  completed:
     on-enter:
-      - type: animation
-        animation: meteor_break
-
-      - type: reward
-        table: meteor_rewards
+      - type: complete_event
 ```
 
 ---
