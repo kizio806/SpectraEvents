@@ -180,12 +180,12 @@ Rozdzielenie zmian zostało wykonane z zachowaniem ich kontekstu w ośmiu lokaln
 
 **Cel:** osoba bez Javy potrafi stworzyć bezpieczny event YAML.
 
-- [ ] Spisać stabilny schemat definicji eventu: model, animacje, phases, triggers, conditions, actions, rewards, recovery, cleanup.
+- [x] Spisać stabilny schemat definicji eventu: model, animacje, phases, triggers, conditions, actions, rewards, recovery, cleanup.
 - [x] Każdy błąd walidacji wskazuje plik i ścieżkę YAML, także dla błędów parsera, kompilatora i duplikatów ID.
 - [x] Podpiąć nazwane animacje modeli do wspólnej akcji eventu `play_animation` z filtrowaniem modelu, parametrami playbacku i automatycznym cleanupem.
-- [ ] Dodać minimum trzy kompletne, działające przykłady o różnych mechanikach.
-- [ ] Dodać guide: „skopiuj event → zmień model → validate → reload → start → diagnose”.
-- [ ] Zagwarantować, że running instance zachowuje stary snapshot definicji po reloadzie.
+- [x] Dodać minimum trzy kompletne, działające przykłady o różnych mechanikach.
+- [x] Dodać guide: „skopiuj event → zmień model → validate → reload → start → diagnose”.
+- [x] Zagwarantować, że running instance zachowuje stary snapshot definicji po reloadzie.
 
 ### M2 — profesjonalny pipeline Blockbench i assetów
 
@@ -299,6 +299,7 @@ Przy każdej znaczącej zmianie:
 | 2026-09-20 | Spigot-family runtime matrix | sekwencyjne uruchomienie `scripts/runtime-smoke/runtime_workflow.py` dla Spigot 26.1–26.3 i CraftBukkit 26.1–26.3 | **PASS** — 6/6 dostępnych wierszy: start, faza, cleanup, restart/recovery i clean shutdown | M0 zielone dla dostępnej macierzy; rozpocząć M1 |
 | 2026-09-20 | M1 diagnostic contract | targeted parser/loader tests oraz `./gradlew clean check build` | **PASS** — canonical YAML paths, source-file prefixes, wrong-type diagnostics and bounded parameter validation; 124 zadania actionable | Stabilizować pełny author-facing YAML schema |
 | 2026-09-20 | M1 model animation action | `./gradlew clean check build`; test `ModelAnimationActionServiceTest`; kompilacja Paper/Spigot | **PASS** — model definitions retain executable animation plans; `play_animation` supports model filtering, speed, loop and max-loops; playback is stopped before cleanup; 124 zadania actionable | Dokończyć pełny schemat autora, przykłady oraz M2 importer Blockbench |
+| 2026-09-20 | M1 authoring contract | testy `AuthoringExamplesTest`, `ModelResourceExamplesTest`, `EventExecutionEngineTest`; `./gradlew clean check build`; runtime smoke Paper 26.2 i Spigot 26.2 | **PASS** — stabilny schemat YAML, trzy przykłady, guide autora, snapshot definicji po reloadzie, recovery/cleanup oraz realny runtime na obu artefaktach; dodatkowo naprawiono drain zaakceptowanych zapisów SQLite przy shutdownie | Przejść do M2: bezpieczny importer Blockbench i pipeline resource-pack |
 
 ---
 

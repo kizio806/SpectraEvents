@@ -10,6 +10,10 @@ phases:
       - type: spawn_model
         model: dev_metin_model
         height-offset: 0
+      - type: play_animation
+        model: dev_metin_model
+        animation: pulse
+        loop: LOOP
       - type: broadcast_message
         message: "<gold><bold>[SpectraEvents]</bold> <dark_purple>A powerful Metin Stone has landed!</dark_purple>"
     transitions:

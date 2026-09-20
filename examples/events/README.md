@@ -1,14 +1,17 @@
-# Event Definition Examples
+# Verified Event Examples
 
-**WARNING: DESIGN BLUEPRINTS ONLY**
+`meteor.yml`, `airdrop.yml`, and `metin.yml` are schema-v1 authoring examples. They use the same
+model, animation, phase, trigger, condition, action, reward, recovery, and cleanup contracts as
+server definitions. The shipped resource copies are loaded by automated tests on every build.
 
-The YAML files in this directory are forward-looking design blueprints. They use a richer schema
-than the v1 runtime parser currently accepts (for example `to:`, `when.trigger`, and `components`).
+| File | Main mechanics |
+| :--- | :--- |
+| `meteor.yml` | model + named animation, timer phases, health, mob waves, loot, cleanup |
+| `airdrop.yml` | model + named animation, timed unlock, interaction claim, rewards, UI cleanup |
+| `metin.yml` | model + looping animation, health damage, threshold phases, boss and loot cleanup |
 
-For a working minimal definition and dev workflow, see:
+Copy one of these files, change its `id`, and then follow [Create Your First Event](../../docs/guides/create-your-first-event.md).
 
-- `plugins/SpectraEvents/events/example.yml` (generated on first startup)
-- [Create Your First Event](../guides/create-your-first-event.md)
-
-These blueprints demonstrate how a general-purpose engine can express different event mechanics
-using shared primitives once later schema versions land.
+The remaining files in this directory (`boss-portal.yml`, `pinata.yml`, and `vault.yml`) are
+design drafts for future schema capabilities. They are intentionally not advertised as runnable
+v1 examples until their fields are implemented and tested.

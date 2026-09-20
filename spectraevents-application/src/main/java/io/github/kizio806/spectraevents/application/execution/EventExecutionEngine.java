@@ -46,10 +46,13 @@ public final class EventExecutionEngine {
   private final EventRuntimeStateStore stateStore;
   private final ConcurrentHashMap<EventInstanceId, ReentrantLock> instanceLocks =
       new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<EventInstanceId, EventDefinition> definitionSnapshots =
+      new ConcurrentHashMap<>();
   private static final Set<String> REWARD_ACTION_TYPES = Set.of("give_item", "drop_loot");
   private static final Set<String> RECOVERABLE_RESOURCE_ACTION_TYPES =
       Set.of(
           "spawn_model",
+          "play_animation",
           "move_model",
           "spawn_boss",
           "spawn_entity",
@@ -106,6 +109,7 @@ public final class EventExecutionEngine {
     }
     EventDefinition definition = getDefinition(definitionId);
     EventInstanceId id = EventInstanceId.generate();
+    definitionSnapshots.put(id, definition);
     EventInstance created = EventInstance.create(id, definition.id());
 
     EventLifecycleTransition transition = created.start(definition);
@@ -129,6 +133,19 @@ public final class EventExecutionEngine {
   /** Evaluates an incoming trigger against the current phase of the event instance. */
   public boolean evaluateTrigger(EventInstanceId instanceId, TriggerDefinition trigger) {
     return evaluateTrigger(instanceId, trigger, ExecutionContext.EMPTY);
+  }
+
+  /** Advances a running instance through its first matching manual transition. */
+  public EventInstance triggerManualTransition(EventInstanceId instanceId) {
+    Objects.requireNonNull(instanceId, "instanceId");
+    boolean handled = evaluateTrigger(instanceId, new ConfiguredTriggerDefinition("manual"));
+    if (!handled) {
+      throw new IllegalStateException(
+          "No manual transition is available for event instance " + instanceId);
+    }
+    return repository
+        .findById(instanceId)
+        .orElseThrow(() -> new IllegalStateException("Event instance disappeared: " + instanceId));
   }
 
   /** Evaluates an incoming trigger with execution context. */
@@ -155,7 +172,7 @@ public final class EventExecutionEngine {
       return false;
     }
 
-    EventDefinition definition = getDefinition(instance.definitionId().value());
+    EventDefinition definition = definitionForInstance(instance);
     PhaseId currentPhaseId =
         instance
             .currentPhase()
@@ -332,7 +349,7 @@ public final class EventExecutionEngine {
           long remaining = deadline - System.currentTimeMillis();
           if (remaining < 0) remaining = 0;
 
-          EventDefinition definition = getDefinition(instance.definitionId().value());
+          EventDefinition definition = definitionForInstance(instance);
           PhaseId currentPhaseId = instance.currentPhase().orElse(null);
           if (currentPhaseId != null) {
             PhaseDefinition phaseDef = definition.phase(currentPhaseId).orElse(null);
@@ -369,6 +386,7 @@ public final class EventExecutionEngine {
     platformActionPort.cleanupAll();
     stateStore.clear();
     instanceLocks.clear();
+    definitionSnapshots.clear();
   }
 
   public ExecutionDiagnostics diagnostics(EventInstanceId instanceId) {
@@ -406,7 +424,7 @@ public final class EventExecutionEngine {
     if (currentPhase == null) {
       return;
     }
-    EventDefinition definition = getDefinition(instance.definitionId().value());
+    EventDefinition definition = definitionForInstance(instance);
     PhaseDefinition phase = definition.phase(currentPhase).orElse(null);
     if (phase == null) {
       return;
@@ -430,6 +448,7 @@ public final class EventExecutionEngine {
     scheduler.cancelAll(instanceId);
     platformActionPort.cleanupEvent(instanceId);
     stateStore.remove(instanceId);
+    definitionSnapshots.remove(instanceId);
   }
 
   private boolean executeActions(
@@ -527,7 +546,7 @@ public final class EventExecutionEngine {
           }
 
           if (updated != null) {
-            EventDefinition definition = getDefinition(instance.definitionId().value());
+            EventDefinition definition = definitionForInstance(instance);
             List<Integer> declaredThresholds = new java.util.ArrayList<>();
             if (definition != null && instance.currentPhase().isPresent()) {
               PhaseDefinition phaseDef =
@@ -631,6 +650,12 @@ public final class EventExecutionEngine {
         .map(RegisteredEventDefinition::definition)
         .orElseThrow(
             () -> new IllegalArgumentException("Event definition not registered: " + definitionId));
+  }
+
+  /** Returns the immutable definition captured when an instance started. */
+  private EventDefinition definitionForInstance(EventInstance instance) {
+    return definitionSnapshots.computeIfAbsent(
+        instance.id(), ignored -> getDefinition(instance.definitionId().value()));
   }
 
   private Duration parseDuration(Object obj) {

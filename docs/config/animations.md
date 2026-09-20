@@ -9,22 +9,24 @@ SpectraEvents does not aim to replace full skeletal animation systems. Instead, 
 ```yaml
 animations:
   meteor_spin:
-    length: 20s
-    loop: true
+    duration: 20s
+    loop: LOOP
+    recovery: RESUME
     tracks:
-      - part: main_body
-        property: rotation
-        easing: LINEAR
-        keyframes:
-          - time: 0s
-            value: [0, 0]
-          - time: 20s
-            value: [360, 360]
+      main_body:
+        rotation:
+          - at: 0s
+            value: [0, 0, 0]
+          - at: 20s
+            value: [0, 360, 0]
 ```
 
 ## Properties
-- `property`: Can be `rotation`, `translation` (offset), or `scale`.
-- `easing`: Supported easings include `LINEAR`, `EASE_IN`, `EASE_OUT`, `EASE_IN_OUT`.
+- `duration`: Total animation length, for example `1s` or `500ms`.
+- `loop`: `ONCE`, `LOOP`, or `PING_PONG`.
+- `recovery`: `RESUME`, `RESTART`, or `STOP` after a restart.
+- `tracks`: Map of model part IDs to `translation`, `rotation`, or `scale` keyframes.
+- `at`: Keyframe time. `value` is a three-number vector; rotation values are Euler degrees.
 
 ## Execution
 Animations are triggered explicitly with the `play_animation` action after the model has been

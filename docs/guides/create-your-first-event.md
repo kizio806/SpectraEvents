@@ -1,7 +1,7 @@
 # Create Your First Event
 
-This guide walks through the minimal YAML-backed event definition shipped with SpectraEvents and
-the developer commands used to load and run it.
+This guide walks through the complete author loop: copy a verified event, change its model and
+behavior, validate it, reload it, start it, and diagnose the running instance.
 
 ## Where definitions live
 
@@ -12,6 +12,20 @@ plugins/SpectraEvents/events/
 ```
 
 If the directory is empty, the plugin writes `example.yml` automatically.
+
+## Copy a verified event
+
+Start with one of the shipped v1 examples:
+
+| Example | Demonstrates |
+| :--- | :--- |
+| `meteor.yml` | model spawn, named falling animation, timer phases, health, mobs, loot, cleanup |
+| `airdrop.yml` | timed unlock, interaction claim, rewards, bossbar/scoreboard, cleanup |
+| `metin.yml` | health damage, threshold transitions, mob waves, boss phase, cleanup |
+
+Copy the file from `plugins/SpectraEvents/events/` to a new filename and change its `id`.
+Also copy or edit the referenced model under `plugins/SpectraEvents/models/` so the model ID and
+named animations match.
 
 ## Minimal working definition
 
@@ -46,21 +60,26 @@ Requires permission `spectra.dev`.
 
 | Command | Purpose |
 | :--- | :--- |
-| `/event dev definition list` | Lists loaded definition IDs |
-| `/event dev definition info <id>` | Shows source file, initial phase, and phase count |
-| `/event dev definition validate` | Reloads `events/*.yml` and prints validation diagnostics |
-| `/event dev definition start <id>` | Starts a new instance from a loaded definition |
-| `/event dev event next <instance>` | Fires the first `manual` transition in the current phase |
+| `/event definition list` | Lists loaded definition IDs |
+| `/event definition validate` | Parses files without changing running definitions and prints diagnostics |
+| `/event definition reload` | Atomically registers valid files; invalid files keep their previous version |
+| `/event event start <id>` | Starts a new instance from a loaded definition |
+| `/event event inspect <instance>` | Shows state, persisted runtime state, tasks, and resources |
+| `/event doctor` | Shows diagnostics and integration status |
+
+On Paper, the development command `/eventdebug event next <instance>` advances the first manual
+transition. On Spigot/Bukkit, use `/event event trigger <instance> manual`.
 
 ## Smoke test workflow
 
 1. Start the Paper server with SpectraEvents enabled.
-2. Confirm `plugins/SpectraEvents/events/example.yml` exists.
-3. Run `/event dev definition list` and verify `example` appears.
-4. Run `/event dev definition start example`.
-5. Copy the returned instance UUID.
-6. Run `/event dev event info <instance>` and verify phase `waiting`.
-7. Run `/event dev event next <instance>` and verify phase `active`.
+2. Copy `meteor.yml`, `airdrop.yml`, or `metin.yml` to a new file and change its `id`.
+3. Run `/event definition validate`; fix every `file:path` diagnostic before continuing.
+4. Run `/event definition reload` and verify the result reports the new definition as loaded.
+5. Run `/event event start <id>` and copy the returned instance UUID.
+6. Run `/event event inspect <instance>` and verify the expected initial phase, tasks, and resources.
+7. Trigger the next phase using the Paper or Spigot command above, or wait for its timer.
+8. Complete/cancel the event and inspect it again to confirm cleanup.
 
 ## Config-Driven Meteor Event Example
 
@@ -79,7 +98,10 @@ phases:
       - type: spawn_model
         model: dev_meteor_model
         height-offset: 20
-        animate: true
+      - type: play_animation
+        model: dev_meteor_model
+        animation: fall
+        loop: ONCE
     transitions:
       - trigger:
           type: timer_elapsed

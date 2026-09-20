@@ -24,3 +24,16 @@ interactions:
     parent: crate
     width: 2.0
     height: 2.0
+
+animations:
+  descent:
+    duration: 3s
+    loop: ONCE
+    recovery: RESTART
+    tracks:
+      crate:
+        translation:
+          - at: 0s
+            value: [0.0, 0.0, 0.0]
+          - at: 3s
+            value: [0.0, -2.0, 0.0]

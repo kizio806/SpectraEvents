@@ -138,6 +138,9 @@ public final class EventOrchestrationService {
    * @throws IllegalArgumentException if the ID is invalid or instance is not found
    */
   public EventInstance transitionPhase(String instanceId) {
+    if (executionEngine != null) {
+      return executionEngine.triggerManualTransition(parseInstanceId(instanceId));
+    }
     EventInstance instance = getExistingInstance(instanceId);
     EventDefinition definition = resolveDefinition(instance.definitionId());
 
