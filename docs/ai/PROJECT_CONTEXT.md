@@ -2,11 +2,11 @@
 
 ## Product
 
-SpectraEvents is a professional, modular, data-driven 3D event engine for modern Paper Minecraft
-servers.
+SpectraEvents is a modular, data-driven 3D event engine for modern Paper-family and Spigot-family
+Minecraft servers.
 
-- Primary target: latest supported Paper line
-- Current initial target: Paper 26.2
+- Supported families: Paper/Purpur/Folia and Spigot/CraftBukkit
+- Current compatibility band: Minecraft 26.1, 26.2, and 26.3
 - Platform runtime: Java 25
 - Platform-neutral baseline: Java 21
 
@@ -24,11 +24,13 @@ Trigger / Condition
 Action
 ```
 
-Meteor is not the architecture. Meteor is the first vertical slice that will prove the architecture.
+Meteor, Airdrop, and Metin are bundled definitions that exercise the generic architecture; none of
+them is a separate hardcoded event subsystem.
 
 Future events may include Meteor, Airdrop, Metin, Pinata, Crystal, Vault, Boss Portal, Dragon Egg,
 Seasonal Event, Pirate Treasure, and UFO. Most behavior should be composed from common engine
 primitives rather than implemented as isolated event-specific systems.
 
-The current milestone is foundation only. It intentionally does not implement event definitions,
-models, animation, loot, persistence, integrations, or any event-specific behavior.
+The current milestone hardens two production artifacts, strict definitions, lifecycle cleanup,
+SQLite recovery, claim acceptance, and the real-server release matrix. Resource-pack ZIP generation,
+Blockbench import, asset publishing/delivery, and a public addon API remain deliberately unavailable.

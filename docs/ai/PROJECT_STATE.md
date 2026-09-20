@@ -2,19 +2,17 @@
 
 ## Current Milestone
 
-Resource Pack Integration & Asset Delivery (COMPLETED)
+Two-artifact runtime and release hardening
 
 ## Current Target
 
-Data-driven 3D model engine for Paper and Spigot platform families across Minecraft versions 26.1.1, 26.1.2, 26.2, 26.3.
+Data-driven 3D model engine for Paper and Spigot platform families across Minecraft versions 26.1, 26.2, 26.3.
 
-## Official Asset Workflow
+## Asset Workflow Status
 
-- **Authoring Source**: Assets are strictly authored in Blockbench (`.bbmodel`) and exported via `spectra_exporter.js`.
-- **Generation**: The asset pipeline compiles definitions and generates a full Minecraft resource pack in-memory.
-- **Distribution**: Official visual packs are published to the `SpectraEvents Assets` project on Modrinth.
-- **Delivery**: The SpectraEvents server resolves the Modrinth pack for the correct MC version and caches the exact descriptor. Players receive the pack prompt natively.
-- **Official vs Custom**: Custom servers host their own asset packs using `ManualUrlResourcePackSource`.
+- Native server-side model definitions and Display/Interaction rendering are active.
+- Blockbench import, resource-pack ZIP generation, Modrinth asset publishing, and automatic player delivery are disabled and fail closed.
+- The next asset milestone must produce and validate a real ZIP before any delivery claim is restored.
 
 ## Completed
 
@@ -23,13 +21,13 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
 - [x] Event Runtime Kernel & Phase Model
 - [x] Three full event vertical slices built and migrated to 100% config-driven execution: Meteor, Airdrop, Metin.
 - [x] All hardcoded dev coordinators removed.
-- [x] Generic `EventExecutionEngine` stabilized with atomic claims (`try_claim`), damage tracking (`apply_damage`), health thresholds (`health_threshold_crossed`), entity death routing (`entity_death`), item rewards (`give_item`), and boss spawning (`spawn_boss`).
+- [x] Generic `EventExecutionEngine` with engine-owned durable at-most-once claim acceptance, damage tracking (`apply_damage`), health thresholds (`health_threshold_crossed`), entity death routing (`entity_death`), item rewards (`give_item`), and boss spawning (`spawn_boss`). External delivery remains crash-ambiguous and requires operator reconciliation.
 - [x] Decoupled platform-neutral infrastructure: `adapters/storage-sqlite` and `adapters/update-http` created with zero Bukkit/Minecraft dependencies.
 - [x] Refactored package boundaries:
   - Core: `io.github.kizio806.spectraevents.core.event.runtime`, `io.github.kizio806.spectraevents.core.event.lifecycle`, `io.github.kizio806.spectraevents.core.visual.model`, `io.github.kizio806.spectraevents.core.gameplay.contribution`.
   - Application: `io.github.kizio806.spectraevents.application.config.spec`, `io.github.kizio806.spectraevents.application.config.compiled`, `io.github.kizio806.spectraevents.application.config.loader`.
-- [x] Platform family layout created: `platforms/paper/common` and `platforms/paper/v26_2`.
-- [x] Purpur and Folia aligned as native Paper platform family targets (using Paper distribution and RegionTaskScheduler).
+- [x] Platform family layout created: `platforms/paper/common` and `platforms/spigot/common`, with separate `distributions/paper` and `distributions/spigot` artifacts.
+- [x] Purpur and Folia aligned as Paper-family targets using the Paper distribution and region/entity schedulers; Folia's unsupported Bukkit scoreboard API is surfaced as an explicit capability warning.
 - [x] Decomposed command tree (`SpectraMainCommand`, `EventCommandHandler`, `DefinitionCommandHandler`, `UpdateCommandHandler`, `DiagnosticsCommandHandler`, `IntegrationCommandHandler`, `SpectraDebugCommand`, `ModelCommandHandler`).
 - [x] Decomposed Admin GUI (`AdminGuiController`, `MainScreen`, `ActiveEventsScreen`, `DefinitionsScreen`, `IntegrationsScreen`, `UpdatesScreen`).
 - [x] Composition Root extracted into `PaperBootstrap.java` so plugin entrypoint `SpectraEventsPlugin.java` is a thin wrapper.
@@ -37,9 +35,9 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
 - [x] Comprehensive 40-point architecture and platform compatibility audit completed and verified.
 - [x] Production Load Testing & Persistence Hardening:
   - SQLite backend fortified with Single-Writer Persistence Executor and WAL mode.
-  - Event Runtime State is fully synchronized with SQLite for zero-data-loss crash recovery.
+  - Event runtime state and initial instance state are durably persisted through the single writer; external Minecraft side effects cannot be made transactionally exactly-once with SQLite.
   - Demonstrated full correctness under intense concurrent load via `SQLiteConcurrencyBenchmarkTest` and `AirdropClaimRaceTest`.
-  - Thorough Folia threading model audit confirms correctness (`GlobalRegionScheduler` for timers, `RegionScheduler`/`EntityScheduler` for actions).
+  - Platform actions use `GlobalRegionScheduler`, `RegionScheduler`, and `EntityScheduler` according to ownership; release claims remain gated by the real-server matrix.
 - [x] Production Hardening & Integrations:
   - Added full dynamic integration resolver via `IntegrationRegistry`.
   - Integrated Optional dependencies: `LuckPerms`, `WorldGuard`, `Vault`, `PlaceholderAPI`, `MiniPlaceholders`.
@@ -52,7 +50,7 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
   - Paper artifact (`SpectraEvents-<version>-paper.jar`) supports Paper, Purpur, and Folia.
   - Spigot artifact (`SpectraEvents-<version>-spigot.jar`) supports Spigot and Bukkit-compatible servers.
   - Sponge: NOT SUPPORTED, NO ADAPTER, NO ARTIFACT, NO RELEASE. Completely removed per product decision.
-  - Verified 26.1.1 – 26.3 compatibility band for Paper and Spigot.
+  - Release workflow targets the 26.1–26.3 compatibility band and must block publication unless its real-server matrix passes.
   - Configured multi-artifact release pipeline with separate Modrinth versions (`-paper`, `-spigot`) and SHA-256 verification.
 - [x] Professional 3D Model Runtime:
   - Built platform-neutral domain model & math primitives (`Vector3`, `Quaternion`, `EulerRotation`, `ModelTransform`, `ModelDefinition`, `ModelPartDefinition`, `InteractionDefinition`).
@@ -73,18 +71,19 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
 
 ## In Progress
 
-- Next milestone preparation.
+- Release hardening is code-complete for the available runtime matrix.
+- Publication remains blocked: Paper/Folia's official catalog has no Folia 26.3 server build, so the required 15-row release matrix is currently 14 passed and 1 externally unavailable.
 
 ## Next Planned Milestone
 
-Resource-Pack Integration & Model Importer Engine (Blockbench JSON importer, item predicate mapping, custom item model assembly).
+Resource-Pack Integration & Model Importer Engine (real ZIP output, hostile-input limits, item predicate mapping, custom item model assembly, and player-delivery tests).
 
 ## Important Active Decisions
 
 - Official platform scope is strictly limited to Paper Family (Paper, Purpur, Folia) and Spigot Family (Spigot, Bukkit).
 - Sponge is NOT supported; all Sponge modules, artifacts, and release tasks are removed.
 - Dependency direction is strictly `platform -> application -> core`.
-- Core, application, and public API have zero Bukkit, Paper, NMS, or CraftBukkit dependencies.
+- Core and application have zero Bukkit, Paper, NMS, or CraftBukkit dependencies. The premature empty public API module was removed by ADR 0005.
 - Infrastructure (SQLite storage, HTTP update client) resides in platform-neutral `adapters/*` modules.
 - Concrete platform implementations are prefixed by their family name (e.g., `PaperActionAdapter`).
 - Purpur and Folia use the Paper distribution without duplicate adapter code.
@@ -93,4 +92,4 @@ Resource-Pack Integration & Model Importer Engine (Blockbench JSON importer, ite
 
 ## Last Updated
 
-2026-09-17
+2026-09-20

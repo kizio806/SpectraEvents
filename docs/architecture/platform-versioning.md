@@ -26,7 +26,7 @@ When a new minor or patch version of Minecraft is released:
 1. **DO NOTHING to Module Structure by Default**: Do NOT duplicate modules or create `v26_4`.
 2. **Add Candidate Version**: Add `26.4` to candidate metadata in `gradle.properties` / `compatibility.versions.toml`.
 3. **Build & Static Verification**: Compile against current baseline (`26.1`).
-4. **Runtime Smoke Verification**: Boot Paper/Spigot runtime smoke tests on `26.4`.
+4. **Runtime Workflow Verification**: Run start, phase transition, cleanup, restart, and recovery on every declared Paper, Purpur, Folia, Spigot, and CraftBukkit row for `26.1`, `26.2`, and `26.3`.
 5. **If Tests Pass**: Update supported metadata list. The SAME public JAR serves `26.4`.
 6. **If API Incompatibility Discovered**:
    - Determine if a narrow adapter or capability query solves it.
