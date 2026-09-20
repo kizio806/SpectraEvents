@@ -18,14 +18,14 @@ This roadmap is aligned with [`PROJECT_MASTER_PLAN.md`](../../PROJECT_MASTER_PLA
 
 ## M0 — quality and change-set baseline
 
-**Status: in progress.**
+**Status: complete for all currently available runtime rows.**
 
 - [x] Restore strict dependency verification with SHA-256 metadata.
 - [x] Run `./gradlew clean check build` successfully on the current checkout.
 - [x] Verify platform boundaries and both distribution artifacts.
 - [x] Inventory the large pre-existing worktree and classify it into coherent packages.
 - [x] Create eight safe local checkpoints for the mixed worktree without staging unrelated user changes or pushing them.
-- [ ] Re-run the remaining Spigot/CraftBukkit rows of the real-server matrix after the current change set is assigned to release checkpoints.
+- [x] Re-run the available Paper, Purpur, Folia, Spigot, and CraftBukkit rows of the real-server matrix after the current change set was assigned to release checkpoints.
 
 The current full build is green, but publication remains separate from compilation. The declared Folia 26.3 row is unavailable until an official upstream server build exists.
 
@@ -65,7 +65,7 @@ The current full build is green, but publication remains separate from compilati
 
 **Goal:** server operators know exactly which artifact and version combination is supported.
 
-- [ ] Complete the real-server matrix for every declared Paper, Purpur, Folia, Spigot, and CraftBukkit row that is available. The available Paper-family rows are now verified; Spigot-family rows remain.
+- [x] Complete the real-server matrix for every declared Paper, Purpur, Folia, Spigot, and CraftBukkit row that is available: 14/14 PASS. Folia 26.3 remains unavailable upstream.
 - [ ] Keep publication blocked for required rows that have not passed.
 - [ ] Verify upgrade, restart, recovery, cleanup, checksums, manifests, and release notes.
 - [ ] Document SQLite backup/recovery and manual reconciliation of accepted-but-undelivered external effects.
@@ -85,4 +85,4 @@ SpectraEvents will not become a custom mob engine, region-protection replacement
 
 ## Current next action
 
-Finish the remaining available real-server verification rows. After that, start M1 by stabilizing the author-facing event definition contract; do not begin another large feature before the contract and verification evidence are synchronized.
+Start M1 by stabilizing the author-facing event definition contract; do not begin another large feature before the contract and verification evidence are synchronized.

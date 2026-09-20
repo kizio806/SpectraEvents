@@ -72,11 +72,12 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
 ## In Progress
 
 - Paper-family runtime hardening is verified for all 8 available rows: Paper 26.1–26.3, Purpur 26.1–26.3, and Folia 26.1–26.2.
-- Publication remains blocked: Spigot/CraftBukkit rows still require verification, and Paper/Folia's official catalog has no Folia 26.3 server build.
+- All 14 available Paper-family and Spigot-family runtime rows now pass lifecycle, cleanup, and restart/recovery verification.
+- Publication remains blocked only by the required Folia 26.3 row, for which no upstream server build is available.
 
 ## Next Planned Milestone
 
-Resource-Pack Integration & Model Importer Engine (real ZIP output, hostile-input limits, item predicate mapping, custom item model assembly, and player-delivery tests).
+Authoring Contract for Custom Events (stable YAML schema, validation diagnostics, reload behavior, and complete administrator examples).
 
 ## Important Active Decisions
 
