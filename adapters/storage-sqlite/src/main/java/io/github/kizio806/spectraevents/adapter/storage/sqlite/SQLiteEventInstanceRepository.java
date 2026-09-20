@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.adapter.storage.sqlite;
 
+import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
@@ -28,10 +29,10 @@ import java.util.logging.Logger;
  * Fully platform-neutral, depending only on Java SQL APIs and SpectraEvents domain ports.
  * Implements a Single-Writer Persistent Connection design to maximize concurrency.
  */
+@SuppressWarnings("PMD.AvoidCatchingGenericException")
 public final class SQLiteEventInstanceRepository implements EventInstanceRepository {
   private static final Logger LOGGER =
       Logger.getLogger(SQLiteEventInstanceRepository.class.getName());
-  private static final int CURRENT_SCHEMA_VERSION = 4;
 
   private final Path dbPath;
   private final Map<EventInstanceId, EventInstance> cache = new ConcurrentHashMap<>();
@@ -44,10 +45,12 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
   public SQLiteEventInstanceRepository(Path dbPath) {
     this.dbPath = dbPath;
     this.jdbcUrl = "jdbc:sqlite:" + dbPath.toAbsolutePath();
-    if (dbPath.getParent() != null) {
+    Path parent = dbPath.getParent();
+    if (parent != null) {
       try {
-        java.nio.file.Files.createDirectories(dbPath.getParent());
-      } catch (java.io.IOException ignored) {
+        java.nio.file.Files.createDirectories(parent);
+      } catch (java.io.IOException e) {
+        throw new java.io.UncheckedIOException(e);
       }
     }
   }
@@ -89,13 +92,15 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
             );
             """);
 
-        ResultSet rs = stmt.executeQuery("SELECT MAX(version) FROM spectra_schema_version");
         int currentVer = 0;
-        if (rs.next()) {
-          currentVer = rs.getInt(1);
+        try (ResultSet rs = stmt.executeQuery("SELECT MAX(version) FROM spectra_schema_version")) {
+          if (rs.next()) {
+            currentVer = rs.getInt(1);
+          }
         }
 
-        if (currentVer < 2) {
+        final int v2 = 2;
+        if (currentVer < v2) {
           stmt.execute(
               """
               CREATE TABLE IF NOT EXISTS spectra_instance_state (
@@ -112,17 +117,14 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
           stmt.executeUpdate("INSERT OR REPLACE INTO spectra_schema_version (version) VALUES (2);");
         }
 
-        if (currentVer < 3) {
-          if (currentVer > 0) { // If it was already created but < 3
-            stmt.execute("ALTER TABLE spectra_instance_state ADD COLUMN timer_deadline INTEGER;");
-          } else { // Fresh DB, we need to alter it because we created it without timer_deadline
-            // just above
-            stmt.execute("ALTER TABLE spectra_instance_state ADD COLUMN timer_deadline INTEGER;");
-          }
+        final int v3 = 3;
+        if (currentVer < v3) {
+          stmt.execute("ALTER TABLE spectra_instance_state ADD COLUMN timer_deadline INTEGER;");
           stmt.executeUpdate("INSERT OR REPLACE INTO spectra_schema_version (version) VALUES (3);");
         }
 
-        if (currentVer < 4) {
+        final int v4 = 4;
+        if (currentVer < v4) {
           stmt.execute(
               """
               CREATE TABLE IF NOT EXISTS spectra_active_animations (
@@ -157,12 +159,20 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
           "SQLite storage initialized at " + dbPath + " (Loaded " + cache.size() + " instances)");
     } catch (SQLException e) {
       LOGGER.log(Level.SEVERE, "Failed to initialize SQLite storage: " + e.getMessage(), e);
+      shutdown();
+      throw new IllegalStateException("Failed to initialize SQLite storage", e);
     }
   }
 
   public void shutdown() {
     if (executor != null) {
-      executor.shutdown();
+      try {
+        executor.shutdown();
+      } catch (RuntimeException exception) {
+        LOGGER.log(
+            Level.SEVERE, "Persistence writes did not drain; keeping SQLite open", exception);
+        return;
+      }
     }
     if (writerConnection != null) {
       try {
@@ -171,6 +181,11 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
         LOGGER.log(Level.WARNING, "Failed to close persistent connection", e);
       }
     }
+  }
+
+  @Override
+  public void close() {
+    shutdown();
   }
 
   private Connection getConnection() throws SQLException {
@@ -235,7 +250,10 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
 
           String platformLocation = rs.getString("platform_location");
           if (platformLocation != null) {
-            state.setPlatformLocation(platformLocation);
+            state.setPlatformLocation(
+                EventLocation.deserialize(platformLocation)
+                    .<Object>map(location -> location)
+                    .orElse(platformLocation));
           }
 
           String bossEntityId = rs.getString("boss_entity_id");
@@ -256,7 +274,42 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
   @Override
   public void save(EventInstance eventInstance) {
     cache.put(eventInstance.id(), eventInstance);
+    executor.enqueue(() -> persistInstance(eventInstance, true));
+  }
 
+  @Override
+  public void saveState(EventRuntimeState state) {
+    stateCache.put(state.instanceId(), state);
+    StateSnapshot snapshot = snapshot(state);
+    executor.enqueue(() -> persistState(snapshot, true));
+  }
+
+  @Override
+  public void saveStateDurably(EventRuntimeState state) {
+    stateCache.put(state.instanceId(), state);
+    StateSnapshot snapshot = snapshot(state);
+    executor.executeAndWait(() -> persistState(snapshot, true));
+  }
+
+  @Override
+  public void saveWithStateDurably(EventInstance eventInstance, EventRuntimeState state) {
+    cache.put(eventInstance.id(), eventInstance);
+    stateCache.put(state.instanceId(), state);
+    StateSnapshot snapshot = snapshot(state);
+    executor.executeAndWait(
+        () -> {
+          try {
+            persistInstance(eventInstance, false);
+            persistState(snapshot, false);
+            commitOrThrow();
+          } catch (RuntimeException exception) {
+            rollbackQuietly();
+            throw exception;
+          }
+        });
+  }
+
+  private void persistInstance(EventInstance eventInstance, boolean commit) {
     String sql =
         """
         INSERT INTO spectra_instances (instance_id, definition_id, state, phase, created_at, last_updated)
@@ -266,38 +319,25 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
           phase = excluded.phase,
           last_updated = excluded.last_updated;
         """;
-
     long now = System.currentTimeMillis();
-    String instanceIdStr = eventInstance.id().toString();
-    String defIdStr = eventInstance.definitionId().value();
-    String stateStr = eventInstance.state().name();
-    String phaseStr = eventInstance.currentPhase().map(PhaseId::value).orElse(null);
-
-    executor.enqueue(
-        () -> {
-          try (PreparedStatement stmt = writerConnection.prepareStatement(sql)) {
-            stmt.setString(1, instanceIdStr);
-            stmt.setString(2, defIdStr);
-            stmt.setString(3, stateStr);
-            stmt.setString(4, phaseStr);
-            stmt.setLong(5, now);
-            stmt.setLong(6, now);
-            stmt.executeUpdate();
-            writerConnection.commit();
-          } catch (SQLException e) {
-            try {
-              writerConnection.rollback();
-            } catch (SQLException ignored) {
-            }
-            LOGGER.log(Level.SEVERE, "Failed to save instance to DB: " + e.getMessage(), e);
-          }
-        });
+    try (PreparedStatement stmt = writerConnection.prepareStatement(sql)) {
+      stmt.setString(1, eventInstance.id().toString());
+      stmt.setString(2, eventInstance.definitionId().value());
+      stmt.setString(3, eventInstance.state().name());
+      stmt.setString(4, eventInstance.currentPhase().map(PhaseId::value).orElse(null));
+      stmt.setLong(5, now);
+      stmt.setLong(6, now);
+      stmt.executeUpdate();
+      if (commit) {
+        writerConnection.commit();
+      }
+    } catch (SQLException exception) {
+      rollbackQuietly();
+      throw new IllegalStateException("Failed to save event instance", exception);
+    }
   }
 
-  @Override
-  public void saveState(EventRuntimeState state) {
-    stateCache.put(state.instanceId(), state);
-
+  private void persistState(StateSnapshot state, boolean commit) {
     String sql =
         """
         INSERT INTO spectra_instance_state (instance_id, health_current, health_max, locked_until, claimant, platform_location, boss_entity_id, timer_deadline, last_updated)
@@ -312,47 +352,90 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
           timer_deadline = excluded.timer_deadline,
           last_updated = excluded.last_updated;
         """;
-
-    long now = System.currentTimeMillis();
-    String instanceIdStr = state.instanceId().toString();
-    Integer healthCur = state.health().map(Health::current).orElse(null);
-    Integer healthMax = state.health().map(Health::max).orElse(null);
-    Long lockedUntil = state.lockedUntilMillis() > 0 ? state.lockedUntilMillis() : null;
-    Long timerDeadline = state.timerDeadlineMillis() > 0 ? state.timerDeadlineMillis() : null;
-    String claimant = state.claimant().orElse(null);
-    String platformLocation = state.platformLocation().map(Object::toString).orElse(null);
-    String bossEntityId = state.bossEntityId().map(Object::toString).orElse(null);
-
-    executor.enqueue(
-        () -> {
-          try (PreparedStatement stmt = writerConnection.prepareStatement(sql)) {
-            stmt.setString(1, instanceIdStr);
-            if (healthCur != null) stmt.setInt(2, healthCur);
-            else stmt.setNull(2, java.sql.Types.INTEGER);
-            if (healthMax != null) stmt.setInt(3, healthMax);
-            else stmt.setNull(3, java.sql.Types.INTEGER);
-            if (lockedUntil != null) stmt.setLong(4, lockedUntil);
-            else stmt.setNull(4, java.sql.Types.INTEGER);
-            if (claimant != null) stmt.setString(5, claimant);
-            else stmt.setNull(5, java.sql.Types.VARCHAR);
-            if (platformLocation != null) stmt.setString(6, platformLocation);
-            else stmt.setNull(6, java.sql.Types.VARCHAR);
-            if (bossEntityId != null) stmt.setString(7, bossEntityId);
-            else stmt.setNull(7, java.sql.Types.VARCHAR);
-            if (timerDeadline != null) stmt.setLong(8, timerDeadline);
-            else stmt.setNull(8, java.sql.Types.INTEGER);
-            stmt.setLong(9, now);
-            stmt.executeUpdate();
-            writerConnection.commit();
-          } catch (SQLException e) {
-            try {
-              writerConnection.rollback();
-            } catch (SQLException ignored) {
-            }
-            LOGGER.log(Level.SEVERE, "Failed to save state to DB: " + e.getMessage(), e);
-          }
-        });
+    try (PreparedStatement stmt = writerConnection.prepareStatement(sql)) {
+      stmt.setString(1, state.instanceId());
+      setNullableInteger(stmt, 2, state.healthCurrent());
+      setNullableInteger(stmt, 3, state.healthMaximum());
+      setNullableLong(stmt, 4, state.lockedUntil());
+      stmt.setString(5, state.claimant());
+      stmt.setString(6, state.platformLocation());
+      stmt.setString(7, state.bossEntityId());
+      setNullableLong(stmt, 8, state.timerDeadline());
+      stmt.setLong(9, state.updatedAt());
+      stmt.executeUpdate();
+      if (commit) {
+        writerConnection.commit();
+      }
+    } catch (SQLException exception) {
+      rollbackQuietly();
+      throw new IllegalStateException("Failed to save event runtime state", exception);
+    }
   }
+
+  private StateSnapshot snapshot(EventRuntimeState state) {
+    return new StateSnapshot(
+        state.instanceId().toString(),
+        state.health().map(Health::current).orElse(null),
+        state.health().map(Health::max).orElse(null),
+        state.lockedUntilMillis() > 0 ? state.lockedUntilMillis() : null,
+        state.claimant().orElse(null),
+        state
+            .platformLocation()
+            .map(
+                location ->
+                    location instanceof EventLocation eventLocation
+                        ? eventLocation.serialize()
+                        : location.toString())
+            .orElse(null),
+        state.bossEntityId().map(Object::toString).orElse(null),
+        state.timerDeadlineMillis() > 0 ? state.timerDeadlineMillis() : null,
+        System.currentTimeMillis());
+  }
+
+  private void setNullableInteger(PreparedStatement statement, int index, Integer value)
+      throws SQLException {
+    if (value == null) {
+      statement.setNull(index, java.sql.Types.INTEGER);
+    } else {
+      statement.setInt(index, value);
+    }
+  }
+
+  private void setNullableLong(PreparedStatement statement, int index, Long value)
+      throws SQLException {
+    if (value == null) {
+      statement.setNull(index, java.sql.Types.BIGINT);
+    } else {
+      statement.setLong(index, value);
+    }
+  }
+
+  private void rollbackQuietly() {
+    try {
+      writerConnection.rollback();
+    } catch (SQLException ignored) {
+      // Preserve the original persistence failure.
+    }
+  }
+
+  private void commitOrThrow() {
+    try {
+      writerConnection.commit();
+    } catch (SQLException exception) {
+      throw new IllegalStateException("Failed to commit SQLite transaction", exception);
+    }
+  }
+
+  private record StateSnapshot(
+      String instanceId,
+      Integer healthCurrent,
+      Integer healthMaximum,
+      Long lockedUntil,
+      String claimant,
+      String platformLocation,
+      String bossEntityId,
+      Long timerDeadline,
+      long updatedAt) {}
 
   @Override
   public Optional<EventRuntimeState> findState(EventInstanceId eventInstanceId) {
@@ -391,7 +474,8 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
             } catch (SQLException e) {
               try {
                 writerConnection.rollback();
-              } catch (SQLException ignored) {
+              } catch (SQLException e2) {
+                LOGGER.log(Level.WARNING, "Failed to rollback: " + e2.getMessage(), e2);
               }
               LOGGER.log(Level.SEVERE, "Failed to remove instance from DB: " + e.getMessage(), e);
             }

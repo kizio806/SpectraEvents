@@ -2,6 +2,8 @@ package io.github.kizio806.spectraevents.adapter.storage.sqlite;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -38,7 +40,7 @@ public class SingleWriterPersistenceExecutor {
 
   public void enqueue(Runnable writeOperation) {
     if (!running.get()) {
-      return;
+      throw new IllegalStateException("Persistence writer is not accepting writes");
     }
     if (!queue.offer(writeOperation)) {
       LOGGER.warning("Persistence queue full! Blocking until space is available.");
@@ -46,6 +48,7 @@ public class SingleWriterPersistenceExecutor {
         queue.put(writeOperation); // Backpressure
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+        throw new IllegalStateException("Interrupted while enqueueing persistence write", e);
       }
     }
     long depth = queue.size();
@@ -54,6 +57,35 @@ public class SingleWriterPersistenceExecutor {
     }
   }
 
+  /** Executes a write on the single writer thread and waits for its actual result. */
+  @SuppressWarnings("PMD.AvoidCatchingGenericException")
+  public void executeAndWait(Runnable writeOperation) {
+    if (Thread.currentThread().equals(workerThread)) {
+      writeOperation.run();
+      return;
+    }
+    CompletableFuture<Void> completion = new CompletableFuture<>();
+    enqueue(
+        () -> {
+          try {
+            writeOperation.run();
+            completion.complete(null);
+          } catch (RuntimeException exception) {
+            completion.completeExceptionally(exception);
+          }
+        });
+    try {
+      completion.join();
+    } catch (CompletionException exception) {
+      Throwable cause = exception.getCause();
+      if (cause instanceof RuntimeException runtimeException) {
+        throw runtimeException;
+      }
+      throw new IllegalStateException("Persistence write failed", cause);
+    }
+  }
+
+  @SuppressWarnings("PMD.AvoidCatchingGenericException")
   private void runLoop() {
     while (running.get() || !queue.isEmpty()) {
       try {
@@ -74,11 +106,19 @@ public class SingleWriterPersistenceExecutor {
   }
 
   public void shutdown() {
-    running.set(false);
+    if (!running.compareAndSet(true, false)) {
+      return;
+    }
+    workerThread.interrupt();
     try {
-      workerThread.join(10000); // wait max 10 seconds for flush
+      workerThread.join(15000);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
+      throw new IllegalStateException("Interrupted while draining persistence writes", e);
+    }
+    if (workerThread.isAlive()) {
+      throw new IllegalStateException(
+          "Persistence writer did not drain within 15 seconds; connection remains open");
     }
   }
 
