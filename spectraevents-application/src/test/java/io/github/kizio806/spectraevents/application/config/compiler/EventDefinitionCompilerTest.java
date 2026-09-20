@@ -85,7 +85,7 @@ class EventDefinitionCompilerTest {
     assertFalse(diagnostics.isEmpty());
     assertTrue(
         diagnostics.stream()
-            .anyMatch(d -> d.code().equals("SE-DEF-003") && d.path().equals("initialPhase")));
+            .anyMatch(d -> d.code().equals("SE-DEF-003") && d.path().equals("initial-phase")));
   }
 
   @Test
@@ -107,6 +107,6 @@ class EventDefinitionCompilerTest {
             .anyMatch(
                 d ->
                     d.code().equals("SE-DEF-005")
-                        && d.path().equals("phases.falling.allowedTransitions")));
+                        && d.path().equals("phases.falling.transitions")));
   }
 }

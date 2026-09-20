@@ -181,7 +181,7 @@ Rozdzielenie zmian zostało wykonane z zachowaniem ich kontekstu w ośmiu lokaln
 **Cel:** osoba bez Javy potrafi stworzyć bezpieczny event YAML.
 
 - [ ] Spisać stabilny schemat definicji eventu: model, animacje, phases, triggers, conditions, actions, rewards, recovery, cleanup.
-- [ ] Każdy błąd walidacji wskazuje plik i ścieżkę YAML.
+- [x] Każdy błąd walidacji wskazuje plik i ścieżkę YAML, także dla błędów parsera, kompilatora i duplikatów ID.
 - [ ] Dodać minimum trzy kompletne, działające przykłady o różnych mechanikach.
 - [ ] Dodać guide: „skopiuj event → zmień model → validate → reload → start → diagnose”.
 - [ ] Zagwarantować, że running instance zachowuje stary snapshot definicji po reloadzie.
@@ -296,6 +296,7 @@ Przy każdej znaczącej zmianie:
 | 2026-09-20 | Lokalne checkpointy M0 | `git log --oneline -8` oraz `git status --short` | **PASS** — osiem spójnych commitów zapisanych lokalnie, worktree czysty, bez pushu | Dokończyć pozostałe dostępne wiersze real-server matrix |
 | 2026-09-20 | Paper-family runtime matrix | sekwencyjne uruchomienie `scripts/runtime-smoke/runtime_workflow.py` dla Paper 26.1–26.3, Purpur 26.1–26.3 i Folia 26.1–26.2 | **PASS** — 8/8 dostępnych wierszy: start, faza, cleanup, restart/recovery i clean shutdown; Folia 26.3 bez dostępnego buildu upstream | Przejść do Spigot/CraftBukkit 26.1–26.3 |
 | 2026-09-20 | Spigot-family runtime matrix | sekwencyjne uruchomienie `scripts/runtime-smoke/runtime_workflow.py` dla Spigot 26.1–26.3 i CraftBukkit 26.1–26.3 | **PASS** — 6/6 dostępnych wierszy: start, faza, cleanup, restart/recovery i clean shutdown | M0 zielone dla dostępnej macierzy; rozpocząć M1 |
+| 2026-09-20 | M1 diagnostic contract | targeted parser/loader tests oraz `./gradlew clean check build` | **PASS** — canonical YAML paths, source-file prefixes, wrong-type diagnostics and bounded parameter validation; 124 zadania actionable | Stabilizować pełny author-facing YAML schema |
 
 ---
 

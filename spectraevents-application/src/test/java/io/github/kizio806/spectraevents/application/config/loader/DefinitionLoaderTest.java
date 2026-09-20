@@ -85,6 +85,31 @@ class DefinitionLoaderTest {
     assertTrue(
         result.failures().get(0).diagnostics().stream()
             .anyMatch(d -> d.code().equals("SE-REG-001")));
+    assertTrue(
+        result.failures().get(0).diagnostics().stream()
+            .anyMatch(d -> d.path().equals("events/duplicate.yml:id")));
+  }
+
+  @Test
+  void prefixesCompilerDiagnosticsWithSourceFile() {
+    String invalidYaml =
+        """
+        schema-version: 1
+        id: invalid
+        initial-phase: missing
+        phases:
+          active: {}
+        """;
+
+    DefinitionLoadResult result = loader.load(Map.of("events/invalid.yml", invalidYaml));
+
+    assertEquals(1, result.failures().size());
+    assertTrue(
+        result.failures().get(0).diagnostics().stream()
+            .anyMatch(
+                diagnostic ->
+                    diagnostic.code().equals("SE-DEF-003")
+                        && diagnostic.path().equals("events/invalid.yml:initial-phase")));
   }
 
   @Test

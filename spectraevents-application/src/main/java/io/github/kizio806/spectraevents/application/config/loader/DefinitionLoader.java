@@ -5,6 +5,7 @@ import io.github.kizio806.spectraevents.application.config.compiler.EventDefinit
 import io.github.kizio806.spectraevents.application.config.registry.DuplicateEventDefinitionException;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.registry.RegisteredEventDefinition;
+import io.github.kizio806.spectraevents.application.config.validation.ValidationDiagnostic;
 import io.github.kizio806.spectraevents.application.config.yaml.EventSpecYamlParser;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import java.util.ArrayList;
@@ -48,9 +49,13 @@ public final class DefinitionLoader {
         registry.register(definition, sourceFile);
         loaded.add(new RegisteredEventDefinition(definition, sourceFile));
       } catch (EventDefinitionCompilerException ex) {
-        failures.add(new DefinitionLoadResult.SourceFileFailure(sourceFile, ex.getDiagnostics()));
+        failures.add(
+            new DefinitionLoadResult.SourceFileFailure(
+                sourceFile, qualifyDiagnostics(sourceFile, ex.getDiagnostics())));
       } catch (DuplicateEventDefinitionException ex) {
-        failures.add(new DefinitionLoadResult.SourceFileFailure(sourceFile, ex.diagnostics()));
+        failures.add(
+            new DefinitionLoadResult.SourceFileFailure(
+                sourceFile, qualifyDiagnostics(sourceFile, ex.diagnostics())));
       }
     }
 
@@ -79,9 +84,13 @@ public final class DefinitionLoader {
         registry.registerOrUpdate(definition, sourceFile);
         loaded.add(new RegisteredEventDefinition(definition, sourceFile));
       } catch (EventDefinitionCompilerException ex) {
-        failures.add(new DefinitionLoadResult.SourceFileFailure(sourceFile, ex.getDiagnostics()));
+        failures.add(
+            new DefinitionLoadResult.SourceFileFailure(
+                sourceFile, qualifyDiagnostics(sourceFile, ex.getDiagnostics())));
       } catch (DuplicateEventDefinitionException ex) {
-        failures.add(new DefinitionLoadResult.SourceFileFailure(sourceFile, ex.diagnostics()));
+        failures.add(
+            new DefinitionLoadResult.SourceFileFailure(
+                sourceFile, qualifyDiagnostics(sourceFile, ex.diagnostics())));
       }
     }
 
@@ -110,5 +119,21 @@ public final class DefinitionLoader {
 
   public EventDefinitionRegistry registry() {
     return registry;
+  }
+
+  private List<ValidationDiagnostic> qualifyDiagnostics(
+      String sourceFile, List<ValidationDiagnostic> diagnostics) {
+    String prefix = sourceFile + ":";
+    return diagnostics.stream()
+        .map(
+            diagnostic -> {
+              String path = diagnostic.path();
+              if (path.startsWith(prefix)) {
+                return diagnostic;
+              }
+              return new ValidationDiagnostic(
+                  diagnostic.severity(), diagnostic.code(), prefix + path, diagnostic.message());
+            })
+        .toList();
   }
 }

@@ -147,4 +147,60 @@ class EventSpecYamlParserTest {
         EventDefinitionCompilerException.class,
         () -> parser.parse(yaml, "events/duplicate-key.yml"));
   }
+
+  @Test
+  void rejectsStructuredValuesForScalarFieldsWithSourcePath() {
+    String yaml =
+        """
+        schema-version: 1
+        id:
+          nested: value
+        initial-phase: active
+        phases:
+          active: {}
+        """;
+
+    var ex =
+        assertThrows(
+            EventDefinitionCompilerException.class,
+            () -> parser.parse(yaml, "events/invalid-type.yml"));
+
+    assertTrue(
+        ex.getDiagnostics().stream()
+            .anyMatch(
+                d ->
+                    d.code().equals("SE-YAML-011")
+                        && d.path().equals("events/invalid-type.yml:id")));
+  }
+
+  @Test
+  void rejectsNonMapParametersInsteadOfSilentlyDroppingThem() {
+    String yaml =
+        """
+        schema-version: 1
+        id: example
+        initial-phase: active
+        phases:
+          active:
+            transitions:
+              - trigger:
+                  type: manual
+                  parameters: invalid
+        """;
+
+    var ex =
+        assertThrows(
+            EventDefinitionCompilerException.class,
+            () -> parser.parse(yaml, "events/invalid-parameters.yml"));
+
+    assertTrue(
+        ex.getDiagnostics().stream()
+            .anyMatch(
+                d ->
+                    d.code().equals("SE-YAML-011")
+                        && d.path()
+                            .equals(
+                                "events/invalid-parameters.yml:"
+                                    + "phases.active.transitions[0].trigger.parameters")));
+  }
 }
