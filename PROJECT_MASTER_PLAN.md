@@ -106,7 +106,7 @@ Legenda:
 | Persistence SQLite | Zaimplementowane, wymagające ponownej bramki | WAL, single writer, stan eventu i recovery | crash/restart workflow oraz testy wyścigów i trwałości przechodzą |
 | Nagrody i claimy | Zaimplementowane z istotnym ograniczeniem | trwałe przyjęcie claimu, `give_item`, diagnostyka niedostarczonych nagród | jawna procedura operatora dla crasha między zapisem a zmianą ekwipunku; bez fałszywej obietnicy exactly-once |
 | Integracje | Zaimplementowane, wymagające ponownej bramki | LuckPerms, WorldGuard, Vault, PlaceholderAPI, MiniPlaceholders, Nexo, Oraxen, ItemsAdder | każda działa albo jawnie raportuje brak/unsupported przez `/event doctor` |
-| Paper/Purpur/Folia | Częściowe: dostępna macierz prawie domknięta | Paper artifact; schedulery regionów i jawne ograniczenie scoreboardu Folii | każda deklarowana wersja ma przejść prawdziwy workflow; Folia 26.3 nadal zależy od wydania upstream |
+| Paper/Purpur/Folia | Zrobione dla wszystkich dostępnych runtime'ów | Paper artifact; schedulery regionów i jawne ograniczenie scoreboardu Folii | 8/8 dostępnych wierszy przechodzi prawdziwy workflow; Folia 26.3 pozostaje zewnętrznie niedostępna |
 | Spigot/CraftBukkit | Zaimplementowane, wymagające ponownej bramki | osobny artifact i adapter Spigot | każdy deklarowany wariant ma przejść real-server workflow |
 | Import Blockbench | Częściowe / wyłączone | istnieje kod i dokumentacja eksperymentalna importera | wejście Blockbench przechodzi walidację i buduje prawdziwe, używalne assety |
 | Resource-pack ZIP | Do zrobienia | nie ma zweryfikowanego produktu ZIP | prawdziwy ZIP, manifest, SHA-1, item model mapping, walidacja i test klienta |
@@ -159,10 +159,10 @@ Stan po przeglądzie worktree: **147 zmienionych ścieżek tracked oraz dodatkow
 | --- | --- | --- | --- |
 | Q0 — build i jakość | `build.gradle.kts`, `build-logic/`, `config/`, `gradle/`, `settings.gradle.kts`, `.github/workflows/` | Gradle, dependency verification, Checkstyle/PMD/SpotBugs, CI i release checks | checkpoint `3e954a1`; dependency verification ma dodatkowy commit `7846e28` |
 | E1 — wspólny runtime eventów | `spectraevents-core/`, `spectraevents-application/`, `examples/events/` | lifecycle, YAML, execution engine, conditions/actions, lokacje, testy i definicje referencyjne | checkpoint `abb41d4`; runtime platform-neutral jest rozdzielony od platform |
-| E2 — platformy i dystrybucje | `platforms/paper/`, `platforms/spigot/`, `distributions/` | adaptery Paper/Spigot, schedulery, komendy, GUI, renderery, integracje, JAR-y | checkpoint `f9abc19`; Paper 26.2 i Spigot 26.2 mają PASS, pozostałe wiersze są otwarte |
+| E2 — platformy i dystrybucje | `platforms/paper/`, `platforms/spigot/`, `distributions/` | adaptery Paper/Spigot, schedulery, komendy, GUI, renderery, integracje, JAR-y | checkpoint `f9abc19`; Paper-family ma 8/8 dostępnych PASS, Spigot-family wymaga domknięcia |
 | E3 — trwałość i adaptery | `adapters/storage-sqlite/`, `adapters/update-http/` | SQLite single-writer, recovery, update HTTP, testy obciążeniowe | checkpoint `fa5fb28`; recovery jest pokryte pełną bramką i smoke workflow |
 | E4 — Blockbench i resource-pack | `adapters/assets-*`, `spectraevents-application/src/main/.../asset/`, `tools/blockbench/`, `docs/authoring/`, `docs/config/` | importer, budowanie ZIP, delivery, Modrinth, testy bezpieczeństwa | checkpoint `facbea6`; zakres nadal częściowy, pełny pipeline nie jest obiecany |
-| E5 — runtime smoke i kompatybilność | `scripts/runtime-smoke/`, manifesty pluginów, dokumentacja platform | Paper/Purpur/Folia/Spigot/CraftBukkit i macierz wersji | checkpoint `acf86aa`; Paper 26.2 i Spigot 26.2 PASS, Folia 26.3 zależy od buildu upstream |
+| E5 — runtime smoke i kompatybilność | `scripts/runtime-smoke/`, manifesty pluginów, dokumentacja platform | Paper/Purpur/Folia/Spigot/CraftBukkit i macierz wersji | checkpoint `acf86aa`; Paper-family 8/8 dostępnych PASS, Spigot 26.2 PASS, pozostałe wiersze otwarte, Folia 26.3 zależy od buildu upstream |
 | D1 — dokumentacja produktu | `README.md`, `docs/ai/`, `docs/architecture/`, `docs/product/` | kontrakt produktu, workflow administratora, architektura, roadmapa i ograniczenia | checkpoint `d61bf7a`; dokumentacja zsynchronizowana z aktualnym stanem |
 | A0 — odroczenie public API | `spectraevents-api/`, ADR 0005 | usunięcie przedwczesnego modułu public API | checkpoint `c38387d`; nie przywracać bez udowodnionego use case'u |
 
@@ -294,6 +294,7 @@ Przy każdej znaczącej zmianie:
 | 2026-09-20 | Poprawka runtime smoke i recovery | `./gradlew clean check build` po poprawkach `READY`, shutdown writer'a, workflow stop oraz kolejności ładowania Paper | **PASS** — 124 zadania actionable; Paper 26.2 przechodzi również restart/recovery bez błędu rejestracji definicji | Zachować jako punkt odniesienia przed kolejnym checkpointem |
 | 2026-09-20 | Synchronizacja dokumentacji | `./gradlew spotlessMarkdownCheck` oraz `git diff --check` | **PASS** — plan, roadmapa i status projektu opisują ten sam kierunek; brak błędów whitespace | M0: zamknąć checkpointy bez naruszania cudzych zmian |
 | 2026-09-20 | Lokalne checkpointy M0 | `git log --oneline -8` oraz `git status --short` | **PASS** — osiem spójnych commitów zapisanych lokalnie, worktree czysty, bez pushu | Dokończyć pozostałe dostępne wiersze real-server matrix |
+| 2026-09-20 | Paper-family runtime matrix | sekwencyjne uruchomienie `scripts/runtime-smoke/runtime_workflow.py` dla Paper 26.1–26.3, Purpur 26.1–26.3 i Folia 26.1–26.2 | **PASS** — 8/8 dostępnych wierszy: start, faza, cleanup, restart/recovery i clean shutdown; Folia 26.3 bez dostępnego buildu upstream | Przejść do Spigot/CraftBukkit 26.1–26.3 |
 
 ---
 
