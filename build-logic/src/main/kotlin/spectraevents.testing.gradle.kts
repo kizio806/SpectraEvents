@@ -27,7 +27,11 @@ tasks.withType<Test>().configureEach {
 }
 
 tasks.named<JacocoReport>("jacocoTestReport") {
-    dependsOn(tasks.named("test"))
+    dependsOn(tasks.named("test"), tasks.named("integrationTest"))
+    executionData.setFrom(
+        layout.buildDirectory.file("jacoco/test.exec"),
+        layout.buildDirectory.file("jacoco/integrationTest.exec"),
+    )
     reports {
         xml.required.set(true)
         html.required.set(true)

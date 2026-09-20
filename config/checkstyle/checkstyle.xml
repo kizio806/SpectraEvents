@@ -8,7 +8,9 @@
 
     <module name="NewlineAtEndOfFile"/>
     <module name="FileTabCharacter"/>
+    <module name="SuppressWarningsFilter"/>
     <module name="TreeWalker">
+        <module name="SuppressWarningsHolder"/>
         <module name="AvoidStarImport"/>
         <module name="EmptyStatement"/>
         <module name="EqualsHashCode"/>
