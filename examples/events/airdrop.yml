@@ -7,6 +7,13 @@ phases:
     on-enter:
       - type: broadcast_message
         message: "<yellow>An airdrop is descending.</yellow>"
+      - type: spawn_model
+        model: dev_airdrop_model
+        height-offset: 15
+      - type: play_animation
+        model: dev_airdrop_model
+        animation: descent
+        loop: ONCE
     transitions:
       - trigger:
           type: timer_elapsed
@@ -23,4 +30,5 @@ phases:
         target: claimed
   claimed:
     on-enter:
+      - type: remove_model
       - type: complete_event

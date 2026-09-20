@@ -24,3 +24,16 @@ interactions:
     parent: core
     width: 3.0
     height: 3.0
+
+animations:
+  fall:
+    duration: 3s
+    loop: ONCE
+    recovery: RESTART
+    tracks:
+      core:
+        translation:
+          - at: 0s
+            value: [0.0, 0.0, 0.0]
+          - at: 3s
+            value: [0.0, -3.0, 0.0]

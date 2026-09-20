@@ -24,3 +24,16 @@ interactions:
     parent: stone
     width: 3.0
     height: 3.5
+
+animations:
+  pulse:
+    duration: 1s
+    loop: LOOP
+    recovery: RESUME
+    tracks:
+      stone:
+        scale:
+          - at: 0s
+            value: [1.0, 1.0, 1.0]
+          - at: 1s
+            value: [1.05, 1.05, 1.05]

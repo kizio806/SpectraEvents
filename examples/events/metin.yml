@@ -7,6 +7,12 @@ phases:
     on-enter:
       - type: initialize_health
         max: 100
+      - type: spawn_model
+        model: dev_metin_model
+      - type: play_animation
+        model: dev_metin_model
+        animation: pulse
+        loop: LOOP
     transitions:
       - trigger:
           type: interaction
@@ -24,4 +30,5 @@ phases:
           - material: minecraft:diamond
             amount: 1
             chance: 100
+      - type: remove_model
       - type: complete_event

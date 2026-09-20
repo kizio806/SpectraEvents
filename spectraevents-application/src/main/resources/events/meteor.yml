@@ -10,7 +10,10 @@ phases:
       - type: spawn_model
         model: dev_meteor_model
         height-offset: 20
-        animate: true
+      - type: play_animation
+        model: dev_meteor_model
+        animation: fall
+        loop: ONCE
       - type: broadcast_message
         message: "<gold><bold>[SpectraEvents]</bold> <red>A fiery Meteor is falling from the sky!</red>"
     transitions:

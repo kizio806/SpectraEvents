@@ -8,7 +8,10 @@ phases:
       - type: spawn_model
         model: dev_airdrop_model
         height-offset: 15
-        animate: true
+      - type: play_animation
+        model: dev_airdrop_model
+        animation: descent
+        loop: ONCE
       - type: broadcast_message
         message: "<gold><bold>[SpectraEvents]</bold> <yellow>A Supply Airdrop is descending from the sky!</yellow>"
     transitions:

@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-Two-artifact runtime and release hardening
+M1 authoring contract completed; M2 Blockbench and asset pipeline next
 
 ## Current Target
 
@@ -68,16 +68,22 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
   - Native client-side Display interpolation (`setInterpolationDuration`) via `ModelRendererPort` updates (`PaperModelRenderer` and `SpigotModelRenderer`), running with zero server tick loops.
   - Event-driven timeline cue callbacks (`AnimationCueReached`) and recovery policy support (`RESTART`, `RESUME`, `STOP`).
   - Unit tests covering math, easing, compiler, playback state machine, and interpolation dispatch.
+- [x] M1 Authoring Contract for Custom Events:
+  - Stabilized the schema-v1 authoring contract for models, named animations, phases, triggers, conditions, actions, rewards, recovery, and cleanup.
+  - Added source-path validation diagnostics, three verified YAML examples, and the copy/validate/reload/start/diagnose administrator guide.
+  - Connected named model animations through `play_animation`, including cleanup and restart/recovery handling.
+  - Running instances retain the definition snapshot captured at start when definitions are reloaded.
 
 ## In Progress
 
 - Paper-family runtime hardening is verified for all 8 available rows: Paper 26.1–26.3, Purpur 26.1–26.3, and Folia 26.1–26.2.
 - All 14 available Paper-family and Spigot-family runtime rows now pass lifecycle, cleanup, and restart/recovery verification.
 - Publication remains blocked only by the required Folia 26.3 row, for which no upstream server build is available.
+- M1 is complete; the next implementation milestone is the fail-closed Blockbench/resource-pack pipeline.
 
 ## Next Planned Milestone
 
-Authoring Contract for Custom Events (stable YAML schema, validation diagnostics, reload behavior, and complete administrator examples).
+M2 Blockbench and Asset Pipeline (supported input format, safe import, real resource-pack ZIP, validation limits, and tested delivery prerequisites).
 
 ## Important Active Decisions
 

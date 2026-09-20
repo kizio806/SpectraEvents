@@ -76,6 +76,55 @@ class EventExecutionEngineTest {
   }
 
   @Test
+  void runningInstanceKeepsDefinitionSnapshotAfterReload() {
+    EventDefinition original =
+        new EventDefinition(
+            new EventDefinitionId("snapshot_event"),
+            new PhaseId("start"),
+            Map.of(
+                new PhaseId("start"),
+                new PhaseDefinition(
+                    new PhaseId("start"),
+                    Set.of(new PhaseId("original_end")),
+                    List.of(
+                        new TransitionRule(
+                            new ConfiguredTriggerDefinition("manual"),
+                            List.of(),
+                            Optional.of(new PhaseId("original_end")),
+                            List.of())),
+                    List.of()),
+                new PhaseId("original_end"),
+                new PhaseDefinition(new PhaseId("original_end"), Set.of())));
+    EventDefinition reloaded =
+        new EventDefinition(
+            new EventDefinitionId("snapshot_event"),
+            new PhaseId("start"),
+            Map.of(
+                new PhaseId("start"),
+                new PhaseDefinition(
+                    new PhaseId("start"),
+                    Set.of(new PhaseId("reloaded_end")),
+                    List.of(
+                        new TransitionRule(
+                            new ConfiguredTriggerDefinition("manual"),
+                            List.of(),
+                            Optional.of(new PhaseId("reloaded_end")),
+                            List.of())),
+                    List.of()),
+                new PhaseId("reloaded_end"),
+                new PhaseDefinition(new PhaseId("reloaded_end"), Set.of())));
+    registry.register(original, "snapshot_event.yml");
+
+    EventInstance instance = engine.startEvent("snapshot_event", null);
+    registry.registerOrUpdate(reloaded, "snapshot_event.yml");
+
+    assertTrue(engine.evaluateTrigger(instance.id(), new ConfiguredTriggerDefinition("manual")));
+    assertEquals(
+        new PhaseId("original_end"),
+        repository.findById(instance.id()).orElseThrow().currentPhase().orElseThrow());
+  }
+
+  @Test
   void testTriggerMatchingAndPhaseTransition() {
     EventDefinition definition =
         new EventDefinition(

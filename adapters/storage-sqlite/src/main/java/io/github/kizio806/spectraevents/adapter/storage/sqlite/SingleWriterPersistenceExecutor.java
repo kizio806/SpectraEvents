@@ -95,8 +95,12 @@ public class SingleWriterPersistenceExecutor {
           totalWrites.incrementAndGet();
         }
       } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        break;
+        if (running.get()) {
+          Thread.currentThread().interrupt();
+          break;
+        }
+        // Shutdown interrupts the poll so the worker can drain the remaining queue immediately.
+        // Keep the loop alive until all accepted writes have been processed.
       } catch (Exception e) {
         totalErrors.incrementAndGet();
         LOGGER.log(Level.SEVERE, "Error in persistence writer thread", e);

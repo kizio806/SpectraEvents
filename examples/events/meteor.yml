@@ -7,6 +7,13 @@ phases:
     on-enter:
       - type: broadcast_message
         message: "<gold>A meteor is falling.</gold>"
+      - type: spawn_model
+        model: dev_meteor_model
+        height-offset: 20
+      - type: play_animation
+        model: dev_meteor_model
+        animation: fall
+        loop: ONCE
     transitions:
       - trigger:
           type: timer_elapsed
@@ -25,4 +32,5 @@ phases:
         target: completed
   completed:
     on-enter:
+      - type: remove_model
       - type: complete_event
