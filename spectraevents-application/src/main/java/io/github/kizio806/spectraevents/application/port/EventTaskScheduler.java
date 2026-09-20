@@ -27,4 +27,9 @@ public interface EventTaskScheduler {
 
   /** Cancels all pending tasks globally across all event instances. */
   void cancelAll();
+
+  /** Returns tracked pending tasks for diagnostics, or {@code -1} when unavailable. */
+  default int pendingTaskCount(EventInstanceId eventId) {
+    return -1;
+  }
 }

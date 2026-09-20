@@ -69,18 +69,17 @@ public class ModelLoader {
             registry.register(compiled);
             loaded++;
           }
+        } catch (ModelCompilerException mce) {
+          invalid++;
+          diagnostics.addAll(mce.diagnostics());
         } catch (Exception e) {
           invalid++;
-          if (e instanceof ModelCompilerException mce) {
-            diagnostics.addAll(mce.diagnostics());
-          } else {
-            diagnostics.add(
-                new ValidationDiagnostic(
-                    Severity.ERROR,
-                    "MODEL_PARSE_FAILED",
-                    file.getFileName().toString(),
-                    "Failed to parse model file: " + e.getMessage()));
-          }
+          diagnostics.add(
+              new ValidationDiagnostic(
+                  Severity.ERROR,
+                  "MODEL_PARSE_FAILED",
+                  file.getFileName().toString(),
+                  "Failed to parse model file: " + e.getMessage()));
         }
       }
     } catch (Exception e) {
@@ -106,10 +105,9 @@ public class ModelLoader {
         throw new IllegalArgumentException("Model YAML stream is empty");
       }
       return compiler.compile(spec);
+    } catch (ModelCompilerException modelCompilerException) {
+      throw modelCompilerException;
     } catch (Exception e) {
-      if (e instanceof ModelCompilerException) {
-        throw (ModelCompilerException) e;
-      }
       List<ValidationDiagnostic> diagnostics =
           List.of(
               new ValidationDiagnostic(
@@ -124,10 +122,7 @@ public class ModelLoader {
   public ModelDefinition parseAndCompile(Path file) {
     try (InputStream is = Files.newInputStream(file)) {
       return parseAndCompile(is, file.getFileName().toString());
-    } catch (Exception e) {
-      if (e instanceof ModelCompilerException) {
-        throw (ModelCompilerException) e;
-      }
+    } catch (java.io.IOException e) {
       List<ValidationDiagnostic> diagnostics =
           List.of(
               new ValidationDiagnostic(

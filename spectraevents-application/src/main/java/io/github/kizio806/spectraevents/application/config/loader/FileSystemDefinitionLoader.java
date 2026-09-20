@@ -7,6 +7,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -69,8 +71,13 @@ public final class FileSystemDefinitionLoader {
     return definitionLoader.reload(readYamlSources(eventsDirectory()));
   }
 
-  private LinkedHashMap<String, String> readYamlSources(Path eventsDir) throws IOException {
-    LinkedHashMap<String, String> sources = new LinkedHashMap<>();
+  /** Validates every YAML source without changing the live definition registry. */
+  public DefinitionLoadResult validateFromDisk() throws IOException {
+    return definitionLoader.validate(readYamlSources(eventsDirectory()));
+  }
+
+  private Map<String, String> readYamlSources(Path eventsDir) throws IOException {
+    Map<String, String> sources = new LinkedHashMap<>();
     if (!Files.isDirectory(eventsDir)) {
       return sources;
     }
@@ -82,7 +89,7 @@ public final class FileSystemDefinitionLoader {
               .filter(Files::isRegularFile)
               .filter(
                   path -> {
-                    String name = path.getFileName().toString().toLowerCase();
+                    String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
                     if (name.equals("example.yml")
                         || name.equals("example.yaml")
                         || name.startsWith("example-")

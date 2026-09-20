@@ -101,4 +101,27 @@ class DefinitionLoaderTest {
         registry.get(new EventDefinitionId("valid")).isPresent(),
         "Old valid definition must remain active when reload fails");
   }
+
+  @Test
+  void reloadRemovesDefinitionWhoseSourceFileWasDeleted() {
+    loader.load(Map.of("events/valid.yml", VALID_YAML));
+
+    loader.reload(Map.of());
+
+    assertTrue(registry.get(new EventDefinitionId("valid")).isEmpty());
+  }
+
+  @Test
+  void reloadRejectsDuplicateIdFromAnotherSource() {
+    loader.load(Map.of("events/valid.yml", VALID_YAML));
+    LinkedHashMap<String, String> sources = new LinkedHashMap<>();
+    sources.put("events/valid.yml", VALID_YAML);
+    sources.put("events/duplicate.yml", VALID_YAML);
+
+    DefinitionLoadResult result = loader.reload(sources);
+
+    assertEquals(1, result.failures().size());
+    assertEquals("events/duplicate.yml", result.failures().getFirst().sourceFile());
+    assertEquals(1, registry.getAll().size());
+  }
 }

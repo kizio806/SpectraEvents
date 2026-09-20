@@ -119,7 +119,7 @@ public class ModelCompiler {
     }
 
     // 4. Cycle detection & Hierarchy depth check
-    detectCyclesAndDepth(partSpecs.keySet(), parentMap, modelId.value(), diagnostics);
+    detectCyclesAndDepth(partSpecs.keySet(), parentMap, diagnostics);
 
     if (diagnostics.stream().anyMatch(d -> d.severity() == Severity.ERROR)) {
       throw new ModelCompilerException(
@@ -129,7 +129,6 @@ public class ModelCompiler {
     // 5. Topological sort for composed transform pre-calculation
     List<String> sortedPartIds = topologicalSort(partSpecs.keySet(), parentMap);
     Map<String, ModelTransform> composedTransformMap = new HashMap<>();
-    Map<String, ModelPartDefinition> compiledPartsMap = new HashMap<>();
     List<ModelPartDefinition> compiledParts = new ArrayList<>();
 
     for (String partId : sortedPartIds) {
@@ -165,7 +164,6 @@ public class ModelCompiler {
               composedTransform,
               renderProperties,
               visualAsset);
-      compiledPartsMap.put(partId, compiledPart);
       compiledParts.add(compiledPart);
     }
 
@@ -296,7 +294,6 @@ public class ModelCompiler {
   private void detectCyclesAndDepth(
       Set<String> allPartIds,
       Map<String, String> parentMap,
-      String modelId,
       List<ValidationDiagnostic> diagnostics) {
 
     for (String startPartId : allPartIds) {

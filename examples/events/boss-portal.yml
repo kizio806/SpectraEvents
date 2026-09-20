@@ -1,83 +1,24 @@
-schema-version: 1
-id: boss-portal
-display:
-  name: "<dark_red>Demon Portal</dark_red>"
-
-spawn:
-  strategy: fixed
-  world: world
-  x: 0
-  y: 70
-  z: 0
-
-models:
-  portal_frame:
-    parts:
-      frame:
-        type: block
-        block: OBSIDIAN
-        scale: [4.0, 5.0, 1.0]
-
-initial-phase: dormant
+schema-version: "1"
+id: boss_portal_example
+initial-phase: opening
 
 phases:
-  dormant:
-    components:
-      model:
-        ref: portal_frame
-      interaction:
-        width: 4.0
-        height: 5.0
-    transitions:
-      - to: charging
-        when:
-          trigger: item-delivered
-          item: SOUL_SAND
-
-  charging:
-    components:
-      model:
-        ref: portal_frame
-      interaction:
-        width: 4.0
-        height: 5.0
-      hit-counter:
-        max: 100
-      leaderboard:
-        metric: hits
-    transitions:
-      - to: open
-        when:
-          trigger: hits-reached
-          threshold: 100
-
-  open:
+  opening:
     on-enter:
-      - action: spawn-mob
-        mob-type: WITHER
-        amount: 1
-    components:
-      model:
-        ref: portal_frame
-      mob-wave:
-        track: true
+      - type: broadcast_message
+        message: "<dark_purple>A boss portal is opening.</dark_purple>"
     transitions:
-      - to: boss_defeated
-        when:
-          trigger: wave-cleared
-
-  boss_defeated:
+      - trigger:
+          type: timer_elapsed
+          duration: 5s
+        target: active
+  active:
+    transitions:
+      - trigger:
+          type: entity_death
+        target: defeated
+  defeated:
     on-enter:
-      - action: give-reward
-        table: portal_loot
-        distribution: all-participants
-      - action: complete-event
-
-loot-tables:
-  portal_loot:
-    rolls: 1
-    entries:
-      - type: vanilla-item
-        material: NETHER_STAR
-        amount: 1
-        weight: 1
+      - type: broadcast_message
+        message: "<green>The portal guardian was defeated.</green>"
+      - type: complete_event

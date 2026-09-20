@@ -6,7 +6,9 @@ import java.util.Objects;
 
 /** Exception thrown when 3D model compilation fails validation. */
 public class ModelCompilerException extends RuntimeException {
-  private final List<ValidationDiagnostic> diagnostics;
+  private static final long serialVersionUID = 1L;
+
+  private final transient List<ValidationDiagnostic> diagnostics;
 
   public ModelCompilerException(String message, List<ValidationDiagnostic> diagnostics) {
     super(message + ": " + diagnostics);

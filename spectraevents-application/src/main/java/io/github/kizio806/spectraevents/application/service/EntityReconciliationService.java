@@ -12,7 +12,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-public class EntityReconciliationService {
+public final class EntityReconciliationService {
+  private static final String BOSS_ROLE = "boss";
+
   private final PlatformEntityReconcilerPort reconcilerPort;
   private final EventInstanceRepository repository;
   private final EventRuntimeStateStore stateStore;
@@ -73,7 +75,7 @@ public class EntityReconciliationService {
       reconcilerPort.restoreInstance(id, entities);
 
       for (var entity : entities) {
-        if ("boss".equals(entity.role())) {
+        if (BOSS_ROLE.equals(entity.role())) {
           state.setBossEntityId(entity.platformReference().toString());
         }
         reconnected++;

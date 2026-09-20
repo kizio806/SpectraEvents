@@ -19,7 +19,6 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -139,26 +138,26 @@ class EventInstanceTest {
   }
 
   private enum Operation {
-    START(EventLifecycleState.CREATED, EventLifecycleState.RUNNING, i -> i.start(DEFINITION)),
-    COMPLETE(EventLifecycleState.RUNNING, EventLifecycleState.COMPLETED, EventInstance::complete),
-    CANCEL(EventLifecycleState.RUNNING, EventLifecycleState.CANCELLED, EventInstance::cancel),
-    FAIL(EventLifecycleState.RUNNING, EventLifecycleState.FAILED, EventInstance::fail);
+    START(EventLifecycleState.CREATED, EventLifecycleState.RUNNING),
+    COMPLETE(EventLifecycleState.RUNNING, EventLifecycleState.COMPLETED),
+    CANCEL(EventLifecycleState.RUNNING, EventLifecycleState.CANCELLED),
+    FAIL(EventLifecycleState.RUNNING, EventLifecycleState.FAILED);
 
     private final EventLifecycleState source;
     private final EventLifecycleState destination;
-    private final Function<EventInstance, EventLifecycleTransition> transition;
 
-    Operation(
-        EventLifecycleState source,
-        EventLifecycleState destination,
-        Function<EventInstance, EventLifecycleTransition> transition) {
+    Operation(EventLifecycleState source, EventLifecycleState destination) {
       this.source = source;
       this.destination = destination;
-      this.transition = transition;
     }
 
     EventLifecycleTransition apply(EventInstance eventInstance) {
-      return transition.apply(eventInstance);
+      return switch (this) {
+        case START -> eventInstance.start(DEFINITION);
+        case COMPLETE -> eventInstance.complete();
+        case CANCEL -> eventInstance.cancel();
+        case FAIL -> eventInstance.fail();
+      };
     }
 
     boolean isAllowedFrom(EventLifecycleState state) {

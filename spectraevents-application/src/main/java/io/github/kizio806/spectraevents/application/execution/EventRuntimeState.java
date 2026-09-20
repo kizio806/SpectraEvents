@@ -80,7 +80,8 @@ public final class EventRuntimeState {
   }
 
   public boolean tryClaim(String claimantId) {
-    return this.claimant.compareAndSet(null, claimantId);
+    String current = claimant.get();
+    return Objects.equals(current, claimantId) || this.claimant.compareAndSet(null, claimantId);
   }
 
   public Optional<String> claimant() {

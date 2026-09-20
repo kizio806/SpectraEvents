@@ -18,6 +18,7 @@ import java.util.UUID;
 import java.util.logging.Logger;
 
 /** Orchestrates event instance lifecycle operations for the application. */
+@SuppressWarnings("PMD.AvoidFieldNameMatchingMethodName")
 public final class EventOrchestrationService {
   private static final Logger LOGGER = Logger.getLogger(EventOrchestrationService.class.getName());
   private static final String MANUAL_TRIGGER_TYPE = "manual";
@@ -163,6 +164,14 @@ public final class EventOrchestrationService {
    * @return the completed instance
    */
   public EventInstance completeEvent(String instanceId) {
+    if (executionEngine != null) {
+      EventInstance completed = executionEngine.completeEvent(parseInstanceId(instanceId));
+      if (completed == null) {
+        throw new IllegalStateException("Event is not running: " + instanceId);
+      }
+      LOGGER.info("Completed event " + completed.id());
+      return completed;
+    }
     EventInstance instance = getExistingInstance(instanceId);
     EventLifecycleTransition transition = instance.complete();
 
@@ -180,6 +189,14 @@ public final class EventOrchestrationService {
    * @return the cancelled instance
    */
   public EventInstance cancelEvent(String instanceId) {
+    if (executionEngine != null) {
+      EventInstance cancelled = executionEngine.cancelEvent(parseInstanceId(instanceId));
+      if (cancelled == null) {
+        throw new IllegalStateException("Event is not running: " + instanceId);
+      }
+      LOGGER.info("Cancelled event " + cancelled.id());
+      return cancelled;
+    }
     EventInstance instance = getExistingInstance(instanceId);
     EventLifecycleTransition transition = instance.cancel();
 
@@ -252,6 +269,12 @@ public final class EventOrchestrationService {
   }
 
   private EventInstance getExistingInstance(String instanceId) {
+    return repository
+        .findById(parseInstanceId(instanceId))
+        .orElseThrow(() -> new IllegalArgumentException("Event instance not found: " + instanceId));
+  }
+
+  private EventInstanceId parseInstanceId(String instanceId) {
     UUID uuid;
     try {
       uuid = UUID.fromString(instanceId);
@@ -259,8 +282,6 @@ public final class EventOrchestrationService {
       throw new IllegalArgumentException("Invalid instance ID format.", e);
     }
 
-    return repository
-        .findById(new EventInstanceId(uuid))
-        .orElseThrow(() -> new IllegalArgumentException("Event instance not found: " + instanceId));
+    return new EventInstanceId(uuid);
   }
 }
