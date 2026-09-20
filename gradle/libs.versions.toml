@@ -5,7 +5,11 @@ googlejavaformat = "1.36.1"
 jacoco = "0.8.15"
 junit = "5.14.4"
 ktlint = "1.8.0"
-paper = "26.2.build.124-stable"
+pmd = "7.27.0"
+errorprone = "2.49.0"
+errorprone-gradle-plugin = "5.1.0"
+spotbugs-gradle-plugin = "6.5.11"
+paper = "26.1.1.build.29-alpha"
 run-paper = "3.0.0"
 shadow = "9.6.1"
 spotless = "8.10.2"
@@ -18,13 +22,16 @@ miniplaceholders = "2.2.3"
 nexo = "0.7.0"
 oraxen = "1.182.0"
 itemsadder = "3.6.1"
-spigot = "1.21.3-R0.1-SNAPSHOT"
+spigot = "26.1-R0.1-SNAPSHOT"
 adventure-platform = "4.3.4"
 adventure = "4.17.0"
 gson = "2.11.0"
 
 [libraries]
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
+errorprone-gradle-plugin = { module = "net.ltgt.errorprone:net.ltgt.errorprone.gradle.plugin", version.ref = "errorprone-gradle-plugin" }
+spotbugs-gradle-plugin = { module = "com.github.spotbugs:com.github.spotbugs.gradle.plugin", version.ref = "spotbugs-gradle-plugin" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
@@ -46,3 +53,5 @@ adventure-text-minimessage = { module = "net.kyori:adventure-text-minimessage", 
 run-paper = { id = "xyz.jpenilla.run-paper", version.ref = "run-paper" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+errorprone = { id = "net.ltgt.errorprone", version.ref = "errorprone-gradle-plugin" }
+spotbugs = { id = "com.github.spotbugs", version.ref = "spotbugs-gradle-plugin" }

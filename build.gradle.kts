@@ -12,6 +12,10 @@ version = providers.gradleProperty("spectraevents.version").get()
 allprojects {
     group = rootProject.group
     version = rootProject.version
+
+    dependencyLocking {
+        lockAllConfigurations()
+    }
 }
 
 configure<SpotlessExtension> {
@@ -47,7 +51,6 @@ configure<SpotlessExtension> {
 
 val platformIndependentProjects =
     listOf(
-        project(":spectraevents-api"),
         project(":spectraevents-core"),
         project(":spectraevents-application"),
         project(":adapters:storage-sqlite"),
@@ -153,16 +156,40 @@ val verifyCompatibilityMatrix =
         }
     }
 
+val paperDistributionDirectory = project(":distributions:paper").layout.buildDirectory.dir("libs")
+val spigotDistributionDirectory = project(":distributions:spigot").layout.buildDirectory.dir("libs")
+val distributionVersion = version.toString()
+
 val verifyDistributionArtifacts =
     tasks.register("verifyDistributionArtifacts") {
         group = "verification"
         description = "Validates that exactly 2 public distribution artifacts (paper, spigot) exist."
+        dependsOn(
+            ":distributions:paper:verifyPluginArtifact",
+            ":distributions:spigot:verifyPluginArtifact",
+        )
         doLast {
-            val distProjects = listOf(":distributions:paper", ":distributions:spigot")
-            if (distProjects.size != 2) {
-                throw GradleException("Expected exactly 2 distribution projects, found ${distProjects.size}")
+            val expected =
+                setOf(
+                    "SpectraEvents-$distributionVersion-paper.jar",
+                    "SpectraEvents-$distributionVersion-spigot.jar",
+                )
+            val artifacts =
+                listOf(
+                    paperDistributionDirectory.get().asFile,
+                    spigotDistributionDirectory.get().asFile,
+                ).flatMap { directory ->
+                    directory
+                        .listFiles { file ->
+                            file.name.startsWith("SpectraEvents-") && file.extension == "jar"
+                        }?.toList()
+                        .orEmpty()
+                }
+            val actual = artifacts.map { it.name }.toSet()
+            if (actual != expected || artifacts.size != 2) {
+                throw GradleException("Expected public artifacts $expected, found ${artifacts.map { it.name }}")
             }
-            println("Distribution project count verification PASSED (expected = 2, actual = 2).")
+            println("Distribution artifact verification PASSED: ${actual.sorted()}")
         }
     }
 
