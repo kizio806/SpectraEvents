@@ -3,6 +3,7 @@ package io.github.kizio806.spectraevents.platform.spigot;
 import io.github.kizio806.spectraevents.adapter.storage.sqlite.SQLiteEventInstanceRepository;
 import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
 import io.github.kizio806.spectraevents.application.config.loader.DefinitionLoadResult;
+import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.model.loader.FileSystemModelLoader;
 import io.github.kizio806.spectraevents.application.service.EntityReconciliationReport;
 import io.github.kizio806.spectraevents.platform.spigot.action.SpigotActionAdapter;
@@ -56,6 +57,9 @@ public final class SpigotBootstrap {
             new SpigotCapabilityQuery(),
             renderer);
     actionAdapter.setModelRuntimeService(application.modelRuntimeService());
+    actionAdapter.setModelAnimationActionService(
+        new ModelAnimationActionService(
+            application.modelRuntimeService(), application.animationRuntimeService()));
 
     loadModels(dataDirectory);
     SpigotDefinitionConfigBootstrap definitions =

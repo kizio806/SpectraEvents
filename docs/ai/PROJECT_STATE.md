@@ -59,7 +59,7 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
   - Strict validation: DFS cycle detection ($A \to B \to A$), missing parent validation, duplicate ID checks, depth limits (64).
   - Built `ModelDefinitionRegistry` and `ModelRuntimeService` with atomic spawn, rollback on failure, and idempotent removal.
   - Production platform renderers (`PaperModelRenderer` and `SpigotModelRenderer`) utilizing native `ItemDisplay`, `BlockDisplay`, `TextDisplay`, and `Interaction` entities with PDC ownership tagging.
-  - Event actions (`spawn_model`, `remove_model`) and events (Meteor, Airdrop, Metin) fully migrated to the new 3D model runtime.
+  - Event actions (`spawn_model`, `play_animation`, `move_model`, `remove_model`) and events (Meteor, Airdrop, Metin) use the shared 3D model runtime; named model animations can be started from YAML and are stopped before cleanup.
 - [x] Professional 3D Animation & Timeline Engine:
   - Built platform-neutral animation math primitives (`AnimationTime`, `AnimationDuration`, `Easing`, `RotationMode`, `LoopMode`, `Vector3Keyframe`, `RotationKeyframe`, `ScaleKeyframe`, `TimelineCue`, `AnimationDefinition`).
   - Implemented Quaternion SLERP with shortest-path sign handling ($q$ vs $-q$) and continuous Euler angle lerp ($0^\circ \to 720^\circ$ multi-turn spins).
@@ -90,6 +90,7 @@ Authoring Contract for Custom Events (stable YAML schema, validation diagnostics
 - Purpur and Folia use the Paper distribution without duplicate adapter code.
 - All event execution is 100% event-driven without global tick loops.
 - SQLite persistence uses a Single-Writer asynchronous queue pattern, strictly isolating disk I/O from server thread pools while eliminating SQLITE_BUSY deadlocks.
+- Event animation callbacks use a dedicated global scheduler channel and are cancelled with platform shutdown cleanup; they are never scheduled with a null event-map key.
 
 ## Last Updated
 

@@ -4,6 +4,7 @@ import io.github.kizio806.spectraevents.adapter.storage.sqlite.SQLiteEventInstan
 import io.github.kizio806.spectraevents.adapter.update.http.HttpUpdateAdapter;
 import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
+import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
 import io.github.kizio806.spectraevents.platform.paper.action.PaperActionAdapter;
 import io.github.kizio806.spectraevents.platform.paper.command.SpectraDebugCommand;
@@ -98,6 +99,9 @@ public final class PaperBootstrap {
     application.setAssetPipelineService(assetPipelineService);
 
     actionAdapter.setModelRuntimeService(application.modelRuntimeService());
+    actionAdapter.setModelAnimationActionService(
+        new ModelAnimationActionService(
+            application.modelRuntimeService(), application.animationRuntimeService()));
 
     // Load 3D Models
     try {

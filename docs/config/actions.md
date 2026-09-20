@@ -29,9 +29,10 @@ Actions are one-shot operations executed by the engine. They can fire when enter
 
 | Action ID | Category | Description | Parameters |
 | :--- | :--- | :--- | :--- |
-| `spawn_model` | Platform | Spawns a visual model entity structure | `model`, `height_offset`, `animate` |
+| `spawn_model` | Platform | Spawns a visual model entity structure | `model`, `height_offset` |
 | `move_model` | Platform | Moves spawned model to target ground location | `target` |
 | `remove_model` | Platform | Removes model entities | None |
+| `play_animation` | Platform | Starts a named animation on matching models owned by the event | `animation`, optional `model`, `speed`, `loop`, `max-loops` |
 | `play_sound` | Platform | Plays audio at event location | `sound`, `volume`, `pitch` |
 | `spawn_particles` | Platform | Spawns particle effects | `particle`, `count` |
 | `initialize_health` | Domain | Initializes per-instance `Health` component | `max` |
@@ -44,3 +45,24 @@ Actions are one-shot operations executed by the engine. They can fire when enter
 Actions distinguish between **Fatal** and **Non-fatal** failures:
 - **Fatal Failure**: Critical platform failures (e.g. required model entity spawn fails) fail the event instance cleanly (`FAILED` state), cancel active timers, clean up allocated platform resources, and log an error.
 - **Non-fatal Failure**: Minor side-effect failures (e.g. invalid sound or particle effect) log a diagnostic warning while execution continues cleanly without leaving state corrupt.
+
+## Model animation example
+
+Animations are started explicitly after the model is spawned. This keeps the model lifecycle and
+timeline lifecycle deterministic; `spawn_model.animate` is not an implicit or supported shortcut.
+
+```yaml
+on-enter:
+  - type: spawn_model
+    model: meteor
+  - type: play_animation
+    model: meteor
+    animation: spin
+    loop: true
+    speed: 1.0
+```
+
+`model` is optional. When omitted, the action targets every model owned by the current event. The
+supported `loop` values are `true`, `false`, `ONCE`, `LOOP`, and `PING_PONG`. `max-loops: -1`
+means unlimited loops. An unknown animation or an event without a matching active model is a
+fatal action error and the event is failed and cleaned up according to the normal lifecycle rules.

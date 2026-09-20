@@ -4,6 +4,7 @@ import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.application.execution.FatalActionException;
+import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelAnchor;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeService;
 import io.github.kizio806.spectraevents.application.model.runtime.RenderedModelHandle;
@@ -59,6 +60,7 @@ public final class SpigotActionAdapter implements PlatformActionPort, Listener {
   private final Map<EventInstanceId, BossBar> bossBars = new ConcurrentHashMap<>();
   private final Map<EventInstanceId, Scoreboard> scoreboards = new ConcurrentHashMap<>();
   private ModelRuntimeService modelRuntimeService;
+  private ModelAnimationActionService modelAnimationActionService;
 
   public SpigotActionAdapter(
       Plugin plugin, SpigotModelRenderer renderer, BukkitAudiences adventure) {
@@ -68,6 +70,11 @@ public final class SpigotActionAdapter implements PlatformActionPort, Listener {
 
   public void setModelRuntimeService(ModelRuntimeService modelRuntimeService) {
     this.modelRuntimeService = modelRuntimeService;
+  }
+
+  public void setModelAnimationActionService(
+      ModelAnimationActionService modelAnimationActionService) {
+    this.modelAnimationActionService = modelAnimationActionService;
   }
 
   /** Reconnects a persistent platform entity to lifecycle cleanup after a restart. */
@@ -95,6 +102,7 @@ public final class SpigotActionAdapter implements PlatformActionPort, Listener {
       case "spawn_model" -> spawnModel(instance, params, location);
       case "move_model" -> moveModel(instance, location);
       case "remove_model" -> removeModels(instance.id());
+      case "play_animation", "play-animation" -> playAnimation(instance, params);
       case "play_sound" -> playSound(params, location);
       case "spawn_particles" -> spawnParticles(params, location);
       case "give_item" -> giveItem(params, context);
@@ -199,9 +207,19 @@ public final class SpigotActionAdapter implements PlatformActionPort, Listener {
     }
     for (RenderedModelHandle handle : List.copyOf(modelRuntimeService.getActiveInstances())) {
       if (instanceId.equals(handle.ownerEventId())) {
+        if (modelAnimationActionService != null) {
+          modelAnimationActionService.stopForModel(handle);
+        }
         modelRuntimeService.removeModel(handle.runtimeId());
       }
     }
+  }
+
+  private void playAnimation(EventInstance instance, Map<String, Object> params) {
+    if (modelAnimationActionService == null) {
+      throw new FatalActionException("Model animation runtime is unavailable on Spigot/Bukkit");
+    }
+    modelAnimationActionService.play(instance.id(), params);
   }
 
   private void playSound(Map<String, Object> params, Location location) {

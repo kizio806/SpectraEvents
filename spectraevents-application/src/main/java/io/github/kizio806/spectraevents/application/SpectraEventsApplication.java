@@ -90,7 +90,7 @@ public final class SpectraEventsApplication {
               animationDefinitionRegistry,
               activeAnimationRegistry,
               modelRendererPort,
-              (delay, task) -> scheduler.schedule(null, delay, task));
+              scheduler::scheduleGlobal);
     } else {
       this.animationRuntimeService = null;
     }
