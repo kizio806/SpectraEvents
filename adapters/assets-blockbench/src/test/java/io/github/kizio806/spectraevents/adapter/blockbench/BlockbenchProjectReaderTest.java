@@ -1,142 +1,163 @@
 package io.github.kizio806.spectraevents.adapter.blockbench;
 
+import io.github.kizio806.spectraevents.core.visual.animation.Easing;
 import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetDocument;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.Base64;
+import java.util.Locale;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
-public class BlockbenchProjectReaderTest {
+class BlockbenchProjectReaderTest {
+  private static final byte[] TEXTURE =
+      Base64.getDecoder()
+          .decode(
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAF/gL+I0Yf9wAAAABJRU5ErkJggg==");
 
-  private static final String TEST_MODEL = "test_model";
+  @TempDir Path tempDirectory;
+
   private final BlockbenchProjectReader reader = new BlockbenchProjectReader();
 
   @Test
-  void testParsesVersion5Format() {
-    String json =
-        """
-      {
-        "meta": {
-          "format_version": "4.10.4"
-        },
-        "textures": [],
-        "outliner": [],
-        "animations": []
-      }
-    """;
-    SpectraAssetDocument doc = reader.read(json, TEST_MODEL);
-    Assertions.assertEquals(TEST_MODEL, doc.modelId());
+  void importsVerifiedGenericModelGeometryTextureHierarchyAndAnimation() throws Exception {
+    Path bundle = writeBundle(projectJson("free"), false);
+
+    SpectraAssetDocument document = reader.read(bundle);
+
+    Assertions.assertEquals("meteor", document.modelId());
+    Assertions.assertEquals(1, document.textures().size());
+    Assertions.assertArrayEquals(TEXTURE, document.textures().get("texture").data().orElseThrow());
+    Assertions.assertEquals(1, document.nodes().size());
+    Assertions.assertEquals("root", document.nodes().getFirst().nodeId());
+    Assertions.assertEquals(1, document.nodes().getFirst().cubes().size());
+    Assertions.assertEquals(16.0f, document.nodes().getFirst().cubes().getFirst().to().x());
+    Assertions.assertEquals(1, document.animations().size());
+    Assertions.assertEquals(
+        Easing.STEP,
+        document.animations().get("pulse").rotationTracks().get("root").getFirst().easing());
   }
 
   @Test
-  void testParsesVersion4Format() {
-    BlockbenchProjectReader reader = new BlockbenchProjectReader();
-    String json =
-        """
-      {
-        "meta": {
-          "format_version": "4.10.4"
-        },
-        "textures": [],
-        "outliner": [],
-        "animations": []
-      }
-    """;
-    SpectraAssetDocument doc = reader.read(json, "test_bb4");
-    Assertions.assertEquals("test_bb4", doc.modelId());
+  void rejectsUnsupportedBlockbenchProjectFormat() throws Exception {
+    Path bundle = writeBundle(projectJson("java_block"), false);
+
+    IllegalArgumentException error =
+        Assertions.assertThrows(IllegalArgumentException.class, () -> reader.read(bundle));
+
+    Assertions.assertTrue(error.getMessage().contains("Generic Model"));
   }
 
   @Test
-  void testRejectsUnknownFormat() {
-    String json =
-        """
-      {
-        "meta": {
-          "format_version": "6.0.0"
-        },
-        "textures": [],
-        "outliner": [],
-        "animations": []
-      }
-    """;
-    Exception exception =
-        Assertions.assertThrows(
-            IllegalArgumentException.class, () -> reader.read(json, TEST_MODEL));
-    Assertions.assertTrue(
-        exception.getMessage().contains("Unsupported Blockbench format version: 6.0.0"));
+  void rejectsChecksumMismatch() throws Exception {
+    Path bundle = writeBundle(projectJson("free"), true);
+
+    IllegalArgumentException error =
+        Assertions.assertThrows(IllegalArgumentException.class, () -> reader.read(bundle));
+
+    Assertions.assertTrue(error.getMessage().contains("SHA-256 mismatch"));
   }
 
   @Test
-  void testRejectsUnsupportedInterpolation() {
-    String json =
-        """
-      {
-        "meta": {
-          "format_version": "4.10.4"
-        },
-        "textures": [],
-        "outliner": [],
-        "animations": [
-          {
-            "name": "anim_test",
-            "length": 1.0,
-            "animators": {
-              "bone": {
-                "name": "bone",
-                "keyframes": [
-                  {
-                    "channel": "rotation",
-                    "interpolation": "catmullrom",
-                    "data_points": [{"x":"0", "y":"0", "z":"0"}]
-                  }
-                ]
-              }
-            }
-          }
-        ]
-      }
-    """;
-    Exception exception =
-        Assertions.assertThrows(
-            IllegalArgumentException.class, () -> reader.read(json, TEST_MODEL));
-    Assertions.assertTrue(exception.getMessage().contains("UNSUPPORTED_INTERPOLATION: catmullrom"));
-  }
-
-  @Test
-  void testOversizedEmbeddedTextureRejected() {
-    BlockbenchProjectReader reader = new BlockbenchProjectReader();
-    StringBuilder sb = new StringBuilder();
-    sb.append(
-        "{\"meta\":{\"format_version\":\"5.0.0\"},\"textures\":[{\"id\":\"1\",\"name\":\"tex\",\"source\":\"data:image/png,");
-    for (int i = 0; i < 2_000_001; i++) {
-      sb.append("A"); // Build a base64 string > 2MB
+  void rejectsZipSlipBeforeParsingManifest() throws IOException {
+    Path bundle = tempDirectory.resolve("malicious.spectra.zip");
+    try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(bundle))) {
+      zip.putNextEntry(new ZipEntry("../manifest.json"));
+      zip.write("{}".getBytes(StandardCharsets.UTF_8));
+      zip.closeEntry();
     }
-    sb.append("\"}]}");
 
-    Exception ex =
-        Assertions.assertThrows(
-            IllegalArgumentException.class,
-            () -> {
-              reader.read(sb.toString(), "test");
-            });
-    Assertions.assertTrue(ex.getMessage().contains("exceeds size limit"));
+    IllegalArgumentException error =
+        Assertions.assertThrows(IllegalArgumentException.class, () -> reader.read(bundle));
+
+    Assertions.assertTrue(error.getMessage().contains("unsafe ZIP entry"));
   }
 
   @Test
-  void testOversizedEmbeddedTextureDimensionsRejected() throws Exception {
-    java.awt.image.BufferedImage img =
-        new java.awt.image.BufferedImage(2000, 2000, java.awt.image.BufferedImage.TYPE_INT_ARGB);
-    java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
-    javax.imageio.ImageIO.write(img, "png", out);
-    String base64 = java.util.Base64.getEncoder().encodeToString(out.toByteArray());
+  void rejectsLooseBlockbenchProjectFiles() throws IOException {
+    Path source = tempDirectory.resolve("model.bbmodel");
+    Files.writeString(source, projectJson("free"));
 
-    BlockbenchProjectReader reader = new BlockbenchProjectReader();
-    String json =
-        "{\"meta\":{\"format_version\":\"5.0.0\"},\"textures\":[{\"id\":\"1\",\"name\":\"tex\",\"source\":\"data:image/png,"
-            + base64
-            + "\"}]}";
+    IllegalArgumentException error =
+        Assertions.assertThrows(IllegalArgumentException.class, () -> reader.read(source));
 
-    Exception ex =
-        Assertions.assertThrows(
-            IllegalArgumentException.class, () -> reader.read(json, TEST_MODEL));
-    Assertions.assertTrue(ex.getMessage().contains("exceeds maximum"));
+    Assertions.assertTrue(error.getMessage().contains(".spectra.zip"));
+  }
+
+  private Path writeBundle(String model, boolean corruptChecksum) throws Exception {
+    Path bundle = tempDirectory.resolve("meteor.spectra.zip");
+    String modelHash =
+        corruptChecksum ? "0".repeat(64) : sha256(model.getBytes(StandardCharsets.UTF_8));
+    String textureHash = sha256(TEXTURE);
+    String manifest =
+        """
+        {
+          "schemaVersion": 1,
+          "modelId": "meteor",
+          "model": "model.bbmodel",
+          "textures": ["textures/gem.png"],
+          "sha256": {
+            "model.bbmodel": "%s",
+            "textures/gem.png": "%s"
+          }
+        }
+        """
+            .formatted(modelHash, textureHash);
+    try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(bundle))) {
+      writeEntry(zip, "manifest.json", manifest.getBytes(StandardCharsets.UTF_8));
+      writeEntry(zip, "model.bbmodel", model.getBytes(StandardCharsets.UTF_8));
+      writeEntry(zip, "textures/gem.png", TEXTURE);
+    }
+    return bundle;
+  }
+
+  private static void writeEntry(ZipOutputStream zip, String name, byte[] content)
+      throws IOException {
+    zip.putNextEntry(new ZipEntry(name));
+    zip.write(content);
+    zip.closeEntry();
+  }
+
+  private static String sha256(byte[] bytes) throws Exception {
+    StringBuilder result = new StringBuilder();
+    for (byte value : MessageDigest.getInstance("SHA-256").digest(bytes)) {
+      result.append(String.format(Locale.ROOT, "%02x", value));
+    }
+    return result.toString();
+  }
+
+  private static String projectJson(String modelFormat) {
+    return """
+        {
+          "meta": {"format_version": "5.0.0", "model_format": "%s"},
+          "textures": [{"id": "texture", "name": "gem.png", "source": "textures/gem.png"}],
+          "elements": [{
+            "uuid": "cube",
+            "from": [0, 0, 0],
+            "to": [16, 16, 16],
+            "origin": [8, 8, 8],
+            "faces": {"north": {"uv": [0, 0, 16, 16], "texture": "#texture"}}
+          }],
+          "outliner": [{"uuid": "root", "name": "Root", "origin": [8, 8, 8], "children": ["cube"]}],
+          "animations": [{
+            "name": "pulse",
+            "length": 1.0,
+            "loop": "loop",
+            "animators": {"root": {"keyframes": [{
+              "channel": "rotation",
+              "time": 0.0,
+              "interpolation": "step",
+              "data_points": [{"x": "0", "y": "180", "z": "0"}]
+            }]}}
+          }]
+        }
+        """
+        .formatted(modelFormat);
   }
 }

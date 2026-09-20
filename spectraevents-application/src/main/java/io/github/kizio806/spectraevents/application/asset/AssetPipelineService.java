@@ -7,21 +7,23 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Logger;
 
-public class AssetPipelineService {
+public final class AssetPipelineService {
 
   private static final Logger LOGGER = Logger.getLogger(AssetPipelineService.class.getName());
+  private static final String SPECTRA_BUNDLE_EXTENSION = ".spectra.zip";
   private final AssetImportPort importPort;
   private final ResourcePackBuilder resourcePackBuilder;
   private final Path sourceDirectory;
   private final AssetTargetProfile targetProfile;
 
-  // Simple incremental cache mapping filename to SHA-256 hash of source
   private final Map<String, String> sourceCache = new HashMap<>();
-
   private final Map<String, SpectraAssetDocument> compiledDocuments = new HashMap<>();
 
   public AssetPipelineService(
@@ -29,10 +31,11 @@ public class AssetPipelineService {
       ResourcePackBuilder resourcePackBuilder,
       Path sourceDirectory,
       AssetTargetProfile targetProfile) {
-    this.importPort = importPort;
-    this.resourcePackBuilder = resourcePackBuilder;
-    this.sourceDirectory = sourceDirectory;
-    this.targetProfile = targetProfile;
+    this.importPort = Objects.requireNonNull(importPort, "importPort");
+    this.resourcePackBuilder = Objects.requireNonNull(resourcePackBuilder, "resourcePackBuilder");
+    this.sourceDirectory =
+        Objects.requireNonNull(sourceDirectory, "sourceDirectory").toAbsolutePath().normalize();
+    this.targetProfile = Objects.requireNonNull(targetProfile, "targetProfile");
   }
 
   public void buildAssets() {
@@ -49,29 +52,13 @@ public class AssetPipelineService {
       try (java.util.stream.Stream<Path> stream = Files.walk(sourceDirectory)) {
         stream
             .filter(Files::isRegularFile)
-            .filter(p -> p.toString().endsWith(".bbmodel") || p.toString().endsWith(".spectra.zip"))
+            .filter(path -> path.getFileName().toString().endsWith(SPECTRA_BUNDLE_EXTENSION))
             .forEach(
                 path -> {
                   try {
-                    String filename = path.getFileName().toString();
-                    String currentHash = computeSha256(path);
-
-                    if (currentHash.equals(sourceCache.get(filename))) {
-                      LOGGER.fine("Skipping unchanged asset source: " + filename);
-                      return;
+                    if (importSource(path)) {
+                      changesDetected.set(true);
                     }
-
-                    LOGGER.info("Compiling asset source: " + filename);
-                    String content = Files.readString(path);
-
-                    // Extract model ID from filename (remove extension)
-                    String modelIdStr =
-                        filename.replace(".bbmodel", "").replace(".spectra.zip", "");
-
-                    SpectraAssetDocument doc = importPort.read(content, modelIdStr);
-                    compiledDocuments.put(modelIdStr, doc);
-                    sourceCache.put(filename, currentHash);
-                    changesDetected.set(true);
 
                   } catch (Exception e) {
                     LOGGER.severe("Failed to compile asset source " + path + ": " + e.getMessage());
@@ -93,87 +80,37 @@ public class AssetPipelineService {
   }
 
   public void importFile(String filename) {
-    Path path = sourceDirectory.resolve(filename).normalize();
-    if (!path.startsWith(sourceDirectory)) {
+    Objects.requireNonNull(filename, "filename");
+    Path path = sourceDirectory.resolve(filename).toAbsolutePath().normalize();
+    if (!path.startsWith(sourceDirectory)
+        || path.getParent() == null
+        || !path.getParent().equals(sourceDirectory)) {
       throw new SecurityException("Path traversal attempt detected: " + filename);
     }
 
-    if (!Files.exists(path)
-        || (!filename.endsWith(".bbmodel") && !filename.endsWith(".spectra.zip"))) {
+    if (!Files.isRegularFile(path) || !filename.endsWith(SPECTRA_BUNDLE_EXTENSION)) {
       throw new IllegalArgumentException("File not found or invalid format: " + filename);
     }
 
     try {
-      String currentHash = computeSha256(path);
-      String content = readAssetFile(path);
-      String modelIdStr = filename.replace(".bbmodel", "").replace(".spectra.zip", "");
-      SpectraAssetDocument doc = importPort.read(content, modelIdStr);
-      compiledDocuments.put(modelIdStr, doc);
-      sourceCache.put(filename, currentHash);
+      importSource(path);
     } catch (Exception e) {
       throw new RuntimeException("Import failed: " + e.getMessage(), e);
     }
   }
 
-  private String readAssetFile(Path path) throws java.io.IOException {
-    if (path.toString().endsWith(".bbmodel")) {
-      return Files.readString(path);
-    } else {
-      // .spectra.zip - requires secure decompression
-      try (java.util.zip.ZipInputStream zis =
-          new java.util.zip.ZipInputStream(Files.newInputStream(path))) {
-        java.util.zip.ZipEntry entry;
-        long totalDecompressedSize = 0;
-        int entryCount = 0;
-        final int MAX_ZIP_ENTRIES = 50;
-        final long MAX_ENTRY_UNCOMPRESSED_BYTES = 2_000_000;
-        final long MAX_TOTAL_UNCOMPRESSED_BYTES = 5_000_000;
-
-        String bbmodelContent = null;
-
-        while ((entry = zis.getNextEntry()) != null) {
-          entryCount++;
-          if (entryCount > MAX_ZIP_ENTRIES) {
-            throw new SecurityException("Too many entries in ZIP file");
-          }
-          if (entry.getName().contains("..")
-              || entry.getName().startsWith("/")
-              || entry.getName().startsWith("\\")) {
-            throw new SecurityException("ZIP slip detected: " + entry.getName());
-          }
-
-          java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
-          byte[] buffer = new byte[8192];
-          int count;
-          long entryBytes = 0;
-          while ((count = zis.read(buffer)) != -1) {
-            entryBytes += count;
-            totalDecompressedSize += count;
-
-            if (entryBytes > MAX_ENTRY_UNCOMPRESSED_BYTES) {
-              throw new SecurityException(
-                  "Single entry exceeded decompression limit (max "
-                      + MAX_ENTRY_UNCOMPRESSED_BYTES
-                      + " bytes)");
-            }
-            if (totalDecompressedSize > MAX_TOTAL_UNCOMPRESSED_BYTES) {
-              throw new SecurityException(
-                  "Decompression limit exceeded (max " + MAX_TOTAL_UNCOMPRESSED_BYTES + " bytes)");
-            }
-            if (entry.getName().endsWith(".bbmodel")) {
-              out.write(buffer, 0, count);
-            }
-          }
-          if (entry.getName().endsWith(".bbmodel")) {
-            bbmodelContent = out.toString(java.nio.charset.StandardCharsets.UTF_8);
-          }
-        }
-        if (bbmodelContent != null) {
-          return bbmodelContent;
-        }
-      }
-      throw new IllegalArgumentException("No .bbmodel found in " + path.getFileName());
+  private boolean importSource(Path source) throws Exception {
+    String cacheKey = source.getFileName().toString();
+    String currentHash = computeSha256(source);
+    if (currentHash.equals(sourceCache.get(cacheKey))) {
+      LOGGER.fine("Skipping unchanged asset source: " + cacheKey);
+      return false;
     }
+
+    SpectraAssetDocument document = importPort.read(source);
+    compiledDocuments.put(document.modelId(), document);
+    sourceCache.put(cacheKey, currentHash);
+    return true;
   }
 
   public boolean validateModel(String modelId) {
@@ -184,8 +121,8 @@ public class AssetPipelineService {
     return true;
   }
 
-  public java.util.Collection<String> listModels() {
-    return compiledDocuments.keySet();
+  public Collection<String> listModels() {
+    return List.copyOf(compiledDocuments.keySet());
   }
 
   public SpectraAssetDocument getModelInfo(String modelId) {
@@ -195,25 +132,18 @@ public class AssetPipelineService {
   public void clean() {
     sourceCache.clear();
     compiledDocuments.clear();
-    try {
-      Path genPath = sourceDirectory.getParent().getParent().resolve("generated");
-      if (Files.exists(genPath)) {
-        try (java.util.stream.Stream<Path> stream = Files.walk(genPath)) {
-          stream
-              .sorted(java.util.Comparator.reverseOrder())
-              .map(Path::toFile)
-              .forEach(java.io.File::delete);
-        }
-      }
-    } catch (IOException e) {
-      LOGGER.warning("Failed to clean generated output: " + e.getMessage());
-    }
   }
 
   private String computeSha256(Path path) throws IOException, NoSuchAlgorithmException {
     MessageDigest digest = MessageDigest.getInstance("SHA-256");
-    byte[] bytes = Files.readAllBytes(path);
-    byte[] hash = digest.digest(bytes);
+    try (java.io.InputStream input = Files.newInputStream(path)) {
+      byte[] buffer = new byte[8192];
+      int read;
+      while ((read = input.read(buffer)) != -1) {
+        digest.update(buffer, 0, read);
+      }
+    }
+    byte[] hash = digest.digest();
     StringBuilder hexString = new StringBuilder();
     for (byte b : hash) {
       String hex = Integer.toHexString(0xff & b);
