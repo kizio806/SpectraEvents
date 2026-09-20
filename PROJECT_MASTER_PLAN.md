@@ -126,14 +126,14 @@ Pełna wymagana bramka:
 
 została uruchomiona 2026-09-20 na aktualnym checkoutcie i zakończyła się **`BUILD SUCCESSFUL`**. Przeszły testy, formatowanie, Checkstyle, PMD, SpotBugs, JaCoCo, weryfikacja granic platform oraz budowanie artefaktów Paper i Spigot. Strict dependency verification pozostaje włączone i ma aktualne sumy SHA-256.
 
-Zielona bramka nie oznacza jeszcze gotowego release'u. Nadal otwarte są przede wszystkim: bezpieczne rozdzielenie mieszanego worktree na checkpointy, ponowne uruchomienie real-server matrix dla bieżącego zestawu zmian oraz niezweryfikowany end-to-end pipeline Blockbench → resource-pack → klient.
+Zielona bramka nie oznacza jeszcze gotowego release'u. Osiem lokalnych checkpointów zostało już utworzonych bez pushu. Nadal otwarte są przede wszystkim: dokończenie real-server matrix dla pozostałych dostępnych wierszy oraz niezweryfikowany end-to-end pipeline Blockbench → resource-pack → klient.
 
 ### Kolejność dalszej weryfikacji
 
 1. Zachować wynik zielonej pełnej bramki jako punkt odniesienia.
-2. Rozdzielić istniejące zmiany na spójne checkpointy bez resetowania ani masowego stagingu cudzych zmian.
-3. Dla każdego checkpointu uruchomić testy zakresowe i pełną bramkę.
-4. Ponownie uruchomić real-server matrix dla zadeklarowanych platform i wersji.
+2. Traktować osiem lokalnych commitów jako spójne checkpointy do przeglądu i ewentualnego odzyskiwania; nie squashować ani nie pushować ich automatycznie.
+3. Przy każdej kolejnej zmianie uruchamiać testy zakresowe i pełną bramkę.
+4. Dokończyć real-server matrix dla zadeklarowanych platform i wersji, dokumentując niedostępne buildy upstream.
 5. Dopiero po tych dowodach aktualizować status release'u oraz przechodzić do kolejnych milestone'ów.
 
 ## 7. Plan dojścia do najlepszego pluginu
@@ -157,24 +157,24 @@ Stan po przeglądzie worktree: **147 zmienionych ścieżek tracked oraz dodatkow
 
 | Proponowany pakiet | Główne ścieżki | Zakres | Status organizacyjny |
 | --- | --- | --- | --- |
-| Q0 — build i jakość | `build.gradle.kts`, `build-logic/`, `config/`, `gradle/`, `settings.gradle.kts`, `.github/workflows/` | Gradle, dependency verification, Checkstyle/PMD/SpotBugs, CI i release checks | dependency verification ma osobny commit `7846e28`; pozostałe zmiany wymagają osobnego checkpointu |
-| E1 — wspólny runtime eventów | `spectraevents-core/`, `spectraevents-application/`, `examples/events/` | lifecycle, YAML, execution engine, conditions/actions, lokacje, testy i definicje referencyjne | zaimplementowane w worktree, wymaga rozdzielenia od platform |
-| E2 — platformy i dystrybucje | `platforms/paper/`, `platforms/spigot/`, `distributions/` | adaptery Paper/Spigot, schedulery, komendy, GUI, renderery, integracje, JAR-y | zaimplementowane w worktree, wymaga osobnego testu runtime per rodzina |
-| E3 — trwałość i adaptery | `adapters/storage-sqlite/`, `adapters/update-http/` | SQLite single-writer, recovery, update HTTP, testy obciążeniowe | zaimplementowane w worktree, wymaga osobnej weryfikacji recovery |
-| E4 — Blockbench i resource-pack | `adapters/assets-*`, `spectraevents-application/src/main/.../asset/`, `tools/blockbench/`, `docs/authoring/`, `docs/config/` | importer, budowanie ZIP, delivery, Modrinth, testy bezpieczeństwa | częściowe; nie wolno jeszcze oznaczać pełnego pipeline jako gotowego |
-| E5 — runtime smoke i kompatybilność | `scripts/runtime-smoke/`, manifesty pluginów, dokumentacja platform | Paper/Purpur/Folia/Spigot/CraftBukkit i macierz wersji | częściowe; Folia 26.3 nadal zależy od dostępności buildu upstream |
-| D1 — dokumentacja produktu | `README.md`, `docs/ai/`, `docs/architecture/`, `docs/product/` | kontrakt produktu, workflow administratora, architektura, roadmapa i ograniczenia | zsynchronizowane z bieżącym kierunkiem, nadal wymagają kontroli po rozdzieleniu kodu |
-| A0 — odroczenie public API | `spectraevents-api/`, ADR 0005 | usunięcie przedwczesnego modułu public API | decyzja architektoniczna; nie przywracać bez udowodnionego use case'u |
+| Q0 — build i jakość | `build.gradle.kts`, `build-logic/`, `config/`, `gradle/`, `settings.gradle.kts`, `.github/workflows/` | Gradle, dependency verification, Checkstyle/PMD/SpotBugs, CI i release checks | checkpoint `3e954a1`; dependency verification ma dodatkowy commit `7846e28` |
+| E1 — wspólny runtime eventów | `spectraevents-core/`, `spectraevents-application/`, `examples/events/` | lifecycle, YAML, execution engine, conditions/actions, lokacje, testy i definicje referencyjne | checkpoint `abb41d4`; runtime platform-neutral jest rozdzielony od platform |
+| E2 — platformy i dystrybucje | `platforms/paper/`, `platforms/spigot/`, `distributions/` | adaptery Paper/Spigot, schedulery, komendy, GUI, renderery, integracje, JAR-y | checkpoint `f9abc19`; Paper 26.2 i Spigot 26.2 mają PASS, pozostałe wiersze są otwarte |
+| E3 — trwałość i adaptery | `adapters/storage-sqlite/`, `adapters/update-http/` | SQLite single-writer, recovery, update HTTP, testy obciążeniowe | checkpoint `fa5fb28`; recovery jest pokryte pełną bramką i smoke workflow |
+| E4 — Blockbench i resource-pack | `adapters/assets-*`, `spectraevents-application/src/main/.../asset/`, `tools/blockbench/`, `docs/authoring/`, `docs/config/` | importer, budowanie ZIP, delivery, Modrinth, testy bezpieczeństwa | checkpoint `facbea6`; zakres nadal częściowy, pełny pipeline nie jest obiecany |
+| E5 — runtime smoke i kompatybilność | `scripts/runtime-smoke/`, manifesty pluginów, dokumentacja platform | Paper/Purpur/Folia/Spigot/CraftBukkit i macierz wersji | checkpoint `acf86aa`; Paper 26.2 i Spigot 26.2 PASS, Folia 26.3 zależy od buildu upstream |
+| D1 — dokumentacja produktu | `README.md`, `docs/ai/`, `docs/architecture/`, `docs/product/` | kontrakt produktu, workflow administratora, architektura, roadmapa i ograniczenia | checkpoint `d61bf7a`; dokumentacja zsynchronizowana z aktualnym stanem |
+| A0 — odroczenie public API | `spectraevents-api/`, ADR 0005 | usunięcie przedwczesnego modułu public API | checkpoint `c38387d`; nie przywracać bez udowodnionego use case'u |
 
 ### Bezpieczna kolejność dalszego porządkowania
 
 1. Zachować bieżący zielony punkt kontrolny `./gradlew clean check build`.
-2. Zidentyfikować, które z powyższych pakietów należą do już rozpoczętej pracy użytkownika, a które są nową zmianą do osobnego commitu.
+2. Traktować osiem lokalnych commitów jako checkpointy do przeglądu; nie wykonywać resetu, checkoutu ani automatycznego squashowania.
 3. Przy kolejnych zmianach dotykać tylko jednego pakietu na raz.
 4. Dla każdego pakietu uruchamiać jego testy, potem pełną bramkę i dopisywać dowód do dziennika.
-5. Dopiero po stabilizacji E1–E5 przejść do M1 i M2; nie dodawać kolejnych eventów tylko po to, aby zwiększać liczbę funkcji.
+5. Dokończyć pozostałe wiersze real-server matrix, a dopiero potem przejść do M1 i M2; nie dodawać kolejnych eventów tylko po to, aby zwiększać liczbę funkcji.
 
-Fizyczne rozbijanie istniejących zmian na commity wymaga zachowania ich autorstwa i kontekstu. Nie wykonujemy automatycznego `reset`, `checkout` ani masowego stagingu, ponieważ worktree zawiera zmiany obecne przed bieżącym porządkowaniem.
+Rozdzielenie zmian zostało wykonane z zachowaniem ich kontekstu w ośmiu lokalnych commitach. Nie wykonujemy automatycznego `reset`, `checkout`, squashowania ani pushowania, ponieważ każdy checkpoint ma pozostać czytelnym punktem przeglądu i odzyskiwania.
 
 ### M1 — kontrakt autora eventu
 
@@ -293,6 +293,7 @@ Przy każdej znaczącej zmianie:
 | 2026-09-20 | Spigot 26.2 runtime smoke | `./gradlew :distributions:spigot:build && python3 scripts/runtime-smoke/runtime_workflow.py --server spigot --version 26.2 --artifact distributions/spigot/build/libs/SpectraEvents-*-spigot.jar` | **PASS** — start, przejście fazy, cleanup, restart/recovery, ponowny cleanup i clean shutdown | Powtórzyć dla pozostałych dostępnych wierszy macierzy |
 | 2026-09-20 | Poprawka runtime smoke i recovery | `./gradlew clean check build` po poprawkach `READY`, shutdown writer'a, workflow stop oraz kolejności ładowania Paper | **PASS** — 124 zadania actionable; Paper 26.2 przechodzi również restart/recovery bez błędu rejestracji definicji | Zachować jako punkt odniesienia przed kolejnym checkpointem |
 | 2026-09-20 | Synchronizacja dokumentacji | `./gradlew spotlessMarkdownCheck` oraz `git diff --check` | **PASS** — plan, roadmapa i status projektu opisują ten sam kierunek; brak błędów whitespace | M0: zamknąć checkpointy bez naruszania cudzych zmian |
+| 2026-09-20 | Lokalne checkpointy M0 | `git log --oneline -8` oraz `git status --short` | **PASS** — osiem spójnych commitów zapisanych lokalnie, worktree czysty, bez pushu | Dokończyć pozostałe dostępne wiersze real-server matrix |
 
 ---
 

@@ -24,7 +24,7 @@ This roadmap is aligned with [`PROJECT_MASTER_PLAN.md`](../../PROJECT_MASTER_PLA
 - [x] Run `./gradlew clean check build` successfully on the current checkout.
 - [x] Verify platform boundaries and both distribution artifacts.
 - [x] Inventory the large pre-existing worktree and classify it into coherent packages.
-- [ ] Create safe checkpoints for the remaining mixed worktree without staging unrelated user changes.
+- [x] Create eight safe local checkpoints for the mixed worktree without staging unrelated user changes or pushing them.
 - [ ] Re-run the real-server matrix after the current change set is assigned to release checkpoints.
 
 The current full build is green, but publication remains separate from compilation. The declared Folia 26.3 row is unavailable until an official upstream server build exists.
@@ -85,4 +85,4 @@ SpectraEvents will not become a custom mob engine, region-protection replacement
 
 ## Current next action
 
-Finish M0 change-set checkpoints and real-server verification. After that, start M1 by stabilizing the author-facing event definition contract; do not begin another large feature before the contract and verification evidence are synchronized.
+Finish the remaining available real-server verification rows. After that, start M1 by stabilizing the author-facing event definition contract; do not begin another large feature before the contract and verification evidence are synchronized.
