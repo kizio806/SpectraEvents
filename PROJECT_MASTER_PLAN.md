@@ -107,7 +107,7 @@ Legenda:
 | Nagrody i claimy | Zaimplementowane z istotnym ograniczeniem | trwałe przyjęcie claimu, `give_item`, diagnostyka niedostarczonych nagród | jawna procedura operatora dla crasha między zapisem a zmianą ekwipunku; bez fałszywej obietnicy exactly-once |
 | Integracje | Zaimplementowane, wymagające ponownej bramki | LuckPerms, WorldGuard, Vault, PlaceholderAPI, MiniPlaceholders, Nexo, Oraxen, ItemsAdder | każda działa albo jawnie raportuje brak/unsupported przez `/event doctor` |
 | Paper/Purpur/Folia | Zrobione dla wszystkich dostępnych runtime'ów | Paper artifact; schedulery regionów i jawne ograniczenie scoreboardu Folii | 8/8 dostępnych wierszy przechodzi prawdziwy workflow; Folia 26.3 pozostaje zewnętrznie niedostępna |
-| Spigot/CraftBukkit | Zaimplementowane, wymagające ponownej bramki | osobny artifact i adapter Spigot | każdy deklarowany wariant ma przejść real-server workflow |
+| Spigot/CraftBukkit | Zrobione dla wszystkich dostępnych runtime'ów | osobny artifact i adapter Spigot | 6/6 dostępnych wierszy przechodzi prawdziwy workflow; deklarowany zakres jest zweryfikowany |
 | Import Blockbench | Częściowe / wyłączone | istnieje kod i dokumentacja eksperymentalna importera | wejście Blockbench przechodzi walidację i buduje prawdziwe, używalne assety |
 | Resource-pack ZIP | Do zrobienia | nie ma zweryfikowanego produktu ZIP | prawdziwy ZIP, manifest, SHA-1, item model mapping, walidacja i test klienta |
 | Dostarczanie packa graczom | Częściowe / wyłączone fail-closed | interfejsy/adapters mogą istnieć, ale funkcja nie jest obiecana | testy delivery, odrzucenia, ponownego wejścia gracza i awarii sieci |
@@ -126,14 +126,14 @@ Pełna wymagana bramka:
 
 została uruchomiona 2026-09-20 na aktualnym checkoutcie i zakończyła się **`BUILD SUCCESSFUL`**. Przeszły testy, formatowanie, Checkstyle, PMD, SpotBugs, JaCoCo, weryfikacja granic platform oraz budowanie artefaktów Paper i Spigot. Strict dependency verification pozostaje włączone i ma aktualne sumy SHA-256.
 
-Zielona bramka nie oznacza jeszcze gotowego release'u. Osiem lokalnych checkpointów zostało już utworzonych bez pushu. Nadal otwarte są przede wszystkim: dokończenie real-server matrix dla pozostałych dostępnych wierszy oraz niezweryfikowany end-to-end pipeline Blockbench → resource-pack → klient.
+Zielona bramka nie oznacza jeszcze gotowego release'u. Osiem lokalnych checkpointów zostało już utworzonych bez pushu. Dostępna real-server matrix jest domknięta: 14/14 wierszy przeszło, a Folia 26.3 pozostaje zewnętrznie niedostępna. Nadal otwarty jest niezweryfikowany end-to-end pipeline Blockbench → resource-pack → klient.
 
 ### Kolejność dalszej weryfikacji
 
 1. Zachować wynik zielonej pełnej bramki jako punkt odniesienia.
 2. Traktować osiem lokalnych commitów jako spójne checkpointy do przeglądu i ewentualnego odzyskiwania; nie squashować ani nie pushować ich automatycznie.
 3. Przy każdej kolejnej zmianie uruchamiać testy zakresowe i pełną bramkę.
-4. Dokończyć real-server matrix dla zadeklarowanych platform i wersji, dokumentując niedostępne buildy upstream.
+4. Utrzymywać dowód 14/14 dostępnych wierszy real-server matrix i dokumentować niedostępne buildy upstream.
 5. Dopiero po tych dowodach aktualizować status release'u oraz przechodzić do kolejnych milestone'ów.
 
 ## 7. Plan dojścia do najlepszego pluginu
@@ -149,7 +149,7 @@ Zielona bramka nie oznacza jeszcze gotowego release'u. Osiem lokalnych checkpoin
 - [x] Ujednolicić `README.md`, roadmapę produktu i `docs/ai/PROJECT_STATE.md` z tym dokumentem.
 - [x] Zapisać dokładne dowody: komenda, data, wynik, wersje JDK/Gradle i wynik testów runtime.
 
-**Nie przechodzimy dalej, dopóki M0 nie jest zielone.**
+**M0 jest zielone dla wszystkich dostępnych runtime'ów. Publikacja nadal pozostaje zablokowana przez brak Folia 26.3 upstream.**
 
 ### Inwentaryzacja bieżącego dużego diffu
 
@@ -159,10 +159,10 @@ Stan po przeglądzie worktree: **147 zmienionych ścieżek tracked oraz dodatkow
 | --- | --- | --- | --- |
 | Q0 — build i jakość | `build.gradle.kts`, `build-logic/`, `config/`, `gradle/`, `settings.gradle.kts`, `.github/workflows/` | Gradle, dependency verification, Checkstyle/PMD/SpotBugs, CI i release checks | checkpoint `3e954a1`; dependency verification ma dodatkowy commit `7846e28` |
 | E1 — wspólny runtime eventów | `spectraevents-core/`, `spectraevents-application/`, `examples/events/` | lifecycle, YAML, execution engine, conditions/actions, lokacje, testy i definicje referencyjne | checkpoint `abb41d4`; runtime platform-neutral jest rozdzielony od platform |
-| E2 — platformy i dystrybucje | `platforms/paper/`, `platforms/spigot/`, `distributions/` | adaptery Paper/Spigot, schedulery, komendy, GUI, renderery, integracje, JAR-y | checkpoint `f9abc19`; Paper-family ma 8/8 dostępnych PASS, Spigot-family wymaga domknięcia |
+| E2 — platformy i dystrybucje | `platforms/paper/`, `platforms/spigot/`, `distributions/` | adaptery Paper/Spigot, schedulery, komendy, GUI, renderery, integracje, JAR-y | checkpoint `f9abc19`; Paper-family 8/8 i Spigot-family 6/6 dostępnych PASS |
 | E3 — trwałość i adaptery | `adapters/storage-sqlite/`, `adapters/update-http/` | SQLite single-writer, recovery, update HTTP, testy obciążeniowe | checkpoint `fa5fb28`; recovery jest pokryte pełną bramką i smoke workflow |
 | E4 — Blockbench i resource-pack | `adapters/assets-*`, `spectraevents-application/src/main/.../asset/`, `tools/blockbench/`, `docs/authoring/`, `docs/config/` | importer, budowanie ZIP, delivery, Modrinth, testy bezpieczeństwa | checkpoint `facbea6`; zakres nadal częściowy, pełny pipeline nie jest obiecany |
-| E5 — runtime smoke i kompatybilność | `scripts/runtime-smoke/`, manifesty pluginów, dokumentacja platform | Paper/Purpur/Folia/Spigot/CraftBukkit i macierz wersji | checkpoint `acf86aa`; Paper-family 8/8 dostępnych PASS, Spigot 26.2 PASS, pozostałe wiersze otwarte, Folia 26.3 zależy od buildu upstream |
+| E5 — runtime smoke i kompatybilność | `scripts/runtime-smoke/`, manifesty pluginów, dokumentacja platform | Paper/Purpur/Folia/Spigot/CraftBukkit i macierz wersji | checkpoint `acf86aa`; 14/14 dostępnych PASS, Folia 26.3 zależy od buildu upstream |
 | D1 — dokumentacja produktu | `README.md`, `docs/ai/`, `docs/architecture/`, `docs/product/` | kontrakt produktu, workflow administratora, architektura, roadmapa i ograniczenia | checkpoint `d61bf7a`; dokumentacja zsynchronizowana z aktualnym stanem |
 | A0 — odroczenie public API | `spectraevents-api/`, ADR 0005 | usunięcie przedwczesnego modułu public API | checkpoint `c38387d`; nie przywracać bez udowodnionego use case'u |
 
@@ -172,7 +172,7 @@ Stan po przeglądzie worktree: **147 zmienionych ścieżek tracked oraz dodatkow
 2. Traktować osiem lokalnych commitów jako checkpointy do przeglądu; nie wykonywać resetu, checkoutu ani automatycznego squashowania.
 3. Przy kolejnych zmianach dotykać tylko jednego pakietu na raz.
 4. Dla każdego pakietu uruchamiać jego testy, potem pełną bramkę i dopisywać dowód do dziennika.
-5. Dokończyć pozostałe wiersze real-server matrix, a dopiero potem przejść do M1 i M2; nie dodawać kolejnych eventów tylko po to, aby zwiększać liczbę funkcji.
+5. Przejść do M1 i M2; nie dodawać kolejnych eventów tylko po to, aby zwiększać liczbę funkcji.
 
 Rozdzielenie zmian zostało wykonane z zachowaniem ich kontekstu w ośmiu lokalnych commitach. Nie wykonujemy automatycznego `reset`, `checkout`, squashowania ani pushowania, ponieważ każdy checkpoint ma pozostać czytelnym punktem przeglądu i odzyskiwania.
 
@@ -295,6 +295,7 @@ Przy każdej znaczącej zmianie:
 | 2026-09-20 | Synchronizacja dokumentacji | `./gradlew spotlessMarkdownCheck` oraz `git diff --check` | **PASS** — plan, roadmapa i status projektu opisują ten sam kierunek; brak błędów whitespace | M0: zamknąć checkpointy bez naruszania cudzych zmian |
 | 2026-09-20 | Lokalne checkpointy M0 | `git log --oneline -8` oraz `git status --short` | **PASS** — osiem spójnych commitów zapisanych lokalnie, worktree czysty, bez pushu | Dokończyć pozostałe dostępne wiersze real-server matrix |
 | 2026-09-20 | Paper-family runtime matrix | sekwencyjne uruchomienie `scripts/runtime-smoke/runtime_workflow.py` dla Paper 26.1–26.3, Purpur 26.1–26.3 i Folia 26.1–26.2 | **PASS** — 8/8 dostępnych wierszy: start, faza, cleanup, restart/recovery i clean shutdown; Folia 26.3 bez dostępnego buildu upstream | Przejść do Spigot/CraftBukkit 26.1–26.3 |
+| 2026-09-20 | Spigot-family runtime matrix | sekwencyjne uruchomienie `scripts/runtime-smoke/runtime_workflow.py` dla Spigot 26.1–26.3 i CraftBukkit 26.1–26.3 | **PASS** — 6/6 dostępnych wierszy: start, faza, cleanup, restart/recovery i clean shutdown | M0 zielone dla dostępnej macierzy; rozpocząć M1 |
 
 ---
 
