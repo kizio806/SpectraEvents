@@ -258,6 +258,7 @@ public class SpigotModelRenderer implements ModelRendererPort {
         display.setGlowColorOverride(
             Color.fromRGB(Integer.parseInt(props.glowColor().replace("#", ""), 16)));
       } catch (Exception ignored) {
+        plugin.getLogger().warning("Failed to parse glow color: " + ignored.getMessage());
       }
     }
     if (props.interpolationDurationTicks() > 0) {

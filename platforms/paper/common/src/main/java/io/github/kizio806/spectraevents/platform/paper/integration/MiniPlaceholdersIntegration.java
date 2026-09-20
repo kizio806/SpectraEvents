@@ -13,6 +13,7 @@ public class MiniPlaceholdersIntegration {
         return MiniPlaceholders.getGlobalPlaceholders();
       }
     } catch (NoClassDefFoundError | Exception ignored) {
+      // Plugin API unavailable or value not applicable — fall through
     }
     return TagResolver.empty();
   }

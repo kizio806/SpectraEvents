@@ -11,14 +11,20 @@ dependencies {
     implementation(project(":adapters:assets-blockbench"))
     compileOnly(libs.paper.api)
     compileOnly(libs.luckperms.api)
-    compileOnly(libs.worldguard.api)
+    compileOnly(libs.worldguard.api) {
+        exclude(group = "org.spigotmc", module = "spigot-api")
+    }
     compileOnly(libs.vault.api) {
         exclude(group = "org.bukkit", module = "bukkit")
     }
     compileOnly(libs.placeholderapi)
     compileOnly(libs.miniplaceholders.api)
-    compileOnly(libs.nexo.api)
-    compileOnly(libs.oraxen.api)
+    compileOnly(libs.nexo.api) {
+        isTransitive = false
+    }
+    compileOnly(libs.oraxen.api) {
+        isTransitive = false
+    }
     compileOnly(libs.itemsadder.api)
     testImplementation(libs.paper.api)
     testImplementation(libs.junit.jupiter)

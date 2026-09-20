@@ -1,6 +1,7 @@
 package io.github.kizio806.spectraevents.platform.paper.interaction;
 
 import io.github.kizio806.spectraevents.application.execution.EventExecutionEngine;
+import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
@@ -81,14 +82,14 @@ public final class PaperInteractionRouter implements Listener {
             executionEngine.evaluateTrigger(
                 instanceId,
                 new io.github.kizio806.spectraevents.application.config.compiled
-                    .ConfiguredTriggerDefinition("interaction"));
+                    .ConfiguredTriggerDefinition("interaction"),
+                ExecutionContext.withActor(player));
         if (handled) {
           executionEngine
               .stateStore()
               .get(instanceId)
               .ifPresent(
                   state -> {
-                    state.recordDamage(player.getUniqueId(), 1);
                     if (state.isLocked()) {
                       long remaining = state.lockedUntilMillis() - System.currentTimeMillis();
                       player.sendMessage(

@@ -4,3 +4,41 @@ main: io.github.kizio806.spectraevents.platform.spigot.SpectraEventsSpigotPlugin
 api-version: '26.1'
 authors: [kizio806]
 description: A modular, data-driven 3D event engine
+
+commands:
+  event:
+    description: SpectraEvents management command
+    usage: /event help
+
+permissions:
+  spectraevents.admin:
+    description: Grants access to all SpectraEvents administration features.
+    default: op
+    children:
+      spectraevents.status: true
+      spectraevents.doctor: true
+      spectraevents.event.list: true
+      spectraevents.event.start: true
+      spectraevents.event.cancel: true
+      spectraevents.event.trigger: true
+      spectraevents.event.inspect: true
+      spectraevents.definition.list: true
+      spectraevents.definition.reload: true
+  spectraevents.status:
+    default: op
+  spectraevents.doctor:
+    default: op
+  spectraevents.event.list:
+    default: op
+  spectraevents.event.start:
+    default: op
+  spectraevents.event.cancel:
+    default: op
+  spectraevents.event.trigger:
+    default: op
+  spectraevents.event.inspect:
+    default: op
+  spectraevents.definition.list:
+    default: op
+  spectraevents.definition.reload:
+    default: op

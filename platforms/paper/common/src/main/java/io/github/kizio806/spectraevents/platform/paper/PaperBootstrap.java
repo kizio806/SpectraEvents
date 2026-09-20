@@ -27,6 +27,7 @@ import io.github.kizio806.spectraevents.platform.paper.scheduler.PaperRegionTask
 import io.github.kizio806.spectraevents.platform.paper.update.UpdateNotificationListener;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 
 /** Composition Root for the Paper platform family. */
 public final class PaperBootstrap {
@@ -40,6 +41,7 @@ public final class PaperBootstrap {
   private SQLiteEventInstanceRepository sqliteRepository;
   private IntegrationRegistry integrationRegistry;
   private UpdateService updateService;
+  private CompletableFuture<Void> updateCheck;
 
   public PaperBootstrap(org.bukkit.plugin.java.JavaPlugin plugin) {
     this.plugin = plugin;
@@ -69,8 +71,8 @@ public final class PaperBootstrap {
     sqliteRepository = new SQLiteEventInstanceRepository(dbPath);
     sqliteRepository.initialize();
 
-    PaperActionAdapter actionAdapter = new PaperActionAdapter(renderer, regionScheduler, cleaner);
-    PaperEntityReconciler reconciler = new PaperEntityReconciler(plugin, renderer);
+    PaperActionAdapter actionAdapter = new PaperActionAdapter(regionScheduler, cleaner);
+    PaperEntityReconciler reconciler = new PaperEntityReconciler(plugin, cleaner);
 
     application =
         new SpectraEventsApplication(
@@ -90,15 +92,12 @@ public final class PaperBootstrap {
     io.github.kizio806.spectraevents.application.asset.AssetPipelineService assetPipelineService =
         new io.github.kizio806.spectraevents.application.asset.AssetPipelineService(
             bbReader,
-            application.modelDefinitionRegistry(),
-            application.animationDefinitionRegistry(),
             rpBuilder,
             plugin.getDataFolder().toPath().resolve("assets").resolve("source"),
             io.github.kizio806.spectraevents.application.asset.AssetTargetProfile.PROFILE_26_1);
     application.setAssetPipelineService(assetPipelineService);
 
     actionAdapter.setModelRuntimeService(application.modelRuntimeService());
-    application.start();
 
     // Load 3D Models
     try {
@@ -145,6 +144,8 @@ public final class PaperBootstrap {
           .severe("Failed to initialize event definitions or reconciliation: " + e.getMessage());
     }
 
+    application.start();
+
     // Initialize specific integrations
     new PlaceholderAPIIntegration(sqliteRepository, application.executionEngine().stateStore());
 
@@ -155,32 +156,35 @@ public final class PaperBootstrap {
     Path updateDir = plugin.getDataFolder().toPath().resolve("update");
     HttpUpdateAdapter updateAdapter = new HttpUpdateAdapter(updateDir);
     updateService = new UpdateService(plugin.getPluginMeta().getVersion(), updateAdapter);
-    updateService
-        .checkNow("stable")
-        .thenAccept(
-            info -> {
-              if (info.updateAvailable()) {
-                plugin
-                    .getLogger()
-                    .info(
-                        "[SpectraEvents] Update available: "
-                            + info.currentVersion()
-                            + " -> "
-                            + info.latestVersion()
-                            + ". Run /event update info");
-              }
-            });
+    updateCheck =
+        updateService
+            .checkNow("stable")
+            .thenAccept(
+                info -> {
+                  if (info.updateAvailable()) {
+                    plugin
+                        .getLogger()
+                        .info(
+                            "[SpectraEvents] Update available: "
+                                + info.currentVersion()
+                                + " -> "
+                                + info.latestVersion()
+                                + ". Run /event update info");
+                  }
+                })
+            .exceptionally(
+                exception -> {
+                  plugin
+                      .getLogger()
+                      .warning("Could not check for updates: " + exception.getMessage());
+                  return null;
+                });
     org.bukkit.Bukkit.getPluginManager()
         .registerEvents(new UpdateNotificationListener(updateService), plugin);
 
     AdminGuiController guiController =
         new AdminGuiController(
-            plugin,
-            application.orchestrationService(),
-            application.definitionRegistry(),
-            sqliteRepository,
-            integrationRegistry,
-            updateService);
+            application.definitionRegistry(), sqliteRepository, integrationRegistry, updateService);
     org.bukkit.Bukkit.getPluginManager().registerEvents(guiController, plugin);
 
     PaperInteractionRouter interactionRouter =
@@ -207,8 +211,7 @@ public final class PaperBootstrap {
             guiController,
             application);
 
-    SpectraDebugCommand debugCommand =
-        new SpectraDebugCommand(application.orchestrationService(), renderer);
+    SpectraDebugCommand debugCommand = new SpectraDebugCommand(application.orchestrationService());
 
     plugin
         .getLifecycleManager()
@@ -224,9 +227,19 @@ public final class PaperBootstrap {
                       debugCommand.buildCommand().build(),
                       "Developer debug commands for SpectraEvents");
             });
+
+    plugin
+        .getLogger()
+        .info(
+            "[SpectraEvents] READY platform=paper definitions="
+                + application.definitionRegistry().getAll().size());
   }
 
   public void disable() {
+    if (updateCheck != null) {
+      updateCheck.cancel(true);
+      updateCheck = null;
+    }
     if (cleaner != null) {
       cleaner.cleanupAll();
     }

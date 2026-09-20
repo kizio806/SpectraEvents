@@ -31,7 +31,6 @@ public final class SpectraMainCommand {
   private final EventDefinitionRegistry definitionRegistry;
   private final EventInstanceRepository instanceRepository;
   private final AdminGuiController guiController;
-  private final SpectraEventsApplication application;
 
   public SpectraMainCommand(
       EventOrchestrationService orchestrationService,
@@ -68,7 +67,6 @@ public final class SpectraMainCommand {
     this.definitionRegistry = definitionRegistry;
     this.instanceRepository = instanceRepository;
     this.guiController = guiController;
-    this.application = application;
   }
 
   public LiteralArgumentBuilder<CommandSourceStack> buildCommand() {

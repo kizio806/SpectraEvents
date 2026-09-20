@@ -3,15 +3,24 @@ package io.github.kizio806.spectraevents.platform.paper.command;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import io.github.kizio806.spectraevents.application.config.compiled.ConfiguredTriggerDefinition;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
+import io.github.kizio806.spectraevents.application.execution.EventLocation;
+import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
+import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.util.Collection;
+import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -48,11 +57,11 @@ public final class EventCommandHandler {
                     Commands.argument("definition", StringArgumentType.word())
                         .suggests(
                             (ctx, builder) -> {
-                              String remaining = builder.getRemaining().toLowerCase();
+                              String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
                               if (definitionRegistry != null) {
                                 for (var def : definitionRegistry.getAll()) {
                                   String id = def.definition().id().value();
-                                  if (id.toLowerCase().startsWith(remaining)) {
+                                  if (id.toLowerCase(Locale.ROOT).startsWith(remaining)) {
                                     builder.suggest(id);
                                   }
                                 }
@@ -73,22 +82,37 @@ public final class EventCommandHandler {
                 .then(
                     Commands.argument("instance", StringArgumentType.word())
                         .suggests(this::suggestActiveInstances)
-                        .executes(this::eventCancel)));
+                        .executes(this::eventCancel)))
+        .then(
+            Commands.literal("trigger")
+                .requires(s -> s.getSender().hasPermission("spectraevents.event.trigger"))
+                .then(
+                    Commands.argument("instance", StringArgumentType.word())
+                        .suggests(this::suggestActiveInstances)
+                        .then(
+                            Commands.argument("trigger", StringArgumentType.word())
+                                .executes(this::eventTrigger))))
+        .then(
+            Commands.literal("inspect")
+                .requires(s -> s.getSender().hasPermission("spectraevents.event.inspect"))
+                .then(
+                    Commands.argument("instance", StringArgumentType.word())
+                        .executes(this::eventInspect)));
   }
 
   private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions>
       suggestActiveInstances(
           CommandContext<CommandSourceStack> ctx,
           com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
-    String remaining = builder.getRemaining().toLowerCase();
+    String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
     if (instanceRepository != null) {
       for (EventInstance inst : instanceRepository.findAll()) {
         String idStr = inst.id().toString();
         String defStr = inst.definitionId().value();
-        if (idStr.toLowerCase().startsWith(remaining)) {
+        if (idStr.toLowerCase(Locale.ROOT).startsWith(remaining)) {
           builder.suggest(idStr);
         }
-        if (defStr.toLowerCase().startsWith(remaining)) {
+        if (defStr.toLowerCase(Locale.ROOT).startsWith(remaining)) {
           builder.suggest(defStr);
         }
       }
@@ -118,10 +142,23 @@ public final class EventCommandHandler {
     String defIdStr = StringArgumentType.getString(ctx, "definition");
 
     try {
-      Object platformLocation = null;
+      Location bukkitLocation = null;
       if (sender instanceof Player player) {
-        platformLocation = player.getLocation();
+        bukkitLocation = player.getLocation();
+      } else if (!Bukkit.getWorlds().isEmpty()) {
+        bukkitLocation = Bukkit.getWorlds().getFirst().getSpawnLocation();
       }
+      if (bukkitLocation == null || bukkitLocation.getWorld() == null) {
+        throw new IllegalStateException("No loaded world is available for the event location");
+      }
+      EventLocation platformLocation =
+          new EventLocation(
+              bukkitLocation.getWorld().getName(),
+              bukkitLocation.getX(),
+              bukkitLocation.getY(),
+              bukkitLocation.getZ(),
+              bukkitLocation.getYaw(),
+              bukkitLocation.getPitch());
       var instance = orchestrationService.startDefinition(defIdStr, platformLocation);
       sender.sendMessage(
           Component.text(
@@ -155,5 +192,45 @@ public final class EventCommandHandler {
 
   private int eventCancel(CommandContext<CommandSourceStack> ctx) {
     return eventStop(ctx);
+  }
+
+  private int eventTrigger(CommandContext<CommandSourceStack> ctx) {
+    CommandSender sender = ctx.getSource().getSender();
+    EventInstanceId instanceId =
+        new EventInstanceId(UUID.fromString(StringArgumentType.getString(ctx, "instance")));
+    String trigger = StringArgumentType.getString(ctx, "trigger");
+    ExecutionContext context =
+        sender instanceof Player
+            ? ExecutionContext.withActor(sender)
+            : new ExecutionContext(sender, Map.of());
+    boolean handled =
+        orchestrationService
+            .executionEngine()
+            .evaluateTrigger(instanceId, new ConfiguredTriggerDefinition(trigger), context);
+    sender.sendMessage(
+        Component.text("Trigger " + trigger + " handled=" + handled, NamedTextColor.YELLOW));
+    return handled ? 1 : 0;
+  }
+
+  private int eventInspect(CommandContext<CommandSourceStack> ctx) {
+    CommandSender sender = ctx.getSource().getSender();
+    EventInstanceId instanceId =
+        new EventInstanceId(UUID.fromString(StringArgumentType.getString(ctx, "instance")));
+    EventInstance instance = orchestrationService.getEventInfo(instanceId.toString());
+    var diagnostics = orchestrationService.executionEngine().diagnostics(instanceId);
+    sender.sendMessage(
+        Component.text(
+            "Event "
+                + instanceId
+                + " state="
+                + instance.state()
+                + " runtimeState="
+                + diagnostics.runtimeStatePresent()
+                + " tasks="
+                + diagnostics.pendingTasks()
+                + " resources="
+                + diagnostics.platformResources(),
+            NamedTextColor.YELLOW));
+    return 1;
   }
 }

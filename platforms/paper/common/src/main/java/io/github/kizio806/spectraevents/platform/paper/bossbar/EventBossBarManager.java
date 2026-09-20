@@ -3,6 +3,7 @@ package io.github.kizio806.spectraevents.platform.paper.bossbar;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.platform.paper.integration.MiniPlaceholdersIntegration;
+import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -29,6 +30,11 @@ public final class EventBossBarManager implements Listener {
   }
 
   private final Map<UUID, BossBarHolder> activeBossBars = new ConcurrentHashMap<>();
+  private final RegionTaskScheduler scheduler;
+
+  public EventBossBarManager(RegionTaskScheduler scheduler) {
+    this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
+  }
 
   public void showBossBar(
       EventInstance instance, EventRuntimeState state, Map<String, Object> params) {
@@ -48,7 +54,7 @@ public final class EventBossBarManager implements Listener {
     activeBossBars.put(instanceId, holder);
 
     for (Player player : Bukkit.getOnlinePlayers()) {
-      player.showBossBar(bossBar);
+      scheduler.executeFor(player, () -> player.showBossBar(bossBar));
     }
   }
 
@@ -84,7 +90,7 @@ public final class EventBossBarManager implements Listener {
     BossBarHolder holder = activeBossBars.remove(instanceId);
     if (holder != null) {
       for (Player player : Bukkit.getOnlinePlayers()) {
-        player.hideBossBar(holder.bossBar);
+        scheduler.executeFor(player, () -> player.hideBossBar(holder.bossBar));
       }
     }
   }
@@ -98,7 +104,7 @@ public final class EventBossBarManager implements Listener {
 
   public void attachPlayer(Player player) {
     for (BossBarHolder holder : activeBossBars.values()) {
-      player.showBossBar(holder.bossBar);
+      scheduler.executeFor(player, () -> player.showBossBar(holder.bossBar));
     }
   }
 
@@ -128,7 +134,8 @@ public final class EventBossBarManager implements Listener {
     if (params.containsKey("progress")) {
       try {
         return Float.parseFloat(String.valueOf(params.get("progress")));
-      } catch (Exception ignored) {
+      } catch (NumberFormatException ignored) {
+        // Ignored, fallback to health calculation
       }
     }
     if (state.maxHealth() > 0) {
@@ -139,7 +146,7 @@ public final class EventBossBarManager implements Listener {
 
   private BossBar.Color parseColor(String colorStr) {
     try {
-      return BossBar.Color.valueOf(colorStr.toUpperCase());
+      return BossBar.Color.valueOf(colorStr.toUpperCase(java.util.Locale.ROOT));
     } catch (Exception e) {
       return BossBar.Color.PURPLE;
     }
@@ -147,7 +154,7 @@ public final class EventBossBarManager implements Listener {
 
   private BossBar.Overlay parseOverlay(String styleStr) {
     try {
-      String upper = styleStr.toUpperCase();
+      String upper = styleStr.toUpperCase(java.util.Locale.ROOT);
       if (upper.startsWith("NOTCH")) {
         return BossBar.Overlay.valueOf(upper.replace("NOTCH_", "NOTCHES_"));
       }

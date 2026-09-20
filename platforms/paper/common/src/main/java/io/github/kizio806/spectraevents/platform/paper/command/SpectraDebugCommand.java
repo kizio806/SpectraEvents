@@ -6,7 +6,6 @@ import com.mojang.brigadier.context.CommandContext;
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.InvalidPhaseTransitionException;
-import io.github.kizio806.spectraevents.platform.paper.render.PaperModelRenderer;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import net.kyori.adventure.text.Component;
@@ -16,12 +15,9 @@ import org.bukkit.command.CommandSender;
 /** Debug and testing subcommands for SpectraEvents development in Paper platform family. */
 public final class SpectraDebugCommand {
   private final EventOrchestrationService orchestrationService;
-  private final PaperModelRenderer renderer;
 
-  public SpectraDebugCommand(
-      EventOrchestrationService orchestrationService, PaperModelRenderer renderer) {
+  public SpectraDebugCommand(EventOrchestrationService orchestrationService) {
     this.orchestrationService = orchestrationService;
-    this.renderer = renderer;
   }
 
   public LiteralArgumentBuilder<CommandSourceStack> buildCommand() {

@@ -5,7 +5,6 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
 
@@ -14,8 +13,8 @@ public final class ActiveEventsScreen {
 
   public static Inventory createInventory(EventInstanceRepository instanceRepository) {
     Inventory inv =
-        Bukkit.createInventory(
-            new AdminGuiHolder(AdminGuiController.MenuType.ACTIVE_EVENTS),
+        AdminGuiHolder.createInventory(
+            AdminGuiController.MenuType.ACTIVE_EVENTS,
             54,
             Component.text("Active Events", NamedTextColor.GOLD));
 

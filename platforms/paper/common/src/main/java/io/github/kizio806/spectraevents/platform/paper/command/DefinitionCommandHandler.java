@@ -10,6 +10,7 @@ import io.github.kizio806.spectraevents.platform.paper.config.PaperDefinitionCon
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.util.Collection;
+import java.util.Locale;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
@@ -57,14 +58,14 @@ public final class DefinitionCommandHandler {
       suggestDefinitionIds(
           CommandContext<CommandSourceStack> ctx,
           com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
-    String remaining = builder.getRemaining().toLowerCase();
+    String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
     if ("all".startsWith(remaining)) {
       builder.suggest("all");
     }
     if (definitionRegistry != null) {
       for (RegisteredEventDefinition reg : definitionRegistry.getAll()) {
         String id = reg.definition().id().value();
-        if (id.toLowerCase().startsWith(remaining)) {
+        if (id.toLowerCase(Locale.ROOT).startsWith(remaining)) {
           builder.suggest(id);
         }
       }
@@ -111,7 +112,7 @@ public final class DefinitionCommandHandler {
   private int definitionValidate(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
     try {
-      DefinitionLoadResult result = configBootstrap.loadFromDisk();
+      DefinitionLoadResult result = configBootstrap.validateFromDisk();
       if (result.failures().isEmpty()) {
         sender.sendMessage(
             Component.text(
