@@ -2,6 +2,9 @@ package io.github.kizio806.spectraevents.application.model.loader;
 
 import io.github.kizio806.spectraevents.application.config.validation.ValidationDiagnostic;
 import io.github.kizio806.spectraevents.application.config.validation.ValidationDiagnostic.Severity;
+import io.github.kizio806.spectraevents.application.model.animation.compiler.CompiledAnimation;
+import io.github.kizio806.spectraevents.application.model.animation.registry.AnimationDefinitionRegistry;
+import io.github.kizio806.spectraevents.application.model.compiler.CompiledModel;
 import io.github.kizio806.spectraevents.application.model.compiler.ModelCompiler;
 import io.github.kizio806.spectraevents.application.model.compiler.ModelCompilerException;
 import io.github.kizio806.spectraevents.application.model.registry.ModelDefinitionRegistry;
@@ -22,10 +25,19 @@ import org.yaml.snakeyaml.constructor.Constructor;
 public class ModelLoader {
   private final ModelCompiler compiler;
   private final ModelDefinitionRegistry registry;
+  private final AnimationDefinitionRegistry animationRegistry;
 
   public ModelLoader(ModelCompiler compiler, ModelDefinitionRegistry registry) {
+    this(compiler, registry, null);
+  }
+
+  public ModelLoader(
+      ModelCompiler compiler,
+      ModelDefinitionRegistry registry,
+      AnimationDefinitionRegistry animationRegistry) {
     this.compiler = Objects.requireNonNull(compiler, "compiler cannot be null");
     this.registry = Objects.requireNonNull(registry, "registry cannot be null");
+    this.animationRegistry = animationRegistry;
   }
 
   /** Loads all *.yml model files from the specified directory. */
@@ -53,20 +65,21 @@ public class ModelLoader {
     try (DirectoryStream<Path> stream = Files.newDirectoryStream(directoryPath, "*.yml")) {
       for (Path file : stream) {
         try {
-          ModelDefinition compiled = parseAndCompile(file);
-          if (registry.contains(compiled.id())) {
+          CompiledModel compiled = parseAndCompileWithAnimations(file);
+          if (registry.contains(compiled.definition().id())) {
             diagnostics.add(
                 new ValidationDiagnostic(
                     Severity.ERROR,
                     "DUPLICATE_MODEL_ID",
                     file.getFileName().toString(),
                     "Duplicate model ID '"
-                        + compiled.id().value()
+                        + compiled.definition().id().value()
                         + "' found in file "
                         + file.getFileName()));
             invalid++;
           } else {
-            registry.register(compiled);
+            registry.register(compiled.definition());
+            registerAnimations(compiled);
             loaded++;
           }
         } catch (ModelCompilerException mce) {
@@ -96,6 +109,11 @@ public class ModelLoader {
 
   /** Parses and compiles a single YAML model stream. */
   public ModelDefinition parseAndCompile(InputStream inputStream, String fileName) {
+    return parseAndCompileWithAnimations(inputStream, fileName).definition();
+  }
+
+  /** Parses and compiles a model while retaining executable animation plans. */
+  public CompiledModel parseAndCompileWithAnimations(InputStream inputStream, String fileName) {
     Objects.requireNonNull(inputStream, "inputStream cannot be null");
     try {
       LoaderOptions options = new LoaderOptions();
@@ -104,7 +122,7 @@ public class ModelLoader {
       if (spec == null) {
         throw new IllegalArgumentException("Model YAML stream is empty");
       }
-      return compiler.compile(spec);
+      return compiler.compileWithAnimations(spec);
     } catch (ModelCompilerException modelCompilerException) {
       throw modelCompilerException;
     } catch (Exception e) {
@@ -120,8 +138,12 @@ public class ModelLoader {
   }
 
   public ModelDefinition parseAndCompile(Path file) {
+    return parseAndCompileWithAnimations(file).definition();
+  }
+
+  public CompiledModel parseAndCompileWithAnimations(Path file) {
     try (InputStream is = Files.newInputStream(file)) {
-      return parseAndCompile(is, file.getFileName().toString());
+      return parseAndCompileWithAnimations(is, file.getFileName().toString());
     } catch (java.io.IOException e) {
       List<ValidationDiagnostic> diagnostics =
           List.of(
@@ -136,4 +158,14 @@ public class ModelLoader {
 
   public record ModelLoaderResult(
       int loadedCount, int invalidCount, List<ValidationDiagnostic> diagnostics) {}
+
+  private void registerAnimations(CompiledModel compiledModel) {
+    if (animationRegistry == null) {
+      return;
+    }
+    animationRegistry.unregister(compiledModel.definition().id());
+    for (CompiledAnimation animation : compiledModel.animations().values()) {
+      animationRegistry.register(compiledModel.definition().id(), animation);
+    }
+  }
 }

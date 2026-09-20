@@ -72,10 +72,10 @@ public final class SpectraEventsApplication {
 
     this.modelDefinitionRegistry = new ModelDefinitionRegistry();
     this.modelCompiler = new ModelCompiler();
-    this.modelLoader = new ModelLoader(modelCompiler, modelDefinitionRegistry);
-
     this.animationDefinitionRegistry = new AnimationDefinitionRegistry();
     this.activeAnimationRegistry = new ActiveAnimationRegistry();
+    this.modelLoader =
+        new ModelLoader(modelCompiler, modelDefinitionRegistry, animationDefinitionRegistry);
 
     if (modelRendererPort != null) {
       this.modelRuntimeService =

@@ -4,10 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import io.github.kizio806.spectraevents.application.model.animation.spec.AnimationSpec;
+import io.github.kizio806.spectraevents.application.model.animation.spec.AnimationTrackSpec;
+import io.github.kizio806.spectraevents.application.model.animation.spec.KeyframeSpec;
 import io.github.kizio806.spectraevents.application.model.spec.InteractionSpec;
 import io.github.kizio806.spectraevents.application.model.spec.ModelPartSpec;
 import io.github.kizio806.spectraevents.application.model.spec.ModelSpec;
 import io.github.kizio806.spectraevents.application.model.spec.TransformSpec;
+import io.github.kizio806.spectraevents.core.visual.animation.AnimationId;
 import io.github.kizio806.spectraevents.core.visual.model.ModelDefinition;
 import io.github.kizio806.spectraevents.core.visual.model.ModelPartDefinition;
 import io.github.kizio806.spectraevents.core.visual.model.ModelPartId;
@@ -114,5 +118,36 @@ class ModelCompilerTest {
     ModelCompilerException ex =
         assertThrows(ModelCompilerException.class, () -> compiler.compile(spec));
     assertTrue(ex.diagnostics().stream().anyMatch(d -> d.code().equals("UNKNOWN_PART_TYPE")));
+  }
+
+  @Test
+  void compileWithAnimationsRetainsExecutablePlansAndModelDefinitions() {
+    ModelSpec spec = new ModelSpec();
+    spec.setId("animated_model");
+
+    ModelPartSpec core = new ModelPartSpec();
+    core.setType("ITEM_DISPLAY");
+    core.setItem("minecraft:stone");
+    spec.setParts(Map.of("core", core));
+
+    KeyframeSpec start = new KeyframeSpec();
+    start.setAt("0s");
+    start.setValue(List.of(0.0f, 0.0f, 0.0f));
+    KeyframeSpec end = new KeyframeSpec();
+    end.setAt("1s");
+    end.setValue(List.of(0.0f, 1.0f, 0.0f));
+
+    AnimationTrackSpec track = new AnimationTrackSpec();
+    track.setTranslation(List.of(start, end));
+    AnimationSpec animation = new AnimationSpec();
+    animation.setDuration("1s");
+    animation.setTracks(Map.of("core", track));
+    spec.setAnimations(Map.of("hover", animation));
+
+    CompiledModel compiled = compiler.compileWithAnimations(spec);
+
+    assertEquals(1, compiled.animations().size());
+    assertTrue(compiled.definition().findAnimation(new AnimationId("hover")).isPresent());
+    assertEquals(1, compiled.animations().get(new AnimationId("hover")).tracks().size());
   }
 }
