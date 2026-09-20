@@ -18,6 +18,11 @@ import java.util.Map;
 
 public class BlockbenchProjectReader implements AssetImportPort {
 
+  private static final String ATTR_NAME = "name";
+  private static final int MAX_BASE64_LENGTH = 2_000_000;
+  private static final int MAX_TEX_WIDTH = 1024;
+  private static final int MAX_PIXELS = 1_048_576;
+
   @Override
   public SpectraAssetDocument read(String jsonContent, String modelId) {
     JsonObject root = JsonParser.parseString(jsonContent).getAsJsonObject();
@@ -43,12 +48,12 @@ public class BlockbenchProjectReader implements AssetImportPort {
       for (JsonElement el : texturesArray) {
         JsonObject tex = el.getAsJsonObject();
         String id = tex.get("id").getAsString();
-        String name = tex.get("name").getAsString();
+        String name = tex.get(ATTR_NAME).getAsString();
         String source = tex.has("source") ? tex.get("source").getAsString() : "";
-        byte[] data = null;
+        byte[] data;
         if (source.startsWith("data:image")) {
           String base64 = source.substring(source.indexOf(",") + 1);
-          if (base64.length() > 2_000_000) { // arbitrary 1.5MB limit
+          if (base64.length() > MAX_BASE64_LENGTH) { // arbitrary 1.5MB limit
             throw new IllegalArgumentException("Embedded texture too large (exceeds size limit)");
           }
           data = Base64.getDecoder().decode(base64);
@@ -66,11 +71,11 @@ public class BlockbenchProjectReader implements AssetImportPort {
                 int height = reader.getHeight(0);
                 long pixels = (long) width * height;
 
-                if (width > 1024)
+                if (width > MAX_TEX_WIDTH)
                   throw new IllegalArgumentException("Texture width exceeds maximum 1024");
-                if (height > 1024)
+                if (height > MAX_TEX_WIDTH)
                   throw new IllegalArgumentException("Texture height exceeds maximum 1024");
-                if (pixels > 1_048_576)
+                if (pixels > MAX_PIXELS)
                   throw new IllegalArgumentException("Texture pixel count exceeds maximum 1048576");
               } finally {
                 reader.dispose();
@@ -80,7 +85,9 @@ public class BlockbenchProjectReader implements AssetImportPort {
             throw new IllegalArgumentException("Failed to read texture dimensions", e);
           }
 
-          source = null; // Embedded
+          source = ""; // Embedded
+        } else {
+          data = new byte[0];
         }
         textures.put(id, new SpectraAssetTexture(name, data, source));
       }
@@ -158,7 +165,7 @@ public class BlockbenchProjectReader implements AssetImportPort {
   }
 
   private SpectraAssetNode parseNode(JsonObject nodeJson, JsonObject root) {
-    String name = nodeJson.get("name").getAsString();
+    String name = nodeJson.get(ATTR_NAME).getAsString();
 
     // Blockbench pivot
     JsonArray originArr = nodeJson.getAsJsonArray("origin");
@@ -178,10 +185,6 @@ public class BlockbenchProjectReader implements AssetImportPort {
       for (JsonElement child : childrenArr) {
         if (child.isJsonObject()) {
           children.add(parseNode(child.getAsJsonObject(), root));
-        } else if (child.isJsonPrimitive()) {
-          // String UUID referencing an element (cube)
-          String cubeId = child.getAsString();
-          // Find cube in elements...
         }
       }
     }
