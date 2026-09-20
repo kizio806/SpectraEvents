@@ -12,8 +12,9 @@ compile.
 | `initial-phase` | yes | Phase key where instances start |
 | `phases` | yes | Map of phase id → phase body |
 
-Additional root fields such as `display` or `spawn` may appear in design examples but are ignored
-by the v1 parser until future schema versions add support.
+Additional root fields such as `display` or `spawn` are rejected by the v1 parser with a precise
+unknown-field diagnostic. They may be added only by a future schema version with an explicit
+migration rule.
 
 ## Minimal example
 
@@ -38,5 +39,5 @@ phases:
 ## Runtime behavior
 
 The engine never reads raw YAML during gameplay. Files are parsed at startup (or on
-`/event dev definition validate`), compiled into immutable objects, and registered by `id`.
+`/event definition validate`), compiled into immutable objects, and registered by `id`.
 Running instances reference the compiled definition snapshot.

@@ -79,7 +79,7 @@ public class EventSpecYamlParser {
 
     rejectUnknownKeys(rootMap, ROOT_KEYS, "root", diagnostics);
 
-    String schemaVersion = getString(rootMap, "schema-version");
+    String schemaVersion = getString(rootMap, "schema-version", "schema-version", diagnostics);
     if (schemaVersion == null) {
       diagnostics.add(
           new ValidationDiagnostic(
@@ -96,8 +96,8 @@ public class EventSpecYamlParser {
               "Unsupported schema-version: " + schemaVersion));
     }
 
-    String id = getString(rootMap, "id");
-    String initialPhase = getString(rootMap, "initial-phase");
+    String id = getString(rootMap, "id", "id", diagnostics);
+    String initialPhase = getString(rootMap, "initial-phase", "initial-phase", diagnostics);
 
     Map<String, PhaseSpec> phases = new HashMap<>();
     Object phasesObj = rootMap.get("phases");
@@ -202,15 +202,15 @@ public class EventSpecYamlParser {
     TriggerSpec trigger = null;
     List<ConditionSpec> conditions = new ArrayList<>();
     List<ActionSpec> actions = new ArrayList<>();
-    String targetPhase = getString(tMap, "target");
+    String targetPhase = getString(tMap, "target", path + ".target", diagnostics);
     if (targetPhase == null) {
-      targetPhase = getString(tMap, "target-phase");
+      targetPhase = getString(tMap, "target-phase", path + ".target-phase", diagnostics);
     }
     if (targetPhase == null) {
-      targetPhase = getString(tMap, "targetPhase");
+      targetPhase = getString(tMap, "targetPhase", path + ".targetPhase", diagnostics);
     }
     if (targetPhase == null) {
-      targetPhase = getString(tMap, "target_phase");
+      targetPhase = getString(tMap, "target_phase", path + ".target_phase", diagnostics);
     }
 
     Object triggerObj = tMap.get("trigger");
@@ -318,7 +318,7 @@ public class EventSpecYamlParser {
 
   private TriggerSpec parseTrigger(
       Map<?, ?> map, String path, List<ValidationDiagnostic> diagnostics) {
-    String type = getString(map, "type");
+    String type = getString(map, "type", path + ".type", diagnostics);
     if (type == null) {
       diagnostics.add(
           new ValidationDiagnostic(
@@ -327,12 +327,12 @@ public class EventSpecYamlParser {
               path + ".type",
               "Trigger must have a type"));
     }
-    return new TriggerSpec(type, getParameters(map));
+    return new TriggerSpec(type, getParameters(map, path, diagnostics));
   }
 
   private ConditionSpec parseCondition(
       Map<?, ?> map, String path, List<ValidationDiagnostic> diagnostics) {
-    String type = getString(map, "type");
+    String type = getString(map, "type", path + ".type", diagnostics);
     if (type == null) {
       diagnostics.add(
           new ValidationDiagnostic(
@@ -341,12 +341,12 @@ public class EventSpecYamlParser {
               path + ".type",
               "Condition must have a type"));
     }
-    return new ConditionSpec(type, getParameters(map));
+    return new ConditionSpec(type, getParameters(map, path, diagnostics));
   }
 
   private ActionSpec parseAction(
       Map<?, ?> map, String path, List<ValidationDiagnostic> diagnostics) {
-    String type = getString(map, "type");
+    String type = getString(map, "type", path + ".type", diagnostics);
     if (type == null) {
       diagnostics.add(
           new ValidationDiagnostic(
@@ -355,22 +355,35 @@ public class EventSpecYamlParser {
               path + ".type",
               "Action must have a type"));
     }
-    return new ActionSpec(type, getParameters(map));
+    return new ActionSpec(type, getParameters(map, path, diagnostics));
   }
 
-  private String getString(Map<?, ?> map, String key) {
+  private String getString(
+      Map<?, ?> map, String key, String path, List<ValidationDiagnostic> diagnostics) {
+    if (!map.containsKey(key)) {
+      return null;
+    }
     Object val = map.get(key);
-    return val != null ? String.valueOf(val) : null;
+    if (val == null) {
+      return null;
+    }
+    if (val instanceof Map<?, ?> || val instanceof List<?>) {
+      addTypeError(path, "Value must be a scalar", diagnostics);
+      return null;
+    }
+    return String.valueOf(val);
   }
 
-  @SuppressWarnings("unchecked")
-  private Map<String, Object> getParameters(Map<?, ?> map) {
+  private Map<String, Object> getParameters(
+      Map<?, ?> map, String path, List<ValidationDiagnostic> diagnostics) {
     Map<String, Object> result = new HashMap<>();
     Object params = map.get("parameters");
     if (params instanceof Map<?, ?> pMap) {
       for (Map.Entry<?, ?> entry : pMap.entrySet()) {
         result.put(String.valueOf(entry.getKey()), entry.getValue());
       }
+    } else if (params != null) {
+      addTypeError(path + ".parameters", "parameters must be an object/map", diagnostics);
     }
     for (Map.Entry<?, ?> entry : map.entrySet()) {
       String key = String.valueOf(entry.getKey());

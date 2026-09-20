@@ -49,14 +49,14 @@ public class EventDefinitionCompiler {
           new ValidationDiagnostic(
               ValidationDiagnostic.Severity.ERROR,
               "SE-DEF-002",
-              "initialPhase",
+              "initial-phase",
               "Initial phase cannot be blank"));
     } else if (spec.phases() != null && !spec.phases().containsKey(spec.initialPhase())) {
       diagnostics.add(
           new ValidationDiagnostic(
               ValidationDiagnostic.Severity.ERROR,
               "SE-DEF-003",
-              "initialPhase",
+              "initial-phase",
               "Initial phase must exist in phases map: " + spec.initialPhase()));
     }
 
@@ -91,7 +91,7 @@ public class EventDefinitionCompiler {
                 new ValidationDiagnostic(
                     ValidationDiagnostic.Severity.ERROR,
                     "SE-DEF-005",
-                    "phases." + phaseName + ".allowedTransitions",
+                    "phases." + phaseName + ".transitions",
                     "Transition target phase does not exist: " + target));
           }
         }
@@ -147,7 +147,7 @@ public class EventDefinitionCompiler {
                   new ValidationDiagnostic(
                       ValidationDiagnostic.Severity.ERROR,
                       "SE-DEF-007",
-                      path + ".targetPhase",
+                      path + ".target",
                       "Transition target phase does not exist: " + tSpec.targetPhase()));
             }
             targetPhase = Optional.of(new PhaseId(tSpec.targetPhase()));
