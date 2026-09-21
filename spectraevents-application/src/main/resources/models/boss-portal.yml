@@ -1,0 +1,39 @@
+id: dev_boss_portal_model
+
+parts:
+  frame:
+    type: item_display
+    item: minecraft:end_portal_frame
+    transform:
+      translation: [0.0, 0.0, 0.0]
+      scale: [2.0, 2.0, 2.0]
+    render:
+      billboard: fixed
+
+  label:
+    type: text_display
+    parent: frame
+    text: "<dark_purple><bold>BOSS PORTAL"
+    transform:
+      translation: [0.0, 2.5, 0.0]
+    render:
+      billboard: center
+
+interactions:
+  main:
+    parent: frame
+    width: 3.0
+    height: 3.0
+
+animations:
+  opening:
+    duration: 2s
+    loop: ONCE
+    recovery: RESTART
+    tracks:
+      frame:
+        scale:
+          - at: 0s
+            value: [0.5, 0.5, 0.5]
+          - at: 2s
+            value: [1.0, 1.0, 1.0]

@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-M3 reference events as product examples
+M4 production compatibility and release
 
 ## Current Target
 
@@ -83,7 +83,14 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
     `spawn_model` / `play_animation` definitions.
   - Deterministic resource-pack ZIP output with generated manifest and custom-model-data mapping.
   - Opt-in HTTPS/SHA-1 delivery configuration with cache, reconnect, decline and failure handling
-    covered by JVM tests; no automatic hosting or Modrinth publishing.
+  covered by JVM tests; no automatic hosting or Modrinth publishing.
+- [x] M3 reference events:
+  - Meteor, Airdrop, Metin, Piñata, and Boss Portal are bundled YAML definitions with paired model
+    YAML, user documentation, configuration/model validation, and shared cleanup/recovery behavior.
+  - Added the platform-neutral durable `HitCounter` primitive. Piñata uses `increment_hits` and
+    `hits_reached`; a SQLite recovery test verifies the counter survives a restart.
+  - Boss Portal composes the shared model animation, timer, boss spawn, entity-death routing, reward,
+    and cleanup contracts without an event-specific coordinator.
 
 ## In Progress
 
@@ -91,13 +98,11 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
 - All 14 available Paper-family and Spigot-family runtime rows now pass lifecycle, cleanup, and restart/recovery verification.
 - Publication remains blocked only by the required Folia 26.3 row, for which no upstream server build is available.
 - M2 is complete, including operator-confirmed real-client rendering and real-player delivery.
-- M3 promotes the next reference event definitions only when their behavior is expressed by shared
-  primitives and has YAML, assets, documentation, and focused verification.
 
 ## Next Planned Milestone
 
-M3 reference events: add a genuine hit-counter/interactions example and a boss-portal example using
-the same definition, model, action, cleanup, and recovery contracts available to administrators.
+M4 production compatibility and release: preserve publication blocks for unsupported runtime rows,
+then verify release packaging, upgrade/recovery procedures, checksums, and operator documentation.
 
 ## Important Active Decisions
 

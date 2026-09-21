@@ -6,7 +6,7 @@
 
 **SpectraEvents Beta Foundation (v0.1.0-beta.2)**
 
-SpectraEvents is a data-driven event engine for modern Minecraft servers. YAML definitions compose phases, triggers, conditions and actions; the bundled Meteor, Airdrop and Metin definitions exercise the same generic runtime. The beta includes SQLite-backed lifecycle recovery, native Display/Interaction entities, operator diagnostics, and separate Paper-family and Spigot-family distributions.
+SpectraEvents is a data-driven event engine for modern Minecraft servers. YAML definitions compose phases, triggers, conditions and actions; the bundled Meteor, Airdrop, Metin, Piñata and Boss Portal definitions exercise the same generic runtime. The beta includes SQLite-backed lifecycle recovery, native Display/Interaction entities, operator diagnostics, and separate Paper-family and Spigot-family distributions.
 
 > **One engine. Any event.**
 

@@ -21,9 +21,12 @@ Actions are one-shot operations executed by the engine. They can fire when enter
 | `show_bossbar` / `update_bossbar` / `remove_bossbar` | Manages the event bossbar. |
 | `show_scoreboard` / `update_scoreboard` / `remove_scoreboard` | Manages the event scoreboard. |
 | `initialize_health` | Creates or replaces event health. |
+| `initialize_hit_counter` | Creates an equal-value interaction counter. |
 | `set_locked` | Locks the event for a duration. |
 | `try_claim` | Atomically claims a reward transition. |
 | `apply_damage` | Applies damage and emits health triggers. |
+| `initialize_hit_counter` | Domain | Initializes a per-instance equal-value hit counter | `max` |
+| `increment_hits` | Domain | Records hits and emits `hits_reached` on the configured target | optional `amount` (default `1`) |
 | `complete_event` / `cancel_event` | Ends the event and invokes cleanup. |
 
 ## Implemented Actions (Config-Driven Runtime)

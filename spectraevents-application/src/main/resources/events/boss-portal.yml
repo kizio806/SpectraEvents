@@ -1,0 +1,66 @@
+id: boss_portal
+schema-version: "1"
+initial-phase: opening
+
+phases:
+  opening:
+    on-enter:
+      - type: spawn_model
+        model: dev_boss_portal_model
+      - type: play_animation
+        model: dev_boss_portal_model
+        animation: opening
+        loop: ONCE
+      - type: spawn_particles
+        particle: minecraft:portal
+        count: 40
+      - type: broadcast_message
+        message: "<gold><bold>[SpectraEvents]</bold> <dark_purple>A Boss Portal is opening.</dark_purple>"
+    transitions:
+      - trigger:
+          type: timer_elapsed
+          duration: 2s
+        target: active
+
+  active:
+    on-enter:
+      - type: spawn_boss
+        entity_type: minecraft:zombie
+        name: "<dark_purple><bold>Portal Guardian</bold></dark_purple>"
+        offset-x: 2
+      - type: show_bossbar
+        title: "<dark_purple><bold>BOSS PORTAL</bold> <white>Defeat the guardian!"
+        color: PURPLE
+        style: PROGRESS
+      - type: broadcast_message
+        message: "<gold><bold>[SpectraEvents]</bold> <red>The Portal Guardian has arrived!</red>"
+    transitions:
+      - trigger:
+          type: entity_death
+        target: defeated
+
+  defeated:
+    on-enter:
+      - type: play_sound
+        sound: minecraft:ui.toast.challenge_complete
+        volume: 1.0
+        pitch: 1.0
+      - type: drop_loot
+        radius: 3.0
+        items:
+          - material: minecraft:ender_pearl
+            amount: 8
+            chance: 100
+          - material: minecraft:diamond
+            amount: 4
+            chance: 100
+          - material: minecraft:totem_of_undying
+            amount: 1
+            chance: 25
+      - type: broadcast_message
+        message: "<gold><bold>[SpectraEvents]</bold> <green>The Boss Portal is sealed and rewards have dropped.</green>"
+      - type: remove_bossbar
+      - type: remove_model
+      - type: complete_event
+
+  completed: {}

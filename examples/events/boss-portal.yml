@@ -5,6 +5,12 @@ initial-phase: opening
 phases:
   opening:
     on-enter:
+      - type: spawn_model
+        model: dev_boss_portal_model
+      - type: play_animation
+        model: dev_boss_portal_model
+        animation: opening
+        loop: ONCE
       - type: broadcast_message
         message: "<dark_purple>A boss portal is opening.</dark_purple>"
     transitions:
@@ -13,6 +19,11 @@ phases:
           duration: 5s
         target: active
   active:
+    on-enter:
+      - type: spawn_boss
+        entity_type: minecraft:zombie
+        name: "<dark_purple><bold>Portal Guardian</bold></dark_purple>"
+        offset-x: 2
     transitions:
       - trigger:
           type: entity_death
@@ -21,4 +32,5 @@ phases:
     on-enter:
       - type: broadcast_message
         message: "<green>The portal guardian was defeated.</green>"
+      - type: remove_model
       - type: complete_event

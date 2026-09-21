@@ -13,7 +13,8 @@ public record HitCounter(int current, int maximum) {
       throw new IllegalArgumentException("Hit counter maximum must be greater than 0.");
     }
     if (current < 0 || current > maximum) {
-      throw new IllegalArgumentException("Hit counter current value must be between 0 and maximum.");
+      throw new IllegalArgumentException(
+          "Hit counter current value must be between 0 and maximum.");
     }
   }
 
@@ -27,7 +28,8 @@ public record HitCounter(int current, int maximum) {
     if (amount <= 0) {
       throw new IllegalArgumentException("Hit counter amount must be greater than 0.");
     }
-    return new HitCounter(Math.min(maximum, Math.addExact(current, amount)), maximum);
+    int remaining = maximum - current;
+    return new HitCounter(amount >= remaining ? maximum : current + amount, maximum);
   }
 
   /** Returns whether the configured target has been reached. */

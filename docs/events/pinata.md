@@ -1,72 +1,29 @@
-# Pinata Event Specification
+# Piñata Event
 
-## Purpose
-A lighthearted event where players rapidly hit an object. Progress is measured by the sheer number of hits, not the amount of damage dealt.
+`pinata.yml` is a bundled, executable reference event. It proves that a fast interaction event does
+not need to borrow combat health or an event-specific Java manager.
 
-## Player Experience
-A Pinata spawns. Players gather and click/punch it rapidly. It drops minor items on some hits, and breaks after a total number of hits is reached, dropping a large reward.
+## What it uses
 
-## Event Lifecycle
-Standard global lifecycle.
+| Concern | Shared contract used by Piñata |
+| --- | --- |
+| Visual asset | `models/pinata.yml` (`dev_pinata_model`) with a native `Interaction` hitbox and looping `sway` animation |
+| State | `initialize_hit_counter` creates a durable 20-hit counter |
+| Input | The platform router emits generic `interaction`; YAML invokes `increment_hits` |
+| Completion | The engine emits `hits_reached` exactly when the target is first reached |
+| Rewards and cleanup | `drop_loot`, `remove_bossbar`, `remove_model`, then `complete_event` |
+| Restart | The shared event state store persists the hit count; normal lifecycle recovery recreates phase-owned resources |
 
-## Phases
+Every accepted interaction is worth one hit. Weapon damage is irrelevant: Piñata uses the dedicated
+counter rather than `Health` or `apply_damage`.
 
-1. **SPAWN**
-   - The Pinata appears hanging from a fixed point or hovering.
-   - **Transitions**: Immediate -> `ACTIVE`.
-2. **ACTIVE**
-   - The Pinata registers discrete hits.
-   - **Transitions**: Hit counter reaches max -> `BROKEN`.
-3. **BROKEN**
-   - The model explodes into particles and items.
-   - **Transitions**: Animation finishes -> `REWARDING`.
-4. **REWARDING**
-   - Final rewards are distributed.
-   - **Transitions**: Immediate -> `CLEANUP`.
-5. **CLEANUP**
-   - Standard instance removal.
+## Operator workflow
 
-## Spawn
-- **Strategy**: Administrator triggered at a specific location.
+1. Start `pinata` with `/event event start pinata` at the intended location.
+2. Interact with the model until the twentieth accepted interaction.
+3. Confirm the drops and that the model and bossbar disappear.
+4. To customize it, copy `events/pinata.yml`, give it a new underscore-only `id`, and change the
+   counter maximum, rewards, model ID, or messages. No Java is required.
 
-## Visuals
-- A colorful Model.
-- Bobs or swings when hit (animation).
-
-## Interactions
-- Left-click triggers the `HitCounterComponent`. Damage values from swords vs. bare hands are irrelevant; every hit counts as 1.
-
-## Components
-- `ModelComponent`, `HitCounterComponent`, `AnimationComponent`.
-
-## Triggers
-- `hits-reached` (thresholds for minor drops, and max for breaking).
-- `player-interact` (for per-hit feedback).
-
-## Conditions
-- Cooldown condition (e.g., max 2 hits per second per player) to prevent autoclicker abuse.
-
-## Actions
-- `play-sound`, `spawn-particles`, `give-reward` (minor drop).
-
-## Rewards
-- **Distribution**:
-  - Random drops scattered on the floor during the `ACTIVE` phase.
-  - Optional `last-hit` reward for the player who breaks it.
-  - `participation` reward for anyone with > 10 hits.
-
-## Leaderboard
-- Optional (most hits).
-
-## Event Area
-- Small area, PvP disabled.
-
-## Persistence & Restart Recovery
-- Retains current hit count.
-
-## Chunk Behavior
-- Standard.
-
-## Required Engine Primitives
-- `HitCounterComponent` (distinct from `HealthComponent`).
-- High-frequency interaction handling.
+The shipped model is native YAML so the example works without a mandatory custom pack. It can be
+replaced by an imported Blockbench model while preserving the same event definition contract.

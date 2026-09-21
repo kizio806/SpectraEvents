@@ -10,7 +10,9 @@ This document describes the expected end-to-end experience for a server administ
      opt-in and requires the explicit HTTPS/SHA-1 configuration.
 
 2. **Generate Defaults**
-   - On first boot, the engine generates an `events/` directory containing default reference configs (e.g., `meteor.yml`, `airdrop.yml`).
+   - On first boot, the engine generates `events/` and `models/` directories containing paired
+     reference definitions (`meteor.yml`, `airdrop.yml`, `metin.yml`, `pinata.yml`, and
+     `boss-portal.yml`).
 
 3. **Import Optional Blockbench Asset**
    - Export a Generic Model `.spectra.zip` into `assets/source/`; the server validates and builds it

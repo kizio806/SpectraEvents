@@ -1,74 +1,38 @@
-# Boss Portal Event Specification
+# Boss Portal Event
 
-## Purpose
-An event where players must deliver items to a portal to charge it, which then spawns a boss.
+`boss-portal.yml` is a bundled, executable reference for a timed visual event that releases a
+tracked boss. It uses the existing generic timer, model animation, boss spawn, entity-death routing,
+loot, cleanup, and recovery behavior; it does not introduce a `BossPortalManager`.
 
-## Player Experience
-A dormant portal spawns. Players must throw or deliver 100 specific items (e.g., "Corrupted Souls") into the portal. Once charged, it opens, and a boss steps out. Players must defeat the boss.
+## Lifecycle
 
-## Event Lifecycle
-Standard global lifecycle.
+```text
+opening
+  └─ spawn model + play opening animation + 2-second timer
+       ↓
+active
+  └─ spawn event-owned Portal Guardian
+       ↓ entity_death
+defeated
+  └─ drop loot + remove bossbar/model + complete event
+```
 
-## Phases
+## What it uses
 
-1. **DORMANT**
-   - The portal frame exists, but is unlit.
-   - **Transitions**: Player delivers item -> `CHARGING`.
-2. **CHARGING**
-   - Players deliver items. A counter tracks progress (0/100).
-   - **Transitions**: Counter reaches 100 -> `OPEN`.
-3. **OPEN**
-   - Portal lighting animation. Boss entity spawns.
-   - **Transitions**: Boss killed -> `BOSS_DEFEATED`.
-4. **BOSS_ACTIVE** (Parallel to OPEN, or subsumed by it)
-   - The boss fights the players.
-5. **BOSS_DEFEATED**
-   - Boss death animation.
-   - **Transitions**: Immediate -> `CLOSING`.
-6. **CLOSING**
-   - Distributes rewards. Portal closes.
-   - **Transitions**: Immediate -> `CLEANUP`.
-7. **CLEANUP**
-   - Standard instance removal.
+| Concern | Shared contract used by Boss Portal |
+| --- | --- |
+| Visual asset | `models/boss-portal.yml` (`dev_boss_portal_model`) and named `opening` animation |
+| Transition | `timer_elapsed` moves the event to the active phase |
+| Boss ownership | `spawn_boss` marks the guardian as event-owned so the platform death router can emit `entity_death` |
+| Completion | YAML owns rewards and cleanup; `complete_event` invokes standard lifecycle cleanup |
+| Restart | The shared persistent phase/timer state and resource reconciliation apply without portal-specific code |
 
-## Spawn
-- **Strategy**: Fixed location.
+## Operator workflow
 
-## Visuals
-- Portal frame model.
-- Swirling particle vortex inside the frame when `CHARGING` and `OPEN`.
+1. Start `boss_portal` with `/event event start boss_portal`.
+2. Wait for the opening timer and confirm that the guardian appears.
+3. Defeat the guardian, then confirm drops, bossbar removal, model removal, and a completed instance.
+4. Copy the YAML with a new underscore-only ID to alter the delay, boss, model, or loot.
 
-## Interactions
-- `item-delivered` (via dropping item in hitbox or right-clicking with item).
-
-## Components
-- `ModelComponent`, `InteractionComponent` (Delivery), `MobWaveComponent`.
-
-## Triggers
-- `item-delivered`.
-- `delivery-target-reached`.
-- `mob-killed`.
-
-## Conditions
-- `item-held` or `item-dropped` matches the required definition.
-
-## Actions
-- `consume-item`, `spawn-mob`, `spawn-particles`.
-
-## Rewards
-- **Distribution**: Two-tiered.
-  - Participation reward based on items delivered.
-  - Boss loot based on damage dealt to the boss.
-
-## Leaderboard
-- Two leaderboards: Delivery count and Damage count.
-
-## Event Area
-- Prevents players from building traps around the portal.
-
-## Persistence & Restart Recovery
-- Delivery count must persist across restarts.
-
-## Required Engine Primitives
-- Item delivery / consumption mechanics.
-- Multiple active leaderboards per instance.
+The bundled asset is a native YAML model. Administrators may replace it with an imported Blockbench
+model and keep the same `spawn_model` and `play_animation` references.

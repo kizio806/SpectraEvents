@@ -1,6 +1,8 @@
 # SpectraEvents Built-in Event Specifications & Mechanics
 
-SpectraEvents provides three fully data-driven baseline 3D events: **Meteor**, **Metin**, and **Airdrop**.
+SpectraEvents provides five fully data-driven baseline 3D events: **Meteor**, **Metin**,
+**Airdrop**, **Piñata**, and **Boss Portal**. Each is an ordinary YAML definition paired with a
+model definition; there are no event-specific coordinators.
 
 All events are 100% config-driven via YAML definitions located in `plugins/SpectraEvents/events/`.
 
@@ -123,6 +125,22 @@ Phase 4: Claimed & Reward Distribution
   ├─ Removes 3D Airdrop Model
   └─ Cleanly removes BossBar & Scoreboard
 ```
+
+---
+
+## 4. Piñata Event (`pinata.yml`)
+
+The Piñata is the interaction-counter reference. Every accepted interaction invokes the shared
+`increment_hits` action; at 20 hits, `hits_reached` moves the event to a reward-and-cleanup phase.
+See [Piñata Event](pinata.md).
+
+---
+
+## 5. Boss Portal Event (`boss-portal.yml`)
+
+The Boss Portal is the timer-to-boss-to-death-router reference. It opens its model, spawns a tracked
+guardian, and finishes when the generic `entity_death` trigger arrives. See
+[Boss Portal Event](boss-portal.md).
 
 ---
 

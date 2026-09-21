@@ -23,7 +23,8 @@ interactions:
 When the `InteractionComponent` receives a Bukkit `EntityDamageByEntityEvent` targeting its interaction entity, it does the following:
 1. Validates the source (is it a player or a player's projectile?).
 2. Emits a `player-interact` domain trigger.
-3. If the phase has a `HealthComponent`, the engine routes the Bukkit damage value to the health pool.
-4. If the phase has a `HitCounterComponent`, the engine routes a `1` to the hit counter.
+3. Emits the generic `interaction` trigger with the player as its actor.
+4. Executes only the YAML actions declared for that trigger. For a Piñata this is `increment_hits`,
+   which always records one hit unless the author deliberately supplies another positive `amount`.
 
 Core domain logic remains completely insulated from the Bukkit event.

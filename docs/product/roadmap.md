@@ -54,11 +54,16 @@ the operator; exact client and server versions were not recorded.
 
 **Goal:** built-in events are ordinary definitions using the same capabilities available to administrators.
 
-- [ ] Bring Meteor, Airdrop, and Metin through the complete M1/M2 acceptance workflow.
-- [ ] Add Pinata as a hit-counter/interactions reference.
-- [ ] Add one event that exercises mob waves or a boss portal.
-- [ ] Keep event-specific Java coordinators out of the design; missing behavior must first be evaluated as a shared primitive.
-- [ ] Give every official event assets, YAML, documentation, tests, cleanup, and recovery verification.
+**Status: complete.** M2 acceptance was confirmed by the operator; M3 added the shared durable hit
+counter, Piñata, and Boss Portal without adding any event-specific coordinator.
+
+- [x] Bring Meteor, Airdrop, and Metin through the complete M1/M2 acceptance workflow.
+- [x] Add Piñata as a hit-counter/interactions reference.
+- [x] Add Boss Portal as a timed model, boss-spawn, and entity-death reference.
+- [x] Keep event-specific Java coordinators out of the design; the only missing behavior was first
+  added as the shared `HitCounter` primitive.
+- [x] Give every official event assets, YAML, documentation, focused tests, cleanup, and shared
+  recovery verification.
 
 ## M4 — production compatibility and release
 

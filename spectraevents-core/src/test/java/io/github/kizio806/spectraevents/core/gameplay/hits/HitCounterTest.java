@@ -21,6 +21,7 @@ class HitCounterTest {
     assertEquals(3, reached.current());
     assertTrue(reached.isReached());
     assertEquals(3, reached.addHits(1).current());
+    assertEquals(3, counter.addHits(Integer.MAX_VALUE).current());
   }
 
   @Test

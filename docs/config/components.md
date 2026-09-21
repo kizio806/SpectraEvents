@@ -1,6 +1,8 @@
 # Components
 
-Components are stateful mechanics attached to an event during a specific phase. While the core engine identifies these concepts, they will be implemented as discrete Java classes in subsequent milestones.
+Components are stateful mechanics attached to an event during a specific phase. The entries below
+separate implemented primitives from future candidates so authors do not mistake a design note for a
+supported YAML feature.
 
 ## Candidate Primitives Identified
 
@@ -17,9 +19,11 @@ Components are stateful mechanics attached to an event during a specific phase. 
 - **Must NOT own**: Visual bossbars or particle effects for damage.
 
 ### `HitCounterComponent`
-- **Candidate Primitive**: Yes (Hit Counter).
+- **Implemented primitive**: `initialize_hit_counter` creates the counter and `increment_hits`
+  records equal-value interactions.
 - **Evidence**: Pinata.
-- **Owns**: Number of discrete interactions recorded, cooldown between hits.
+- **Owns**: Number of discrete interactions recorded. The state is persisted with the event instance
+  and emits `hits_reached` once the configured maximum is reached.
 - **Must NOT own**: "Damage" scaling. Every hit is exactly 1 count.
 
 ### `InteractionComponent`
