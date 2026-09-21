@@ -88,6 +88,7 @@ public final class SpectraEventsApplication {
       this.animationRuntimeService =
           new AnimationRuntimeService(
               animationDefinitionRegistry,
+              modelDefinitionRegistry,
               activeAnimationRegistry,
               modelRendererPort,
               scheduler::scheduleGlobal);
