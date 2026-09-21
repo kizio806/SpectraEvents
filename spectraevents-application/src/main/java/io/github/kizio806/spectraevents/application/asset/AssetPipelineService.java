@@ -22,6 +22,7 @@ public final class AssetPipelineService {
   private final ResourcePackBuilder resourcePackBuilder;
   private final Path sourceDirectory;
   private final AssetTargetProfile targetProfile;
+  private final ImportedAssetModelRegistrar modelRegistrar;
 
   private final Map<String, String> sourceCache = new HashMap<>();
   private final Map<String, SpectraAssetDocument> compiledDocuments = new HashMap<>();
@@ -31,11 +32,21 @@ public final class AssetPipelineService {
       ResourcePackBuilder resourcePackBuilder,
       Path sourceDirectory,
       AssetTargetProfile targetProfile) {
+    this(importPort, resourcePackBuilder, sourceDirectory, targetProfile, null);
+  }
+
+  public AssetPipelineService(
+      AssetImportPort importPort,
+      ResourcePackBuilder resourcePackBuilder,
+      Path sourceDirectory,
+      AssetTargetProfile targetProfile,
+      ImportedAssetModelRegistrar modelRegistrar) {
     this.importPort = Objects.requireNonNull(importPort, "importPort");
     this.resourcePackBuilder = Objects.requireNonNull(resourcePackBuilder, "resourcePackBuilder");
     this.sourceDirectory =
         Objects.requireNonNull(sourceDirectory, "sourceDirectory").toAbsolutePath().normalize();
     this.targetProfile = Objects.requireNonNull(targetProfile, "targetProfile");
+    this.modelRegistrar = modelRegistrar;
   }
 
   public void buildAssets() {
@@ -108,6 +119,9 @@ public final class AssetPipelineService {
     }
 
     SpectraAssetDocument document = importPort.read(source);
+    if (modelRegistrar != null) {
+      modelRegistrar.register(document);
+    }
     compiledDocuments.put(document.modelId(), document);
     sourceCache.put(cacheKey, currentHash);
     return true;

@@ -12,7 +12,14 @@ class ResourcePackDescriptorCacheTest {
     ResourcePackDescriptorCache cache = new ResourcePackDescriptorCache();
     ResourcePackDescriptor desc =
         new ResourcePackDescriptor(
-            "id", "ver", "url", "sha1", null, 1L, AssetTargetProfile.PROFILE_26_3, "SRC");
+            "id",
+            "ver",
+            "https://example.com/pack.zip",
+            "a".repeat(40),
+            null,
+            1L,
+            AssetTargetProfile.PROFILE_26_3,
+            "SRC");
 
     cache.put(desc, "1.0", AssetTargetProfile.PROFILE_26_3, "SRC");
 
@@ -27,7 +34,14 @@ class ResourcePackDescriptorCacheTest {
     ResourcePackDescriptorCache cache = new ResourcePackDescriptorCache();
     ResourcePackDescriptor desc =
         new ResourcePackDescriptor(
-            "id", "ver", "url", "sha1", null, 1L, AssetTargetProfile.PROFILE_26_3, "SRC");
+            "id",
+            "ver",
+            "https://example.com/pack.zip",
+            "a".repeat(40),
+            null,
+            1L,
+            AssetTargetProfile.PROFILE_26_3,
+            "SRC");
 
     cache.put(desc, "1.0", AssetTargetProfile.PROFILE_26_3, "SRC");
     cache.invalidate();
@@ -40,7 +54,14 @@ class ResourcePackDescriptorCacheTest {
     ResourcePackDescriptorCache cache = new ResourcePackDescriptorCache();
     ResourcePackDescriptor desc =
         new ResourcePackDescriptor(
-            "id", "ver", "url", "sha1", null, 1L, AssetTargetProfile.PROFILE_26_3, "SRC");
+            "id",
+            "ver",
+            "https://example.com/pack.zip",
+            "a".repeat(40),
+            null,
+            1L,
+            AssetTargetProfile.PROFILE_26_3,
+            "SRC");
 
     cache.put(desc, "1.0", AssetTargetProfile.PROFILE_26_3, "SRC");
 

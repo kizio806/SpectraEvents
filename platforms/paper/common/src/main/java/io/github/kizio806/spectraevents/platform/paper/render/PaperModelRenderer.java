@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.paper.render;
 
+import io.github.kizio806.spectraevents.application.asset.GeneratedAssetItem;
 import io.github.kizio806.spectraevents.application.model.runtime.DiscoveredModelEntity;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelAnchor;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeId;
@@ -476,6 +477,17 @@ public class PaperModelRenderer implements ModelRendererPort {
   }
 
   private ItemStack resolveItemStack(String itemRef) {
+    GeneratedAssetItem.ParsedReference generatedAsset = GeneratedAssetItem.parse(itemRef);
+    if (generatedAsset != null) {
+      ItemStack generatedItem = new ItemStack(Material.PAPER);
+      org.bukkit.inventory.meta.ItemMeta itemMeta = generatedItem.getItemMeta();
+      org.bukkit.inventory.meta.components.CustomModelDataComponent customModelData =
+          itemMeta.getCustomModelDataComponent();
+      customModelData.setFloats(List.of((float) generatedAsset.customModelData()));
+      itemMeta.setCustomModelDataComponent(customModelData);
+      generatedItem.setItemMeta(itemMeta);
+      return generatedItem;
+    }
     if (customItemProvider != null && customItemProvider.isAvailable()) {
       ItemStack custom = customItemProvider.resolveItem(itemRef, 1);
       if (custom != null) {

@@ -367,6 +367,9 @@ public final class BlockbenchProjectReader implements AssetImportPort {
       throw new IllegalArgumentException("Blockbench project contains more than 128 groups");
     }
     String nodeId = requiredString(group, "uuid", "outliner group");
+    if (!MODEL_ID.matcher(nodeId).matches()) {
+      throw new IllegalArgumentException("Blockbench group uuid must match " + MODEL_ID.pattern());
+    }
     requiredString(group, "name", "outliner group");
     if (!nodeIds.add(nodeId)) {
       throw new IllegalArgumentException(

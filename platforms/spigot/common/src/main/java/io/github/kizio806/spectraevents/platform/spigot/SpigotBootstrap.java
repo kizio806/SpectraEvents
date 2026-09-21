@@ -14,6 +14,7 @@ import io.github.kizio806.spectraevents.platform.spigot.lifecycle.SpigotEntityRe
 import io.github.kizio806.spectraevents.platform.spigot.render.SpigotModelRenderer;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -23,6 +24,7 @@ public final class SpigotBootstrap {
   private final JavaPlugin plugin;
   private final BukkitAudiences adventure;
   private SpectraEventsApplication application;
+  private CompletableFuture<Void> resourcePackDelivery;
 
   public SpigotBootstrap(JavaPlugin plugin, BukkitAudiences adventure) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
@@ -56,10 +58,29 @@ public final class SpigotBootstrap {
             reconciler,
             new SpigotCapabilityQuery(),
             renderer);
+    application.setAssetPipelineService(
+        new io.github.kizio806.spectraevents.application.asset.AssetPipelineService(
+            new io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchProjectReader(),
+            new io.github.kizio806.spectraevents.application.asset.ResourcePackBuilder(
+                dataDirectory.resolve("generated").resolve("resource-pack")),
+            dataDirectory.resolve("assets").resolve("source"),
+            io.github.kizio806.spectraevents.application.asset.AssetTargetProfile.PROFILE_26_1,
+            new io.github.kizio806.spectraevents.application.asset.ImportedAssetModelRegistrar(
+                application.modelCompiler(),
+                application.modelDefinitionRegistry(),
+                application.animationDefinitionRegistry())));
+    resourcePackDelivery =
+        io.github.kizio806.spectraevents.platform.spigot.asset.delivery
+            .SpigotResourcePackDeliveryBootstrap.configure(
+            plugin,
+            plugin.getDescription().getVersion(),
+            io.github.kizio806.spectraevents.application.asset.AssetTargetProfile.PROFILE_26_1);
     actionAdapter.setModelRuntimeService(application.modelRuntimeService());
     actionAdapter.setModelAnimationActionService(
         new ModelAnimationActionService(
             application.modelRuntimeService(), application.animationRuntimeService()));
+
+    application.assetPipelineService().buildAssets();
 
     loadModels(dataDirectory);
     SpigotDefinitionConfigBootstrap definitions =
@@ -105,6 +126,10 @@ public final class SpigotBootstrap {
   }
 
   public void onDisable() {
+    if (resourcePackDelivery != null) {
+      resourcePackDelivery.cancel(true);
+      resourcePackDelivery = null;
+    }
     if (application != null) {
       application.stop();
       application = null;

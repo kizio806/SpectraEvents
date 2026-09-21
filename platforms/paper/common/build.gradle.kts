@@ -9,6 +9,7 @@ dependencies {
     api(project(":adapters:storage-sqlite"))
     api(project(":adapters:update-http"))
     implementation(project(":adapters:assets-blockbench"))
+    implementation(project(":adapters:assets-delivery"))
     compileOnly(libs.paper.api)
     compileOnly(libs.luckperms.api)
     compileOnly(libs.worldguard.api) {

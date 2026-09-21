@@ -12,6 +12,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.ZipFile;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -34,20 +36,23 @@ class ResourcePackBuilderTest {
     Assertions.assertTrue(java.nio.file.Files.isRegularFile(result.zipPath()));
     Assertions.assertEquals(40, result.sha1().length());
     Assertions.assertEquals(64, result.sha256().length());
-    Assertions.assertEquals(100_000, result.customModelData().get("meteor/root"));
+    Assertions.assertEquals(
+        GeneratedAssetItem.customModelData("meteor", "root"),
+        result.customModelData().get("meteor/root"));
 
     try (ZipFile zip = new ZipFile(result.zipPath().toFile())) {
       Assertions.assertNotNull(zip.getEntry("pack.mcmeta"));
-      Assertions.assertNotNull(zip.getEntry("assets/minecraft/models/item/paper.json"));
+      Assertions.assertNotNull(zip.getEntry("assets/minecraft/items/paper.json"));
       Assertions.assertNotNull(
           zip.getEntry("assets/spectraevents/textures/item/meteor/texture_0.png"));
       Assertions.assertNotNull(zip.getEntry("assets/spectraevents/models/item/meteor/root.json"));
       Assertions.assertNotNull(zip.getEntry("assets/spectraevents/spectraevents-manifest.json"));
       Assertions.assertTrue(read(zip, "pack.mcmeta").contains("[88,0]"));
       Assertions.assertTrue(
-          read(zip, "assets/minecraft/models/item/paper.json").contains("custom_model_data"));
+          read(zip, "assets/minecraft/items/paper.json").contains("custom_model_data"));
       Assertions.assertTrue(
-          read(zip, "assets/minecraft/models/item/paper.json").contains("100000"));
+          read(zip, "assets/minecraft/items/paper.json")
+              .contains(Integer.toString(result.customModelData().get("meteor/root"))));
       Assertions.assertTrue(
           read(zip, "assets/spectraevents/models/item/meteor/root.json").contains("elements"));
       Assertions.assertTrue(
@@ -68,6 +73,24 @@ class ResourcePackBuilderTest {
                     AssetTargetProfile.PROFILE_26_1));
 
     Assertions.assertTrue(error.getMessage().contains("duplicate"));
+  }
+
+  @Test
+  void ordersRangeDispatchThresholdsAscending() throws Exception {
+    ResourcePackBuildResult result =
+        new ResourcePackBuilder(tempDirectory)
+            .build(
+                List.of(document("meteor"), document("nebula")), AssetTargetProfile.PROFILE_26_2);
+
+    try (ZipFile zip = new ZipFile(result.zipPath().toFile())) {
+      String mapping = read(zip, "assets/minecraft/items/paper.json");
+      Matcher thresholds = Pattern.compile("\\\"threshold\\\":(\\d+)").matcher(mapping);
+      Assertions.assertTrue(thresholds.find());
+      int first = Integer.parseInt(thresholds.group(1));
+      Assertions.assertTrue(thresholds.find());
+      int second = Integer.parseInt(thresholds.group(1));
+      Assertions.assertTrue(first < second);
+    }
   }
 
   private static String read(ZipFile zip, String path) throws Exception {
