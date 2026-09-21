@@ -17,7 +17,13 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class AuthoringExamplesTest {
-  private static final List<String> COMPLETE_EXAMPLES = List.of("meteor", "airdrop", "metin");
+  private static final List<EventExample> COMPLETE_EXAMPLES =
+      List.of(
+          new EventExample("meteor", "meteor"),
+          new EventExample("airdrop", "airdrop"),
+          new EventExample("metin", "metin"),
+          new EventExample("pinata", "pinata"),
+          new EventExample("boss-portal", "boss_portal"));
 
   @Test
   void shippedExamplesLoadWithTheSchemaV1Contract() throws IOException {
@@ -26,16 +32,18 @@ class AuthoringExamplesTest {
         new DefinitionLoader(new EventSpecYamlParser(), new EventDefinitionCompiler(), registry);
 
     Map<String, String> sources = new LinkedHashMap<>();
-    for (String example : COMPLETE_EXAMPLES) {
-      sources.put("events/" + example + ".yml", readResource("/events/" + example + ".yml"));
+    for (EventExample example : COMPLETE_EXAMPLES) {
+      sources.put(
+          "events/" + example.fileName() + ".yml",
+          readResource("/events/" + example.fileName() + ".yml"));
     }
 
     DefinitionLoadResult result = loader.load(sources);
 
-    assertEquals(3, result.loaded().size(), result.failures()::toString);
+    assertEquals(5, result.loaded().size(), result.failures()::toString);
     assertTrue(result.failures().isEmpty(), result.failures()::toString);
-    for (String example : COMPLETE_EXAMPLES) {
-      var registered = registry.get(new EventDefinitionId(example)).orElseThrow();
+    for (EventExample example : COMPLETE_EXAMPLES) {
+      var registered = registry.get(new EventDefinitionId(example.definitionId())).orElseThrow();
       assertTrue(
           allActions(registered.definition()).stream()
               .anyMatch(action -> "play_animation".equals(action.type())));
@@ -59,4 +67,6 @@ class AuthoringExamplesTest {
         .flatMap(phase -> phase.onEnterActions().stream())
         .toList();
   }
+
+  private record EventExample(String fileName, String definitionId) {}
 }

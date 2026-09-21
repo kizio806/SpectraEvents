@@ -31,8 +31,8 @@ Future events may include Meteor, Airdrop, Metin, Pinata, Crystal, Vault, Boss P
 Seasonal Event, Pirate Treasure, and UFO. Most behavior should be composed from common engine
 primitives rather than implemented as isolated event-specific systems.
 
-M2 is complete: the signed Generic Model import, local resource-pack generation, and opt-in
-administrator-hosted delivery were confirmed by the operator in a real-client workflow. The current
-milestone is M3: reference events must remain ordinary YAML and asset definitions, with no
-event-specific coordinators. Modrinth publishing and the public addon API remain deliberately
-unavailable.
+M2 and M3 are complete: the signed Generic Model import, local resource-pack generation, and opt-in
+administrator-hosted delivery were confirmed by the operator in a real-client workflow; the five
+reference events remain ordinary YAML and asset definitions with no event-specific coordinators. The
+current milestone is M4 production compatibility and release. Modrinth publishing and the public addon
+API remain deliberately unavailable.

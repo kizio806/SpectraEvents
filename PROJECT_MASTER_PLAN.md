@@ -34,7 +34,7 @@ Administrator powinien móc:
 2. umieścić asset w katalogu SpectraEvents;
 3. podpiąć model i jego animacje do definicji YAML;
 4. przetestować i uruchomić event bez pisania Javy;
-5. skopiować gotowy Meteor/Airdrop/Metin i zmienić jego zachowanie;
+5. skopiować gotowy Meteor/Airdrop/Metin/Piñata/Boss Portal i zmienić jego zachowanie;
 6. napisać rozszerzenie Java tylko wtedy, gdy standardowe elementy silnika nie wystarczą.
 
 Oficjalne eventy nie mogą mieć „ukrytej” ścieżki niedostępnej dla użytkownika. Muszą działać na tym samym publicznie opisanym formacie konfiguracji i tych samych prymitywach co eventy własne.
@@ -99,7 +99,7 @@ Legenda:
 | --- | --- | --- | --- |
 | Architektura modułów | Zrobione historycznie, wymaga ponownej bramki | Core i application są platform-neutral; osobne adaptery, platformy i dystrybucje | test granic architektury oraz pełny build przechodzą na aktualnym checkoutcie |
 | Lifecycle i fazy | Zrobione historycznie, wymaga ponownej bramki | `EventInstance`, stany, przejścia, fazy oraz konfiguracja eventów | scenariusze startu, przejść, anulowania, błędu i cleanup są testowane |
-| Meteor, Airdrop, Metin | Zaimplementowane, wymagające ponownej bramki | trzy referencyjne eventy uruchamiane przez wspólny silnik YAML | każdy ma real-server workflow, restart/recovery i dokumentację użytkownika |
+| Meteor, Airdrop, Metin, Piñata, Boss Portal | Zaimplementowane, celowanie zweryfikowane | pięć referencyjnych eventów uruchamianych przez wspólny silnik YAML | każdy ma definicję, model, dokumentację, test konfiguracji i wspólny workflow cleanup/recovery |
 | YAML: parsing, validation, compile | Zaimplementowane, wymagające ponownej bramki | loader, parser, registry i kompilacja niezmiennych definicji | każdy błąd podaje plik, ścieżkę, przyczynę i naprawę; reload nie psuje działających instancji |
 | Modele 3D native | Zaimplementowane, wymagające ponownej bramki | Display i Interaction entities, modele wieloczęściowe, hierarchie, rollback i cleanup | testy oraz realny serwer potwierdzają spawn, interakcję, usunięcie i recovery |
 | Animacje | Zaimplementowane, wymagające ponownej bramki | timeline, keyframes, easing, pause/resume/seek/stop i interpolacja klienta | testy matematyki oraz realny przebieg animacji na serwerze |
@@ -111,7 +111,7 @@ Legenda:
 | Import Blockbench | Zrobione, potwierdzone na kliencie | podpisany import Generic Model, modele, tekstury, pivoty, hierarchie i animacje | operator potwierdził przebieg na rzeczywistym kliencie po M2 |
 | Resource-pack ZIP | Zrobione, potwierdzone na kliencie | deterministyczny ZIP, manifest, SHA-1 i custom-model-data mapping | operator potwierdził użycie wygenerowanej paczki w rzeczywistym kliencie po M2 |
 | Dostarczanie packa graczom | Zrobione, opt-in | administrator-hosted HTTPS + SHA-1, cache oraz obsługa statusów | operator potwierdził rzeczywisty workflow delivery po M2; automatyczne hostowanie i Modrinth pozostają wyłączone |
-| Oficjalne eventy | Częściowe | Meteor, Airdrop, Metin są referencjami | kolejne eventy powstają głównie z YAML, bez ukrytej logiki dostępnej tylko twórcom |
+| Oficjalne eventy | Zrobione dla M3 | Meteor, Airdrop, Metin, Piñata i Boss Portal są referencjami | kolejne eventy powstają głównie z YAML, bez ukrytej logiki dostępnej tylko twórcom |
 | Własne eventy administratora | Częściowe | kopiowanie i modyfikowanie YAML jest zamierzonym workflow | pełne przykłady, walidacja, asset import oraz guide od zera |
 | Publiczne API dodatków | Do zrobienia świadomie | nie ma stabilnego publicznego API | dopiero po ustaleniu realnego use case'u, wersjonowania, testów i polityki kompatybilności |
 | GUI edytora | Do zrobienia po V1 | istnieje administracyjne GUI/diagnostyka, nie pełny editor | GUI jest tylko frontendem stabilnego YAML, nigdy osobnym źródłem prawdy |
@@ -201,11 +201,18 @@ retrospektywnie zgadywane.
 
 **Cel:** gotowe eventy są przykładami jakości, a nie specjalnymi wyjątkami.
 
-- [ ] Doprowadzić Meteor, Airdrop i Metin do pełnego standardu M1/M2.
-- [ ] Dodać Pinata jako test hit-counter/interakcji oraz jeden event z mob waves lub boss portalem.
-- [ ] Każdy oficjalny event ma: definicję YAML, assety, dokumentację, testy i workflow restart/recovery.
-- [ ] Zero osobnych „managerów Meteoru” lub hardcoded coordinators.
-- [ ] Każdy brakujący mechanizm najpierw ocenić jako potencjalny wspólny primitive.
+**Status: ukończone.** M2 acceptance dla Meteor/Airdrop/Metin została potwierdzona przez operatora.
+Piñata i Boss Portal są dostarczane jako definicje i modele YAML, nie jako specjalne subsystemy.
+
+- [x] Dodano wspólny, platform-neutral `HitCounter`; `increment_hits` emituje `hits_reached`, a
+  SQLite odtwarza licznik po restarcie.
+- [x] Dodano Piñatę jako referencję równowartościowych interakcji i Boss Portal jako referencję
+  animacji, timera, bossa oraz `entity_death`.
+- [x] Każdy z pięciu oficjalnych eventów ma YAML, model, opis użytkownika oraz walidację definicji i
+  modelu; Piñata i Boss Portal mają dodatkowe testy pełnego przejścia i cleanup.
+- [x] Shared lifecycle zapewnia standardową trwałość faz/timerów oraz recovery zasobów; licznik
+  Piñaty ma osobny test trwałości SQLite.
+- [x] Nie dodano żadnego event-specific managera ani koordynatora.
 
 ### M4 — obsługa produkcyjna i kompatybilność
 

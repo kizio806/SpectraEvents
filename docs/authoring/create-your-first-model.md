@@ -6,7 +6,7 @@ There are two supported authoring paths:
 - A Blockbench Generic Model exported to `plugins/SpectraEvents/assets/source/*.spectra.zip`, best for
   textured cube geometry and named animations.
 
-On first start, SpectraEvents extracts working Meteor, Airdrop and Metin YAML examples. Copy one,
+On first start, SpectraEvents extracts working Meteor, Airdrop, Metin, Piñata and Boss Portal YAML examples. Copy one,
 change its `id`, parts, transforms and interactions, then restart and validate the load log before
 referencing the new ID from an event definition.
 

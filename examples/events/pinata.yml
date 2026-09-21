@@ -5,16 +5,21 @@ initial-phase: active
 phases:
   active:
     on-enter:
-      - type: initialize_health
+      - type: initialize_hit_counter
         max: 20
+      - type: spawn_model
+        model: dev_pinata_model
+      - type: play_animation
+        model: dev_pinata_model
+        animation: sway
+        loop: LOOP
     transitions:
       - trigger:
           type: interaction
         actions:
-          - type: apply_damage
-            amount: 1
+          - type: increment_hits
       - trigger:
-          type: health_depleted
+          type: hits_reached
         target: broken
   broken:
     on-enter:
@@ -24,4 +29,5 @@ phases:
           - material: minecraft:cookie
             amount: 8
             chance: 100
+      - type: remove_model
       - type: complete_event

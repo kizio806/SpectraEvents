@@ -30,3 +30,5 @@ Welcome to **SpectraEvents**, a data-driven 3D event engine for Paper servers!
 1. **Meteor** (`meteor`): A falling spatial meteor model that locks on landing and can be destroyed by player interaction.
 2. **Airdrop** (`airdrop`): A falling supply crate that locks, unlocks after a timer, and rewards the first player to claim it.
 3. **Metin** (`metin`): A boss stone with health thresholds that enrages at 60% health, spawns a defender boss at 25% health, and explodes on boss death.
+4. **Piñata** (`pinata`): An interaction-driven model where every accepted click counts equally toward a shared target.
+5. **Boss Portal** (`boss_portal`): A timed portal model that spawns a tracked guardian and completes when its death is routed back to the event.

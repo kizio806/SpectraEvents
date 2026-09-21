@@ -17,7 +17,7 @@ public final class FileSystemModelLoader {
   private static final Logger LOGGER = Logger.getLogger(FileSystemModelLoader.class.getName());
   private static final String MODELS_DIRECTORY_NAME = "models";
   private static final List<String> DEFAULT_BUNDLED_MODELS =
-      List.of("meteor.yml", "airdrop.yml", "metin.yml");
+      List.of("meteor.yml", "airdrop.yml", "metin.yml", "pinata.yml", "boss-portal.yml");
 
   private final Path dataDirectory;
   private final ModelLoader modelLoader;

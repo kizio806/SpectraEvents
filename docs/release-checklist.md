@@ -13,7 +13,8 @@ Use this checklist prior to creating a new official release tag and GitHub Relea
   - Artifact filename formatted as `SpectraEvents-<version>-paper-26.2.jar`.
   - `jar tf <artifact>` verified: `plugin.yml` expanded, main FQCN updated, zero `dev/eventevents` classes present.
 - [ ] **SHA-256 Checksum**: Generated via `sha256sum SpectraEvents-<version>-paper-26.2.jar`.
-- [ ] **Runtime Paper Smoke**: Tested on clean Paper 26.2 server instance (`Meteor`, `Airdrop`, `Metin` events start, run, and clean up).
+- [ ] **Runtime Paper Smoke**: Tested on clean Paper 26.2 server instance (`Meteor`, `Airdrop`,
+  `Metin`, `Piñata`, and `Boss Portal` start, run, and clean up).
 - [ ] **Restart Recovery Smoke**: Verified active event state recovery and SQLite DB integrity across server restart.
 - [ ] **Update Checker Verification**: Update checker endpoint confirms version comparison logic (SemVer prerelease).
 

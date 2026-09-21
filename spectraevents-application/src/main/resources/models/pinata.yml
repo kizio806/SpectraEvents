@@ -1,0 +1,41 @@
+id: dev_pinata_model
+
+parts:
+  body:
+    type: item_display
+    item: minecraft:magenta_wool
+    transform:
+      translation: [0.0, 0.0, 0.0]
+      scale: [1.5, 2.0, 1.0]
+    render:
+      billboard: fixed
+
+  label:
+    type: text_display
+    parent: body
+    text: "<light_purple><bold>PIÑATA"
+    transform:
+      translation: [0.0, 2.5, 0.0]
+    render:
+      billboard: center
+
+interactions:
+  main:
+    parent: body
+    width: 2.5
+    height: 3.0
+
+animations:
+  sway:
+    duration: 1s
+    loop: LOOP
+    recovery: RESUME
+    tracks:
+      body:
+        rotation:
+          - at: 0s
+            value: [0.0, -8.0, 0.0]
+          - at: 500ms
+            value: [0.0, 8.0, 0.0]
+          - at: 1s
+            value: [0.0, -8.0, 0.0]

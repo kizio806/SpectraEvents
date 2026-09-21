@@ -70,7 +70,7 @@ conditions, and actions. When an instance ends, its snapshot is released.
 | Model | `spawn_model`, `move_model`, `remove_model`; model YAML is loaded from `plugins/SpectraEvents/models/*.yml`. |
 | Animations | Named animations live inside model YAML and are started with `play_animation` after `spawn_model`; playback is stopped before cleanup. |
 | Phases | `phases` is a map. A phase may contain `on-enter` and `transitions`. |
-| Triggers | A transition has `trigger.type`; supported runtime triggers include `manual`, `timer_elapsed`, `interaction`, `health_depleted`, and `health_threshold_crossed`. |
+| Triggers | A transition has `trigger.type`; supported runtime triggers include `manual`, `timer_elapsed`, `interaction`, `health_depleted`, `health_threshold_crossed`, `hits_reached`, and `entity_death`. |
 | Conditions | A transition may contain a list of conditions. Core v1 evaluates `is_locked` and `not_locked`; integrations may register additional resolvers. |
 | Actions | A transition may contain `actions`; a phase may contain `on-enter` actions. See [Actions](actions.md) for the Paper/Spigot catalog. |
 | Rewards | Rewards are ordinary actions such as `give_item` and `drop_loot`; reward claims are guarded by the event runtime. |
@@ -83,7 +83,7 @@ Future schema versions may add explicit policies only with a migration rule.
 
 ## Author workflow
 
-1. Copy one of the verified examples: `meteor`, `airdrop`, or `metin`.
+1. Copy one of the verified examples: `meteor`, `airdrop`, `metin`, `pinata`, or `boss-portal`.
 2. Change the event `id`, model IDs, messages, and gameplay parameters.
 3. Run `/event definition validate` and fix every diagnostic using its `file:path` location.
 4. Run `/event definition reload` to register the valid version.

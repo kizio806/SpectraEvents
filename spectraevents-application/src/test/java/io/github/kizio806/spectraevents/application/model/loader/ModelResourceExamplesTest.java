@@ -18,7 +18,9 @@ class ModelResourceExamplesTest {
       List.of(
           new ModelExample("meteor", "dev_meteor_model", "fall"),
           new ModelExample("airdrop", "dev_airdrop_model", "descent"),
-          new ModelExample("metin", "dev_metin_model", "pulse"));
+          new ModelExample("metin", "dev_metin_model", "pulse"),
+          new ModelExample("pinata", "dev_pinata_model", "sway"),
+          new ModelExample("boss-portal", "dev_boss_portal_model", "opening"));
 
   @Test
   void shippedModelsExposeTheAnimationsUsedByEventExamples() throws IOException {
@@ -38,7 +40,7 @@ class ModelResourceExamplesTest {
       }
     }
 
-    assertEquals(3, modelRegistry.all().size());
+    assertEquals(5, modelRegistry.all().size());
     for (ModelExample example : EXAMPLES) {
       assertTrue(
           animationRegistry

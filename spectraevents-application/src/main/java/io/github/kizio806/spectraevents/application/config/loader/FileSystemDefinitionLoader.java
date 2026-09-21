@@ -22,7 +22,8 @@ public final class FileSystemDefinitionLoader {
   private static final Logger LOGGER = Logger.getLogger(FileSystemDefinitionLoader.class.getName());
   private static final String EVENTS_DIRECTORY_NAME = "events";
   private static final List<String> DEFAULT_BUNDLED_EVENTS =
-      List.of("meteor.yml", "airdrop.yml", "metin.yml", "example.yml");
+      List.of(
+          "meteor.yml", "airdrop.yml", "metin.yml", "pinata.yml", "boss-portal.yml", "example.yml");
 
   private final Path dataDirectory;
   private final DefinitionLoader definitionLoader;

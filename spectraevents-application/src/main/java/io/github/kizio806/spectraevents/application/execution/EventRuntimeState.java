@@ -61,9 +61,9 @@ public final class EventRuntimeState {
     this.hitCounter.set(newHitCounter);
   }
 
-  public HitCounter updateHitCounter(
-      java.util.function.Function<HitCounter, HitCounter> updateFn) {
-    return this.hitCounter.updateAndGet(current -> current != null ? updateFn.apply(current) : null);
+  public HitCounter updateHitCounter(java.util.function.Function<HitCounter, HitCounter> updateFn) {
+    return this.hitCounter.updateAndGet(
+        current -> current != null ? updateFn.apply(current) : null);
   }
 
   public long lockedUntilMillis() {
