@@ -103,12 +103,13 @@ class BlockbenchProjectReaderTest {
           "model": "model.bbmodel",
           "textures": ["textures/gem.png"],
           "sha256": {
-            "model.bbmodel": "%s",
-            "textures/gem.png": "%s"
+            "model.bbmodel": "MODEL_HASH",
+            "textures/gem.png": "TEXTURE_HASH"
           }
         }
         """
-            .formatted(modelHash, textureHash);
+            .replace("MODEL_HASH", modelHash)
+            .replace("TEXTURE_HASH", textureHash);
     try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(bundle))) {
       writeEntry(zip, "manifest.json", manifest.getBytes(StandardCharsets.UTF_8));
       writeEntry(zip, "model.bbmodel", model.getBytes(StandardCharsets.UTF_8));
@@ -135,7 +136,7 @@ class BlockbenchProjectReaderTest {
   private static String projectJson(String modelFormat) {
     return """
         {
-          "meta": {"format_version": "5.0.0", "model_format": "%s"},
+          "meta": {"format_version": "5.0.0", "model_format": "MODEL_FORMAT"},
           "textures": [{"id": "texture", "name": "gem.png", "source": "textures/gem.png"}],
           "elements": [{
             "uuid": "cube",
@@ -158,6 +159,6 @@ class BlockbenchProjectReaderTest {
           }]
         }
         """
-        .formatted(modelFormat);
+        .replace("MODEL_FORMAT", modelFormat);
   }
 }

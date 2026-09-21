@@ -144,14 +144,13 @@ public final class ResourcePackBuilder {
   }
 
   private static String packMeta(AssetTargetProfile profile) {
-    return """
-        {"pack":{"description":"SpectraEvents generated assets","min_format":[%d,%d],"max_format":[%d,%d]}}
-        """
-        .formatted(
-            profile.getMajorFormat(),
-            profile.getMinorFormat(),
-            profile.getMajorFormat(),
-            profile.getMinorFormat());
+    return String.format(
+        Locale.ROOT,
+        "{\"pack\":{\"description\":\"SpectraEvents generated assets\",\"min_format\":[%d,%d],\"max_format\":[%d,%d]}}",
+        profile.getMajorFormat(),
+        profile.getMinorFormat(),
+        profile.getMajorFormat(),
+        profile.getMinorFormat());
   }
 
   private static String baseItemOverrides(
@@ -382,7 +381,7 @@ public final class ResourcePackBuilder {
     if (!Double.isFinite(value)) {
       throw new IllegalArgumentException("Resource-pack geometry must contain finite numbers");
     }
-    if (value == Math.rint(value)) {
+    if (Double.compare(value, Math.rint(value)) == 0) {
       return Long.toString((long) value);
     }
     return Double.toString(value);

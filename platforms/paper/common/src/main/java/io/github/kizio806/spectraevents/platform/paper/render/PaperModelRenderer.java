@@ -485,7 +485,9 @@ public class PaperModelRenderer implements ModelRendererPort {
           itemMeta.getCustomModelDataComponent();
       customModelData.setFloats(List.of((float) generatedAsset.customModelData()));
       itemMeta.setCustomModelDataComponent(customModelData);
-      generatedItem.setItemMeta(itemMeta);
+      if (!generatedItem.setItemMeta(itemMeta)) {
+        throw new IllegalStateException("Paper rejected generated asset item metadata");
+      }
       return generatedItem;
     }
     if (customItemProvider != null && customItemProvider.isAvailable()) {
