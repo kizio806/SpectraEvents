@@ -33,6 +33,7 @@ primitives rather than implemented as isolated event-specific systems.
 
 M2 and M3 are complete: the signed Generic Model import, local resource-pack generation, and opt-in
 administrator-hosted delivery were confirmed by the operator in a real-client workflow; the five
-reference events remain ordinary YAML and asset definitions with no event-specific coordinators. The
-current milestone is M4 production compatibility and release. Modrinth publishing and the public addon
-API remain deliberately unavailable.
+reference events remain ordinary YAML and asset definitions with no event-specific coordinators. M4
+production compatibility is complete: Paper/Purpur, Spigot/CraftBukkit 26.1–26.3 and Folia 26.1–26.2
+have real-server coverage. The current milestone is M5: admin GUI expansion and documentation
+cleanup. No public addon API exists and none is planned without a demonstrated use case.

@@ -199,7 +199,6 @@ Events may react to:
 * Entering or leaving event areas
 * Delivered items
 * Animation completion
-* Custom addon triggers
 
 ### Rewards
 
@@ -419,32 +418,6 @@ The project will prioritize:
 * Efficient participant tracking
 * Strict entity cleanup
 * Minimal work while events are idle
-
----
-
-## Developer API
-
-A public API is planned after the core runtime becomes stable.
-
-The API is expected to support:
-
-* Starting and stopping events
-* Querying active events
-* Registering actions
-* Registering triggers
-* Registering custom components
-* Listening to lifecycle events
-* Providing custom items
-* Providing models
-* Building third-party addons
-
-Example concept:
-
-```java
-SpectraEventsAPI api = SpectraEventsProvider.get();
-
-api.events().start("meteor");
-```
 
 ---
 
