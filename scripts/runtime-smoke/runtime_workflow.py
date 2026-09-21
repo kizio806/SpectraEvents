@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
 import json
 import os
 import pathlib
@@ -23,6 +25,9 @@ JAVA_BIN = str(JAVA if JAVA.is_file() else pathlib.Path("java"))
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 MAX_SERVER_BYTES = 512 * 1024 * 1024
+ASSET_SMOKE_TEXTURE = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAF/gL+I0Yf9wAAAABJRU5ErkJggg=="
+)
 
 
 def upstream_version(declared_version: str) -> str:
@@ -246,8 +251,8 @@ def wait_ready(session: ServerSession) -> None:
     session.wait_for(r"Done \(.*\)! For help", timeout=90)
 
 
-def start_event(session: ServerSession) -> str:
-    session.command("event event start airdrop")
+def start_event(session: ServerSession, definition_id: str = "airdrop") -> str:
+    session.command(f"event event start {definition_id}")
     return session.wait_for(rf"Started event instance ({UUID})", timeout=20).group(1)
 
 
@@ -266,16 +271,129 @@ def assert_running(snapshot: tuple[str, bool, int, int], context: str) -> None:
         raise RuntimeError(f"{context}: expected RUNNING/state/task/resources, got {snapshot}")
 
 
+def assert_running_with_model(snapshot: tuple[str, bool, int, int], context: str) -> None:
+    state, runtime, _tasks, resources = snapshot
+    if state != "RUNNING" or not runtime or resources < 1:
+        raise RuntimeError(f"{context}: expected RUNNING/state/model resources, got {snapshot}")
+
+
+def write_asset_smoke_fixture(plugin_directory: pathlib.Path) -> None:
+    """Creates the smallest signed bundle and event that exercise the server asset workflow."""
+    texture = base64.b64decode(ASSET_SMOKE_TEXTURE)
+    texture_path = "textures/texture_0.png"
+    model = {
+        "meta": {"format_version": "5.0", "model_format": "free"},
+        "textures": [{"id": "texture", "name": "texture.png", "source": texture_path}],
+        "elements": [
+            {
+                "uuid": "cube",
+                "from": [0.0, 0.0, 0.0],
+                "to": [16.0, 16.0, 16.0],
+                "origin": [8.0, 8.0, 8.0],
+                "rotation": [0.0, 0.0, 0.0],
+                "faces": {"north": {"uv": [0.0, 0.0, 16.0, 16.0], "texture": "#texture"}},
+            }
+        ],
+        "outliner": [
+            {
+                "uuid": "root",
+                "name": "root",
+                "origin": [0.0, 0.0, 0.0],
+                "rotation": [0.0, 0.0, 0.0],
+                "children": ["cube"],
+            }
+        ],
+        "animations": [
+            {
+                "name": "pulse",
+                "length": 1.0,
+                "loop": "once",
+                "animators": {
+                    "root": {
+                        "keyframes": [
+                            {
+                                "time": 0.0,
+                                "channel": "position",
+                                "interpolation": "linear",
+                                "data_points": [{"x": 0.0, "y": 0.0, "z": 0.0}],
+                            },
+                            {
+                                "time": 1.0,
+                                "channel": "position",
+                                "interpolation": "linear",
+                                "data_points": [{"x": 0.0, "y": 2.0, "z": 0.0}],
+                            },
+                        ]
+                    }
+                },
+            }
+        ],
+    }
+    model_bytes = json.dumps(model, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    checksums = {
+        "model.bbmodel": hashlib.sha256(model_bytes).hexdigest(),
+        texture_path: hashlib.sha256(texture).hexdigest(),
+    }
+    manifest = {
+        "schemaVersion": 1,
+        "modelId": "asset_smoke",
+        "model": "model.bbmodel",
+        "textures": [texture_path],
+        "sha256": checksums,
+    }
+    source_directory = plugin_directory / "assets" / "source"
+    source_directory.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(source_directory / "asset_smoke.spectra.zip", "w") as bundle:
+        bundle.writestr("manifest.json", json.dumps(manifest, sort_keys=True))
+        bundle.writestr("model.bbmodel", model_bytes)
+        bundle.writestr(texture_path, texture)
+
+    event_directory = plugin_directory / "events"
+    event_directory.mkdir(parents=True, exist_ok=True)
+    (event_directory / "asset_smoke.yml").write_text(
+        """id: asset_smoke
+schema-version: "1"
+initial-phase: active
+
+phases:
+  active:
+    on-enter:
+      - type: spawn_model
+        model: asset_smoke
+      - type: play_animation
+        model: asset_smoke
+        animation: pulse
+        loop: ONCE
+""",
+        encoding="utf-8",
+    )
+
+
 def run_workflow(server_jar: pathlib.Path, artifact: pathlib.Path, work: pathlib.Path) -> None:
     if work.exists():
         shutil.rmtree(work)
     (work / "plugins").mkdir(parents=True)
     shutil.copy2(artifact, work / "plugins" / artifact.name)
     (work / "eula.txt").write_text("eula=true\n", encoding="utf-8")
+    plugin_directory = work / "plugins" / "SpectraEvents"
+    write_asset_smoke_fixture(plugin_directory)
 
     first = ServerSession(work, server_jar)
     try:
         wait_ready(first)
+        generated_pack = plugin_directory / "generated" / "resource-pack" / "spectraevents-profile_26_1.zip"
+        if not generated_pack.is_file() or generated_pack.stat().st_size == 0:
+            raise RuntimeError("Asset smoke fixture did not produce the expected resource-pack ZIP")
+        asset_instance = start_event(first, "asset_smoke")
+        time.sleep(1)
+        assert_running_with_model(inspect(first, asset_instance), "asset import, spawn, and animation")
+        first.command(f"event event cancel {asset_instance}")
+        first.wait_for(rf"(?:Stopped|Cancelled) event instance {asset_instance}", timeout=20)
+        state, runtime, tasks, resources = inspect(first, asset_instance)
+        if state != "CANCELLED" or runtime or tasks != 0 or resources != 0:
+            raise RuntimeError(
+                f"asset cleanup: expected CANCELLED/false/0/0, got {(state, runtime, tasks, resources)}"
+            )
         disposable = start_event(first)
         time.sleep(1)
         assert_running(inspect(first, disposable), "initial start")
