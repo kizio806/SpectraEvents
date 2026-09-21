@@ -19,6 +19,7 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
 import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleTransition;
 import io.github.kizio806.spectraevents.core.gameplay.health.Health;
+import io.github.kizio806.spectraevents.core.gameplay.hits.HitCounter;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
@@ -506,6 +507,12 @@ public final class EventExecutionEngine {
         repository.saveState(state);
         return Boolean.TRUE;
       }
+      case "initialize_hit_counter" -> {
+        int maximum = getIntParam(action.parameters(), "max", 20);
+        state.setHitCounter(HitCounter.startingAt(maximum));
+        repository.saveState(state);
+        return Boolean.TRUE;
+      }
       case "set_locked" -> {
         Duration lockDuration = parseDuration(action.parameters().get("duration"));
         validateTimerDuration(lockDuration, "set_locked.duration");
@@ -581,6 +588,19 @@ public final class EventExecutionEngine {
             }
           }
           repository.saveState(state);
+        }
+        return Boolean.TRUE;
+      }
+      case "increment_hits" -> {
+        int amount = getIntParam(action.parameters(), "amount", 1);
+        if (state.hitCounter().isPresent()) {
+          HitCounter previous = state.hitCounter().orElseThrow();
+          HitCounter updated = state.updateHitCounter(counter -> counter.addHits(amount));
+          repository.saveState(state);
+          if (!previous.isReached() && updated.isReached()) {
+            evaluateTrigger(
+                instance.id(), new ConfiguredTriggerDefinition("hits_reached"), context);
+          }
         }
         return Boolean.TRUE;
       }

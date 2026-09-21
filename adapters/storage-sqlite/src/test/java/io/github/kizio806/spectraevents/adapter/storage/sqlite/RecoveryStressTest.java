@@ -10,6 +10,7 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
 import io.github.kizio806.spectraevents.core.gameplay.health.Health;
+import io.github.kizio806.spectraevents.core.gameplay.hits.HitCounter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -47,6 +48,7 @@ class RecoveryStressTest {
 
       EventRuntimeState state = new EventRuntimeState(id);
       state.setHealth(new Health(50, 100));
+      state.setHitCounter(new HitCounter(6, 20));
       state.setLockedUntilMillis(System.currentTimeMillis() + 50000);
       state.setPlatformLocation("world,100,64,100");
       assertTrue(state.tryClaim("player_123"));
@@ -76,6 +78,8 @@ class RecoveryStressTest {
       assertTrue(recoveredState.health().isPresent());
       assertEquals(50, recoveredState.health().get().current());
       assertEquals(100, recoveredState.health().get().max());
+      assertEquals(6, recoveredState.hitCounter().orElseThrow().current());
+      assertEquals(20, recoveredState.hitCounter().orElseThrow().maximum());
 
       assertTrue(recoveredState.isLocked(), "Event should be locked");
       assertTrue(

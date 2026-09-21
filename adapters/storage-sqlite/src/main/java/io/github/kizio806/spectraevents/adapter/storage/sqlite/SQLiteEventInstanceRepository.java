@@ -9,6 +9,7 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
 import io.github.kizio806.spectraevents.core.gameplay.health.Health;
+import io.github.kizio806.spectraevents.core.gameplay.hits.HitCounter;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -143,6 +144,13 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
               """);
           stmt.executeUpdate("INSERT OR REPLACE INTO spectra_schema_version (version) VALUES (4);");
         }
+
+        final int v5 = 5;
+        if (currentVer < v5) {
+          stmt.execute("ALTER TABLE spectra_instance_state ADD COLUMN hit_count INTEGER;");
+          stmt.execute("ALTER TABLE spectra_instance_state ADD COLUMN hit_max INTEGER;");
+          stmt.executeUpdate("INSERT OR REPLACE INTO spectra_schema_version (version) VALUES (5);");
+        }
         writerConnection.commit();
       } catch (SQLException e) {
         writerConnection.rollback();
@@ -218,7 +226,7 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
 
   private void loadAllStatesFromDb() {
     String sql =
-        "SELECT instance_id, health_current, health_max, locked_until, claimant, platform_location, boss_entity_id, timer_deadline FROM spectra_instance_state";
+        "SELECT instance_id, health_current, health_max, hit_count, hit_max, locked_until, claimant, platform_location, boss_entity_id, timer_deadline FROM spectra_instance_state";
     try (Connection conn = getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql);
         ResultSet rs = stmt.executeQuery()) {
@@ -231,6 +239,12 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
           if (!rs.wasNull()) {
             int hMax = rs.getInt("health_max");
             state.setHealth(new Health(hCur, hMax));
+          }
+
+          int hitCount = rs.getInt("hit_count");
+          if (!rs.wasNull()) {
+            int hitMaximum = rs.getInt("hit_max");
+            state.setHitCounter(new HitCounter(hitCount, hitMaximum));
           }
 
           long lockedUntil = rs.getLong("locked_until");
@@ -340,11 +354,13 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
   private void persistState(StateSnapshot state, boolean commit) {
     String sql =
         """
-        INSERT INTO spectra_instance_state (instance_id, health_current, health_max, locked_until, claimant, platform_location, boss_entity_id, timer_deadline, last_updated)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO spectra_instance_state (instance_id, health_current, health_max, hit_count, hit_max, locked_until, claimant, platform_location, boss_entity_id, timer_deadline, last_updated)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(instance_id) DO UPDATE SET
           health_current = excluded.health_current,
           health_max = excluded.health_max,
+          hit_count = excluded.hit_count,
+          hit_max = excluded.hit_max,
           locked_until = excluded.locked_until,
           claimant = excluded.claimant,
           platform_location = excluded.platform_location,
@@ -356,12 +372,14 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
       stmt.setString(1, state.instanceId());
       setNullableInteger(stmt, 2, state.healthCurrent());
       setNullableInteger(stmt, 3, state.healthMaximum());
-      setNullableLong(stmt, 4, state.lockedUntil());
-      stmt.setString(5, state.claimant());
-      stmt.setString(6, state.platformLocation());
-      stmt.setString(7, state.bossEntityId());
-      setNullableLong(stmt, 8, state.timerDeadline());
-      stmt.setLong(9, state.updatedAt());
+      setNullableInteger(stmt, 4, state.hitCount());
+      setNullableInteger(stmt, 5, state.hitMaximum());
+      setNullableLong(stmt, 6, state.lockedUntil());
+      stmt.setString(7, state.claimant());
+      stmt.setString(8, state.platformLocation());
+      stmt.setString(9, state.bossEntityId());
+      setNullableLong(stmt, 10, state.timerDeadline());
+      stmt.setLong(11, state.updatedAt());
       stmt.executeUpdate();
       if (commit) {
         writerConnection.commit();
@@ -377,6 +395,8 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
         state.instanceId().toString(),
         state.health().map(Health::current).orElse(null),
         state.health().map(Health::max).orElse(null),
+        state.hitCounter().map(HitCounter::current).orElse(null),
+        state.hitCounter().map(HitCounter::maximum).orElse(null),
         state.lockedUntilMillis() > 0 ? state.lockedUntilMillis() : null,
         state.claimant().orElse(null),
         state
@@ -430,6 +450,8 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
       String instanceId,
       Integer healthCurrent,
       Integer healthMaximum,
+      Integer hitCount,
+      Integer hitMaximum,
       Long lockedUntil,
       String claimant,
       String platformLocation,

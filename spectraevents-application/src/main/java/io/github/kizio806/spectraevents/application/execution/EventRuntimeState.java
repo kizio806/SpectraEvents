@@ -3,6 +3,7 @@ package io.github.kizio806.spectraevents.application.execution;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.core.gameplay.contribution.DamageContribution;
 import io.github.kizio806.spectraevents.core.gameplay.health.Health;
+import io.github.kizio806.spectraevents.core.gameplay.hits.HitCounter;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -13,6 +14,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class EventRuntimeState {
   private final EventInstanceId instanceId;
   private final AtomicReference<Health> health = new AtomicReference<>(null);
+  private final AtomicReference<HitCounter> hitCounter = new AtomicReference<>(null);
   private final AtomicLong lockedUntilMillis = new AtomicLong(0L);
   private final AtomicLong timerDeadlineMillis = new AtomicLong(0L);
   private final AtomicReference<Object> platformLocation = new AtomicReference<>(null);
@@ -49,6 +51,19 @@ public final class EventRuntimeState {
 
   public Health updateHealth(java.util.function.Function<Health, Health> updateFn) {
     return this.health.updateAndGet(current -> current != null ? updateFn.apply(current) : null);
+  }
+
+  public Optional<HitCounter> hitCounter() {
+    return Optional.ofNullable(hitCounter.get());
+  }
+
+  public void setHitCounter(HitCounter newHitCounter) {
+    this.hitCounter.set(newHitCounter);
+  }
+
+  public HitCounter updateHitCounter(
+      java.util.function.Function<HitCounter, HitCounter> updateFn) {
+    return this.hitCounter.updateAndGet(current -> current != null ? updateFn.apply(current) : null);
   }
 
   public long lockedUntilMillis() {
