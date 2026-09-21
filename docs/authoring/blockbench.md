@@ -25,6 +25,5 @@ Restart the server or run `/event assets build` on Paper. A successful import re
 model ID for `spawn_model` and its animation names for `play_animation`. Inspect the import with
 `/event assets list`, `/event assets info <model-id>`, and `/event assets validate <model-id>`.
 
-The server generates a pack ZIP, but real-client rendering is still M2 acceptance work. Do not claim
-that a new custom-model-data mapping is release-ready until the pack was loaded and the model and
-animation were observed on an actual client.
+M2 real-client rendering was confirmed by the operator. A new target profile or a changed
+custom-model-data mapping still requires its own real-client acceptance before it is release-ready.

@@ -2,7 +2,7 @@
 
 > **Cel tego dokumentu:** jedna, aktualizowana mapa produktu i techniki. Ma wystarczyć osobie, która pobiera repozytorium, aby zrozumieć **czym jest SpectraEvents, jak ma działać, co jest potwierdzone, co jest tylko częściowe i co należy zrobić dalej**.
 >
-> **Status dokumentu:** stan repozytorium na 2026-09-20. Nie zastępuje testów ani `docs/ai/PROJECT_STATE.md`; przy rozbieżności kod i bieżące wyniki bramki jakości są źródłem prawdy.
+> **Status dokumentu:** stan repozytorium na 2026-09-21. Nie zastępuje testów ani `docs/ai/PROJECT_STATE.md`; przy rozbieżności kod i bieżące wyniki bramki jakości są źródłem prawdy.
 
 ## 1. Jednozdaniowy cel
 
@@ -108,9 +108,9 @@ Legenda:
 | Integracje | Zaimplementowane, wymagające ponownej bramki | LuckPerms, WorldGuard, Vault, PlaceholderAPI, MiniPlaceholders, Nexo, Oraxen, ItemsAdder | każda działa albo jawnie raportuje brak/unsupported przez `/event doctor` |
 | Paper/Purpur/Folia | Zrobione dla wszystkich dostępnych runtime'ów | Paper artifact; schedulery regionów i jawne ograniczenie scoreboardu Folii | 8/8 dostępnych wierszy przechodzi prawdziwy workflow; Folia 26.3 pozostaje zewnętrznie niedostępna |
 | Spigot/CraftBukkit | Zrobione dla wszystkich dostępnych runtime'ów | osobny artifact i adapter Spigot | 6/6 dostępnych wierszy przechodzi prawdziwy workflow; deklarowany zakres jest zweryfikowany |
-| Import Blockbench | Częściowe / wyłączone | istnieje kod i dokumentacja eksperymentalna importera | wejście Blockbench przechodzi walidację i buduje prawdziwe, używalne assety |
-| Resource-pack ZIP | Do zrobienia | nie ma zweryfikowanego produktu ZIP | prawdziwy ZIP, manifest, SHA-1, item model mapping, walidacja i test klienta |
-| Dostarczanie packa graczom | Częściowe / wyłączone fail-closed | interfejsy/adapters mogą istnieć, ale funkcja nie jest obiecana | testy delivery, odrzucenia, ponownego wejścia gracza i awarii sieci |
+| Import Blockbench | Zrobione, potwierdzone na kliencie | podpisany import Generic Model, modele, tekstury, pivoty, hierarchie i animacje | operator potwierdził przebieg na rzeczywistym kliencie po M2 |
+| Resource-pack ZIP | Zrobione, potwierdzone na kliencie | deterministyczny ZIP, manifest, SHA-1 i custom-model-data mapping | operator potwierdził użycie wygenerowanej paczki w rzeczywistym kliencie po M2 |
+| Dostarczanie packa graczom | Zrobione, opt-in | administrator-hosted HTTPS + SHA-1, cache oraz obsługa statusów | operator potwierdził rzeczywisty workflow delivery po M2; automatyczne hostowanie i Modrinth pozostają wyłączone |
 | Oficjalne eventy | Częściowe | Meteor, Airdrop, Metin są referencjami | kolejne eventy powstają głównie z YAML, bez ukrytej logiki dostępnej tylko twórcom |
 | Własne eventy administratora | Częściowe | kopiowanie i modyfikowanie YAML jest zamierzonym workflow | pełne przykłady, walidacja, asset import oraz guide od zera |
 | Publiczne API dodatków | Do zrobienia świadomie | nie ma stabilnego publicznego API | dopiero po ustaleniu realnego use case'u, wersjonowania, testów i polityki kompatybilności |
@@ -126,7 +126,7 @@ Pełna wymagana bramka:
 
 została uruchomiona 2026-09-20 na aktualnym checkoutcie i zakończyła się **`BUILD SUCCESSFUL`**. Przeszły testy, formatowanie, Checkstyle, PMD, SpotBugs, JaCoCo, weryfikacja granic platform oraz budowanie artefaktów Paper i Spigot. Strict dependency verification pozostaje włączone i ma aktualne sumy SHA-256.
 
-Zielona bramka nie oznacza jeszcze gotowego release'u. Osiem lokalnych checkpointów zostało już utworzonych bez pushu. Dostępna real-server matrix jest domknięta: 14/14 wierszy przeszło, a Folia 26.3 pozostaje zewnętrznie niedostępna. Nadal otwarty jest niezweryfikowany end-to-end pipeline Blockbench → resource-pack → klient.
+Zielona bramka nie oznacza jeszcze gotowego release'u. Osiem lokalnych checkpointów zostało już utworzonych bez pushu. Dostępna real-server matrix jest domknięta: 14/14 wierszy przeszło, a Folia 26.3 pozostaje zewnętrznie niedostępna. M2 workflow Blockbench → resource-pack → klient oraz delivery został potwierdzony przez operatora po implementacji M2.
 
 ### Kolejność dalszej weryfikacji
 
@@ -187,22 +187,15 @@ Rozdzielenie zmian zostało wykonane z zachowaniem ich kontekstu w ośmiu lokaln
 
 **Cel:** model z Blockbench trafia łatwo i bezpiecznie do eventu.
 
-**Zrealizowano wewnętrznie:** jeden podpisany format `.spectra.zip`; importer Generic Model z
+**Status: ukończone.** Jeden podpisany format `.spectra.zip`; importer Generic Model z
 geometrią, pivotami, hierarchią, teksturami i nazwanymi animacjami; limity i ochrona przed złośliwym
 ZIP-em; deterministyczny ZIP resource packa z manifestem i hashami; rejestracja modelu do
 `spawn_model` i animacji do `play_animation`; opt-in delivery przez HTTPS/SHA-1 oraz testy dobrych,
 uszkodzonych i złośliwych wejść. Checkpointy: `8376953`, `f7401a4`, `3aa3970`.
 
-**Pozostało do zamknięcia M2:**
-
-- [ ] Na prawdziwym kliencie wersji odpowiadającej profilowi paczki załadować wygenerowany ZIP,
-  uruchomić event z importowanym modelem i potwierdzić custom-model-data, tekstury, pivoty,
-  hierarchię oraz nazwaną animację.
-- [ ] Z prawdziwym graczem zweryfikować delivery z HTTPS: zaakceptowanie, odrzucenie, błąd pobrania
-  i reconnect; zapisać wynik oraz wersję klienta/serwera w tym planie.
-
-**Kryterium ukończenia:** oba powyższe przebiegi kończą się powodzeniem na rzeczywistym serwerze i
-kliencie. Bez tego M2 pozostaje otwarte, niezależnie od zielonych testów JVM.
+**Potwierdzenie końcowe:** operator potwierdził działanie realnego workflow klienta oraz delivery po
+wdrożeniu M2. Dokładne wersje serwera i klienta nie zostały zapisane w tym planie, więc nie są
+retrospektywnie zgadywane.
 
 ### M3 — referencyjne eventy jako produkt
 

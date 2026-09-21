@@ -106,10 +106,9 @@ for ordinary event actions, and builds a deterministic local resource-pack ZIP. 
 delivery accepts only an administrator-hosted HTTPS ZIP with an explicit SHA-1; Modrinth publishing is
 disabled.
 
-The importer and ZIP structure have automated verification, but the final M2 requirement — observing
-custom-model-data mapping and animation in a real Minecraft client — is still open. See the
-[Blockbench Authoring Guide](docs/authoring/blockbench.md) and
-[Asset Pipeline](docs/authoring/asset-pipeline.md) for the current supported contract.
+The importer, ZIP structure, real-client rendering, and opt-in delivery workflow have been verified
+for M2. See the [Blockbench Authoring Guide](docs/authoring/blockbench.md) and
+[Asset Pipeline](docs/authoring/asset-pipeline.md) for the supported contract and delivery boundary.
 
 ### Planned Features
 
