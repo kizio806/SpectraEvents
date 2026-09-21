@@ -180,26 +180,29 @@ Rozdzielenie zmian zostało wykonane z zachowaniem ich kontekstu w ośmiu lokaln
 
 **Cel:** osoba bez Javy potrafi stworzyć bezpieczny event YAML.
 
-- [x] Spisać stabilny schemat definicji eventu: model, animacje, phases, triggers, conditions, actions, rewards, recovery, cleanup.
-- [x] Każdy błąd walidacji wskazuje plik i ścieżkę YAML, także dla błędów parsera, kompilatora i duplikatów ID.
-- [x] Podpiąć nazwane animacje modeli do wspólnej akcji eventu `play_animation` z filtrowaniem modelu, parametrami playbacku i automatycznym cleanupem.
-- [x] Dodać minimum trzy kompletne, działające przykłady o różnych mechanikach.
-- [x] Dodać guide: „skopiuj event → zmień model → validate → reload → start → diagnose”.
-- [x] Zagwarantować, że running instance zachowuje stary snapshot definicji po reloadzie.
+**Status: ukończone.** Schemat v1, precyzyjna walidacja, trzy przykłady, guide administratora,
+`play_animation` i snapshot definicji running instance zostały dostarczone w `db775ad`.
 
 ### M2 — profesjonalny pipeline Blockbench i assetów
 
 **Cel:** model z Blockbench trafia łatwo i bezpiecznie do eventu.
 
-- [ ] Zdefiniować jeden wspierany format wejściowy oraz stabilną strukturę katalogów.
-- [ ] Importować geometrię, pivoty, hierarchię, tekstury i nazwane animacje.
-- [ ] Wprowadzić limity: rozmiar pliku, liczba elementów, głębokość modelu, rozmiar tekstur oraz zakazane ścieżki.
-- [ ] Zbudować realny resource-pack ZIP z poprawnym manifestem i hashami.
-- [ ] Dodać item predicate/custom model mapping wyłącznie po przetestowaniu na kliencie.
-- [ ] Dostarczyć pack graczowi i obsłużyć odrzucenie, reconnect oraz awarię.
-- [ ] Dodać testy z dobrymi, uszkodzonymi i złośliwymi plikami.
+**Zrealizowano wewnętrznie:** jeden podpisany format `.spectra.zip`; importer Generic Model z
+geometrią, pivotami, hierarchią, teksturami i nazwanymi animacjami; limity i ochrona przed złośliwym
+ZIP-em; deterministyczny ZIP resource packa z manifestem i hashami; rejestracja modelu do
+`spawn_model` i animacji do `play_animation`; opt-in delivery przez HTTPS/SHA-1 oraz testy dobrych,
+uszkodzonych i złośliwych wejść. Checkpointy: `8376953`, `f7401a4`, `3aa3970`.
 
-**Kryterium ukończenia:** twórca importuje model, wskazuje go w YAML, odpala animację i widzi go na prawdziwym serwerze bez ręcznego składania resource packa.
+**Pozostało do zamknięcia M2:**
+
+- [ ] Na prawdziwym kliencie wersji odpowiadającej profilowi paczki załadować wygenerowany ZIP,
+  uruchomić event z importowanym modelem i potwierdzić custom-model-data, tekstury, pivoty,
+  hierarchię oraz nazwaną animację.
+- [ ] Z prawdziwym graczem zweryfikować delivery z HTTPS: zaakceptowanie, odrzucenie, błąd pobrania
+  i reconnect; zapisać wynik oraz wersję klienta/serwera w tym planie.
+
+**Kryterium ukończenia:** oba powyższe przebiegi kończą się powodzeniem na rzeczywistym serwerze i
+kliencie. Bez tego M2 pozostaje otwarte, niezależnie od zielonych testów JVM.
 
 ### M3 — referencyjne eventy jako produkt
 

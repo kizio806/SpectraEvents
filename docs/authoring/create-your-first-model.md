@@ -1,14 +1,32 @@
-# Create a Native Model Definition
+# Create a Model Definition
 
-The supported beta workflow is a YAML model definition under
-`plugins/SpectraEvents/models/`. On first start, SpectraEvents extracts working Meteor, Airdrop and
-Metin model examples. Copy one, change its `id`, parts, transforms and interactions, then restart the
-plugin/server and validate the load log before referencing the new ID from an event definition.
+There are two supported authoring paths:
 
-The Blockbench exporter can create experimental source bundles, but server import, resource-pack
-building and automatic delivery are disabled. Commands such as `/event assets import` and
-`/event assets build` intentionally report that the feature is unavailable.
+- Native YAML models in `plugins/SpectraEvents/models/`, best for simple Display/Interaction models.
+- A Blockbench Generic Model exported to `plugins/SpectraEvents/assets/source/*.spectra.zip`, best for
+  textured cube geometry and named animations.
 
-Use `/event model list` and the Paper model/debug tools that are actually exposed by `/event help` to
-inspect loaded definitions. Spigot reports Paper-only tooling as unsupported rather than silently
-ignoring it.
+On first start, SpectraEvents extracts working Meteor, Airdrop and Metin YAML examples. Copy one,
+change its `id`, parts, transforms and interactions, then restart and validate the load log before
+referencing the new ID from an event definition.
+
+For Blockbench, follow the [Blockbench authoring guide](blockbench.md). The import runs at startup on
+both distributions; Paper administrators can also use `/event assets build` or `/event assets import
+<bundle.spectra.zip>`. The imported model ID and animation names are available to the same event
+actions as native models:
+
+```yaml
+on-enter:
+  - type: spawn_model
+    model: meteor
+  - type: play_animation
+    model: meteor
+    animation: spin
+```
+
+Use `/event model list` and the Paper model/debug tools exposed by `/event help` to inspect native
+definitions. For imported assets, use `/event assets list`, `info`, and `validate` on Paper. Spigot
+reports Paper-only command tooling as unsupported rather than silently ignoring it.
+
+The generated pack remains pending real-client acceptance; see [Asset Pipeline](asset-pipeline.md) for
+the exact boundary.

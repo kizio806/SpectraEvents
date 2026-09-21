@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -26,6 +27,7 @@ public final class AssetPipelineService {
 
   private final Map<String, String> sourceCache = new HashMap<>();
   private final Map<String, SpectraAssetDocument> compiledDocuments = new HashMap<>();
+  private boolean resourcePackDirty;
 
   public AssetPipelineService(
       AssetImportPort importPort,
@@ -56,9 +58,8 @@ public final class AssetPipelineService {
       return;
     }
 
+    List<String> failures = new ArrayList<>();
     try {
-      java.util.concurrent.atomic.AtomicBoolean changesDetected =
-          new java.util.concurrent.atomic.AtomicBoolean(false);
 
       try (java.util.stream.Stream<Path> stream = Files.walk(sourceDirectory)) {
         stream
@@ -68,25 +69,23 @@ public final class AssetPipelineService {
                 path -> {
                   try {
                     if (importSource(path)) {
-                      changesDetected.set(true);
+                      resourcePackDirty = true;
                     }
 
                   } catch (Exception e) {
                     LOGGER.severe("Failed to compile asset source " + path + ": " + e.getMessage());
+                    failures.add(path.getFileName() + ": " + e.getMessage());
                   }
                 });
       }
 
-      if (changesDetected.get() && !compiledDocuments.isEmpty()) {
-        LOGGER.info("Rebuilding resource pack...");
-        resourcePackBuilder.build(compiledDocuments.values(), targetProfile);
-        LOGGER.info("Asset Pipeline build complete. Resource pack generated.");
-      } else {
-        LOGGER.info("No asset changes detected or no documents. Incremental build skipped.");
+      if (!failures.isEmpty()) {
+        throw new IllegalStateException(
+            "Asset pipeline rejected bundle(s): " + String.join("; ", failures));
       }
-
+      rebuildResourcePackIfDirty();
     } catch (IOException e) {
-      LOGGER.severe("Failed to walk source directory: " + e.getMessage());
+      throw new IllegalStateException("Failed to walk asset source directory", e);
     }
   }
 
@@ -105,6 +104,7 @@ public final class AssetPipelineService {
 
     try {
       importSource(path);
+      rebuildResourcePackIfDirty();
     } catch (Exception e) {
       throw new RuntimeException("Import failed: " + e.getMessage(), e);
     }
@@ -124,6 +124,7 @@ public final class AssetPipelineService {
     }
     compiledDocuments.put(document.modelId(), document);
     sourceCache.put(cacheKey, currentHash);
+    resourcePackDirty = true;
     return true;
   }
 
@@ -146,6 +147,18 @@ public final class AssetPipelineService {
   public void clean() {
     sourceCache.clear();
     compiledDocuments.clear();
+    resourcePackDirty = false;
+  }
+
+  private void rebuildResourcePackIfDirty() throws IOException {
+    if (!resourcePackDirty || compiledDocuments.isEmpty()) {
+      LOGGER.info("No asset changes detected or no documents. Incremental build skipped.");
+      return;
+    }
+    LOGGER.info("Rebuilding resource pack...");
+    resourcePackBuilder.build(compiledDocuments.values(), targetProfile);
+    resourcePackDirty = false;
+    LOGGER.info("Asset Pipeline build complete. Resource pack generated.");
   }
 
   private String computeSha256(Path path) throws IOException, NoSuchAlgorithmException {

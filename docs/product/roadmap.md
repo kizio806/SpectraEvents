@@ -33,23 +33,18 @@ The current full build is green, but publication remains separate from compilati
 
 **Goal:** an administrator can copy a reference definition, attach a model and animations, validate it, reload it, and start it without Java code.
 
-- [ ] Stabilize the YAML schema for models, animations, phases, triggers, conditions, actions, rewards, recovery, and cleanup.
-- [ ] Produce precise validation errors with file path and YAML field path.
-- [ ] Document the workflow: copy → edit → validate → reload → start → inspect → diagnose.
-- [ ] Guarantee that running instances keep their original definition snapshot after reload.
-- [ ] Add complete custom-event examples for interaction, health, timers, rewards, and mob waves.
+**Status: complete.** The schema-v1 contract, source-aware diagnostics, three reference examples,
+authoring guide, `play_animation` workflow, and running-instance snapshots are complete.
 
 ## M2 — Blockbench and resource-pack pipeline
 
 **Goal:** `Blockbench → import → validated asset → resource-pack ZIP → event` works with real files and a real client.
 
-- [ ] Define one supported Blockbench input format and asset directory contract.
-- [ ] Import model hierarchy, pivots, textures, named animations, and supported render properties.
-- [ ] Enforce hostile-input limits, safe paths, ZIP-slip protection, file-count limits, and size limits.
-- [ ] Generate and inspect a real resource-pack ZIP, manifest, hashes, and item-model mappings.
-- [ ] Test custom item predicates and model assembly in a real client.
-- [ ] Test player delivery, rejection, reconnect, and network failure.
-- [ ] Keep Modrinth publishing disabled until the local ZIP and delivery workflow is verified.
+- [x] Define and test the signed Generic Model bundle, safe importer, bounded hostile-input handling,
+  deterministic ZIP, model/animation registration, and opt-in HTTPS/SHA-1 delivery contract.
+- [ ] Test custom item predicates, model assembly, pivots, hierarchy, and animation in a real client.
+- [ ] Test player delivery, rejection, reconnect, and failed download with a real player.
+- [x] Keep Modrinth publishing disabled until the local ZIP and delivery workflow is verified.
 
 ## M3 — reference events as product examples
 
@@ -85,4 +80,5 @@ SpectraEvents will not become a custom mob engine, region-protection replacement
 
 ## Current next action
 
-Start M1 by stabilizing the author-facing event definition contract; do not begin another large feature before the contract and verification evidence are synchronized.
+Run the two real-client M2 acceptance workflows and record the server/client versions and outcomes in
+the master plan. Do not mark M2 complete from JVM tests alone.

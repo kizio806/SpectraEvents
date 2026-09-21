@@ -100,9 +100,16 @@ The event type should be configuration and assets — not another hardcoded Java
 
 ### 3D Models & Assets
 
-The runtime can render server-authored model definitions with native Display and Interaction entities. Blockbench import, resource-pack ZIP compilation, Modrinth asset publishing and automatic player delivery are **disabled in this beta** because the repository does not yet produce a verified pack. Asset commands fail closed instead of reporting false success.
+The runtime renders server-authored YAML models with native Display and Interaction entities. It also
+imports one signed Blockbench Generic Model bundle format, registers its model and named animations
+for ordinary event actions, and builds a deterministic local resource-pack ZIP. Optional player
+delivery accepts only an administrator-hosted HTTPS ZIP with an explicit SHA-1; Modrinth publishing is
+disabled.
 
-The [Blockbench Authoring Guide](docs/authoring/blockbench.md) documents the experimental exporter format; it is not a promise of an end-to-end resource-pack pipeline.
+The importer and ZIP structure have automated verification, but the final M2 requirement — observing
+custom-model-data mapping and animation in a real Minecraft client — is still open. See the
+[Blockbench Authoring Guide](docs/authoring/blockbench.md) and
+[Asset Pipeline](docs/authoring/asset-pipeline.md) for the current supported contract.
 
 ### Planned Features
 

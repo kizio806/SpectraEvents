@@ -3,13 +3,16 @@
 ## Player FAQ
 
 **Q: Does this beta deliver a SpectraEvents resource pack automatically?**
-A: **No.** Resource-pack compilation and delivery are disabled until the project can produce and verify a real ZIP end to end.
+A: **No.** SpectraEvents builds a local ZIP but never hosts or publishes it. An operator may opt in to
+delivery after hosting the exact ZIP at an HTTPS URL and configuring its SHA-1.
 
 **Q: Do I need a client mod?**
-A: The current built-in visuals use native server entities and require no client mod. Custom-texture resource-pack support is not available in this beta.
+A: No. Native visuals require no client mod. Textured Blockbench assets use the ordinary Minecraft
+resource-pack prompt when an operator enables delivery.
 
 **Q: Why does SpectraEvents not show a resource-pack prompt?**
-A: The beta deliberately does not request a pack; the incomplete delivery pipeline is fail-closed.
+A: Delivery is disabled by default. It also remains fail-closed when the configured HTTPS URL or SHA-1
+is invalid or cannot be resolved.
 
 ---
 
@@ -19,26 +22,29 @@ A: The beta deliberately does not request a pack; the incomplete delivery pipeli
 A: Install the Paper-family JAR on Paper/Purpur/Folia or the Spigot-family JAR on Spigot/CraftBukkit. Do not mix the artifacts.
 
 **Q: How do I use my own models?**
-A: Author native model YAML manually. The Blockbench-to-pack workflow is experimental and unavailable in the beta.
+A: Author native model YAML, or export a Blockbench Generic Model `.spectra.zip` to
+`plugins/SpectraEvents/assets/source/`. See the Blockbench guide before enabling player delivery.
 
 ---
 
 ## Maintainer / Asset Author FAQ
 
 **Q: Where do I edit models?**
-A: The Blockbench exporter is experimental. `/event assets import` and pack building are unavailable in the beta.
+A: Use native YAML models or the supplied Blockbench Generic Model exporter. Paper provides
+`/event assets import` and `/event assets build`; both validate the bundle and update the local ZIP.
 
 **Q: Where are generated files?**
-A: No resource-pack files are generated in this beta.
+A: `plugins/SpectraEvents/generated/resource-pack/` contains the generated ZIP.
 
 **Q: Should I edit generated JSON manually?**
-A: There is no generated output ZIP to edit.
+A: No. Treat the ZIP as generated output; fix the Blockbench source bundle and rebuild it.
 
 **Q: How are resource-pack versions named?**
-A: No pack version contract is published while generation is disabled.
+A: The local filename contains the target profile, for example `spectraevents-profile_26_1.zip`.
 
 **Q: Where are official packs published?**
 A: No official pack is published by this beta.
 
 **Q: What happens when Minecraft adds a new resource-pack format?**
-A: Format mapping will be implemented and tested as part of the deferred asset milestone.
+A: A new `AssetTargetProfile` and real-client verification are required before that version is
+supported for generated assets.

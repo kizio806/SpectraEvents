@@ -31,6 +31,7 @@ Future events may include Meteor, Airdrop, Metin, Pinata, Crystal, Vault, Boss P
 Seasonal Event, Pirate Treasure, and UFO. Most behavior should be composed from common engine
 primitives rather than implemented as isolated event-specific systems.
 
-The current milestone hardens two production artifacts, strict definitions, lifecycle cleanup,
-SQLite recovery, claim acceptance, and the real-server release matrix. Resource-pack ZIP generation,
-Blockbench import, asset publishing/delivery, and a public addon API remain deliberately unavailable.
+The current milestone completes the Blockbench asset workflow: signed Generic Model import, local
+resource-pack generation, and opt-in administrator-hosted delivery. Modrinth publishing and the public
+addon API remain deliberately unavailable. M2 cannot close until real-client rendering and player
+delivery are observed and recorded.
