@@ -150,7 +150,18 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
                 + " tasks="
                 + diagnostics.pendingTasks()
                 + " resources="
-                + diagnostics.platformResources());
+                + diagnostics.platformResources()
+                + " claim="
+                + diagnostics.claimant().orElse("unclaimed"));
+        if (!diagnostics.runtimeStatePresent()
+            || (instance.state().isTerminal()
+                && (diagnostics.pendingTasks() != 0 || diagnostics.platformResources() != 0))) {
+          sender.sendMessage(
+              "[SpectraEvents] Recovery guidance: run /event doctor, preserve logs, and back up spectraevents.db before restarting.");
+        } else if (diagnostics.claimant().isPresent()) {
+          sender.sendMessage(
+              "[SpectraEvents] Claim recorded: reconcile any external reward before granting a manual replacement.");
+        }
         yield true;
       }
       default -> throw new IllegalArgumentException("Unknown event subcommand: " + arguments[0]);
@@ -231,6 +242,8 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
     }
     sender.sendMessage(
         "[SpectraEvents] Reward guarantee: in-process at-most-once; crash ambiguity requires operator reconciliation.");
+    sender.sendMessage(
+        "[SpectraEvents] Recovery guidance: inspect active instances, preserve logs, and back up spectraevents.db before manual recovery.");
     return true;
   }
 

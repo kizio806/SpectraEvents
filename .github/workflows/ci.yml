@@ -45,6 +45,12 @@ jobs:
       - name: Run formatting, static analysis, and boundary checks
         run: ./gradlew --no-daemon spotlessCheck checkstyleMain pmdMain spotbugsMain verifyPlatformBoundaries
 
+      - name: Validate documented release blockers
+        run: |
+          python3 -m unittest discover -s scripts/release -p 'test_*.py'
+          python3 -m unittest discover -s scripts/runtime-smoke -p 'test_*.py'
+          python3 scripts/release/verify_release_gate.py
+
   core-tests:
     name: CI / Core Tests
     runs-on: ubuntu-24.04
@@ -199,7 +205,6 @@ jobs:
           - { server: purpur, family: paper, version: '26.3' }
           - { server: folia, family: paper, version: '26.1' }
           - { server: folia, family: paper, version: '26.2' }
-          - { server: folia, family: paper, version: '26.3' }
           - { server: spigot, family: spigot, version: '26.1' }
           - { server: spigot, family: spigot, version: '26.2' }
           - { server: spigot, family: spigot, version: '26.3' }

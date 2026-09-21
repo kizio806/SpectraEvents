@@ -289,6 +289,7 @@ class EventExecutionEngineTest {
             new ConfiguredTriggerDefinition("interaction"),
             ExecutionContext.withActor(actor)));
     assertEquals(1, actionPort.executedActions.size());
+    assertEquals(actor.toString(), engine.diagnostics(instance.id()).claimant().orElseThrow());
   }
 
   @Test

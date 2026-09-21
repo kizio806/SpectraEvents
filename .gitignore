@@ -48,5 +48,6 @@ generated-resource-packs/
 # Temporary files
 *.tmp
 *.log
+__pycache__/
 .cache/
 .kotlin/

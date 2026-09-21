@@ -127,7 +127,6 @@ jobs:
           - { server: purpur, family: paper, version: '26.3' }
           - { server: folia, family: paper, version: '26.1' }
           - { server: folia, family: paper, version: '26.2' }
-          - { server: folia, family: paper, version: '26.3' }
           - { server: spigot, family: spigot, version: '26.1' }
           - { server: spigot, family: spigot, version: '26.2' }
           - { server: spigot, family: spigot, version: '26.3' }
@@ -158,10 +157,19 @@ jobs:
             --version "${{ matrix.version }}" \
             --artifact release-artifacts/SpectraEvents-*-${{ matrix.family }}.jar
 
+  release-eligibility:
+    name: Release / Required Runtime Availability
+    needs: [build, runtime-matrix]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Refuse publication while a required runtime row is unavailable
+        run: python3 scripts/release/verify_release_gate.py
+
   publish:
     name: Release / Publish
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build, runtime-matrix]
+    needs: [build, runtime-matrix, release-eligibility]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -183,7 +191,9 @@ jobs:
             echo
             echo "Two platform-specific artifacts; do not mix them:"
             echo
-            echo "- Paper/Purpur/Folia 26.1-26.3: SpectraEvents-${VERSION}-paper.jar"
+            echo "- Paper/Purpur for Minecraft 26.1-26.3: SpectraEvents-${VERSION}-paper.jar"
+            echo "- Folia for Minecraft 26.1-26.2: SpectraEvents-${VERSION}-paper.jar"
+            echo "- Folia for Minecraft 26.3 is refused at startup until a real-server workflow passes."
             echo "- Spigot/CraftBukkit 26.1-26.3: SpectraEvents-${VERSION}-spigot.jar"
             echo
             echo "All declared real-server lifecycle, cleanup, and restart-recovery jobs passed before publication."
@@ -212,7 +222,6 @@ jobs:
           loaders: |
             paper
             purpur
-            folia
           java: 25
           environment: server
           files: release-artifacts/SpectraEvents-*-paper.jar

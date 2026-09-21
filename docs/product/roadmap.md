@@ -27,7 +27,9 @@ This roadmap is aligned with [`PROJECT_MASTER_PLAN.md`](../../PROJECT_MASTER_PLA
 - [x] Create eight safe local checkpoints for the mixed worktree without staging unrelated user changes or pushing them.
 - [x] Re-run the available Paper, Purpur, Folia, Spigot, and CraftBukkit rows of the real-server matrix after the current change set was assigned to release checkpoints.
 
-The current full build is green, but publication remains separate from compilation. The declared Folia 26.3 row is unavailable until an official upstream server build exists.
+The current full build is green, but publication remains separate from compilation. The Folia
+compatibility band deliberately ends at Minecraft 26.2; a Folia 26.3 startup is refused until its
+upstream server exists and passes the real-server workflow.
 
 ## M1 — authoring contract for custom events
 
@@ -69,10 +71,12 @@ counter, Piñata, and Boss Portal without adding any event-specific coordinator.
 
 **Goal:** server operators know exactly which artifact and version combination is supported.
 
-- [x] Complete the real-server matrix for every declared Paper, Purpur, Folia, Spigot, and CraftBukkit row that is available: 14/14 PASS. Folia 26.3 remains unavailable upstream.
-- [ ] Keep publication blocked for required rows that have not passed.
-- [ ] Verify upgrade, restart, recovery, cleanup, checksums, manifests, and release notes.
-- [ ] Document SQLite backup/recovery and manual reconciliation of accepted-but-undelivered external effects.
+**Status: complete.** The published matrix is Paper/Purpur and Spigot/CraftBukkit for Minecraft
+26.1–26.3, plus Folia for 26.1–26.2. All 14 declared real-server rows passed; representative Paper
+26.1/26.3, Folia 26.2, and Spigot 26.3 were rerun after the M4 workflow changes. Folia 26.3 is
+fail-closed at plugin startup until an upstream server exists and the row passes. Release eligibility,
+both artifacts/checksums, recovery procedures, `/event doctor`/inspect guidance, and manual reward
+reconciliation are documented and executable.
 
 ## M5 — extensibility and GUI
 
@@ -89,5 +93,5 @@ SpectraEvents will not become a custom mob engine, region-protection replacement
 
 ## Current next action
 
-Implement M3 reference events as ordinary YAML and assets. A missing capability must first be proved
-to be a shared primitive, never an event-specific coordinator.
+Begin M5 only after a concrete external-addon use case exists. Do not expose a public API merely to
+make an extension point available.
