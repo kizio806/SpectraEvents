@@ -1,13 +1,17 @@
 package io.github.kizio806.spectraevents.platform.paper.gui;
 
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
+import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
+import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -20,6 +24,8 @@ public final class AdminGuiController implements Listener {
     MAIN,
     ACTIVE_EVENTS,
     DEFINITIONS,
+    /** Detail view for a single event definition — shows phases and offers a Start button. */
+    DEFINITION_DETAIL,
     INTEGRATIONS,
     UPDATES
   }
@@ -28,6 +34,7 @@ public final class AdminGuiController implements Listener {
   private final EventInstanceRepository instanceRepository;
   private final IntegrationRegistry integrationRegistry;
   private final UpdateService updateService;
+  private final EventOrchestrationService orchestrationService;
 
   private final Map<UUID, MenuType> openSessions = new ConcurrentHashMap<>();
 
@@ -35,11 +42,14 @@ public final class AdminGuiController implements Listener {
       EventDefinitionRegistry definitionRegistry,
       EventInstanceRepository instanceRepository,
       IntegrationRegistry integrationRegistry,
-      UpdateService updateService) {
+      UpdateService updateService,
+      EventOrchestrationService orchestrationService) {
     this.definitionRegistry = Objects.requireNonNull(definitionRegistry, "definitionRegistry");
     this.instanceRepository = Objects.requireNonNull(instanceRepository, "instanceRepository");
     this.integrationRegistry = Objects.requireNonNull(integrationRegistry, "integrationRegistry");
     this.updateService = Objects.requireNonNull(updateService, "updateService");
+    this.orchestrationService =
+        Objects.requireNonNull(orchestrationService, "orchestrationService");
   }
 
   public void openMainMenu(Player player) {
@@ -55,6 +65,23 @@ public final class AdminGuiController implements Listener {
   public void openDefinitionsMenu(Player player) {
     openSessions.put(player.getUniqueId(), MenuType.DEFINITIONS);
     player.openInventory(DefinitionsScreen.createInventory(definitionRegistry));
+  }
+
+  /**
+   * Opens the definition detail screen for the given definition ID.
+   *
+   * @param player the player opening the screen
+   * @param definitionId the definition to display
+   */
+  public void openDefinitionDetailMenu(Player player, String definitionId) {
+    var inv = DefinitionDetailScreen.createInventory(definitionId, definitionRegistry);
+    if (inv == null) {
+      player.sendMessage(
+          Component.text("Definition not found: " + definitionId, NamedTextColor.RED));
+      return;
+    }
+    openSessions.put(player.getUniqueId(), MenuType.DEFINITION_DETAIL);
+    player.openInventory(inv);
   }
 
   public void openIntegrationsMenu(Player player) {
@@ -83,8 +110,25 @@ public final class AdminGuiController implements Listener {
         else if (slot == 14) openIntegrationsMenu(player);
         else if (slot == 16) openUpdatesMenu(player);
       }
-      case ACTIVE_EVENTS, DEFINITIONS -> {
+      case ACTIVE_EVENTS -> {
         if (slot == 49) openMainMenu(player);
+      }
+      case DEFINITIONS -> {
+        if (slot == 49) {
+          openMainMenu(player);
+        } else {
+          String definitionId = holder.payloadForSlot(slot);
+          if (definitionId != null) {
+            openDefinitionDetailMenu(player, definitionId);
+          }
+        }
+      }
+      case DEFINITION_DETAIL -> {
+        if (slot == DefinitionDetailScreen.SLOT_BACK) {
+          openDefinitionsMenu(player);
+        } else if (slot == DefinitionDetailScreen.SLOT_START) {
+          startEventFromGui(player, holder.extra());
+        }
       }
       case INTEGRATIONS -> {
         if (slot == 31) openMainMenu(player);
@@ -99,5 +143,32 @@ public final class AdminGuiController implements Listener {
   @EventHandler
   public void onInventoryClose(InventoryCloseEvent event) {
     openSessions.remove(event.getPlayer().getUniqueId());
+  }
+
+  private void startEventFromGui(Player player, String definitionId) {
+    if (definitionId == null || definitionId.isBlank()) {
+      player.sendMessage(Component.text("No definition selected.", NamedTextColor.RED));
+      return;
+    }
+    try {
+      var loc = player.getLocation();
+      EventLocation platformLocation =
+          new EventLocation(
+              loc.getWorld().getName(),
+              loc.getX(),
+              loc.getY(),
+              loc.getZ(),
+              loc.getYaw(),
+              loc.getPitch());
+      var instance = orchestrationService.startDefinition(definitionId, platformLocation);
+      player.sendMessage(
+          Component.text(
+              "Started event '" + definitionId + "' (instance " + instance.id() + ")",
+              NamedTextColor.GREEN));
+      player.closeInventory();
+    } catch (Exception e) {
+      player.sendMessage(
+          Component.text("Failed to start event: " + e.getMessage(), NamedTextColor.RED));
+    }
   }
 }

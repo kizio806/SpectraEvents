@@ -201,7 +201,11 @@ public final class PaperBootstrap {
 
     AdminGuiController guiController =
         new AdminGuiController(
-            application.definitionRegistry(), sqliteRepository, integrationRegistry, updateService);
+            application.definitionRegistry(),
+            sqliteRepository,
+            integrationRegistry,
+            updateService,
+            application.orchestrationService());
     org.bukkit.Bukkit.getPluginManager().registerEvents(guiController, plugin);
 
     PaperInteractionRouter interactionRouter =

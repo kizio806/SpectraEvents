@@ -113,7 +113,7 @@ Legenda:
 | Dostarczanie packa graczom | Zrobione, opt-in | administrator-hosted HTTPS + SHA-1, cache oraz obsługa statusów | operator potwierdził rzeczywisty workflow delivery po M2; automatyczne hostowanie i Modrinth pozostają wyłączone |
 | Oficjalne eventy | Zrobione dla M3 | Meteor, Airdrop, Metin, Piñata i Boss Portal są referencjami | kolejne eventy powstają głównie z YAML, bez ukrytej logiki dostępnej tylko twórcom |
 | Własne eventy administratora | Częściowe | kopiowanie i modyfikowanie YAML jest zamierzonym workflow | pełne przykłady, walidacja, asset import oraz guide od zera |
-| Publiczne API dodatków | Do zrobienia świadomie | nie ma stabilnego publicznego API | dopiero po ustaleniu realnego use case'u, wersjonowania, testów i polityki kompatybilności |
+| Publiczne API dodatków | Nie planowane | brak modułu API, brak stabilnego kontraktu | temat pozostaje zamknięty: ADR 0005 odracza API do czasu wykazanego use case'u, który do tej pory nie zaistniał |
 | GUI edytora | Do zrobienia po V1 | istnieje administracyjne GUI/diagnostyka, nie pełny editor | GUI jest tylko frontendem stabilnego YAML, nigdy osobnym źródłem prawdy |
 
 ## 6. Aktualny stan jakości i ograniczenia
@@ -226,14 +226,16 @@ jest fail-closed: plugin wypisuje instrukcję i wyłącza się przed wczytaniem 
 upstream nie wyda serwera i nowy wiersz nie przejdzie workflow. Bramka publikacji, checklisty,
 checksumy, diagnostyka, backup/recovery i ręczne uzgadnianie claimów są gotowe.
 
-### M5 — rozszerzalność i GUI po stabilizacji
+### M5 — GUI administratora po stabilizacji
 
-**Cel:** rozszerzać silnik bez łamania użytkowników.
+**Cel:** administrator widzi definicje i uruchamia eventy bez wpisywania komend.
 
-- [ ] Zidentyfikować prawdziwy use case dla publicznego API.
-- [ ] Zaprojektować wersjonowane API dla custom `Action`, `Trigger`, `Condition` i integracji.
-- [ ] Dodać compatibility policy oraz testowy addon.
-- [ ] Zbudować GUI jako edytor/preview YAML, nie jako alternatywne źródło konfiguracji.
+- [x] Usunąć wszystkie wzmianki o planowanym publicznym API addonów z dokumentacji i kodu;
+  brak use case’u — temat pozostaje zamknięty.
+- [x] Rozszerzyć panel admina: klikalna lista definicji i ekran podglądu z listą faz oraz
+  przyciskiem Start.
+- [x] Upewnić się, że GUI jest wyłącznie frontendem YAML — żadnych alternatywnych źródeł
+  konfiguracji w GUI.
 
 ## 8. Definition of Done — zasady bez wyjątków
 
@@ -273,7 +275,7 @@ checksumy, diagnostyka, backup/recovery i ręczne uzgadnianie claimów są gotow
 - osobnego pluginu dla każdego eventu;
 - NMS, reflection hacks oraz globalnych singletonów;
 - pełnego systemu mobów, ekonomii, questów lub skryptów;
-- publicznego API bez kontraktu kompatybilności;
+- publicznego API addonów (brak wykazanego use case'u; ADR 0005 pozostaje w mocy);
 - GUI przed stabilizacją formatu YAML;
 - resource-pack delivery przed zweryfikowanym ZIP-em;
 - deklaracji wsparcia platformy, której nie sprawdziliśmy na prawdziwym serwerze.
@@ -304,7 +306,7 @@ Przy każdej znaczącej zmianie:
 | 2026-09-20 | Spigot-family runtime matrix | sekwencyjne uruchomienie `scripts/runtime-smoke/runtime_workflow.py` dla Spigot 26.1–26.3 i CraftBukkit 26.1–26.3 | **PASS** — 6/6 dostępnych wierszy: start, faza, cleanup, restart/recovery i clean shutdown | M0 zielone dla dostępnej macierzy; rozpocząć M1 |
 | 2026-09-20 | M1 diagnostic contract | targeted parser/loader tests oraz `./gradlew clean check build` | **PASS** — canonical YAML paths, source-file prefixes, wrong-type diagnostics and bounded parameter validation; 124 zadania actionable | Stabilizować pełny author-facing YAML schema |
 | 2026-09-20 | M1 model animation action | `./gradlew clean check build`; test `ModelAnimationActionServiceTest`; kompilacja Paper/Spigot | **PASS** — model definitions retain executable animation plans; `play_animation` supports model filtering, speed, loop and max-loops; playback is stopped before cleanup; 124 zadania actionable | Dokończyć pełny schemat autora, przykłady oraz M2 importer Blockbench |
-| 2026-09-20 | M1 authoring contract | testy `AuthoringExamplesTest`, `ModelResourceExamplesTest`, `EventExecutionEngineTest`; `./gradlew clean check build`; runtime smoke Paper 26.2 i Spigot 26.2 | **PASS** — stabilny schemat YAML, trzy przykłady, guide autora, snapshot definicji po reloadzie, recovery/cleanup oraz realny runtime na obu artefaktach; dodatkowo naprawiono drain zaakceptowanych zapisów SQLite przy shutdownie | Przejść do M2: bezpieczny importer Blockbench i pipeline resource-pack |
+| 2026-09-21 | M5 admin GUI i porządkowanie doc | `./gradlew clean check build` po zmianach w `AdminGuiController`, `DefinitionDetailScreen`, `DefinitionsScreen`, `AdminGuiHolder`, `EventDefinitionRegistry` i doc | **PASS** — 130 tasków; Spotless, PMD, SpotBugs, Checkstyle, granice platform, weryfikacja matrix i oba artefakty przeszły; brak regresji | M5 zamknięte; następny krok: release V1 po potwierdzeniu real-server matrix |
 
 ---
 

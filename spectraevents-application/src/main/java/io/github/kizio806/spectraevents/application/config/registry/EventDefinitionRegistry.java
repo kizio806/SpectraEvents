@@ -69,6 +69,17 @@ public final class EventDefinitionRegistry {
     return Optional.ofNullable(definitions.get(id));
   }
 
+  /**
+   * Looks up a registered definition by its raw string identifier.
+   *
+   * @param id raw definition ID string
+   * @return the registered definition, or empty when not found
+   */
+  public Optional<RegisteredEventDefinition> findById(String id) {
+    Objects.requireNonNull(id, "id");
+    return get(new EventDefinitionId(id));
+  }
+
   public Collection<RegisteredEventDefinition> getAll() {
     return List.copyOf(definitions.values());
   }

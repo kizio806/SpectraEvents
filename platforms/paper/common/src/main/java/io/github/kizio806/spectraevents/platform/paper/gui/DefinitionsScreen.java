@@ -2,7 +2,9 @@ package io.github.kizio806.spectraevents.platform.paper.gui;
 
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.registry.RegisteredEventDefinition;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
@@ -12,17 +14,29 @@ import org.bukkit.inventory.Inventory;
 public final class DefinitionsScreen {
 
   public static Inventory createInventory(EventDefinitionRegistry definitionRegistry) {
-    Inventory inv =
-        AdminGuiHolder.createInventory(
-            AdminGuiController.MenuType.DEFINITIONS,
-            54,
-            Component.text("Event Definitions", NamedTextColor.GREEN));
+    Map<Integer, String> slotPayloads = new HashMap<>();
 
+    // Reserve slot 49 for the Back button; items fill rows 0–4 (slots 0–44).
     int slot = 0;
     for (RegisteredEventDefinition registered : definitionRegistry.getAll()) {
       if (slot >= 45) break;
+      slotPayloads.put(slot, registered.definition().id().value());
+      slot++;
+    }
+
+    Inventory inv =
+        AdminGuiHolder.createInventory(
+            AdminGuiController.MenuType.DEFINITIONS,
+            null,
+            slotPayloads,
+            54,
+            Component.text("Event Definitions", NamedTextColor.GREEN));
+
+    int renderSlot = 0;
+    for (RegisteredEventDefinition registered : definitionRegistry.getAll()) {
+      if (renderSlot >= 45) break;
       inv.setItem(
-          slot++,
+          renderSlot++,
           MainScreen.createGuiItem(
               Material.PAPER,
               Component.text(registered.definition().id().value(), NamedTextColor.GREEN),
@@ -30,7 +44,8 @@ public final class DefinitionsScreen {
                   Component.text("Source: " + registered.sourceFile(), NamedTextColor.GRAY),
                   Component.text(
                       "Initial Phase: " + registered.definition().initialPhase().value(),
-                      NamedTextColor.GRAY))));
+                      NamedTextColor.GRAY),
+                  Component.text("\u00bb Click to view details", NamedTextColor.YELLOW))));
     }
 
     inv.setItem(

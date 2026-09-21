@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-M5 extensibility and GUI
+M5 complete — admin GUI expansion and documentation cleanup
 
 ## Current Target
 
@@ -101,8 +101,9 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
 
 ## Next Planned Milestone
 
-Identify a real addon use case before proposing a public API or compatibility policy; the YAML source
-remains canonical for any later GUI.
+V1 release candidate after confirming real-server matrix on the current build.
+No public addon API is planned without a concrete demonstrated use case; ADR 0005
+remains in effect.
 
 ## Important Active Decisions
 
