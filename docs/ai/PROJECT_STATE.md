@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-M1 authoring contract completed; M2 Blockbench and asset pipeline next
+M2 Blockbench and asset pipeline — real-client acceptance remaining
 
 ## Current Target
 
@@ -11,8 +11,11 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
 ## Asset Workflow Status
 
 - Native server-side model definitions and Display/Interaction rendering are active.
-- Blockbench import, resource-pack ZIP generation, Modrinth asset publishing, and automatic player delivery are disabled and fail closed.
-- The next asset milestone must produce and validate a real ZIP before any delivery claim is restored.
+- Signed `.spectra.zip` Generic Model bundles import into the normal model/animation registries and
+  build a local verified resource-pack ZIP.
+- Administrator-owned HTTPS/SHA-1 player delivery is opt-in; Modrinth publishing remains disabled.
+- Custom-model-data rendering and player accept/decline/failure/reconnect remain unverified on a real
+  Minecraft client and therefore M2 is not complete.
 
 ## Completed
 
@@ -73,17 +76,27 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
   - Added source-path validation diagnostics, three verified YAML examples, and the copy/validate/reload/start/diagnose administrator guide.
   - Connected named model animations through `play_animation`, including cleanup and restart/recovery handling.
   - Running instances retain the definition snapshot captured at start when definitions are reloaded.
+- [x] M2 implementation foundation:
+  - One signed Blockbench Generic Model `.spectra.zip` format with checksums, strict layout and
+    hostile-input limits.
+  - Imported cubes, textures, group hierarchy, pivots and named animations compile into ordinary
+    `spawn_model` / `play_animation` definitions.
+  - Deterministic resource-pack ZIP output with generated manifest and custom-model-data mapping.
+  - Opt-in HTTPS/SHA-1 delivery configuration with cache, reconnect, decline and failure handling
+    covered by JVM tests; no automatic hosting or Modrinth publishing.
 
 ## In Progress
 
 - Paper-family runtime hardening is verified for all 8 available rows: Paper 26.1–26.3, Purpur 26.1–26.3, and Folia 26.1–26.2.
 - All 14 available Paper-family and Spigot-family runtime rows now pass lifecycle, cleanup, and restart/recovery verification.
 - Publication remains blocked only by the required Folia 26.3 row, for which no upstream server build is available.
-- M1 is complete; the next implementation milestone is the fail-closed Blockbench/resource-pack pipeline.
+- M2 code and JVM verification are in place; real-client rendering and real-player delivery are the
+  remaining acceptance workflows.
 
 ## Next Planned Milestone
 
-M2 Blockbench and Asset Pipeline (supported input format, safe import, real resource-pack ZIP, validation limits, and tested delivery prerequisites).
+M2 real-client acceptance: inspect one generated pack/model/animation and exercise HTTPS delivery,
+acceptance, decline, failed download and reconnect with a real player.
 
 ## Important Active Decisions
 
@@ -100,4 +113,4 @@ M2 Blockbench and Asset Pipeline (supported input format, safe import, real reso
 
 ## Last Updated
 
-2026-09-20
+2026-09-21

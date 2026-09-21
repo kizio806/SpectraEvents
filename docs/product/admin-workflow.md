@@ -6,38 +6,46 @@ This document describes the expected end-to-end experience for a server administ
 
 1. **Install Plugin**
    - Install `SpectraEvents-<version>-paper.jar` on Paper/Purpur/Folia or `SpectraEvents-<version>-spigot.jar` on Spigot/CraftBukkit.
-   - Do not mix the two artifacts. Resource-pack generation and delivery are unavailable in this beta.
+   - Do not mix the two artifacts. The generated resource pack is local by default; player delivery is
+     opt-in and requires the explicit HTTPS/SHA-1 configuration.
 
 2. **Generate Defaults**
    - On first boot, the engine generates an `events/` directory containing default reference configs (e.g., `meteor.yml`, `airdrop.yml`).
 
-3. **Create Event Definition**
+3. **Import Optional Blockbench Asset**
+   - Export a Generic Model `.spectra.zip` into `assets/source/`; the server validates and builds it
+     at startup. On Paper, `/event assets build` can run the same process manually.
+   - Use the imported model ID and animation names in the regular YAML `spawn_model` and
+     `play_animation` actions. The generated ZIP must be hosted externally before it can be delivered
+     to players.
+
+4. **Create Event Definition**
    - The admin copies `events/meteor.yml` to `events/my-custom-meteor.yml` and gives it a unique `id` before editing health, model, or loot.
    - This configuration file serves as the **Primary Source of Truth**.
 
-4. **Validation**
+5. **Validation**
    - The admin runs `/event definition validate`.
    - The engine parses the YAML and reports any semantic errors (e.g., missing referenced models, cyclical phases) as `ERROR`, `WARNING`, or `INFO`.
 
-5. **Preview / Test**
+6. **Preview / Test**
    - Paper operators may use the available model/debug commands to inspect native visual components. Spigot reports unsupported Paper-only admin features explicitly.
 
-6. **Reload Definition**
+7. **Reload Definition**
    - The admin runs `/event definition reload`.
    - The engine compiles the YAML into an immutable `EventDefinition` in memory.
    - Any currently running `EventInstance` created from an older version of this definition retains its original configuration snapshot (or version reference) to prevent runtime corruption.
 
-7. **Manual Start**
+8. **Manual Start**
    - The admin executes `/event event start my-custom-meteor`.
    - The engine selects a valid spawn location (based on the strategy) and creates a new `EventInstance`.
 
-8. **Runtime Inspection**
+9. **Runtime Inspection**
    - The admin tracks state, pending tasks and resource counts with `/event event inspect <instance-id>`.
 
-9. **Debug**
+10. **Debug**
    - The admin runs `/event doctor` and `/event event inspect <instance-id>` before collecting logs.
 
-10. **Production Scheduling**
+11. **Production Scheduling**
     - The admin uses an external scheduler or a future SpectraEvents cron feature to run the event automatically.
 
 ## Future GUI

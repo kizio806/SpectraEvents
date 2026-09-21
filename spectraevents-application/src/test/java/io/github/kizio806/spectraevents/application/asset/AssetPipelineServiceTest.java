@@ -38,6 +38,8 @@ public class AssetPipelineServiceTest {
 
     Assertions.assertTrue(service.listModels().contains("test"));
     Assertions.assertNotNull(service.getModelInfo("test"));
+    Assertions.assertTrue(
+        Files.isRegularFile(tempDir.resolve("out").resolve("spectraevents-profile_26_1.zip")));
   }
 
   @Test

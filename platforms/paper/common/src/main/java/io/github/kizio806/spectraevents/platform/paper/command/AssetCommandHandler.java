@@ -120,8 +120,7 @@ public final class AssetCommandHandler {
     CommandSender sender = ctx.getSource().getSender();
     if (assetPipelineService == null) return unavailable(sender);
     assetPipelineService.clean();
-    sender.sendMessage(
-        Component.text("Asset generated cache and files cleaned.", NamedTextColor.GREEN));
+    sender.sendMessage(Component.text("Asset import cache cleared.", NamedTextColor.GREEN));
     return 1;
   }
 
@@ -172,9 +171,7 @@ public final class AssetCommandHandler {
 
   private int unavailable(CommandSender sender) {
     sender.sendMessage(
-        Component.text(
-            "Asset import and resource-pack generation are unavailable in this release.",
-            NamedTextColor.RED));
+        Component.text("Asset pipeline is not configured on this server.", NamedTextColor.RED));
     return 0;
   }
 }
