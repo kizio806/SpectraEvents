@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-M2 Blockbench and asset pipeline — real-client acceptance remaining
+M3 reference events as product examples
 
 ## Current Target
 
@@ -14,8 +14,8 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
 - Signed `.spectra.zip` Generic Model bundles import into the normal model/animation registries and
   build a local verified resource-pack ZIP.
 - Administrator-owned HTTPS/SHA-1 player delivery is opt-in; Modrinth publishing remains disabled.
-- Custom-model-data rendering and player accept/decline/failure/reconnect remain unverified on a real
-  Minecraft client and therefore M2 is not complete.
+- The operator confirmed custom-model-data rendering and the real-player delivery workflow after M2.
+  Exact server/client versions were not recorded and are not inferred retrospectively.
 
 ## Completed
 
@@ -90,13 +90,14 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
 - Paper-family runtime hardening is verified for all 8 available rows: Paper 26.1–26.3, Purpur 26.1–26.3, and Folia 26.1–26.2.
 - All 14 available Paper-family and Spigot-family runtime rows now pass lifecycle, cleanup, and restart/recovery verification.
 - Publication remains blocked only by the required Folia 26.3 row, for which no upstream server build is available.
-- M2 code and JVM verification are in place; real-client rendering and real-player delivery are the
-  remaining acceptance workflows.
+- M2 is complete, including operator-confirmed real-client rendering and real-player delivery.
+- M3 promotes the next reference event definitions only when their behavior is expressed by shared
+  primitives and has YAML, assets, documentation, and focused verification.
 
 ## Next Planned Milestone
 
-M2 real-client acceptance: inspect one generated pack/model/animation and exercise HTTPS delivery,
-acceptance, decline, failed download and reconnect with a real player.
+M3 reference events: add a genuine hit-counter/interactions example and a boss-portal example using
+the same definition, model, action, cleanup, and recovery contracts available to administrators.
 
 ## Important Active Decisions
 

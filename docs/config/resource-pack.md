@@ -27,8 +27,8 @@ download a pack. After a successful resolve, every joining player receives the c
 the adapter records accepted, declined, failed and loaded statuses. A reconnect creates a new request
 from the cached verified descriptor.
 
-This is an implementation and test contract, not yet a real-client compatibility claim. Acceptance,
-decline, failed download and reconnect must still be verified with a real player before M2 closes.
+This contract was confirmed with a real-client and real-player workflow for M2. The operator must
+repeat acceptance when changing the target profile, hosted ZIP, or delivery configuration.
 
 Modrinth delivery and publishing are deliberately disabled. See
 [the Modrinth boundary](../architecture/modrinth-delivery.md).

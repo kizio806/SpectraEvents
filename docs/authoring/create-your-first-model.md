@@ -28,5 +28,5 @@ Use `/event model list` and the Paper model/debug tools exposed by `/event help`
 definitions. For imported assets, use `/event assets list`, `info`, and `validate` on Paper. Spigot
 reports Paper-only command tooling as unsupported rather than silently ignoring it.
 
-The generated pack remains pending real-client acceptance; see [Asset Pipeline](asset-pipeline.md) for
-the exact boundary.
+The M2 pack workflow has real-client acceptance. See [Asset Pipeline](asset-pipeline.md) for the
+profile-specific verification boundary.

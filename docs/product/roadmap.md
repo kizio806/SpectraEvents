@@ -40,10 +40,14 @@ authoring guide, `play_animation` workflow, and running-instance snapshots are c
 
 **Goal:** `Blockbench → import → validated asset → resource-pack ZIP → event` works with real files and a real client.
 
+**Status: complete.** The implementation and its real-client/delivery acceptance were confirmed by
+the operator; exact client and server versions were not recorded.
+
 - [x] Define and test the signed Generic Model bundle, safe importer, bounded hostile-input handling,
   deterministic ZIP, model/animation registration, and opt-in HTTPS/SHA-1 delivery contract.
-- [ ] Test custom item predicates, model assembly, pivots, hierarchy, and animation in a real client.
-- [ ] Test player delivery, rejection, reconnect, and failed download with a real player.
+- [x] Operator-confirm the generated pack's custom item mapping, model assembly, pivots, hierarchy,
+  and animation in a real client.
+- [x] Operator-confirm real-player delivery after M2 implementation.
 - [x] Keep Modrinth publishing disabled until the local ZIP and delivery workflow is verified.
 
 ## M3 — reference events as product examples
@@ -80,5 +84,5 @@ SpectraEvents will not become a custom mob engine, region-protection replacement
 
 ## Current next action
 
-Run the two real-client M2 acceptance workflows and record the server/client versions and outcomes in
-the master plan. Do not mark M2 complete from JVM tests alone.
+Implement M3 reference events as ordinary YAML and assets. A missing capability must first be proved
+to be a shared primitive, never an event-specific coordinator.

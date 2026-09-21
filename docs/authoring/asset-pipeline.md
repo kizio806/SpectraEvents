@@ -65,9 +65,9 @@ modern `minecraft:custom_model_data` range-dispatch mapping for paper items, and
 `spectraevents-manifest.json` containing generated-file SHA-256 values. The builder also returns
 archive SHA-1 and SHA-256 values; SHA-1 is the value Minecraft needs for player delivery.
 
-The pack is generated and structurally tested. It is **not yet accepted as client-verified**: before
-M2 can close, the custom-model-data mapping and imported animation must be inspected in a real
-Minecraft client on the declared server version.
+The pack is generated, structurally tested, and M2 was confirmed by the operator in a real-client
+workflow. Record new target-profile validation whenever a Minecraft resource-pack format changes;
+client acceptance for one profile does not automatically prove a future profile.
 
 ## Delivery boundary
 

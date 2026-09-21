@@ -24,14 +24,15 @@ Trigger / Condition
 Action
 ```
 
-Meteor, Airdrop, and Metin are bundled definitions that exercise the generic architecture; none of
-them is a separate hardcoded event subsystem.
+Meteor, Airdrop, Metin, Pinata, and Boss Portal are bundled definitions that exercise the generic
+architecture; none of them is a separate hardcoded event subsystem.
 
 Future events may include Meteor, Airdrop, Metin, Pinata, Crystal, Vault, Boss Portal, Dragon Egg,
 Seasonal Event, Pirate Treasure, and UFO. Most behavior should be composed from common engine
 primitives rather than implemented as isolated event-specific systems.
 
-The current milestone completes the Blockbench asset workflow: signed Generic Model import, local
-resource-pack generation, and opt-in administrator-hosted delivery. Modrinth publishing and the public
-addon API remain deliberately unavailable. M2 cannot close until real-client rendering and player
-delivery are observed and recorded.
+M2 is complete: the signed Generic Model import, local resource-pack generation, and opt-in
+administrator-hosted delivery were confirmed by the operator in a real-client workflow. The current
+milestone is M3: reference events must remain ordinary YAML and asset definitions, with no
+event-specific coordinators. Modrinth publishing and the public addon API remain deliberately
+unavailable.
