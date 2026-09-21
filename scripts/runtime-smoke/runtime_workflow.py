@@ -230,20 +230,33 @@ class ServerSession:
         failures = [
             line
             for line in self.lines
-            if any(token in line for token in critical)
-            or "/ERROR]:" in line
-            or "/SEVERE]:" in line
-            or "Asynchronous platform action failed" in line
-            or (
-                line.lstrip().startswith("at ")
+            if (
+                not self._is_benign_console_shutdown_error(line)
                 and (
-                    "SpectraEvents-" in line
-                    or "io.github.kizio806.spectraevents" in line
+                any(token in line for token in critical)
+                    or "/ERROR]:" in line
+                    or "/SEVERE]:" in line
+                    or "Asynchronous platform action failed" in line
+                    or (
+                        line.lstrip().startswith("at ")
+                        and (
+                            "SpectraEvents-" in line
+                            or "io.github.kizio806.spectraevents" in line
+                        )
+                    )
                 )
             )
         ]
         if failures:
             raise RuntimeError("Critical plugin/server errors:\n" + "\n".join(failures))
+
+    def _is_benign_console_shutdown_error(self, line: str) -> bool:
+        # Some Spigot bundled-server builds close JLine after processing `stop`, then log this
+        # console-reader exception despite a clean zero exit. It is not an application failure.
+        return (
+            self.process.returncode == 0
+            and "[Server console handler/ERROR]: Exception handling console input" in line
+        )
 
 
 def wait_ready(session: ServerSession) -> None:
@@ -275,6 +288,23 @@ def assert_running_with_model(snapshot: tuple[str, bool, int, int], context: str
     state, runtime, _tasks, resources = snapshot
     if state != "RUNNING" or not runtime or resources < 1:
         raise RuntimeError(f"{context}: expected RUNNING/state/model resources, got {snapshot}")
+
+
+def assert_cancelled(snapshot: tuple[str, bool, int, int], context: str) -> None:
+    state, runtime, tasks, resources = snapshot
+    if state != "CANCELLED" or runtime or tasks != 0 or resources != 0:
+        raise RuntimeError(
+            f"{context}: expected CANCELLED/false/0/0, got {(state, runtime, tasks, resources)}"
+        )
+
+
+def start_and_cancel_reference_event(session: ServerSession, definition_id: str) -> None:
+    instance_id = start_event(session, definition_id)
+    time.sleep(1)
+    assert_running_with_model(inspect(session, instance_id), f"{definition_id} reference start")
+    session.command(f"event event cancel {instance_id}")
+    session.wait_for(rf"(?:Stopped|Cancelled) event instance {instance_id}", timeout=20)
+    assert_cancelled(inspect(session, instance_id), f"{definition_id} reference cleanup")
 
 
 def write_asset_smoke_fixture(plugin_directory: pathlib.Path) -> None:
@@ -389,11 +419,9 @@ def run_workflow(server_jar: pathlib.Path, artifact: pathlib.Path, work: pathlib
         assert_running_with_model(inspect(first, asset_instance), "asset import, spawn, and animation")
         first.command(f"event event cancel {asset_instance}")
         first.wait_for(rf"(?:Stopped|Cancelled) event instance {asset_instance}", timeout=20)
-        state, runtime, tasks, resources = inspect(first, asset_instance)
-        if state != "CANCELLED" or runtime or tasks != 0 or resources != 0:
-            raise RuntimeError(
-                f"asset cleanup: expected CANCELLED/false/0/0, got {(state, runtime, tasks, resources)}"
-            )
+        assert_cancelled(inspect(first, asset_instance), "asset cleanup")
+        for reference_event in ("meteor", "metin", "pinata", "boss_portal"):
+            start_and_cancel_reference_event(first, reference_event)
         disposable = start_event(first)
         time.sleep(1)
         assert_running(inspect(first, disposable), "initial start")
@@ -403,11 +431,7 @@ def run_workflow(server_jar: pathlib.Path, artifact: pathlib.Path, work: pathlib
         assert_running(inspect(first, disposable), "post-transition")
         first.command(f"event event cancel {disposable}")
         first.wait_for(rf"(?:Stopped|Cancelled) event instance {disposable}", timeout=20)
-        state, runtime, tasks, resources = inspect(first, disposable)
-        if state != "CANCELLED" or runtime or tasks != 0 or resources != 0:
-            raise RuntimeError(
-                f"cancel cleanup: expected CANCELLED/false/0/0, got {(state, runtime, tasks, resources)}"
-            )
+        assert_cancelled(inspect(first, disposable), "airdrop cleanup")
         recoverable = start_event(first)
         time.sleep(1)
         assert_running(inspect(first, recoverable), "pre-restart")
@@ -422,11 +446,7 @@ def run_workflow(server_jar: pathlib.Path, artifact: pathlib.Path, work: pathlib
         assert_running(inspect(second, recoverable), "post-restart recovery")
         second.command(f"event event cancel {recoverable}")
         second.wait_for(rf"(?:Stopped|Cancelled) event instance {recoverable}", timeout=20)
-        state, runtime, tasks, resources = inspect(second, recoverable)
-        if state != "CANCELLED" or runtime or tasks != 0 or resources != 0:
-            raise RuntimeError(
-                f"recovered cleanup: expected CANCELLED/false/0/0, got {(state, runtime, tasks, resources)}"
-            )
+        assert_cancelled(inspect(second, recoverable), "recovered cleanup")
     finally:
         second.stop()
     second.assert_no_plugin_errors()

@@ -229,8 +229,23 @@ public final class EventCommandHandler {
                 + " tasks="
                 + diagnostics.pendingTasks()
                 + " resources="
-                + diagnostics.platformResources(),
+                + diagnostics.platformResources()
+                + " claim="
+                + diagnostics.claimant().orElse("unclaimed"),
             NamedTextColor.YELLOW));
+    if (!diagnostics.runtimeStatePresent()
+        || (instance.state().isTerminal()
+            && (diagnostics.pendingTasks() != 0 || diagnostics.platformResources() != 0))) {
+      sender.sendMessage(
+          Component.text(
+              "Recovery guidance: run /event doctor, preserve logs, and back up spectraevents.db before restarting.",
+              NamedTextColor.RED));
+    } else if (diagnostics.claimant().isPresent()) {
+      sender.sendMessage(
+          Component.text(
+              "Claim recorded: reconcile any external reward before granting a manual replacement.",
+              NamedTextColor.GOLD));
+    }
     return 1;
   }
 }

@@ -391,14 +391,19 @@ public final class EventExecutionEngine {
   }
 
   public ExecutionDiagnostics diagnostics(EventInstanceId instanceId) {
+    Optional<EventRuntimeState> state = stateStore.get(instanceId);
     return new ExecutionDiagnostics(
-        stateStore.get(instanceId).isPresent(),
+        state.isPresent(),
         scheduler.pendingTaskCount(instanceId),
-        platformActionPort.resourceCount(instanceId));
+        platformActionPort.resourceCount(instanceId),
+        state.flatMap(EventRuntimeState::claimant));
   }
 
   public record ExecutionDiagnostics(
-      boolean runtimeStatePresent, int pendingTasks, int platformResources) {}
+      boolean runtimeStatePresent,
+      int pendingTasks,
+      int platformResources,
+      Optional<String> claimant) {}
 
   private boolean containsRewardAction(List<ActionDefinition> actions) {
     return actions.stream()

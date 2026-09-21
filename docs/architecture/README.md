@@ -16,8 +16,9 @@ or CraftBukkit.
 | `distributions/paper` | Shaded Paper-family plugin | 25 | Server-provided |
 | `distributions/spigot` | Shaded Spigot-family plugin | 25 | Forbidden |
 
-Both platform families compile against the oldest supported `26.1` API. Compatibility claims are
-gated by real-server workflows for `26.1`, `26.2`, and `26.3`, not by compilation alone.
+Both platform families compile against the oldest supported `26.1` API. Paper/Purpur and
+Spigot/CraftBukkit claims are gated by real-server workflows for `26.1`, `26.2`, and `26.3`; Folia
+is gated separately for `26.1` and `26.2` and fails closed on unverified newer versions.
 
 The public addon API is intentionally absent in beta; see ADR 0005.
 

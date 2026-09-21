@@ -27,14 +27,18 @@ Reward claims are durably accepted before delivery and are at-most-once in-proce
 | Artifact | Target Platform | Compatible Minecraft Versions | Loaders | Status |
 | --- | --- | --- | --- | --- |
 | `SpectraEvents-<version>-paper.jar` | Paper, Purpur | `26.1`, `26.2`, `26.3` | `paper`, `purpur` | Local runtime workflow passed |
-| `SpectraEvents-<version>-paper.jar` | Folia | `26.1`, `26.2` | `folia` | Local runtime workflow passed; upstream Folia 26.3 is not published |
+| `SpectraEvents-<version>-paper.jar` | Folia | `26.1`, `26.2` | `folia` | Local runtime workflow passed; an upstream Folia server build for Minecraft 26.3 is not published |
 | `SpectraEvents-<version>-spigot.jar` | Spigot, CraftBukkit | `26.1`, `26.2`, `26.3` | `spigot`, `bukkit` | Local runtime workflow passed |
 
 Download the Paper JAR for Paper, Purpur or Folia. Download the Spigot JAR for Spigot/CraftBukkit.
 
 **Do not install the Paper JAR on Spigot. Do not install the Spigot JAR on Paper, Purpur or Folia if you need Paper/Folia behavior.**
 
-Every published release must pass its declared runtime workflow. The intended combined Modrinth Paper-family entry remains blocked until an official Folia 26.3 runtime exists and passes; the release workflow deliberately fails that missing row. A source checkout or untagged build is not described as fully release verified merely because it compiles.
+Every published release must pass its declared runtime workflow. The Paper/Purpur release entry covers
+Minecraft 26.1–26.3; the compatibility table keeps Folia explicitly limited to 26.1–26.2. If Folia
+for Minecraft 26.3 is started, SpectraEvents logs the unsupported combination and disables itself
+before loading configuration or changing event data. A source checkout or untagged build is not
+described as fully release verified merely because it compiles.
 
 Folia does not implement Bukkit scoreboard creation. A scoreboard action therefore logs a clear `unsupported` warning and the event continues without a sidebar; use bossbars for UI shared across Paper, Purpur, and Folia.
 

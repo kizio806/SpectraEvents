@@ -7,16 +7,25 @@ Use this checklist prior to creating a new official release tag and GitHub Relea
 - [ ] **Working Tree**: `git status` shows a clean working tree.
 - [ ] **Version Single Source of Truth**: `gradle.properties` updated with target release version (e.g. `0.1.0-beta.1`).
 - [ ] **Changelog**: `CHANGELOG.md` updated with release highlights under `## [X.Y.Z] - YYYY-MM-DD`.
-- [ ] **Quality Gate**: `./gradlew spotlessApply && ./gradlew clean check build` succeeds with zero errors.
+- [ ] **Quality Gate**: `./gradlew clean check build` succeeds with zero errors; do not rewrite the
+  worktree merely to make a check pass.
 - [ ] **Artifact Verification**:
-  - Distributable JAR generated under `distributions/paper/v26_2/build/libs/`.
-  - Artifact filename formatted as `SpectraEvents-<version>-paper-26.2.jar`.
-  - `jar tf <artifact>` verified: `plugin.yml` expanded, main FQCN updated, zero `dev/eventevents` classes present.
-- [ ] **SHA-256 Checksum**: Generated via `sha256sum SpectraEvents-<version>-paper-26.2.jar`.
-- [ ] **Runtime Paper Smoke**: Tested on clean Paper 26.2 server instance (`Meteor`, `Airdrop`,
-  `Metin`, `Piñata`, and `Boss Portal` start, run, and clean up).
-- [ ] **Restart Recovery Smoke**: Verified active event state recovery and SQLite DB integrity across server restart.
-- [ ] **Update Checker Verification**: Update checker endpoint confirms version comparison logic (SemVer prerelease).
+  - Both JARs exist under `distributions/paper/build/libs/` and `distributions/spigot/build/libs/`.
+  - Filenames are `SpectraEvents-<version>-paper.jar` and `SpectraEvents-<version>-spigot.jar`.
+  - Run `jar tf` on both artifacts: each has the intended `plugin.yml`, main FQCN, SQLite driver,
+    and no classes from the other platform family.
+- [ ] **Checksums**: Generate and verify both checksums:
+  `sha256sum SpectraEvents-*.jar > SHA256SUMS.txt && sha256sum -c SHA256SUMS.txt`.
+- [ ] **Publication eligibility**: `python3 scripts/release/verify_release_gate.py` passes. A newly
+  declared server row is a release blocker until it has a passing real-server workflow. Use
+  `--allow-blocked` only for a non-release CI visibility check.
+- [ ] **Real-server matrix**: Run `scripts/runtime-smoke/runtime_workflow.py` for every available
+  Paper, Purpur, Folia, Spigot, and CraftBukkit row. The workflow validates the Blockbench asset
+  import, Meteor, Airdrop, Metin, Piñata, Boss Portal, cleanup, and restart recovery.
+- [ ] **Upgrade and rollback**: Follow `docs/operations/release-and-recovery.md` on a copy of a real
+  plugin data directory, including SQLite backup, restore, `/event doctor`, and a disposable event.
+- [ ] **External effects**: Review each accepted `try_claim` near a crash and record a manual
+  reconciliation decision before compensating a player.
 
 ## Tagging & Release Execution (Manual Step - Not Automated)
 

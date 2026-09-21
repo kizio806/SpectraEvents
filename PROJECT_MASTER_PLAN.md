@@ -106,7 +106,7 @@ Legenda:
 | Persistence SQLite | Zaimplementowane, wymagające ponownej bramki | WAL, single writer, stan eventu i recovery | crash/restart workflow oraz testy wyścigów i trwałości przechodzą |
 | Nagrody i claimy | Zaimplementowane z istotnym ograniczeniem | trwałe przyjęcie claimu, `give_item`, diagnostyka niedostarczonych nagród | jawna procedura operatora dla crasha między zapisem a zmianą ekwipunku; bez fałszywej obietnicy exactly-once |
 | Integracje | Zaimplementowane, wymagające ponownej bramki | LuckPerms, WorldGuard, Vault, PlaceholderAPI, MiniPlaceholders, Nexo, Oraxen, ItemsAdder | każda działa albo jawnie raportuje brak/unsupported przez `/event doctor` |
-| Paper/Purpur/Folia | Zrobione dla wszystkich dostępnych runtime'ów | Paper artifact; schedulery regionów i jawne ograniczenie scoreboardu Folii | 8/8 dostępnych wierszy przechodzi prawdziwy workflow; Folia 26.3 pozostaje zewnętrznie niedostępna |
+| Paper/Purpur/Folia | Zrobione dla wszystkich dostępnych runtime'ów | Paper artifact; schedulery regionów i jawne ograniczenie scoreboardu Folii | 8/8 dostępnych wierszy przechodzi prawdziwy workflow; Folia dla Minecrafta 26.3 pozostaje zewnętrznie niedostępna |
 | Spigot/CraftBukkit | Zrobione dla wszystkich dostępnych runtime'ów | osobny artifact i adapter Spigot | 6/6 dostępnych wierszy przechodzi prawdziwy workflow; deklarowany zakres jest zweryfikowany |
 | Import Blockbench | Zrobione, potwierdzone na kliencie | podpisany import Generic Model, modele, tekstury, pivoty, hierarchie i animacje | operator potwierdził przebieg na rzeczywistym kliencie po M2 |
 | Resource-pack ZIP | Zrobione, potwierdzone na kliencie | deterministyczny ZIP, manifest, SHA-1 i custom-model-data mapping | operator potwierdził użycie wygenerowanej paczki w rzeczywistym kliencie po M2 |
@@ -126,7 +126,7 @@ Pełna wymagana bramka:
 
 została uruchomiona 2026-09-20 na aktualnym checkoutcie i zakończyła się **`BUILD SUCCESSFUL`**. Przeszły testy, formatowanie, Checkstyle, PMD, SpotBugs, JaCoCo, weryfikacja granic platform oraz budowanie artefaktów Paper i Spigot. Strict dependency verification pozostaje włączone i ma aktualne sumy SHA-256.
 
-Zielona bramka nie oznacza jeszcze gotowego release'u. Osiem lokalnych checkpointów zostało już utworzonych bez pushu. Dostępna real-server matrix jest domknięta: 14/14 wierszy przeszło, a Folia 26.3 pozostaje zewnętrznie niedostępna. M2 workflow Blockbench → resource-pack → klient oraz delivery został potwierdzony przez operatora po implementacji M2.
+Zielona bramka nie oznacza jeszcze gotowego release'u. Osiem lokalnych checkpointów zostało już utworzonych bez pushu. Dostępna real-server matrix jest domknięta: 14/14 wierszy przeszło, a Folia dla Minecrafta 26.3 pozostaje zewnętrznie niedostępna. M2 workflow Blockbench → resource-pack → klient oraz delivery został potwierdzony przez operatora po implementacji M2.
 
 ### Kolejność dalszej weryfikacji
 
@@ -149,7 +149,8 @@ Zielona bramka nie oznacza jeszcze gotowego release'u. Osiem lokalnych checkpoin
 - [x] Ujednolicić `README.md`, roadmapę produktu i `docs/ai/PROJECT_STATE.md` z tym dokumentem.
 - [x] Zapisać dokładne dowody: komenda, data, wynik, wersje JDK/Gradle i wynik testów runtime.
 
-**M0 jest zielone dla wszystkich dostępnych runtime'ów. Publikacja nadal pozostaje zablokowana przez brak Folia 26.3 upstream.**
+**M0 jest zielone dla wszystkich dostępnych runtime'ów. M4 później rozdzieliło deklarowany zakres:
+Folia dla Minecrafta 26.3 nie jest wymaganym wierszem i jest fail-closed do czasu realnej weryfikacji.**
 
 ### Inwentaryzacja bieżącego dużego diffu
 
@@ -162,7 +163,7 @@ Stan po przeglądzie worktree: **147 zmienionych ścieżek tracked oraz dodatkow
 | E2 — platformy i dystrybucje | `platforms/paper/`, `platforms/spigot/`, `distributions/` | adaptery Paper/Spigot, schedulery, komendy, GUI, renderery, integracje, JAR-y | checkpoint `f9abc19`; Paper-family 8/8 i Spigot-family 6/6 dostępnych PASS |
 | E3 — trwałość i adaptery | `adapters/storage-sqlite/`, `adapters/update-http/` | SQLite single-writer, recovery, update HTTP, testy obciążeniowe | checkpoint `fa5fb28`; recovery jest pokryte pełną bramką i smoke workflow |
 | E4 — Blockbench i resource-pack | `adapters/assets-*`, `spectraevents-application/src/main/.../asset/`, `tools/blockbench/`, `docs/authoring/`, `docs/config/` | importer, budowanie ZIP, delivery, Modrinth, testy bezpieczeństwa | checkpoint `facbea6`; zakres nadal częściowy, pełny pipeline nie jest obiecany |
-| E5 — runtime smoke i kompatybilność | `scripts/runtime-smoke/`, manifesty pluginów, dokumentacja platform | Paper/Purpur/Folia/Spigot/CraftBukkit i macierz wersji | checkpoint `acf86aa`; 14/14 dostępnych PASS, Folia 26.3 zależy od buildu upstream |
+| E5 — runtime smoke i kompatybilność | `scripts/runtime-smoke/`, manifesty pluginów, dokumentacja platform | Paper/Purpur/Folia/Spigot/CraftBukkit i macierz wersji | checkpoint `acf86aa`; 14/14 dostępnych PASS, Folia dla Minecrafta 26.3 zależy od buildu upstream |
 | D1 — dokumentacja produktu | `README.md`, `docs/ai/`, `docs/architecture/`, `docs/product/` | kontrakt produktu, workflow administratora, architektura, roadmapa i ograniczenia | checkpoint `d61bf7a`; dokumentacja zsynchronizowana z aktualnym stanem |
 | A0 — odroczenie public API | `spectraevents-api/`, ADR 0005 | usunięcie przedwczesnego modułu public API | checkpoint `c38387d`; nie przywracać bez udowodnionego use case'u |
 
@@ -218,11 +219,12 @@ Piñata i Boss Portal są dostarczane jako definicje i modele YAML, nie jako spe
 
 **Cel:** operator serwera wie, co jest bezpieczne, co nie działa i jak to naprawić.
 
-- [ ] Domknąć real-server matrix Paper, Purpur, Folia, Spigot i CraftBukkit dla każdej deklarowanej wersji.
-- [ ] Nie publikować wydania, gdy wymagany wiersz macierzy nie przeszedł; zewnętrzną niedostępność dokumentować jawnie.
-- [ ] Rozszerzyć `/event doctor`, inspect i logi o instrukcje naprawcze.
-- [ ] Udokumentować monitoring, backup SQLite, recovery oraz ręczne uzgadnianie claimów.
-- [ ] Wprowadzić release checklist: JAR, checksum, test runtime, upgrade, rollback i dokumentacja.
+**Status: ukończone.** Publikowana macierz to Paper/Purpur i Spigot/CraftBukkit dla Minecrafta
+26.1–26.3 oraz Folia dla 26.1–26.2. Wszystkie 14 zadeklarowanych wierszy przeszło real-server
+workflow; po zmianach M4 ponownie sprawdzono Paper 26.1/26.3, Folia 26.2 i Spigot 26.3. Folia 26.3+
+jest fail-closed: plugin wypisuje instrukcję i wyłącza się przed wczytaniem konfiguracji/SQLite, dopóki
+upstream nie wyda serwera i nowy wiersz nie przejdzie workflow. Bramka publikacji, checklisty,
+checksumy, diagnostyka, backup/recovery i ręczne uzgadnianie claimów są gotowe.
 
 ### M5 — rozszerzalność i GUI po stabilizacji
 
@@ -298,7 +300,7 @@ Przy każdej znaczącej zmianie:
 | 2026-09-20 | Poprawka runtime smoke i recovery | `./gradlew clean check build` po poprawkach `READY`, shutdown writer'a, workflow stop oraz kolejności ładowania Paper | **PASS** — 124 zadania actionable; Paper 26.2 przechodzi również restart/recovery bez błędu rejestracji definicji | Zachować jako punkt odniesienia przed kolejnym checkpointem |
 | 2026-09-20 | Synchronizacja dokumentacji | `./gradlew spotlessMarkdownCheck` oraz `git diff --check` | **PASS** — plan, roadmapa i status projektu opisują ten sam kierunek; brak błędów whitespace | M0: zamknąć checkpointy bez naruszania cudzych zmian |
 | 2026-09-20 | Lokalne checkpointy M0 | `git log --oneline -8` oraz `git status --short` | **PASS** — osiem spójnych commitów zapisanych lokalnie, worktree czysty, bez pushu | Dokończyć pozostałe dostępne wiersze real-server matrix |
-| 2026-09-20 | Paper-family runtime matrix | sekwencyjne uruchomienie `scripts/runtime-smoke/runtime_workflow.py` dla Paper 26.1–26.3, Purpur 26.1–26.3 i Folia 26.1–26.2 | **PASS** — 8/8 dostępnych wierszy: start, faza, cleanup, restart/recovery i clean shutdown; Folia 26.3 bez dostępnego buildu upstream | Przejść do Spigot/CraftBukkit 26.1–26.3 |
+| 2026-09-20 | Paper-family runtime matrix | sekwencyjne uruchomienie `scripts/runtime-smoke/runtime_workflow.py` dla Paper 26.1–26.3, Purpur 26.1–26.3 i Folia 26.1–26.2 | **PASS** — 8/8 dostępnych wierszy: start, faza, cleanup, restart/recovery i clean shutdown; Folia dla Minecrafta 26.3 bez dostępnego buildu upstream | Przejść do Spigot/CraftBukkit 26.1–26.3 |
 | 2026-09-20 | Spigot-family runtime matrix | sekwencyjne uruchomienie `scripts/runtime-smoke/runtime_workflow.py` dla Spigot 26.1–26.3 i CraftBukkit 26.1–26.3 | **PASS** — 6/6 dostępnych wierszy: start, faza, cleanup, restart/recovery i clean shutdown | M0 zielone dla dostępnej macierzy; rozpocząć M1 |
 | 2026-09-20 | M1 diagnostic contract | targeted parser/loader tests oraz `./gradlew clean check build` | **PASS** — canonical YAML paths, source-file prefixes, wrong-type diagnostics and bounded parameter validation; 124 zadania actionable | Stabilizować pełny author-facing YAML schema |
 | 2026-09-20 | M1 model animation action | `./gradlew clean check build`; test `ModelAnimationActionServiceTest`; kompilacja Paper/Spigot | **PASS** — model definitions retain executable animation plans; `play_animation` supports model filtering, speed, loop and max-loops; playback is stopped before cleanup; 124 zadania actionable | Dokończyć pełny schemat autora, przykłady oraz M2 importer Blockbench |

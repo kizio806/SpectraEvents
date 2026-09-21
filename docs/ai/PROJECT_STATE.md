@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-M4 production compatibility and release
+M5 extensibility and GUI
 
 ## Current Target
 
@@ -92,17 +92,17 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
   - Boss Portal composes the shared model animation, timer, boss spawn, entity-death routing, reward,
     and cleanup contracts without an event-specific coordinator.
 
-## In Progress
+## Current State
 
-- Paper-family runtime hardening is verified for all 8 available rows: Paper 26.1–26.3, Purpur 26.1–26.3, and Folia 26.1–26.2.
-- All 14 available Paper-family and Spigot-family runtime rows now pass lifecycle, cleanup, and restart/recovery verification.
-- Publication remains blocked only by the required Folia 26.3 row, for which no upstream server build is available.
 - M2 is complete, including operator-confirmed real-client rendering and real-player delivery.
+- M4 is complete: release eligibility is executable, artifacts/checksums and recovery procedures are
+  documented, and Paper/Purpur + Spigot/CraftBukkit 26.1–26.3 and Folia 26.1–26.2 have real-server
+  coverage. Folia 26.3+ remains fail-closed until explicitly added and verified.
 
 ## Next Planned Milestone
 
-M4 production compatibility and release: preserve publication blocks for unsupported runtime rows,
-then verify release packaging, upgrade/recovery procedures, checksums, and operator documentation.
+Identify a real addon use case before proposing a public API or compatibility policy; the YAML source
+remains canonical for any later GUI.
 
 ## Important Active Decisions
 

@@ -5,6 +5,7 @@ import com.mojang.brigadier.context.CommandContext;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
+import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperDefinitionConfigBootstrap;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
@@ -60,7 +61,11 @@ public final class DiagnosticsCommandHandler {
                     defCount + " loaded",
                     defCount > 0 ? NamedTextColor.GREEN : NamedTextColor.YELLOW)));
 
-    int activeCount = instanceRepository.findAll().size();
+    int activeCount =
+        (int)
+            instanceRepository.findAll().stream()
+                .filter(instance -> instance.state() == EventLifecycleState.RUNNING)
+                .count();
     sender.sendMessage(
         Component.text(" [3] Active Instances: ", NamedTextColor.GRAY)
             .append(Component.text(activeCount + " running", NamedTextColor.GREEN)));
@@ -105,7 +110,38 @@ public final class DiagnosticsCommandHandler {
                       report.orphansRemoved() + " orphans removed", NamedTextColor.YELLOW)));
     }
 
-    sender.sendMessage(Component.text("Doctor check finished.", NamedTextColor.DARK_PURPLE));
+    if (!eventsDirOk || defCount == 0) {
+      sender.sendMessage(
+          Component.text(
+              "Action: run /event definition validate, correct every reported file, then reload definitions.",
+              NamedTextColor.RED));
+    }
+    if (activeCount > 0) {
+      sender.sendMessage(
+          Component.text(
+              "Action: inspect each active instance before a restart; back up spectraevents.db before manual recovery.",
+              NamedTextColor.GOLD));
+      instanceRepository.findAll().stream()
+          .filter(instance -> instance.state() == EventLifecycleState.RUNNING)
+          .forEach(
+              instance -> {
+                var diagnostics = application.executionEngine().diagnostics(instance.id());
+                sender.sendMessage(
+                    Component.text(
+                        " - "
+                            + instance.id()
+                            + " definition="
+                            + instance.definitionId().value()
+                            + " claim="
+                            + diagnostics.claimant().orElse("unclaimed"),
+                        NamedTextColor.GRAY));
+              });
+    }
+
+    sender.sendMessage(
+        Component.text(
+            "Doctor check finished. See docs/operations/release-and-recovery.md for upgrade and reward reconciliation.",
+            NamedTextColor.DARK_PURPLE));
     return 1;
   }
 }
