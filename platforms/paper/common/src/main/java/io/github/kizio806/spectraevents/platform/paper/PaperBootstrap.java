@@ -43,6 +43,7 @@ public final class PaperBootstrap {
   private IntegrationRegistry integrationRegistry;
   private UpdateService updateService;
   private CompletableFuture<Void> updateCheck;
+  private CompletableFuture<Void> resourcePackDelivery;
 
   public PaperBootstrap(org.bukkit.plugin.java.JavaPlugin plugin) {
     this.plugin = plugin;
@@ -95,13 +96,25 @@ public final class PaperBootstrap {
             bbReader,
             rpBuilder,
             plugin.getDataFolder().toPath().resolve("assets").resolve("source"),
-            io.github.kizio806.spectraevents.application.asset.AssetTargetProfile.PROFILE_26_1);
+            io.github.kizio806.spectraevents.application.asset.AssetTargetProfile.PROFILE_26_1,
+            new io.github.kizio806.spectraevents.application.asset.ImportedAssetModelRegistrar(
+                application.modelCompiler(),
+                application.modelDefinitionRegistry(),
+                application.animationDefinitionRegistry()));
     application.setAssetPipelineService(assetPipelineService);
+    resourcePackDelivery =
+        io.github.kizio806.spectraevents.platform.paper.asset.delivery
+            .PaperResourcePackDeliveryBootstrap.configure(
+            plugin,
+            plugin.getPluginMeta().getVersion(),
+            io.github.kizio806.spectraevents.application.asset.AssetTargetProfile.PROFILE_26_1);
 
     actionAdapter.setModelRuntimeService(application.modelRuntimeService());
     actionAdapter.setModelAnimationActionService(
         new ModelAnimationActionService(
             application.modelRuntimeService(), application.animationRuntimeService()));
+
+    assetPipelineService.buildAssets();
 
     // Load 3D Models
     try {
@@ -243,6 +256,10 @@ public final class PaperBootstrap {
     if (updateCheck != null) {
       updateCheck.cancel(true);
       updateCheck = null;
+    }
+    if (resourcePackDelivery != null) {
+      resourcePackDelivery.cancel(true);
+      resourcePackDelivery = null;
     }
     if (cleaner != null) {
       cleaner.cleanupAll();

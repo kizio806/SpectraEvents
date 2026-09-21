@@ -45,8 +45,8 @@ class ModrinthResourcePackSourceTest {
                 "primary": true,
                 "size": 1024,
                 "hashes": {
-                  "sha1": "abc",
-                  "sha512": "def"
+                  "sha1": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "sha512": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
                 }
               }
             ]
@@ -62,8 +62,8 @@ class ModrinthResourcePackSourceTest {
 
     Assertions.assertEquals("1.0.0+26.1", desc.version());
     Assertions.assertEquals("https://cdn.modrinth.com/data/xyz/versions/v1/pack.zip", desc.url());
-    Assertions.assertEquals("abc", desc.sha1());
-    Assertions.assertEquals("def", desc.sha512());
+    Assertions.assertEquals("a".repeat(40), desc.sha1());
+    Assertions.assertEquals("d".repeat(128), desc.sha512());
   }
 
   @Test
@@ -95,7 +95,7 @@ class ModrinthResourcePackSourceTest {
                 "primary": true,
                 "size": 1024,
                 "hashes": {
-                  "sha1": "abc"
+                  "sha1": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                 }
               }
             ]

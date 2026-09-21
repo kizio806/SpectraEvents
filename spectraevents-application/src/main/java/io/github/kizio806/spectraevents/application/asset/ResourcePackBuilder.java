@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -29,8 +30,7 @@ import java.util.zip.ZipOutputStream;
 
 /** Builds a deterministic local Minecraft resource pack from verified Spectra asset documents. */
 public final class ResourcePackBuilder {
-  private static final int FIRST_CUSTOM_MODEL_DATA = 100_000;
-  private static final String NAMESPACE = "spectraevents";
+  private static final String NAMESPACE = GeneratedAssetItem.NAMESPACE;
   private static final String BASE_ITEM = "paper";
 
   private final Path outputDirectory;
@@ -86,7 +86,7 @@ public final class ResourcePackBuilder {
     Map<String, byte[]> entries = new TreeMap<>();
     entries.put("pack.mcmeta", packMeta(profile).getBytes(StandardCharsets.UTF_8));
     entries.put(
-        "assets/minecraft/models/item/" + BASE_ITEM + ".json",
+        "assets/minecraft/items/" + BASE_ITEM + ".json",
         baseItemOverrides(modelNodes, customModelData).getBytes(StandardCharsets.UTF_8));
 
     for (SpectraAssetDocument document : documents) {
@@ -156,25 +156,31 @@ public final class ResourcePackBuilder {
 
   private static String baseItemOverrides(
       List<ModelNode> modelNodes, Map<String, Integer> customModelData) {
+    List<ModelNode> orderedNodes =
+        modelNodes.stream()
+            .sorted(Comparator.comparingInt(node -> customModelData.get(node.key())))
+            .toList();
     StringBuilder json =
         new StringBuilder(
-            "{\"parent\":\"minecraft:item/generated\",\"textures\":{\"layer0\":\"minecraft:item/paper\"},\"overrides\":[");
-    for (int index = 0; index < modelNodes.size(); index++) {
+            "{\"model\":{\"type\":\"minecraft:range_dispatch\",\"property\":\"minecraft:custom_model_data\",\"entries\":[");
+    for (int index = 0; index < orderedNodes.size(); index++) {
       if (index > 0) {
         json.append(',');
       }
-      ModelNode node = modelNodes.get(index);
-      json.append("{\"predicate\":{\"custom_model_data\":")
+      ModelNode node = orderedNodes.get(index);
+      json.append("{\"threshold\":")
           .append(customModelData.get(node.key()))
-          .append("},\"model\":\"")
+          .append(",\"model\":{\"type\":\"minecraft:model\",\"model\":\"")
           .append(NAMESPACE)
           .append(":item/")
           .append(node.document().modelId())
           .append('/')
           .append(node.node().nodeId())
-          .append("\"}");
+          .append("\"}}");
     }
-    return json.append("]}").toString();
+    return json.append(
+            "],\"fallback\":{\"type\":\"minecraft:model\",\"model\":\"minecraft:item/paper\"}}}")
+        .toString();
   }
 
   private static String modelJson(SpectraAssetNode node, Map<String, String> textureLocations) {
@@ -290,12 +296,15 @@ public final class ResourcePackBuilder {
 
   private static Map<String, Integer> allocateCustomModelData(List<ModelNode> modelNodes) {
     Map<String, Integer> mappings = new LinkedHashMap<>();
-    int next = FIRST_CUSTOM_MODEL_DATA;
+    java.util.Set<Integer> allocatedValues = new HashSet<>();
     for (ModelNode node : modelNodes) {
-      if (next <= 0) {
-        throw new IllegalArgumentException("Resource pack exhausted custom_model_data range");
+      int customModelData =
+          GeneratedAssetItem.customModelData(node.document().modelId(), node.node().nodeId());
+      if (!allocatedValues.add(customModelData)) {
+        throw new IllegalArgumentException(
+            "Generated custom_model_data collision for imported asset node " + node.key());
       }
-      mappings.put(node.key(), next++);
+      mappings.put(node.key(), customModelData);
     }
     return Map.copyOf(mappings);
   }
