@@ -1,106 +1,225 @@
-id: meteor
-schema-version: "1"
-initial-phase: falling
+# =============================================================================
+# SpectraEvents — Event Definition: Meteor
+# =============================================================================
+# A blazing space rock crashes from the sky and embeds itself in the ground.
+# Players must destroy it by clicking it repeatedly. Health thresholds trigger
+# increasingly dangerous mob waves. The final destruction drops rich loot.
+#
+# PHASES
+#   falling  → impact → locked → active → destroyed → completed
+#
+# DIFFICULTY PROFILES (configured via /spectraevents event config)
+#   easy:   health=300, damage=15, lock-duration=8s
+#   normal: health=500, damage=10, lock-duration=12s
+#   hard:   health=900, damage=7,  lock-duration=18s
+#
+# SCHEMA
+#   schema-version: "1"  — required; use the string "1", not integer 1
+# =============================================================================
+
+id: meteor                # Unique identifier — used in /spectraevents event start meteor
+schema-version: "1"       # Schema contract version. Must be "1".
+initial-phase: falling    # The phase that starts when the event instance is created
 
 phases:
+
+  # ---------------------------------------------------------------------------
+  # PHASE: falling
+  # The meteor plunges from the sky. Players see the title and the model
+  # descends via the "fall" animation. After 3 s the impact phase begins.
+  # ---------------------------------------------------------------------------
   falling:
     on-enter:
+      # initialize_health sets the starting HP for this instance.
+      # The "max" value is overridden by the operator profile (health setting).
       - type: initialize_health
         max: 500
+
+      # Spawn the 3D model at the event location (height-offset moves it up
+      # so it appears in the sky). The model ID must match models/meteor.yml.
       - type: spawn_model
-        model: dev_meteor_model
-        height-offset: 20
+        model: meteor_core
+        height-offset: 20          # Blocks above the spawn point to appear
+
+      # Start the fall animation immediately after spawning.
+      # loop: ONCE means the animation plays exactly once and then stops.
       - type: play_animation
-        model: dev_meteor_model
+        model: meteor_core
         animation: fall
         loop: ONCE
+
+      # Show a full-screen title to all nearby players.
+      # Text uses MiniMessage format: <tag>text</tag>
+      - type: show_title
+        title: "<red><bold>METEOR INCOMING"
+        subtitle: "<yellow>Prepare for impact"
+
+      # Broadcast a chat message to every player on the server.
       - type: broadcast_message
         message: "<gold><bold>[SpectraEvents]</bold> <red>A fiery Meteor is falling from the sky!</red>"
+
     transitions:
+      # After 3 s the meteor hits the ground — move to the impact phase.
+      # duration supports s (seconds), ms (milliseconds), m (minutes), h (hours).
       - trigger:
           type: timer_elapsed
           duration: 3s
         target: impact
 
+  # ---------------------------------------------------------------------------
+  # PHASE: impact
+  # The meteor lands. Sound, particles, and a chat message confirm the impact.
+  # A short 1 s pause before the locked phase gives players time to arrive.
+  # ---------------------------------------------------------------------------
   impact:
     on-enter:
+      # Move the model from its aerial position down to the ground.
+      # target: ground is a built-in movement target for the spawn point.
       - type: move_model
         target: ground
+
       - type: play_sound
         sound: minecraft:entity.generic.explode
-        volume: 1.0
-        pitch: 1.0
+        volume: 1.0                # 0.0 – 1.0 relative volume
+        pitch: 1.0                 # 0.5 – 2.0; lower = deeper sound
+
       - type: spawn_particles
         particle: minecraft:explosion
-        count: 20
+        count: 20                  # Number of particle instances
+
       - type: broadcast_message
         message: "<gold><bold>[SpectraEvents]</bold> <yellow>The Meteor has struck the ground!</yellow>"
+
     transitions:
       - trigger:
           type: timer_elapsed
           duration: 1s
         target: locked
 
+  # ---------------------------------------------------------------------------
+  # PHASE: locked
+  # The meteor is still too hot to mine. Players who try to interact receive
+  # a personal "locked" message. The bossbar shows a countdown colour.
+  # After the lock-duration expires, the meteor cools and becomes active.
+  # ---------------------------------------------------------------------------
   locked:
     on-enter:
+      # set_locked prevents try_claim and claim-guarded actions from firing.
+      # The duration is overridden by the operator lock-duration setting.
       - type: set_locked
         duration: 10s
+
+      # show_bossbar creates a persistent bossbar visible to nearby players.
+      # title: MiniMessage string — can include placeholders like %time_remaining%
+      # color: PINK | RED | GREEN | BLUE | YELLOW | PURPLE | WHITE
+      # style: PROGRESS | NOTCHED_6 | NOTCHED_10 | NOTCHED_12 | NOTCHED_20
       - type: show_bossbar
         title: "<red><bold>METEOR</bold> <gray>[Cooling Down...]</gray>"
         color: RED
         style: PROGRESS
+
     transitions:
+      # Unlock after the cooling period
       - trigger:
           type: timer_elapsed
           duration: 10s
         target: active
+
+      # If a player interacts while locked, send them a private message only.
+      # No "target:" means this transition fires actions but stays in the
+      # same phase (in-phase reaction).
       - trigger:
           type: interaction
         actions:
+          # send_message delivers a message only to the player who triggered it.
           - type: send_message
             message: "<red>The Meteor is still burning hot and locked!</red>"
 
+  # ---------------------------------------------------------------------------
+  # PHASE: active
+  # Players click the meteor to deal damage. Each click reduces health by the
+  # "damage" override value. Health thresholds spawn mob waves at 75%, 50%,
+  # and 25%. When health reaches 0, health_depleted fires and the meteor is
+  # destroyed.
+  # ---------------------------------------------------------------------------
   active:
     on-enter:
+      # Start the looping pulse animation — breathing scale effect.
+      - type: play_animation
+        model: meteor_core
+        animation: pulse
+        loop: LOOP
+
+      # Update the bossbar to show health values using built-in placeholders:
+      #   %health%         — current HP value
+      #   %max_health%     — maximum HP value
+      #   %health_percent% — HP as integer percentage (e.g. 75)
       - type: show_bossbar
         title: "<gold><bold>METEOR EVENT</bold> <yellow>%health%/%max_health% HP (%health_percent%%)</yellow>"
         color: GOLD
         style: NOTCHED_10
+
+      # show_scoreboard creates a sidebar visible to nearby players.
+      # lines: list of MiniMessage strings, top to bottom.
+      # Supported placeholders: %phase%, %health%, %max_health%, %location%
       - type: show_scoreboard
         title: "<gold><bold>SPECTRA METEOR</bold>"
         lines:
           - "<yellow>Phase: <white>%phase%</white>"
           - "<yellow>Health: <green>%health%</green>/<green>%max_health%</green>"
           - "<yellow>Status: <red>Attackable!</red>"
+          - "<yellow>Location: <white>%location%</white>"
+
     transitions:
+      # Each interaction deals damage and refreshes the HUD.
+      # apply_damage reduces health by the given amount (overridden by "damage" setting).
+      # update_bossbar and update_scoreboard refresh the displayed values.
       - trigger:
           type: interaction
         actions:
           - type: apply_damage
             amount: 10
+
+          # update_bossbar overwrites the existing bossbar text. Must match the
+          # same style as show_bossbar to avoid a flickering appearance.
           - type: update_bossbar
             title: "<gold><bold>METEOR EVENT</bold> <yellow>%health%/%max_health% HP (%health_percent%%)</yellow>"
+
           - type: update_scoreboard
             title: "<gold><bold>SPECTRA METEOR</bold>"
             lines:
               - "<yellow>Phase: <white>%phase%</white>"
               - "<yellow>Health: <green>%health%</green>/<green>%max_health%</green>"
               - "<yellow>Status: <red>Attackable!</red>"
+              - "<yellow>Location: <white>%location%</white>"
+
+      # --- Health threshold: 75% ---
+      # health_threshold_crossed fires exactly once when health drops below
+      # the specified value. The threshold is an absolute HP value, not a %.
+      # Use profileValue(easy/normal/hard) = 225/375/675 for the defaults.
       - trigger:
           type: health_threshold_crossed
-          threshold: 375
+          threshold: 375                # 75% of 500 (normal profile)
         actions:
           - type: broadcast_message
             message: "<gold><bold>[SpectraEvents]</bold> <red>Meteor core at 75%! Alien Guardians spawned!</red>"
+
+          # spawn_mobs spawns vanilla Minecraft entities near the event location.
+          # entity_type: namespaced entity ID (minecraft:zombie, etc.)
+          # name:        MiniMessage display name above the mob's head
+          # amount:      Number of mobs to spawn in this wave
+          # radius:      Random spawn radius around the event centre (blocks)
           - type: spawn_mobs
             mobs:
               - entity_type: minecraft:magma_cube
                 name: "<red>Meteor Core Slime</red>"
                 amount: 3
                 radius: 4
+
+      # --- Health threshold: 50% ---
       - trigger:
           type: health_threshold_crossed
-          threshold: 250
+          threshold: 250                # 50% of 500 (normal profile)
         actions:
           - type: broadcast_message
             message: "<gold><bold>[SpectraEvents]</bold> <red>Meteor core at 50%! Blazes emerging!</red>"
@@ -110,9 +229,11 @@ phases:
                 name: "<gold>Infernal Blaze</gold>"
                 amount: 3
                 radius: 5
+
+      # --- Health threshold: 25% ---
       - trigger:
           type: health_threshold_crossed
-          threshold: 125
+          threshold: 125                # 25% of 500 (normal profile)
         actions:
           - type: broadcast_message
             message: "<gold><bold>[SpectraEvents]</bold> <dark_red>Meteor core unstable (25%)! Final Wave!</dark_red>"
@@ -122,39 +243,72 @@ phases:
                 name: "<dark_red>Cosmic Skeleton</dark_red>"
                 amount: 2
                 radius: 4
+
+      # --- Health depleted ---
+      # health_depleted fires when health reaches 0 (or below). Moves the
+      # instance to the "destroyed" terminal phase.
       - trigger:
           type: health_depleted
         target: destroyed
 
+  # ---------------------------------------------------------------------------
+  # PHASE: destroyed
+  # Meteor is dead. Play the collapse animation, drop loot, clean up HUD.
+  # ---------------------------------------------------------------------------
   destroyed:
     on-enter:
+      - type: play_animation
+        model: meteor_core
+        animation: collapse
+        loop: ONCE
+
       - type: play_sound
         sound: minecraft:ui.toast.challenge_complete
         volume: 1.0
         pitch: 1.0
+
       - type: spawn_particles
         particle: minecraft:explosion_emitter
         count: 3
+
+      # drop_loot scatters item entities around the event location.
+      # radius:   Maximum scatter radius in blocks
+      # material: Namespaced item ID (minecraft:diamond)
+      # amount:   Stack size to drop
+      # chance:   Drop chance as integer percentage (0–100)
       - type: drop_loot
         radius: 3.0
         items:
           - material: minecraft:netherite_ingot
             amount: 2
-            chance: 75
+            chance: 75                  # 75% — not guaranteed
           - material: minecraft:diamond
             amount: 8
-            chance: 100
+            chance: 100                 # 100% — always drops
           - material: minecraft:enchanted_golden_apple
             amount: 2
             chance: 50
           - material: minecraft:emerald
             amount: 16
             chance: 100
+
       - type: broadcast_message
         message: "<gold><bold>[SpectraEvents]</bold> <green>The Meteor has been destroyed! Loot has dropped!</green>"
+
+      # remove_bossbar, remove_scoreboard, remove_model — always include these
+      # in terminal phases to clean up platform resources. The engine also
+      # runs reconciliation on restart, but explicit cleanup is preferred.
       - type: remove_bossbar
       - type: remove_scoreboard
       - type: remove_model
+
+      # complete_event transitions the instance to the "completed" lifecycle
+      # state and triggers platform cleanup.
       - type: complete_event
 
+  # ---------------------------------------------------------------------------
+  # PHASE: completed
+  # Terminal state — no transitions, no on-enter actions. Required by schema.
+  # The engine moves here after complete_event is dispatched.
+  # ---------------------------------------------------------------------------
   completed: {}

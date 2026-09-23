@@ -1,39 +1,415 @@
-id: dev_meteor_model
+# =============================================================================
+# SpectraEvents — Model Definition: Meteor Core
+# =============================================================================
+# This file defines the 3D model for the "Meteor" event.
+# It is a multi-part hierarchical model rendered via ItemDisplay / BlockDisplay
+# entities on the Paper platform.
+#
+# HOW TO USE
+#   Place this file in:  plugins/SpectraEvents/models/meteor.yml
+#   Reference it from your event definition with:
+#     - type: spawn_model
+#       model: meteor_core
+#     - type: play_animation
+#       model: meteor_core
+#       animation: fall
+#       loop: ONCE
+#
+# EDITING
+#   Edit the canonical source file only. The engine compiles this YAML at
+#   startup and during /spectraevents definition reload. Do NOT edit the
+#   generated resource-pack JSON — your changes would be overwritten.
+# =============================================================================
 
+# Unique identifier for this model. Must match all spawn_model / play_animation
+# references in event YAML files. Allowed characters: [a-z0-9_-]
+id: meteor_core
+
+# ---------------------------------------------------------------------------
+# PARTS
+# ---------------------------------------------------------------------------
+# Each part maps to one Minecraft Display entity (ItemDisplay, BlockDisplay,
+# or TextDisplay). Parts can be nested via "parent:" to form a hierarchy.
+# Child parts inherit the parent's world position and are offset relative to it.
+# ---------------------------------------------------------------------------
 parts:
+
+  # --- Core body ---
+  # The main glowing magma-rock centre of the meteor. All other parts are
+  # children of this node, so transforming the core moves the entire model.
   core:
+    type: item_display          # Renders a Minecraft item as a 3D entity
+    item: minecraft:magma_block # Emissive orange glow — no resource pack needed
+    transform:
+      translation: [0.0, 0.0, 0.0]   # Offset from the model's spawn point (blocks)
+      rotation:
+        euler: [0.0, 0.0, 0.0]       # Initial rotation [pitch, yaw, roll] in degrees
+      scale: [2.2, 2.2, 2.2]         # Displayed size relative to 1 block
+    render:
+      billboard: fixed          # fixed = does not rotate to face the player
+      brightnessBlock: 15            # Full block-light override — always fully lit
+      shadowRadius: 1.8        # Ground shadow radius in blocks
+      shadowStrength: 0.7      # Shadow opacity (0.0 = invisible, 1.0 = solid)
+      viewRange: 96.0          # How far players can see this entity (blocks × 64)
+
+  # --- Inner glow ---
+  # A shroomlight slightly smaller than the core to simulate a hot inner light.
+  # Positioned inside the core — the emissive texture bleeds through on edges.
+  glow:
     type: item_display
-    item: minecraft:magma_block
+    parent: core                # Attached to the core; moves with it
+    item: minecraft:shroomlight
     transform:
       translation: [0.0, 0.0, 0.0]
-      scale: [2.0, 2.0, 2.0]
+      scale: [0.85, 0.85, 0.85] # Slightly smaller so it sits inside the core
     render:
       billboard: fixed
+      brightnessBlock: 15
 
+  # --- Rock shard: North ---
+  # Blackstone fragment orbiting the core at the north position.
+  # Creates the "broken asteroid" silhouette visible from any angle.
+  shard_n:
+    type: item_display
+    parent: core
+    item: minecraft:blackstone
+    transform:
+      translation: [0.0, 0.3, -1.4]      # Offset: 1.4 blocks toward -Z (north)
+      rotation:
+        euler: [-20.0, 0.0, 15.0]         # Angled outward for a natural rock look
+      scale: [0.7, 0.85, 0.55]
+    render:
+      billboard: fixed
+      brightnessBlock: 8
+
+  # --- Rock shard: South ---
+  shard_s:
+    type: item_display
+    parent: core
+    item: minecraft:blackstone
+    transform:
+      translation: [0.0, -0.2, 1.4]
+      rotation:
+        euler: [20.0, 0.0, -10.0]
+      scale: [0.75, 0.9, 0.5]
+    render:
+      billboard: fixed
+      brightnessBlock: 8
+
+  # --- Rock shard: East ---
+  shard_e:
+    type: item_display
+    parent: core
+    item: minecraft:deepslate
+    transform:
+      translation: [1.4, 0.4, 0.0]
+      rotation:
+        euler: [10.0, 0.0, 25.0]
+      scale: [0.55, 0.8, 0.7]
+    render:
+      billboard: fixed
+      brightnessBlock: 7
+
+  # --- Rock shard: West ---
+  shard_w:
+    type: item_display
+    parent: core
+    item: minecraft:deepslate
+    transform:
+      translation: [-1.4, -0.1, 0.0]
+      rotation:
+        euler: [-15.0, 0.0, -20.0]
+      scale: [0.6, 0.75, 0.65]
+    render:
+      billboard: fixed
+      brightnessBlock: 7
+
+  # --- Smoke trail: top ---
+  # Three progressively smaller obsidian blocks stacked above the core to
+  # suggest a debris plume while the meteor is falling.
+  trail_1:
+    type: block_display         # Renders a full block state as a 3D entity
+    parent: core
+    block: minecraft:calcite    # Light grey dusty look
+    transform:
+      translation: [0.0, 2.2, 0.0]
+      scale: [0.5, 0.5, 0.5]
+    render:
+      billboard: fixed
+      brightnessBlock: 5
+      viewRange: 64.0
+
+  trail_2:
+    type: block_display
+    parent: core
+    block: minecraft:calcite
+    transform:
+      translation: [0.2, 3.5, -0.1]
+      scale: [0.3, 0.3, 0.3]
+    render:
+      billboard: fixed
+      brightnessBlock: 4
+      viewRange: 48.0
+
+  trail_3:
+    type: block_display
+    parent: core
+    block: minecraft:white_wool   # Wispy cloud fragment at top of trail
+    transform:
+      translation: [-0.1, 4.6, 0.1]
+      scale: [0.2, 0.2, 0.2]
+    render:
+      billboard: fixed
+      brightnessBlock: 3
+      viewRange: 40.0
+
+  # --- Floating label ---
+  # Text that identifies the event for players. Uses MiniMessage formatting.
+  # billboard: center makes the text always face the player camera.
   label:
     type: text_display
     parent: core
-    text: "<red><bold>☄ METEOR"
+    text: "<red><bold>☄ METEOR</bold></red>"
+    textAlignment: center           # center | left | right
     transform:
-      translation: [0.0, 2.5, 0.0]
+      translation: [0.0, 3.2, 0.0]   # Floats 3.2 blocks above the core
     render:
-      billboard: center
+      billboard: center         # Always rotates to face the viewing player
+      viewRange: 96.0
 
+# ---------------------------------------------------------------------------
+# INTERACTIONS
+# ---------------------------------------------------------------------------
+# Invisible Interaction entities that detect right-click / left-click events.
+# When a player interacts with one, the engine fires an "interaction" trigger
+# on the owning event instance.
+# ---------------------------------------------------------------------------
 interactions:
+  # Main clickable hitbox — covers the whole model assembly
   main:
-    parent: core
-    width: 3.0
-    height: 3.0
+    parent: core            # Centred on the core part
+    width: 4.0              # Horizontal bounding box size in blocks
+    height: 4.5             # Vertical bounding box size in blocks
 
+# ---------------------------------------------------------------------------
+# ANIMATIONS
+# ---------------------------------------------------------------------------
+# Named animations referenced from event YAML via play_animation.
+# Each animation declares:
+#   duration  — total length (supports s, ms, m, h suffixes)
+#   loop      — ONCE | LOOP | PING_PONG
+#   recovery  — what to do if the instance restarts: RESTART | RESUME | STOP
+#   tracks    — per-part keyframe channels (translation, rotation, scale)
+#
+# Keyframes are interpolated linearly unless an "easing" field is added.
+# Supported easing values: linear (default), ease_in, ease_out, ease_in_out
+# ---------------------------------------------------------------------------
 animations:
+
+  # ----- fall -----
+  # Played during the "falling" phase. The meteor plunges Y -3.0 blocks while
+  # shards spiral inward (rotation), giving a cinematic entry.
   fall:
     duration: 3s
     loop: ONCE
-    recovery: RESTART
+    recovery: RESTART       # If the event restarts before completion, replay
     tracks:
       core:
         translation:
           - at: 0s
             value: [0.0, 0.0, 0.0]
+            easing: ease_in       # Accelerate out of start — feels heavy
           - at: 3s
             value: [0.0, -3.0, 0.0]
+      # Shards spin inward as the meteor plunges
+      shard_n:
+        rotation:
+          - at: 0s
+            value: [-20.0, 0.0, 15.0]
+          - at: 3s
+            value: [-20.0, 360.0, 15.0]
+      shard_s:
+        rotation:
+          - at: 0s
+            value: [20.0, 0.0, -10.0]
+          - at: 3s
+            value: [20.0, -360.0, -10.0]
+      shard_e:
+        rotation:
+          - at: 0s
+            value: [10.0, 0.0, 25.0]
+          - at: 3s
+            value: [10.0, 360.0, 25.0]
+      shard_w:
+        rotation:
+          - at: 0s
+            value: [-15.0, 0.0, -20.0]
+          - at: 3s
+            value: [-15.0, -360.0, -20.0]
+
+  # ----- impact -----
+  # Played on landing. Shards momentarily blast outward then settle back.
+  impact:
+    duration: 800ms
+    loop: ONCE
+    recovery: STOP
+    tracks:
+      shard_n:
+        translation:
+          - at: 0s
+            value: [0.0, 0.3, -1.4]
+            easing: ease_out
+          - at: 400ms
+            value: [0.0, 0.8, -2.4]
+          - at: 800ms
+            value: [0.0, 0.3, -1.4]
+      shard_s:
+        translation:
+          - at: 0s
+            value: [0.0, -0.2, 1.4]
+            easing: ease_out
+          - at: 400ms
+            value: [0.0, 0.4, 2.4]
+          - at: 800ms
+            value: [0.0, -0.2, 1.4]
+      shard_e:
+        translation:
+          - at: 0s
+            value: [1.4, 0.4, 0.0]
+            easing: ease_out
+          - at: 400ms
+            value: [2.4, 0.9, 0.0]
+          - at: 800ms
+            value: [1.4, 0.4, 0.0]
+      shard_w:
+        translation:
+          - at: 0s
+            value: [-1.4, -0.1, 0.0]
+            easing: ease_out
+          - at: 400ms
+            value: [-2.4, 0.5, 0.0]
+          - at: 800ms
+            value: [-1.4, -0.1, 0.0]
+
+  # ----- pulse -----
+  # The "active" idle — core and glow breathe, shards slowly orbit on Y.
+  # Loops indefinitely while the event is in the "active" phase.
+  pulse:
+    duration: 2s
+    loop: LOOP
+    recovery: RESUME        # On event restart, resume from where it left off
+    tracks:
+      core:
+        scale:
+          - at: 0s
+            value: [2.2, 2.2, 2.2]
+            easing: ease_in_out
+          - at: 1s
+            value: [2.4, 2.4, 2.4]
+            easing: ease_in_out
+          - at: 2s
+            value: [2.2, 2.2, 2.2]
+      glow:
+        scale:
+          - at: 0s
+            value: [0.85, 0.85, 0.85]
+            easing: ease_in_out
+          - at: 1s
+            value: [1.0, 1.0, 1.0]
+            easing: ease_in_out
+          - at: 2s
+            value: [0.85, 0.85, 0.85]
+      # Shards orbit in a slow lazy rotation while the event is active
+      shard_n:
+        rotation:
+          - at: 0s
+            value: [-20.0, 0.0, 15.0]
+          - at: 2s
+            value: [-20.0, 90.0, 15.0]
+      shard_s:
+        rotation:
+          - at: 0s
+            value: [20.0, 0.0, -10.0]
+          - at: 2s
+            value: [20.0, 90.0, -10.0]
+
+  # ----- collapse -----
+  # Played in the "destroyed" phase. Everything shrinks toward the centre,
+  # suggesting an implosion before the loot drops.
+  collapse:
+    duration: 1200ms
+    loop: ONCE
+    recovery: STOP
+    tracks:
+      core:
+        scale:
+          - at: 0s
+            value: [2.2, 2.2, 2.2]
+            easing: ease_in
+          - at: 1200ms
+            value: [0.05, 0.05, 0.05]
+      glow:
+        scale:
+          - at: 0s
+            value: [0.85, 0.85, 0.85]
+          - at: 800ms
+            value: [2.0, 2.0, 2.0]   # Glow flares before collapse
+            easing: ease_out
+          - at: 1200ms
+            value: [0.0, 0.0, 0.0]
+      shard_n:
+        translation:
+          - at: 0s
+            value: [0.0, 0.3, -1.4]
+          - at: 600ms
+            value: [0.0, 0.3, -3.0]   # Fly outward
+            easing: ease_out
+          - at: 1200ms
+            value: [0.0, 0.0, 0.0]    # Then snap to core
+        scale:
+          - at: 0s
+            value: [0.7, 0.85, 0.55]
+          - at: 1200ms
+            value: [0.05, 0.05, 0.05]
+      shard_s:
+        translation:
+          - at: 0s
+            value: [0.0, -0.2, 1.4]
+          - at: 600ms
+            value: [0.0, -0.2, 3.0]
+            easing: ease_out
+          - at: 1200ms
+            value: [0.0, 0.0, 0.0]
+        scale:
+          - at: 0s
+            value: [0.75, 0.9, 0.5]
+          - at: 1200ms
+            value: [0.05, 0.05, 0.05]
+      shard_e:
+        translation:
+          - at: 0s
+            value: [1.4, 0.4, 0.0]
+          - at: 600ms
+            value: [3.0, 0.4, 0.0]
+            easing: ease_out
+          - at: 1200ms
+            value: [0.0, 0.0, 0.0]
+        scale:
+          - at: 0s
+            value: [0.55, 0.8, 0.7]
+          - at: 1200ms
+            value: [0.05, 0.05, 0.05]
+      shard_w:
+        translation:
+          - at: 0s
+            value: [-1.4, -0.1, 0.0]
+          - at: 600ms
+            value: [-3.0, -0.1, 0.0]
+            easing: ease_out
+          - at: 1200ms
+            value: [0.0, 0.0, 0.0]
+        scale:
+          - at: 0s
+            value: [0.6, 0.75, 0.65]
+          - at: 1200ms
+            value: [0.05, 0.05, 0.05]

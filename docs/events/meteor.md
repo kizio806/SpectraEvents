@@ -1,87 +1,53 @@
 # Meteor Event Specification
 
-## Purpose
-A high-impact, competitive public event where players race to damage a falling celestial object for ranked rewards.
+`meteor.yml` is a bundled, executable reference for an event that drops a fiery celestial rock from the sky,
+incorporating altitude-based spawning, phased gameplay, and ranked damage leaderboards.
 
-## Player Experience
-Players are notified of a falling meteor. They race to the location, wait for it to cool down (locked phase), and then attack it. Rewards are distributed based on damage dealt.
+## Gameplay Summary
 
-## Event Lifecycle
-Follows the standard global `CREATED` -> `RUNNING` -> `COMPLETED` lifecycle.
+| Phase | What happens | Transition |
+|---|---|---|
+| `falling` | Meteor spawns high up and falls (animated descent) | `timer_elapsed` (10s fall duration) |
+| `locked` | Meteor is embedded in ground but too hot to mine | `timer_elapsed` (15s cooling) |
+| `active` | Meteor cools down; players can mine/damage it | `health_depleted` |
+| `completed` | Core shatters, drops loot, HUD cleared | Terminal |
 
-## Phases
+## Visual Model
 
-1. **ANNOUNCED** (Optional)
-   - Triggers a server-wide broadcast and sets a timer before spawn.
-2. **FALLING**
-   - The meteor spawns high in the sky and descends toward the surface.
-   - **Transitions**: When it hits the ground -> `IMPACT`.
-3. **IMPACT**
-   - Plays a massive sound and particle explosion.
-   - **Transitions**: Immediate (0 ticks) -> `LOCKED`.
-4. **LOCKED**
-   - The meteor is too hot to touch. A countdown is displayed.
-   - **Transitions**: Timer expires -> `ACTIVE`.
-5. **ACTIVE**
-   - The meteor takes damage from players.
-   - **Transitions**: Health reaches zero -> `DESTROYED`.
-6. **DESTROYED**
-   - Destructive animation plays. Rewards are calculated.
-   - **Transitions**: Animation finishes -> `CLEANUP`.
-7. **CLEANUP**
-   - Drops world items, removes visual models, transitions the global state to `COMPLETED`.
+The `meteor_core` model ([`models/meteor.yml`](../authoring/models.md)) is built from 12 parts to simulate a real burning rock:
 
-## Spawn
-- **Strategy**: Random Surface (avoids water, lava, restricted biomes).
+| Group | Parts | Description |
+|---|---|---|
+| Core | `core` | Central deepslate/magma block structure |
+| Outer Crust | `shell_n/s/e/w`, `shell_top/bottom` | Jagged rocky armor plates wrapping the core |
+| Debris | `debris_1/2/3/4` | Small floating fragments orbiting the meteor |
+| Marker | `impact_crater` | Visual scorch mark placed on the ground |
 
-## Visuals
-- A large, spherical 3D model (block displays).
-- Trailing fire particles while falling.
-- A Bossbar displaying health during the `ACTIVE` phase.
-- Holograms displaying time remaining during `LOCKED`.
+## Animations
 
-## Interactions
-- **Hitbox**: Large interaction entity covering the model. Left-click/damage applies to the `HealthComponent`.
+| Animation | Loop | Trigger | Description |
+|---|---|---|---|
+| `fall` | ONCE | Phase `falling` on-enter | Meteor plunges from Y+40 down to ground level (Z-axis rotation) |
+| `pulse` | LOOP | Phase `locked` on-enter | Magma core glows and throbs; crust shifts slightly |
+| `cool` | LOOP | Phase `active` on-enter | Core stops pulsing; debris orbits slowly |
+| `break` | ONCE | Phase `completed` on-enter | Shell plates explode outward; core shrinks and vanishes |
 
-## Components
-- `ModelComponent`, `AnimationComponent`, `TimerComponent`, `HealthComponent`, `LeaderboardComponent`, `BossBarComponent`.
+## Shared Contracts Used
 
-## Triggers
-- `timer-expired`, `health-zero`, `animation-finished`, `ground-collision`.
+| Concern | Contract |
+|---|---|
+| Visual asset | `models/meteor.yml` — 12-part model |
+| Timers | `timer_elapsed` for both fall duration and cooling period |
+| Health | `damage_entity` with 500 HP |
+| HUD | Bossbar updates dynamically with `%health%/%max_health%` |
+| Rewards | `drop_loot` based on damage participation |
+| Recovery | Position and health state persist across server restarts |
 
-## Conditions
-- Minimum players online (for auto-start).
+## Operator Workflow
 
-## Actions
-- `broadcast`, `play-sound`, `spawn-particles`, `give-reward`.
-
-## Rewards
-- **Distribution**: Top 3 damage dealers receive premium loot. All other participants receive basic loot.
-
-## Leaderboard
-- Tracks cumulative damage dealt per player.
-
-## Event Area
-- Prevents PvP while the meteor is `LOCKED`, enables PvP when `ACTIVE`.
-
-## Persistence & Restart Recovery
-- If the server restarts during `FALLING`, the meteor resumes falling from its saved height.
-- If restarting during `ACTIVE`, health is restored, and the event continues.
-
-## Chunk Behavior
-- The event chunk is force-loaded while the event is `RUNNING`.
-
-## Cleanup
-- All display entities are strictly removed. Global state becomes `COMPLETED`.
-
-## Failure Cases
-- No valid spawn location found (transitions to `FAILED`).
-
-## Abuse / Anti-Dupe Considerations
-- Damage from projectiles must accurately attribute to the shooter.
-- Prevent players from blocking the meteor's fall with obsidian.
-
-## Required Engine Primitives
-- Falling mechanics (interpolation).
-- `HealthComponent`.
-- Ranked `LeaderboardComponent`.
+1. Stand in a wide open area (or allow automatic surface spawning).
+2. Start the event: `/spectraevents event start meteor`
+3. The meteor spawns high in the air and descends rapidly with the `fall` animation.
+4. Players wait 15 seconds during `locked` phase for it to cool.
+5. Players damage the meteor in `active` phase until broken.
+6. Verify model breaks apart via `break` animation and loot drops.

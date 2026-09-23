@@ -1,39 +1,381 @@
-id: dev_metin_model
+# =============================================================================
+# SpectraEvents — Model Definition: Metin Stone
+# =============================================================================
+# A multi-layered dark obelisk with orbiting amethyst crystals, floating rune
+# text glyphs, and a hovering crown piece. Visually inspired by the classic
+# Metin2 game's "Metin of Darkness" boss stones.
+#
+# EVENT INTEGRATION
+#   Referenced by: events/metin.yml
+#   Animations used:
+#     spawn    — rising reveal animation (ONCE)
+#     pulse    — idle breathing loop while the stone is active (LOOP)
+#     enraged  — fast spin + red tint when health < 50% (LOOP)
+#
+# MULTI-PART STRUCTURE
+#   base ← stone ← crystals (n/s/e/w)
+#                ← rune_1, rune_2, rune_3
+#                ← crown
+# =============================================================================
+
+id: metin_stone
 
 parts:
+
+  # --- Ground base ---
+  # A flat netherite slab partially buried in the ground. Provides visual
+  # grounding and prevents the stone from looking like it is floating.
+  base:
+    type: item_display
+    item: minecraft:netherite_block
+    transform:
+      translation: [0.0, -0.35, 0.0]
+      rotation:
+        euler: [0.0, 0.0, 0.0]
+      scale: [2.2, 0.35, 2.2]         # Wide and flat
+    render:
+      billboard: fixed
+      brightnessBlock: 6
+      shadowRadius: 2.0
+      shadowStrength: 0.9
+
+  # --- Main stone body ---
+  # The central crying obsidian monolith. All crystals and the crown are
+  # children of this part so the whole model moves as one unit.
   stone:
     type: item_display
-    item: minecraft:crying_obsidian
+    parent: base
+    item: minecraft:crying_obsidian    # Glowing purple veins — no resource pack needed
     transform:
-      translation: [0.0, 0.0, 0.0]
+      translation: [0.0, 1.6, 0.0]    # Sits on top of the base slab
       scale: [2.5, 2.5, 2.5]
     render:
       billboard: fixed
+      brightnessBlock: 12                  # Slightly underlit for eerie look
+      shadowRadius: 1.5
+      viewRange: 96.0
 
+  # --- Crystal: North ---
+  # Amethyst cluster shard jutting out from the north side of the stone.
+  # The slight Y offset and outward angle suggest geological crystal growth.
+  crystal_n:
+    type: item_display
+    parent: stone
+    item: minecraft:amethyst_cluster
+    transform:
+      translation: [0.0, 0.3, -1.3]
+      rotation:
+        euler: [-30.0, 0.0, 0.0]      # Angled northward, away from centre
+      scale: [0.45, 0.6, 0.45]
+    render:
+      billboard: fixed
+      brightnessBlock: 14                  # Crystals are self-lit
+
+  # --- Crystal: South ---
+  crystal_s:
+    type: item_display
+    parent: stone
+    item: minecraft:amethyst_cluster
+    transform:
+      translation: [0.0, -0.1, 1.3]
+      rotation:
+        euler: [30.0, 0.0, 0.0]
+      scale: [0.4, 0.55, 0.4]
+    render:
+      billboard: fixed
+      brightnessBlock: 14
+
+  # --- Crystal: East ---
+  crystal_e:
+    type: item_display
+    parent: stone
+    item: minecraft:amethyst_cluster
+    transform:
+      translation: [1.3, 0.5, 0.0]
+      rotation:
+        euler: [0.0, 0.0, 30.0]
+      scale: [0.5, 0.65, 0.5]
+    render:
+      billboard: fixed
+      brightnessBlock: 14
+
+  # --- Crystal: West ---
+  crystal_w:
+    type: item_display
+    parent: stone
+    item: minecraft:amethyst_cluster
+    transform:
+      translation: [-1.3, 0.2, 0.0]
+      rotation:
+        euler: [0.0, 0.0, -30.0]
+      scale: [0.42, 0.58, 0.42]
+    render:
+      billboard: fixed
+      brightnessBlock: 14
+
+  # --- Rune glyphs (text displays) ---
+  # Three floating MiniMessage glyphs that orbit the stone at mid-height.
+  # They give the impression of magical inscriptions and serve as atmospheric
+  # flair. They do not trigger interactions.
+  rune_1:
+    type: text_display
+    parent: stone
+    text: "<dark_purple><bold>ᚠ</bold></dark_purple>"   # Norse/runic character
+    textAlignment: center
+    transform:
+      translation: [1.6, 0.0, 0.0]                      # East orbit position
+      rotation:
+        euler: [0.0, -90.0, 0.0]                        # Face outward
+    render:
+      billboard: center
+      viewRange: 48.0
+
+  rune_2:
+    type: text_display
+    parent: stone
+    text: "<purple><bold>ᚢ</bold></purple>"
+    textAlignment: center
+    transform:
+      translation: [-0.8, 0.2, 1.4]                     # South-west position
+      rotation:
+        euler: [0.0, 150.0, 0.0]
+    render:
+      billboard: center
+      viewRange: 48.0
+
+  rune_3:
+    type: text_display
+    parent: stone
+    text: "<light_purple><bold>ᚦ</bold></light_purple>"
+    textAlignment: center
+    transform:
+      translation: [-0.8, -0.2, -1.4]                   # North-west position
+      rotation:
+        euler: [0.0, -150.0, 0.0]
+    render:
+      billboard: center
+      viewRange: 48.0
+
+  # --- Hovering crown ---
+  # A purple glazed terracotta block that slowly floats above the stone
+  # like a curse marker. Gives the model a distinctive vertical silhouette.
+  crown:
+    type: item_display
+    parent: stone
+    item: minecraft:purple_glazed_terracotta
+    transform:
+      translation: [0.0, 1.85, 0.0]
+      rotation:
+        euler: [0.0, 45.0, 0.0]
+      scale: [0.75, 0.75, 0.75]
+    render:
+      billboard: fixed
+      brightnessBlock: 10
+      viewRange: 80.0
+
+  # --- Event label ---
   label:
     type: text_display
     parent: stone
-    text: "<purple><bold>🪨 METIN STONE"
+    text: "<dark_purple><bold>🪨 METIN STONE</bold></dark_purple>"
+    textAlignment: center
     transform:
-      translation: [0.0, 3.0, 0.0]
+      translation: [0.0, 2.8, 0.0]
     render:
       billboard: center
+      viewRange: 96.0
 
+# ---------------------------------------------------------------------------
+# INTERACTIONS
+# ---------------------------------------------------------------------------
 interactions:
+  # Large hitbox to cover the full width of the stone + crystals
   main:
     parent: stone
-    width: 3.0
-    height: 3.5
+    width: 4.0
+    height: 4.5
 
+# ---------------------------------------------------------------------------
+# ANIMATIONS
+# ---------------------------------------------------------------------------
 animations:
+
+  # ----- spawn -----
+  # Rising reveal: the stone grows from a tiny seed, crystals appear
+  # 300 ms after the core to simulate shards emerging from the earth.
+  spawn:
+    duration: 1200ms
+    loop: ONCE
+    recovery: RESTART
+    tracks:
+      base:
+        scale:
+          - at: 0s
+            value: [0.05, 0.05, 0.05]
+            easing: ease_out
+          - at: 400ms
+            value: [2.2, 0.35, 2.2]
+      stone:
+        scale:
+          - at: 0s
+            value: [0.1, 0.1, 0.1]
+            easing: ease_out
+          - at: 700ms
+            value: [2.5, 2.5, 2.5]
+        translation:
+          - at: 0s
+            value: [0.0, 0.0, 0.0]   # Appears at base level
+          - at: 700ms
+            value: [0.0, 1.6, 0.0]   # Rises to final position
+      # Crystals erupt 400 ms into the spawn with a small overshoot
+      crystal_n:
+        scale:
+          - at: 0s
+            value: [0.05, 0.05, 0.05]
+          - at: 400ms
+            value: [0.05, 0.05, 0.05]     # Stay hidden until stone forms
+          - at: 700ms
+            value: [0.55, 0.75, 0.55]     # Overshoot
+            easing: ease_out
+          - at: 1200ms
+            value: [0.45, 0.6, 0.45]
+      crystal_s:
+        scale:
+          - at: 0s
+            value: [0.05, 0.05, 0.05]
+          - at: 450ms
+            value: [0.05, 0.05, 0.05]
+          - at: 750ms
+            value: [0.5, 0.7, 0.5]
+            easing: ease_out
+          - at: 1200ms
+            value: [0.4, 0.55, 0.4]
+      crystal_e:
+        scale:
+          - at: 0s
+            value: [0.05, 0.05, 0.05]
+          - at: 350ms
+            value: [0.05, 0.05, 0.05]
+          - at: 650ms
+            value: [0.6, 0.8, 0.6]
+            easing: ease_out
+          - at: 1200ms
+            value: [0.5, 0.65, 0.5]
+      crystal_w:
+        scale:
+          - at: 0s
+            value: [0.05, 0.05, 0.05]
+          - at: 500ms
+            value: [0.05, 0.05, 0.05]
+          - at: 800ms
+            value: [0.52, 0.72, 0.52]
+            easing: ease_out
+          - at: 1200ms
+            value: [0.42, 0.58, 0.42]
+      crown:
+        translation:
+          - at: 0s
+            value: [0.0, 0.5, 0.0]         # Starts lower
+          - at: 1200ms
+            value: [0.0, 1.85, 0.0]        # Floats up to position
+            easing: ease_out
+
+  # ----- pulse -----
+  # Active idle: the stone breathes slowly, the crown bobs, and the rune
+  # glyphs complete a slow 360° orbit every 4 s. Loops indefinitely.
   pulse:
-    duration: 1s
+    duration: 4s
     loop: LOOP
     recovery: RESUME
     tracks:
       stone:
         scale:
           - at: 0s
-            value: [1.0, 1.0, 1.0]
-          - at: 1s
-            value: [1.05, 1.05, 1.05]
+            value: [2.5, 2.5, 2.5]
+            easing: ease_in_out
+          - at: 2s
+            value: [2.6, 2.6, 2.6]
+            easing: ease_in_out
+          - at: 4s
+            value: [2.5, 2.5, 2.5]
+      # Crown slowly bobs up and down
+      crown:
+        translation:
+          - at: 0s
+            value: [0.0, 1.85, 0.0]
+            easing: ease_in_out
+          - at: 2s
+            value: [0.0, 2.1, 0.0]
+            easing: ease_in_out
+          - at: 4s
+            value: [0.0, 1.85, 0.0]
+        rotation:
+          - at: 0s
+            value: [0.0, 45.0, 0.0]
+          - at: 4s
+            value: [0.0, 405.0, 0.0]   # One full revolution per cycle
+      # Runes orbit: all spin 90° per 4 s cycle (accumulates over loops)
+      rune_1:
+        rotation:
+          - at: 0s
+            value: [0.0, -90.0, 0.0]
+          - at: 4s
+            value: [0.0, -450.0, 0.0]
+      rune_2:
+        rotation:
+          - at: 0s
+            value: [0.0, 150.0, 0.0]
+          - at: 4s
+            value: [0.0, 510.0, 0.0]
+      rune_3:
+        rotation:
+          - at: 0s
+            value: [0.0, -150.0, 0.0]
+          - at: 4s
+            value: [0.0, -510.0, 0.0]
+
+  # ----- enraged -----
+  # Plays when health drops below 50%. The whole stone spins rapidly on Y
+  # while crystals shake in scale, conveying instability and danger.
+  enraged:
+    duration: 800ms
+    loop: LOOP
+    recovery: RESUME
+    tracks:
+      # Rapid Y spin — dramatic enrage telegraph
+      stone:
+        rotation:
+          - at: 0s
+            value: [0.0, 0.0, 0.0]
+          - at: 800ms
+            value: [0.0, 360.0, 0.0]
+        scale:
+          - at: 0s
+            value: [2.5, 2.5, 2.5]
+          - at: 400ms
+            value: [2.65, 2.35, 2.65]  # Slight squash-stretch for energy
+          - at: 800ms
+            value: [2.5, 2.5, 2.5]
+      # Crystals vibrate — suggest they're about to shatter
+      crystal_n:
+        scale:
+          - at: 0s
+            value: [0.45, 0.6, 0.45]
+          - at: 200ms
+            value: [0.5, 0.65, 0.5]
+          - at: 400ms
+            value: [0.4, 0.55, 0.4]
+          - at: 600ms
+            value: [0.5, 0.65, 0.5]
+          - at: 800ms
+            value: [0.45, 0.6, 0.45]
+      crystal_e:
+        scale:
+          - at: 0s
+            value: [0.5, 0.65, 0.5]
+          - at: 250ms
+            value: [0.42, 0.58, 0.42]
+          - at: 500ms
+            value: [0.55, 0.7, 0.55]
+          - at: 800ms
+            value: [0.5, 0.65, 0.5]

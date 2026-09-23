@@ -11,7 +11,7 @@ change its `id`, parts, transforms and interactions, then restart and validate t
 referencing the new ID from an event definition.
 
 For Blockbench, follow the [Blockbench authoring guide](blockbench.md). The import runs at startup on
-both distributions; Paper administrators can also use `/event assets build` or `/event assets import
+both distributions; Paper administrators can also use `/spectraevents assets build` or `/spectraevents assets import
 <bundle.spectra.zip>`. The imported model ID and animation names are available to the same event
 actions as native models:
 
@@ -24,8 +24,8 @@ on-enter:
     animation: spin
 ```
 
-Use `/event model list` and the Paper model/debug tools exposed by `/event help` to inspect native
-definitions. For imported assets, use `/event assets list`, `info`, and `validate` on Paper. Spigot
+Use `/spectraevents model list` and the Paper model tools exposed by `/spectraevents help` to inspect
+registered definitions. For imported assets, use `/spectraevents assets list`, `info`, and `validate` on Paper. Spigot
 reports Paper-only command tooling as unsupported rather than silently ignoring it.
 
 The M2 pack workflow has real-client acceptance. See [Asset Pipeline](asset-pipeline.md) for the

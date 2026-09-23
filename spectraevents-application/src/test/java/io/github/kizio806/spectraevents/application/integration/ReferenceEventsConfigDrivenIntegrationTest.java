@@ -48,15 +48,31 @@ class ReferenceEventsConfigDrivenIntegrationTest {
     EventSpecYamlParser parser = new EventSpecYamlParser();
     EventDefinitionCompiler compiler = new EventDefinitionCompiler();
     for (String event : List.of("pinata", "boss-portal")) {
-      EventDefinition definition =
-          compiler.compile(parser.parse(readResource(event), event + ".yml"));
-      registry.register(definition, event + ".yml");
+      try {
+        EventDefinition definition =
+            compiler.compile(parser.parse(readResource(event), event + ".yml"));
+        registry.register(definition, event + ".yml");
+      } catch (
+          io.github.kizio806.spectraevents.application.config.compiler
+                  .EventDefinitionCompilerException
+              e) {
+        System.err.println("COMPILER ERROR FOR " + event + ": " + e.getDiagnostics());
+        throw e;
+      }
     }
   }
 
   @Test
   void pinataCountsInteractionsIndependentlyOfDamageAndCleansUpAtTheTarget() {
     EventInstance instance = engine.startEvent("pinata", "location_ref");
+    assertEquals(new PhaseId("idle"), instance.currentPhase().orElseThrow());
+    assertTrue(
+        engine.evaluateTrigger(instance.id(), new ConfiguredTriggerDefinition("timer_elapsed")));
+
+    assertEquals(
+        new PhaseId("active"),
+        repository.findById(instance.id()).orElseThrow().currentPhase().orElseThrow());
+
     EventRuntimeState state = stateStore.get(instance.id()).orElseThrow();
     assertEquals(0, state.hitCounter().orElseThrow().current());
 

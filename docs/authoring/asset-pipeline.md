@@ -14,9 +14,9 @@ plugins/SpectraEvents/
 ```
 
 The server imports all source bundles during startup. On Paper, an administrator can also run
-`/event assets build` to scan, validate, register and build again, or `/event assets import
+`/spectraevents assets build` to scan, validate, register and build again, or `/spectraevents assets import
 <file.spectra.zip>` to import one top-level source file and rebuild the ZIP immediately. The source
-bundle and the previous generated ZIP are never deleted by `/event assets clean`; that command only
+bundle and the previous generated ZIP are never deleted by `/spectraevents assets clean`; that command only
 clears the in-memory import cache.
 
 ## Supported bundle contract

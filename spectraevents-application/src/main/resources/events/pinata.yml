@@ -1,64 +1,204 @@
+# =============================================================================
+# SpectraEvents — Event Definition: Piñata
+# =============================================================================
+# A festive piñata hangs from the sky. Every player who right-clicks it
+# contributes one hit. When the shared hit counter reaches the target, the
+# piñata shatters and loot rains on the crowd. Every hit is counted equally
+# — there is no "first claimer" here, only a community goal.
+#
+# PHASES
+#   idle → active → broken → completed
+#
+# DIFFICULTY PROFILES (configured via /spectraevents event config)
+#   easy:   hits=25
+#   normal: hits=50
+#   hard:   hits=100
+#
+# HOW THE HIT COUNTER WORKS
+#   initialize_hit_counter(max) registers the counter.
+#   Each interaction fires increment_hit_counter which adds 1.
+#   When counter reaches max, hits_reached triggers the transition.
+#   The progress bossbar tracks %hits%/%max_hits% live.
+#
+# PLACEHOLDERS AVAILABLE IN THIS EVENT
+#   %hits%       — current hit count
+#   %max_hits%   — target hit count (max)
+#   %location%   — world + coordinates of the event
+#   %phase%      — current phase name
+# =============================================================================
+
 id: pinata
 schema-version: "1"
-initial-phase: active
+initial-phase: idle
 
 phases:
-  active:
+
+  # ---------------------------------------------------------------------------
+  # PHASE: idle
+  # The piñata model hangs in place. Players see the sway animation.
+  # After 2 s the active phase begins (gives players time to gather).
+  # ---------------------------------------------------------------------------
+  idle:
     on-enter:
+      # initialize_hit_counter: registers the shared click counter.
+      # "max" is overridden by the operator "hits" configuration setting.
       - type: initialize_hit_counter
         max: 20
+
+      # height-offset: spawn the piñata 4 blocks above ground so it is
+      # visually hanging rather than floating at eye-level.
       - type: spawn_model
-        model: dev_pinata_model
+        model: pinata
+        height-offset: 4
+
+      # Start the looping pendulum sway animation immediately.
       - type: play_animation
-        model: dev_pinata_model
+        model: pinata
         animation: sway
         loop: LOOP
-      - type: show_bossbar
-        title: "<light_purple><bold>PIÑATA</bold> <white>Hit it 20 times!"
-        color: PINK
-        style: PROGRESS
+
+      - type: show_title
+        title: "<light_purple><bold>PIÑATA EVENT"
+        subtitle: "<yellow>Right-click to hit it!"
+
       - type: broadcast_message
-        message: "<gold><bold>[SpectraEvents]</bold> <light_purple>A Piñata appeared! Every interaction counts as one hit.</light_purple>"
+        message: "<gold><bold>[SpectraEvents]</bold> <light_purple>A Festive Piñata has appeared! Right-click to hit it!</light_purple>"
+
     transitions:
+      - trigger:
+          type: timer_elapsed
+          duration: 2s
+        target: active
+
+  # ---------------------------------------------------------------------------
+  # PHASE: active
+  # Every right-click increments the shared hit counter.
+  # The bossbar and scoreboard update on every hit to show live progress.
+  # hit animation fires on each click for tactile feedback.
+  # ---------------------------------------------------------------------------
+  active:
+    on-enter:
+      # show_bossbar with NOTCHED_20 style — each notch represents a hit tier.
+      # %hits% and %max_hits% are resolved by the hit-counter runtime.
+      - type: show_bossbar
+        title: "<light_purple><bold>PIÑATA</bold> <yellow>Hits: %hits%/%max_hits%</yellow>"
+        color: PINK
+        style: NOTCHED_20
+
+      # Scoreboard with hit counter progress.
+      - type: show_scoreboard
+        title: "<light_purple><bold>PIÑATA EVENT</bold>"
+        lines:
+          - "<light_purple>Phase: <white>%phase%</white>"
+          - "<light_purple>Hits: <yellow>%hits%</yellow>/<yellow>%max_hits%</yellow>"
+          - "<light_purple>Location: <white>%location%</white>"
+
+    transitions:
+      # Every interaction (right-click):
+      #   1. Plays the 350 ms squash-and-stretch hit animation
+      #   2. Increments the counter
+      #   3. Updates the bossbar with the new count
+      #   4. Sends the player their personal hit confirmation
       - trigger:
           type: interaction
         actions:
-          - type: play_sound
-            sound: minecraft:block.wool.hit
-            volume: 1.0
-            pitch: 1.2
-          - type: spawn_particles
-            particle: minecraft:happy_villager
-            count: 5
+          # play_animation with ONCE loop replaces any currently playing
+          # animation only for the "hit" tracks; the idle sway for the hook
+          # continues since they animate different parts.
+          - type: play_animation
+            model: pinata
+            animation: hit
+            loop: ONCE
+
+          # increment_hit_counter: atomically increments the shared counter.
+          # The engine checks if max is reached after this; if so,
+          # hits_reached triggers on the next poll (same tick).
           - type: increment_hits
+
+          - type: update_bossbar
+            title: "<light_purple><bold>PIÑATA</bold> <yellow>Hits: %hits%/%max_hits%</yellow>"
+
+          - type: update_scoreboard
+            title: "<light_purple><bold>PIÑATA EVENT</bold>"
+            lines:
+              - "<light_purple>Phase: <white>%phase%</white>"
+              - "<light_purple>Hits: <yellow>%hits%</yellow>/<yellow>%max_hits%</yellow>"
+              - "<light_purple>Location: <white>%location%</white>"
+
+          # Personal feedback — only the hitting player sees this.
+          - type: send_message
+            message: "<green>+1 hit! Total: <yellow>%hits%/%max_hits%</yellow></green>"
+
+          - type: play_sound
+            sound: minecraft:entity.slime.attack
+            volume: 0.8
+            pitch: 1.4             # High pitch = candy-like bounce
+
+      # --- Milestone: 25 hits (midpoint at normal difficulty) ---
+      # threshold fires once at the exact hit count — useful for mid-event
+      # announcements that encourage players who just joined.
+      # Note: this threshold is absolute; scale with the "hits" setting.
+      - trigger:
+          type: health_threshold_crossed   # Reuses HP threshold with hit counter integration
+          threshold: 25
+        actions:
+          - type: broadcast_message
+            message: "<gold><bold>[SpectraEvents]</bold> <yellow>Piñata at half-health! Keep hitting!</yellow>"
+
+      # hits_reached: fires exactly when the counter equals the declared max.
+      # Transition to the "broken" phase to deliver rewards and cleanup.
       - trigger:
           type: hits_reached
         target: broken
 
+  # ---------------------------------------------------------------------------
+  # PHASE: broken
+  # The piñata shatters. The break animation expands the body outward.
+  # Loot scatters in a wide radius so everyone nearby can collect something.
+  # ---------------------------------------------------------------------------
   broken:
     on-enter:
+      # The "break" animation fires the explosion + leg scatter.
+      - type: play_animation
+        model: pinata
+        animation: break
+        loop: ONCE
+
       - type: play_sound
-        sound: minecraft:entity.firework_rocket.large_blast
-        volume: 1.0
-        pitch: 1.0
+        sound: minecraft:entity.generic.explode
+        volume: 0.6
+        pitch: 1.5                 # Sharp candy-explosion sound
+
       - type: spawn_particles
-        particle: minecraft:firework
-        count: 25
+        particle: minecraft:totem_of_undying
+        count: 30
+
+      # Wide loot scatter — reward all nearby players, not just the last hitter.
+      # radius: 6.0 ensures everyone in the crowd can reach the drops.
       - type: drop_loot
-        radius: 2.0
+        radius: 6.0
         items:
-          - material: minecraft:cookie
-            amount: 16
-            chance: 100
-          - material: minecraft:gold_nugget
-            amount: 24
-            chance: 100
           - material: minecraft:diamond
-            amount: 1
-            chance: 25
+            amount: 4
+            chance: 100
+          - material: minecraft:emerald
+            amount: 8
+            chance: 100
+          - material: minecraft:golden_apple
+            amount: 3
+            chance: 80
+          - material: minecraft:firework_rocket
+            amount: 12
+            chance: 100            # Celebratory fireworks for every player
+          - material: minecraft:cake
+            amount: 2
+            chance: 100
+
       - type: broadcast_message
-        message: "<gold><bold>[SpectraEvents]</bold> <green>The Piñata broke! Collect the rewards.</green>"
+        message: "<gold><bold>[SpectraEvents]</bold> <light_purple><bold>Piñata BROKEN!</bold> Candy everywhere! %hits% hits total!</light_purple>"
+
       - type: remove_bossbar
+      - type: remove_scoreboard
       - type: remove_model
       - type: complete_event
 
