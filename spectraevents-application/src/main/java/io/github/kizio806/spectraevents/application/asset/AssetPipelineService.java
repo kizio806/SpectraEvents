@@ -19,6 +19,7 @@ public final class AssetPipelineService {
 
   private static final Logger LOGGER = Logger.getLogger(AssetPipelineService.class.getName());
   private static final String SPECTRA_BUNDLE_EXTENSION = ".spectra.zip";
+  private static final String BLOCKBENCH_EXTENSION = ".bbmodel";
   private final AssetImportPort importPort;
   private final ResourcePackBuilder resourcePackBuilder;
   private final Path sourceDirectory;
@@ -52,9 +53,9 @@ public final class AssetPipelineService {
   }
 
   public void buildAssets() {
-    LOGGER.info("Starting Asset Pipeline build...");
+    LOGGER.fine("Starting Asset Pipeline build...");
     if (!Files.exists(sourceDirectory)) {
-      LOGGER.info("Source directory does not exist: " + sourceDirectory);
+      LOGGER.fine("Source directory does not exist: " + sourceDirectory);
       return;
     }
 
@@ -64,7 +65,7 @@ public final class AssetPipelineService {
       try (java.util.stream.Stream<Path> stream = Files.walk(sourceDirectory)) {
         stream
             .filter(Files::isRegularFile)
-            .filter(path -> path.getFileName().toString().endsWith(SPECTRA_BUNDLE_EXTENSION))
+            .filter(this::isSupportedSource)
             .forEach(
                 path -> {
                   try {
@@ -98,7 +99,7 @@ public final class AssetPipelineService {
       throw new SecurityException("Path traversal attempt detected: " + filename);
     }
 
-    if (!Files.isRegularFile(path) || !filename.endsWith(SPECTRA_BUNDLE_EXTENSION)) {
+    if (!Files.isRegularFile(path) || !isSupportedSource(path)) {
       throw new IllegalArgumentException("File not found or invalid format: " + filename);
     }
 
@@ -128,6 +129,11 @@ public final class AssetPipelineService {
     return true;
   }
 
+  private boolean isSupportedSource(Path path) {
+    String filename = path.getFileName().toString();
+    return filename.endsWith(SPECTRA_BUNDLE_EXTENSION) || filename.endsWith(BLOCKBENCH_EXTENSION);
+  }
+
   public boolean validateModel(String modelId) {
     if (!compiledDocuments.containsKey(modelId)) return false;
     SpectraAssetDocument doc = compiledDocuments.get(modelId);
@@ -152,13 +158,13 @@ public final class AssetPipelineService {
 
   private void rebuildResourcePackIfDirty() throws IOException {
     if (!resourcePackDirty || compiledDocuments.isEmpty()) {
-      LOGGER.info("No asset changes detected or no documents. Incremental build skipped.");
+      LOGGER.fine("No asset changes detected or no documents. Incremental build skipped.");
       return;
     }
-    LOGGER.info("Rebuilding resource pack...");
+    LOGGER.fine("Rebuilding resource pack...");
     resourcePackBuilder.build(compiledDocuments.values(), targetProfile);
     resourcePackDirty = false;
-    LOGGER.info("Asset Pipeline build complete. Resource pack generated.");
+    LOGGER.fine("Asset Pipeline build complete. Resource pack generated.");
   }
 
   private String computeSha256(Path path) throws IOException, NoSuchAlgorithmException {

@@ -100,6 +100,14 @@ public final class EventExecutionEngine {
 
   /** Starts a config-driven event instance. */
   public EventInstance startEvent(String definitionId, Object platformLocationReference) {
+    return startEvent(getDefinition(definitionId), platformLocationReference);
+  }
+
+  /**
+   * Starts an immutable definition snapshot, optionally tailored for one operator-selected profile.
+   */
+  public EventInstance startEvent(EventDefinition definition, Object platformLocationReference) {
+    Objects.requireNonNull(definition, "definition");
     long runningInstances =
         repository.findAll().stream()
             .filter(instance -> instance.state() == EventLifecycleState.RUNNING)
@@ -108,7 +116,6 @@ public final class EventExecutionEngine {
       throw new IllegalStateException(
           "Refusing to start event: maximum of " + MAX_RUNNING_INSTANCES + " running instances");
     }
-    EventDefinition definition = getDefinition(definitionId);
     EventInstanceId id = EventInstanceId.generate();
     definitionSnapshots.put(id, definition);
     EventInstance created = EventInstance.create(id, definition.id());
@@ -342,15 +349,29 @@ public final class EventExecutionEngine {
   public void recoverTimers() {
     for (EventInstance instance : repository.findAll()) {
       if (instance.state() == EventLifecycleState.RUNNING) {
+        EventDefinition definition;
+        try {
+          definition = definitionForInstance(instance);
+        } catch (IllegalArgumentException exception) {
+          LOGGER.log(
+              Level.WARNING,
+              "Cannot recover event instance "
+                  + instance.id()
+                  + " because definition '"
+                  + instance.definitionId().value()
+                  + "' is not registered; marking the instance as failed.");
+          failEvent(instance.id(), exception);
+          continue;
+        }
+
         repository.findState(instance.id()).ifPresent(stateStore::put);
         EventRuntimeState state = stateStore.getOrCreate(instance.id());
-        recoverPlatformResources(instance, state);
+        recoverPlatformResources(instance, state, definition);
         long deadline = state.timerDeadlineMillis();
         if (deadline > 0) {
           long remaining = deadline - System.currentTimeMillis();
           if (remaining < 0) remaining = 0;
 
-          EventDefinition definition = definitionForInstance(instance);
           PhaseId currentPhaseId = instance.currentPhase().orElse(null);
           if (currentPhaseId != null) {
             PhaseDefinition phaseDef = definition.phase(currentPhaseId).orElse(null);
@@ -399,10 +420,41 @@ public final class EventExecutionEngine {
         state.flatMap(EventRuntimeState::claimant));
   }
 
+  /** Returns the operator-facing runtime snapshot when an instance has active runtime state. */
+  public Optional<ExecutionStatus> status(EventInstanceId instanceId) {
+    return stateStore
+        .get(Objects.requireNonNull(instanceId, "instanceId"))
+        .map(
+            state ->
+                new ExecutionStatus(
+                    state
+                        .platformLocation()
+                        .filter(EventLocation.class::isInstance)
+                        .map(EventLocation.class::cast),
+                    state.currentHealth(),
+                    state.maxHealth(),
+                    state.hitCounter().map(HitCounter::current).orElse(0),
+                    state.hitCounter().map(HitCounter::maximum).orElse(0),
+                    state.timerDeadlineMillis(),
+                    state.isLocked(),
+                    state.claimant()));
+  }
+
   public record ExecutionDiagnostics(
       boolean runtimeStatePresent,
       int pendingTasks,
       int platformResources,
+      Optional<String> claimant) {}
+
+  /** Immutable state suitable for operator views without exposing mutable execution internals. */
+  public record ExecutionStatus(
+      Optional<EventLocation> location,
+      int currentHealth,
+      int maxHealth,
+      int currentHits,
+      int maxHits,
+      long timerDeadlineMillis,
+      boolean locked,
       Optional<String> claimant) {}
 
   private boolean containsRewardAction(List<ActionDefinition> actions) {
@@ -425,12 +477,12 @@ public final class EventExecutionEngine {
     return true;
   }
 
-  private void recoverPlatformResources(EventInstance instance, EventRuntimeState state) {
+  private void recoverPlatformResources(
+      EventInstance instance, EventRuntimeState state, EventDefinition definition) {
     PhaseId currentPhase = instance.currentPhase().orElse(null);
     if (currentPhase == null) {
       return;
     }
-    EventDefinition definition = definitionForInstance(instance);
     PhaseDefinition phase = definition.phase(currentPhase).orElse(null);
     if (phase == null) {
       return;

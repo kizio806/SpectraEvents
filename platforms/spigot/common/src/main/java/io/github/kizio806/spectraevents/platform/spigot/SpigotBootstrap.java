@@ -13,6 +13,7 @@ import io.github.kizio806.spectraevents.platform.spigot.interaction.SpigotEventR
 import io.github.kizio806.spectraevents.platform.spigot.lifecycle.SpigotEntityReconciler;
 import io.github.kizio806.spectraevents.platform.spigot.render.SpigotModelRenderer;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
@@ -80,6 +81,7 @@ public final class SpigotBootstrap {
         new ModelAnimationActionService(
             application.modelRuntimeService(), application.animationRuntimeService()));
 
+    extractBundledAssetSources();
     application.assetPipelineService().buildAssets();
 
     loadModels(dataDirectory);
@@ -109,9 +111,9 @@ public final class SpigotBootstrap {
                 application.orchestrationService(), application.executionEngine()),
             plugin);
 
-    PluginCommand eventCommand = plugin.getCommand("event");
+    PluginCommand eventCommand = plugin.getCommand("spectraevents");
     if (eventCommand == null) {
-      throw new IllegalStateException("plugin.yml does not declare the /event command");
+      throw new IllegalStateException("plugin.yml does not declare the /spectraevents command");
     }
     SpigotMainCommand commandHandler =
         new SpigotMainCommand(plugin, application, repository, definitions);
@@ -164,6 +166,22 @@ public final class SpigotBootstrap {
       }
     } catch (Exception exception) {
       throw new IllegalStateException("Failed to load event definitions", exception);
+    }
+  }
+
+  private void extractBundledAssetSources() {
+    for (String file :
+        List.of(
+            "meteor_core.bbmodel",
+            "airdrop_crate.bbmodel",
+            "metin_stone.bbmodel",
+            "pinata.bbmodel",
+            "boss_portal.bbmodel")) {
+      Path target =
+          plugin.getDataFolder().toPath().resolve("assets").resolve("source").resolve(file);
+      if (!java.nio.file.Files.exists(target)) {
+        plugin.saveResource("assets/source/" + file, false);
+      }
     }
   }
 }

@@ -21,6 +21,12 @@ public final class MainScreen {
                 "SpectraEvents Admin Panel", NamedTextColor.DARK_PURPLE, TextDecoration.BOLD));
 
     inv.setItem(
+        4,
+        createGuiItem(
+            Material.SPYGLASS,
+            Component.text("Dashboard", NamedTextColor.LIGHT_PURPLE),
+            List.of(Component.text("View event and system status", NamedTextColor.GRAY))));
+    inv.setItem(
         10,
         createGuiItem(
             Material.CHEST,
@@ -46,6 +52,18 @@ public final class MainScreen {
             Material.BEACON,
             Component.text("Update System", NamedTextColor.LIGHT_PURPLE),
             List.of(Component.text("Check for updates and release info", NamedTextColor.GRAY))));
+    inv.setItem(
+        20,
+        createGuiItem(
+            Material.REPEATER,
+            Component.text("Event Configuration", NamedTextColor.YELLOW),
+            List.of(Component.text("Set difficulty profiles and overrides", NamedTextColor.GRAY))));
+    inv.setItem(
+        22,
+        createGuiItem(
+            Material.COMPASS,
+            Component.text("Event Locations", NamedTextColor.AQUA),
+            List.of(Component.text("Save and review event start locations", NamedTextColor.GRAY))));
 
     return inv;
   }

@@ -98,7 +98,7 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
     return switch (arguments[0].toLowerCase(Locale.ROOT)) {
       case "start" -> {
         require(sender, "spectraevents.event.start");
-        requireArguments(arguments, 2, "/event event start <definition>");
+        requireArguments(arguments, 2, "/spectraevents event start <definition>");
         Location bukkitLocation = eventLocation(sender);
         EventLocation location =
             new EventLocation(
@@ -114,14 +114,14 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
       }
       case "stop", "cancel" -> {
         require(sender, "spectraevents.event.cancel");
-        requireArguments(arguments, 2, "/event event cancel <instance>");
+        requireArguments(arguments, 2, "/spectraevents event cancel <instance>");
         EventInstance cancelled = orchestrationService.cancelEvent(arguments[1]);
         sender.sendMessage("[SpectraEvents] Cancelled event instance " + cancelled.id());
         yield true;
       }
       case "trigger" -> {
         require(sender, "spectraevents.event.trigger");
-        requireArguments(arguments, 3, "/event event trigger <instance> <trigger>");
+        requireArguments(arguments, 3, "/spectraevents event trigger <instance> <trigger>");
         EventInstanceId id = new EventInstanceId(UUID.fromString(arguments[1]));
         ExecutionContext context =
             sender instanceof Player
@@ -136,7 +136,7 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
       }
       case "inspect" -> {
         require(sender, "spectraevents.event.inspect");
-        requireArguments(arguments, 2, "/event event inspect <instance>");
+        requireArguments(arguments, 2, "/spectraevents event inspect <instance>");
         EventInstanceId id = new EventInstanceId(UUID.fromString(arguments[1]));
         EventInstance instance = orchestrationService.getEventInfo(id.toString());
         var diagnostics = application.executionEngine().diagnostics(id);
@@ -157,7 +157,7 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
             || (instance.state().isTerminal()
                 && (diagnostics.pendingTasks() != 0 || diagnostics.platformResources() != 0))) {
           sender.sendMessage(
-              "[SpectraEvents] Recovery guidance: run /event doctor, preserve logs, and back up spectraevents.db before restarting.");
+              "[SpectraEvents] Recovery guidance: run /spectraevents doctor, preserve logs, and back up spectraevents.db before restarting.");
         } else if (diagnostics.claimant().isPresent()) {
           sender.sendMessage(
               "[SpectraEvents] Claim recorded: reconcile any external reward before granting a manual replacement.");
@@ -270,9 +270,9 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
   }
 
   private void help(CommandSender sender) {
-    sender.sendMessage("[SpectraEvents] /event status|doctor|version");
-    sender.sendMessage("[SpectraEvents] /event event list|start|trigger|inspect|cancel");
-    sender.sendMessage("[SpectraEvents] /event definition list|reload|validate");
+    sender.sendMessage("[SpectraEvents] /spectraevents status|doctor|version");
+    sender.sendMessage("[SpectraEvents] /spectraevents event list|start|trigger|inspect|cancel");
+    sender.sendMessage("[SpectraEvents] /spectraevents definition list|reload|validate");
   }
 
   private Location eventLocation(CommandSender sender) {

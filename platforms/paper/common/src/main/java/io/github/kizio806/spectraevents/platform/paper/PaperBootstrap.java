@@ -7,11 +7,12 @@ import io.github.kizio806.spectraevents.application.integration.IntegrationRegis
 import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
 import io.github.kizio806.spectraevents.platform.paper.action.PaperActionAdapter;
-import io.github.kizio806.spectraevents.platform.paper.command.SpectraDebugCommand;
 import io.github.kizio806.spectraevents.platform.paper.command.SpectraMainCommand;
 import io.github.kizio806.spectraevents.platform.paper.common.PaperCapabilityQuery;
 import io.github.kizio806.spectraevents.platform.paper.common.PaperLifecycleReporter;
+import io.github.kizio806.spectraevents.platform.paper.common.PaperStartupLogger;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperDefinitionConfigBootstrap;
+import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
 import io.github.kizio806.spectraevents.platform.paper.gui.AdminGuiController;
 import io.github.kizio806.spectraevents.platform.paper.integration.LuckPermsIntegration;
 import io.github.kizio806.spectraevents.platform.paper.integration.PaperIntegrationManager;
@@ -28,6 +29,7 @@ import io.github.kizio806.spectraevents.platform.paper.scheduler.PaperRegionTask
 import io.github.kizio806.spectraevents.platform.paper.update.UpdateNotificationListener;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /** Composition Root for the Paper platform family. */
@@ -42,6 +44,7 @@ public final class PaperBootstrap {
   private SQLiteEventInstanceRepository sqliteRepository;
   private IntegrationRegistry integrationRegistry;
   private UpdateService updateService;
+  private PaperEventSettingsStore eventSettingsStore;
   private CompletableFuture<Void> updateCheck;
   private CompletableFuture<Void> resourcePackDelivery;
 
@@ -50,15 +53,10 @@ public final class PaperBootstrap {
   }
 
   public void enable() {
-    plugin
-        .getLogger()
-        .info("[SpectraEvents] SpectraEvents " + plugin.getPluginMeta().getVersion() + " starting");
-    plugin
-        .getLogger()
-        .info(
-            "[SpectraEvents] Platform: Paper (API: "
-                + plugin.getPluginMeta().getAPIVersion()
-                + ")");
+    long startedAt = System.nanoTime();
+    PaperStartupLogger startupLogger = new PaperStartupLogger(plugin);
+    startupLogger.printBanner(
+        plugin.getPluginMeta().getVersion(), plugin.getPluginMeta().getAPIVersion());
     eventTaskScheduler = new PaperEventTaskScheduler(plugin);
     regionScheduler = new PaperRegionTaskScheduler(plugin);
 
@@ -72,6 +70,8 @@ public final class PaperBootstrap {
     Path dbPath = plugin.getDataFolder().toPath().resolve("spectraevents.db");
     sqliteRepository = new SQLiteEventInstanceRepository(dbPath);
     sqliteRepository.initialize();
+    eventSettingsStore = new PaperEventSettingsStore(plugin);
+    startupLogger.storage(dbPath, sqliteRepository.findAll().size());
 
     PaperActionAdapter actionAdapter = new PaperActionAdapter(regionScheduler, cleaner);
     PaperEntityReconciler reconciler = new PaperEntityReconciler(plugin, cleaner);
@@ -114,6 +114,7 @@ public final class PaperBootstrap {
         new ModelAnimationActionService(
             application.modelRuntimeService(), application.animationRuntimeService()));
 
+    extractBundledAssetSources();
     assetPipelineService.buildAssets();
 
     // Load 3D Models
@@ -123,14 +124,7 @@ public final class PaperBootstrap {
               new io.github.kizio806.spectraevents.application.model.loader.FileSystemModelLoader(
                   plugin.getDataFolder().toPath(), application.modelLoader());
       var modelLoadResult = modelFileSystemLoader.loadFromDisk();
-      plugin
-          .getLogger()
-          .info(
-              "[SpectraEvents] Models: "
-                  + modelLoadResult.loadedCount()
-                  + " loaded, "
-                  + modelLoadResult.invalidCount()
-                  + " invalid.");
+      startupLogger.models(modelLoadResult.loadedCount(), modelLoadResult.invalidCount());
     } catch (Exception e) {
       plugin.getLogger().severe("Failed to load 3D models: " + e.getMessage());
     }
@@ -140,21 +134,18 @@ public final class PaperBootstrap {
 
     try {
       definitionConfigBootstrap.ensureDefaultConfiguration();
-      definitionConfigBootstrap.logLoadResult(definitionConfigBootstrap.loadFromDisk());
+      var definitionLoadResult = definitionConfigBootstrap.loadFromDisk();
+      definitionConfigBootstrap.logLoadResult(definitionLoadResult);
 
       // Reconcile entities after definitions are loaded
       io.github.kizio806.spectraevents.application.service.EntityReconciliationReport report =
           application.reconciliationService().reconcileAll();
       application.setLastReconciliationReport(report);
-      plugin
-          .getLogger()
-          .info(
-              String.format(
-                  "[SpectraEvents] Definitions: %d events registered. Entity Reconciliation: %d recovered, %d reconnected, %d orphans removed.",
-                  application.definitionRegistry().getAll().size(),
-                  report.instancesRecovered(),
-                  report.entitiesReconnected(),
-                  report.orphansRemoved()));
+      List<String> definitionIds =
+          application.definitionRegistry().getAll().stream()
+              .map(registered -> registered.definition().id().value())
+              .toList();
+      startupLogger.definitions(definitionIds, definitionLoadResult.failures().size());
     } catch (Exception e) {
       plugin
           .getLogger()
@@ -169,10 +160,12 @@ public final class PaperBootstrap {
     application.executionEngine().registerConditionResolver(new LuckPermsIntegration());
     application.executionEngine().registerConditionResolver(new WorldGuardIntegration());
     application.executionEngine().registerActionResolver(new VaultIntegration());
+    startupLogger.integrations(integrationRegistry);
 
     Path updateDir = plugin.getDataFolder().toPath().resolve("update");
     HttpUpdateAdapter updateAdapter = new HttpUpdateAdapter(updateDir);
     updateService = new UpdateService(plugin.getPluginMeta().getVersion(), updateAdapter);
+    startupLogger.checkingForUpdates();
     updateCheck =
         updateService
             .checkNow("stable")
@@ -182,11 +175,11 @@ public final class PaperBootstrap {
                     plugin
                         .getLogger()
                         .info(
-                            "[SpectraEvents] Update available: "
+                            "Update available: "
                                 + info.currentVersion()
                                 + " -> "
                                 + info.latestVersion()
-                                + ". Run /event update info");
+                                + ". Run /spectraevents update info");
                   }
                 })
             .exceptionally(
@@ -205,7 +198,8 @@ public final class PaperBootstrap {
             sqliteRepository,
             integrationRegistry,
             updateService,
-            application.orchestrationService());
+            application.orchestrationService(),
+            eventSettingsStore);
     org.bukkit.Bukkit.getPluginManager().registerEvents(guiController, plugin);
 
     PaperInteractionRouter interactionRouter =
@@ -230,9 +224,8 @@ public final class PaperBootstrap {
             integrationRegistry,
             updateService,
             guiController,
-            application);
-
-    SpectraDebugCommand debugCommand = new SpectraDebugCommand(application.orchestrationService());
+            application,
+            eventSettingsStore);
 
     plugin
         .getLifecycleManager()
@@ -242,18 +235,9 @@ public final class PaperBootstrap {
               event
                   .registrar()
                   .register(mainCommand.buildCommand().build(), "SpectraEvents management command");
-              event
-                  .registrar()
-                  .register(
-                      debugCommand.buildCommand().build(),
-                      "Developer debug commands for SpectraEvents");
             });
 
-    plugin
-        .getLogger()
-        .info(
-            "[SpectraEvents] READY platform=paper definitions="
-                + application.definitionRegistry().getAll().size());
+    startupLogger.enabled((System.nanoTime() - startedAt) / 1_000_000L);
   }
 
   public void disable() {
@@ -272,6 +256,22 @@ public final class PaperBootstrap {
       application.stop();
       application = null;
     }
-    plugin.getLogger().info("[SpectraEvents] SpectraEvents disabled cleanly.");
+    plugin.getLogger().info("SpectraEvents disabled cleanly.");
+  }
+
+  private void extractBundledAssetSources() {
+    for (String file :
+        List.of(
+            "meteor_core.bbmodel",
+            "airdrop_crate.bbmodel",
+            "metin_stone.bbmodel",
+            "pinata.bbmodel",
+            "boss_portal.bbmodel")) {
+      Path target =
+          plugin.getDataFolder().toPath().resolve("assets").resolve("source").resolve(file);
+      if (!java.nio.file.Files.exists(target)) {
+        plugin.saveResource("assets/source/" + file, false);
+      }
+    }
   }
 }

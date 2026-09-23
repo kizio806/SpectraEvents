@@ -75,7 +75,7 @@ counter, Piñata, and Boss Portal without adding any event-specific coordinator.
 26.1–26.3, plus Folia for 26.1–26.2. All 14 declared real-server rows passed; representative Paper
 26.1/26.3, Folia 26.2, and Spigot 26.3 were rerun after the M4 workflow changes. Folia 26.3 is
 fail-closed at plugin startup until an upstream server exists and the row passes. Release eligibility,
-both artifacts/checksums, recovery procedures, `/event doctor`/inspect guidance, and manual reward
+both artifacts/checksums, recovery procedures, `/spectraevents doctor`/inspect guidance, and manual reward
 reconciliation are documented and executable.
 
 ## M5 — extensibility and GUI

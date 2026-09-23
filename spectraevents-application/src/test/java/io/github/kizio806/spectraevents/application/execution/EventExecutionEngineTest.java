@@ -76,6 +76,35 @@ class EventExecutionEngineTest {
   }
 
   @Test
+  void exposesAnOperatorSafeRuntimeStatusSnapshot() {
+    EventDefinition definition =
+        new EventDefinition(
+            new EventDefinitionId("status_event"),
+            new PhaseId("active"),
+            Map.of(
+                new PhaseId("active"),
+                new PhaseDefinition(
+                    new PhaseId("active"),
+                    Set.of(),
+                    List.of(),
+                    List.of(
+                        new ConfiguredActionDefinition("initialize_health", Map.of("max", 250)),
+                        new ConfiguredActionDefinition(
+                            "initialize_hit_counter", Map.of("max", 12))))));
+    registry.register(definition, "status_event.yml");
+
+    EventLocation location = new EventLocation("world", 10.0, 65.0, -4.0, 0.0f, 0.0f);
+    EventInstance instance = engine.startEvent("status_event", location);
+
+    EventExecutionEngine.ExecutionStatus status = engine.status(instance.id()).orElseThrow();
+    assertEquals(location, status.location().orElseThrow());
+    assertEquals(250, status.maxHealth());
+    assertEquals(250, status.currentHealth());
+    assertEquals(12, status.maxHits());
+    assertEquals(0, status.currentHits());
+  }
+
+  @Test
   void runningInstanceKeepsDefinitionSnapshotAfterReload() {
     EventDefinition original =
         new EventDefinition(
@@ -323,6 +352,52 @@ class EventExecutionEngineTest {
     engine.recoverTimers();
 
     assertEquals(persisted, stateStore.get(id).orElseThrow());
+    assertEquals(1, scheduler.scheduledTasks.size());
+  }
+
+  @Test
+  void marksRunningInstanceFailedAndContinuesRecoveryWhenDefinitionIsMissing() {
+    EventInstanceId missingDefinitionId = EventInstanceId.generate();
+    EventInstanceId validDefinitionId = EventInstanceId.generate();
+    repository.save(
+        EventInstance.reconstitute(
+            missingDefinitionId,
+            new EventDefinitionId("removed_definition"),
+            EventLifecycleState.RUNNING,
+            new PhaseId("waiting")));
+
+    EventDefinition definition =
+        new EventDefinition(
+            new EventDefinitionId("recoverable"),
+            new PhaseId("waiting"),
+            Map.of(
+                new PhaseId("waiting"),
+                new PhaseDefinition(
+                    new PhaseId("waiting"),
+                    Set.of(),
+                    List.of(
+                        new TransitionRule(
+                            new ConfiguredTriggerDefinition(
+                                "timer_elapsed", Map.of("duration", "10s")),
+                            List.of(),
+                            Optional.empty(),
+                            List.of())),
+                    List.of())));
+    registry.register(definition, "recoverable.yml");
+    repository.save(
+        EventInstance.reconstitute(
+            validDefinitionId,
+            definition.id(),
+            EventLifecycleState.RUNNING,
+            new PhaseId("waiting")));
+    EventRuntimeState state = new EventRuntimeState(validDefinitionId);
+    state.setTimerDeadlineMillis(System.currentTimeMillis() + 10_000L);
+    repository.saveState(state);
+
+    engine.recoverTimers();
+
+    assertEquals(
+        EventLifecycleState.FAILED, repository.findById(missingDefinitionId).orElseThrow().state());
     assertEquals(1, scheduler.scheduledTasks.size());
   }
 

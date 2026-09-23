@@ -34,7 +34,7 @@ public final class PaperIntegrationManager {
           name,
           IntegrationState.ENABLED,
           description + " (v" + plugin.getPluginMeta().getVersion() + ")");
-      LOGGER.info("Integration detected and enabled: " + name);
+      LOGGER.fine("Integration detected and enabled: " + name);
     } else if (plugin != null) {
       registry.register(
           name, IntegrationState.DISABLED, description + " (Plugin present but disabled)");

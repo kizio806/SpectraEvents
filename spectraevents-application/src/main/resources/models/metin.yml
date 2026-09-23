@@ -31,7 +31,7 @@ parts:
     transform:
       translation: [0.0, -0.35, 0.0]
       rotation:
-        euler: [0.0, 0.0, 0.0]
+        euler: [0.001, 0.001, 0.001]
       scale: [2.2, 0.35, 2.2]         # Wide and flat
     render:
       billboard: fixed
@@ -212,19 +212,19 @@ animations:
         scale:
           - at: 0s
             value: [0.05, 0.05, 0.05]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 400ms
             value: [2.2, 0.35, 2.2]
       stone:
         scale:
           - at: 0s
             value: [0.1, 0.1, 0.1]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 700ms
             value: [2.5, 2.5, 2.5]
         translation:
           - at: 0s
-            value: [0.0, 0.0, 0.0]   # Appears at base level
+            value: [0.001, 0.001, 0.001]   # Appears at base level
           - at: 700ms
             value: [0.0, 1.6, 0.0]   # Rises to final position
       # Crystals erupt 400 ms into the spawn with a small overshoot
@@ -236,7 +236,7 @@ animations:
             value: [0.05, 0.05, 0.05]     # Stay hidden until stone forms
           - at: 700ms
             value: [0.55, 0.75, 0.55]     # Overshoot
-            easing: ease_out
+            easing: ease_out_quad
           - at: 1200ms
             value: [0.45, 0.6, 0.45]
       crystal_s:
@@ -247,7 +247,7 @@ animations:
             value: [0.05, 0.05, 0.05]
           - at: 750ms
             value: [0.5, 0.7, 0.5]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 1200ms
             value: [0.4, 0.55, 0.4]
       crystal_e:
@@ -258,7 +258,7 @@ animations:
             value: [0.05, 0.05, 0.05]
           - at: 650ms
             value: [0.6, 0.8, 0.6]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 1200ms
             value: [0.5, 0.65, 0.5]
       crystal_w:
@@ -269,7 +269,7 @@ animations:
             value: [0.05, 0.05, 0.05]
           - at: 800ms
             value: [0.52, 0.72, 0.52]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 1200ms
             value: [0.42, 0.58, 0.42]
       crown:
@@ -278,7 +278,7 @@ animations:
             value: [0.0, 0.5, 0.0]         # Starts lower
           - at: 1200ms
             value: [0.0, 1.85, 0.0]        # Floats up to position
-            easing: ease_out
+            easing: ease_out_quad
 
   # ----- pulse -----
   # Active idle: the stone breathes slowly, the crown bobs, and the rune
@@ -292,10 +292,10 @@ animations:
         scale:
           - at: 0s
             value: [2.5, 2.5, 2.5]
-            easing: ease_in_out
+            easing: ease_in_out_quad
           - at: 2s
             value: [2.6, 2.6, 2.6]
-            easing: ease_in_out
+            easing: ease_in_out_quad
           - at: 4s
             value: [2.5, 2.5, 2.5]
       # Crown slowly bobs up and down
@@ -303,10 +303,10 @@ animations:
         translation:
           - at: 0s
             value: [0.0, 1.85, 0.0]
-            easing: ease_in_out
+            easing: ease_in_out_quad
           - at: 2s
             value: [0.0, 2.1, 0.0]
-            easing: ease_in_out
+            easing: ease_in_out_quad
           - at: 4s
             value: [0.0, 1.85, 0.0]
         rotation:
@@ -346,7 +346,7 @@ animations:
       stone:
         rotation:
           - at: 0s
-            value: [0.0, 0.0, 0.0]
+            value: [0.001, 0.001, 0.001]
           - at: 800ms
             value: [0.0, 360.0, 0.0]
         scale:

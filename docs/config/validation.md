@@ -14,7 +14,7 @@ Each diagnostic contains:
 - `message` — human-readable explanation
 
 The loader applies the source prefix to parser, compiler, and registry diagnostics consistently.
-This means an operator can copy the path from `/event definition validate` and go directly to the
+This means an operator can copy the path from `/spectraevents definition validate` and go directly to the
 invalid field. A failed file does not replace an already active valid definition during reload.
 
 ## Common YAML parser codes
@@ -58,5 +58,5 @@ invalid field. A failed file does not replace an already active valid definition
 `DefinitionLoader` skips files that fail parse, compile, or registration. Other files in the same
 batch still load successfully.
 
-Use `/event definition validate` on a running Paper or Spigot server to inspect diagnostics without
-changing the active registry. Use `/event definition reload` only after validation passes.
+Use `/spectraevents definition validate` on a running Paper or Spigot server to inspect diagnostics
+without changing the active registry. Use `/spectraevents definition reload` only after validation passes.

@@ -16,11 +16,11 @@ import org.junit.jupiter.api.Test;
 class ModelResourceExamplesTest {
   private static final List<ModelExample> EXAMPLES =
       List.of(
-          new ModelExample("meteor", "dev_meteor_model", "fall"),
-          new ModelExample("airdrop", "dev_airdrop_model", "descent"),
-          new ModelExample("metin", "dev_metin_model", "pulse"),
-          new ModelExample("pinata", "dev_pinata_model", "sway"),
-          new ModelExample("boss-portal", "dev_boss_portal_model", "opening"));
+          new ModelExample("meteor", "meteor_core", "fall"),
+          new ModelExample("airdrop", "airdrop_crate", "descent"),
+          new ModelExample("metin", "metin_stone", "spawn"),
+          new ModelExample("pinata", "pinata", "sway"),
+          new ModelExample("boss-portal", "boss_portal", "opening"));
 
   @Test
   void shippedModelsExposeTheAnimationsUsedByEventExamples() throws IOException {

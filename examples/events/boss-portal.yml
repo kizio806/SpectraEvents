@@ -6,9 +6,9 @@ phases:
   opening:
     on-enter:
       - type: spawn_model
-        model: dev_boss_portal_model
+        model: boss_portal
       - type: play_animation
-        model: dev_boss_portal_model
+        model: boss_portal
         animation: opening
         loop: ONCE
       - type: broadcast_message

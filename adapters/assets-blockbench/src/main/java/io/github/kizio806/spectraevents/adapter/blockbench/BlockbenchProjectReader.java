@@ -51,7 +51,7 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 
-/** Imports the supported signed Spectra Blockbench bundle into the platform-neutral asset model. */
+/** Imports a validated Blockbench project or signed Spectra bundle into the asset model. */
 public final class BlockbenchProjectReader implements AssetImportPort {
   private static final long MAX_ARCHIVE_BYTES = 5_000_000L;
   private static final int MAX_ARCHIVE_ENTRIES = 18;
@@ -76,9 +76,24 @@ public final class BlockbenchProjectReader implements AssetImportPort {
   @Override
   public SpectraAssetDocument read(Path sourceFile) throws IOException {
     Objects.requireNonNull(sourceFile, "sourceFile");
-    if (!Files.isRegularFile(sourceFile)
-        || !sourceFile.getFileName().toString().endsWith(".spectra.zip")) {
-      throw new IllegalArgumentException("Supported asset source must be a .spectra.zip file");
+    if (!Files.isRegularFile(sourceFile)) {
+      throw new IllegalArgumentException("Asset source must be a regular file");
+    }
+    String fileName = sourceFile.getFileName().toString();
+    if (fileName.endsWith(".bbmodel")) {
+      if (Files.size(sourceFile) > MAX_ENTRY_BYTES) {
+        throw new IllegalArgumentException(
+            "Blockbench project exceeds size limit of 2000000 bytes");
+      }
+      String modelId = fileName.substring(0, fileName.length() - ".bbmodel".length());
+      if (!MODEL_ID.matcher(modelId).matches()) {
+        throw new IllegalArgumentException("Blockbench filename must match " + MODEL_ID.pattern());
+      }
+      return parseProject(Files.readString(sourceFile, StandardCharsets.UTF_8), modelId, Map.of());
+    }
+    if (!fileName.endsWith(".spectra.zip")) {
+      throw new IllegalArgumentException(
+          "Supported asset source must be a .bbmodel or .spectra.zip file");
     }
     if (Files.size(sourceFile) > MAX_ARCHIVE_BYTES) {
       throw new IllegalArgumentException(

@@ -2,7 +2,8 @@
 
 ## Current Milestone
 
-M5 complete — admin GUI expansion and documentation cleanup
+M5 complete — operational admin GUI, runtime configuration editing, paginated GUI screens, named
+location management, documentation cleanup, and smoke test corrections.
 
 ## Current Target
 
@@ -47,7 +48,7 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
   - Implemented `CustomItemProvider` with `Nexo`, `Oraxen`, and `ItemsAdder` adapters for the `give_item` action.
   - Hardened absolute timer persistence allowing recovery of queued actions after a crash or restart.
   - Built comprehensive `EntityReconciliationService` to garbage-collect orphaned models and entities at boot or reconnect them to running events.
-  - Finalized `/event doctor` diagnostics exposing missing optional dependencies and integration status gracefully.
+  - Finalized `/spectraevents doctor` diagnostics exposing missing optional dependencies and integration status gracefully.
 - [x] Multi-Platform Expansion & Sponge Scope Reduction:
   - Official platform families: Paper, Spigot.
   - Paper artifact (`SpectraEvents-<version>-paper.jar`) supports Paper, Purpur, and Folia.
@@ -91,18 +92,34 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
     `hits_reached`; a SQLite recovery test verifies the counter survives a restart.
   - Boss Portal composes the shared model animation, timer, boss spawn, entity-death routing, reward,
     and cleanup contracts without an event-specific coordinator.
+- [x] M5 admin GUI and documentation:
+  - Dashboard, Active Events, Definitions, Configuration, and Locations screens with full pagination.
+  - Configuration detail screen with profile cycling and per-parameter override editing (persisted
+    to `event-settings.yml`).
+  - Definition detail with phase overview and Start button using saved profile + named location.
+  - Cancel confirmation, instance detail, and location remove confirmation screens.
+  - Named location management via GUI and `/spectraevents location` commands.
+  - `EventDefinitionProfileApplier` applying health/damage/hits/duration/lock-duration overrides.
+  - `EventGuiPagination` utility with regression tests.
+  - All five event definitions complete with bossbars, scoreboards, titles, HUD placeholders,
+    health thresholds, spawn waves, loot drops, cleanup, and timeout phases.
+  - Smoke test command prefix corrected from `event event` to `spectraevents event`.
+  - `admin-workflow.md` updated to describe the shipped GUI instead of the old "Future GUI" note.
+  - All docs migrated to `/spectraevents` — no `/event` alias references remain.
 
 ## Current State
 
-- M2 is complete, including operator-confirmed real-client rendering and real-player delivery.
+- M5 is complete: the admin GUI, runtime configuration editing, named location management,
+  all five event gameplay definitions, and documentation cleanup are done. Build is green at
+  130 tasks. The smoke test command prefix has been corrected.
 - M4 is complete: release eligibility is executable, artifacts/checksums and recovery procedures are
   documented, and Paper/Purpur + Spigot/CraftBukkit 26.1–26.3 and Folia 26.1–26.2 have real-server
   coverage. Folia 26.3+ remains fail-closed until explicitly added and verified.
 
 ## Next Planned Milestone
 
-V1 release candidate after confirming real-server matrix on the current build.
-No public addon API is planned without a concrete demonstrated use case; ADR 0005
+V1 release candidate: confirm the real-server matrix on the current build, cut the release, and
+publish artifacts. No public addon API is planned without a concrete demonstrated use case; ADR 0005
 remains in effect.
 
 ## Important Active Decisions
@@ -120,4 +137,4 @@ remains in effect.
 
 ## Last Updated
 
-2026-09-21
+2026-09-22

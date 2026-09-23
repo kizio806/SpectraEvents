@@ -49,7 +49,7 @@ public final class PaperDefinitionConfigBootstrap {
 
   public void logLoadResult(DefinitionLoadResult result) {
     for (var loaded : result.loaded()) {
-      LOGGER.info(
+      LOGGER.fine(
           "Loaded event definition '"
               + loaded.definition().id().value()
               + "' from "

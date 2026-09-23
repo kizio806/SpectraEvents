@@ -66,18 +66,7 @@ public class ModelLoader {
       for (Path file : stream) {
         try {
           CompiledModel compiled = parseAndCompileWithAnimations(file);
-          if (registry.contains(compiled.definition().id())) {
-            diagnostics.add(
-                new ValidationDiagnostic(
-                    Severity.ERROR,
-                    "DUPLICATE_MODEL_ID",
-                    file.getFileName().toString(),
-                    "Duplicate model ID '"
-                        + compiled.definition().id().value()
-                        + "' found in file "
-                        + file.getFileName()));
-            invalid++;
-          } else {
+          if (!registry.contains(compiled.definition().id())) {
             registry.register(compiled.definition());
             registerAnimations(compiled);
             loaded++;

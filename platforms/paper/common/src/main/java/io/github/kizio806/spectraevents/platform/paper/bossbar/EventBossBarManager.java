@@ -2,6 +2,7 @@ package io.github.kizio806.spectraevents.platform.paper.bossbar;
 
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
+import io.github.kizio806.spectraevents.platform.paper.common.EventDisplayPlaceholders;
 import io.github.kizio806.spectraevents.platform.paper.integration.MiniPlaceholdersIntegration;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import java.util.Map;
@@ -114,23 +115,16 @@ public final class EventBossBarManager implements Listener {
   }
 
   private Component renderTitle(String template, EventInstance instance, EventRuntimeState state) {
-    String currentPhase = instance.currentPhase().map(p -> p.value()).orElse("active");
-    int hp = state.currentHealth();
-    int maxHp = Math.max(1, state.maxHealth());
-    int percent = (int) (((double) hp / maxHp) * 100);
-
-    String rendered =
-        template
-            .replace("%health%", String.valueOf(hp))
-            .replace("%max_health%", String.valueOf(maxHp))
-            .replace("%health_percent%", String.valueOf(percent))
-            .replace("%phase%", currentPhase)
-            .replace("%event%", instance.definitionId().value());
-
-    return MiniPlaceholdersIntegration.getMiniMessage().deserialize(rendered);
+    return MiniPlaceholdersIntegration.getMiniMessage()
+        .deserialize(EventDisplayPlaceholders.resolve(template, instance, state));
   }
 
   private float calculateProgress(EventRuntimeState state, Map<String, Object> params) {
+    if ("hits".equalsIgnoreCase(String.valueOf(params.get("progress")))
+        && state.hitCounter().isPresent()) {
+      var counter = state.hitCounter().orElseThrow();
+      return (float) counter.current() / (float) counter.maximum();
+    }
     if (params.containsKey("progress")) {
       try {
         return Float.parseFloat(String.valueOf(params.get("progress")));

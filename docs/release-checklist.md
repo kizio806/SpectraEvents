@@ -23,7 +23,7 @@ Use this checklist prior to creating a new official release tag and GitHub Relea
   Paper, Purpur, Folia, Spigot, and CraftBukkit row. The workflow validates the Blockbench asset
   import, Meteor, Airdrop, Metin, Piñata, Boss Portal, cleanup, and restart recovery.
 - [ ] **Upgrade and rollback**: Follow `docs/operations/release-and-recovery.md` on a copy of a real
-  plugin data directory, including SQLite backup, restore, `/event doctor`, and a disposable event.
+  plugin data directory, including SQLite backup, restore, `/spectraevents doctor`, and a disposable event.
 - [ ] **External effects**: Review each accepted `try_claim` near a crash and record a manual
   reconciliation decision before compensating a player.
 

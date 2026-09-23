@@ -2,8 +2,6 @@ package io.github.kizio806.spectraevents.application.service;
 
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.registry.RegisteredEventDefinition;
-import io.github.kizio806.spectraevents.application.dev.fixture.MeteorFixture;
-import io.github.kizio806.spectraevents.application.dev.fixture.WalkingSkeletonFixture;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
@@ -45,48 +43,6 @@ public final class EventOrchestrationService {
   public io.github.kizio806.spectraevents.application.execution.EventExecutionEngine
       executionEngine() {
     return executionEngine;
-  }
-
-  /**
-   * Starts a new walking skeleton event instance.
-   *
-   * @return the newly started instance
-   */
-  public EventInstance startWalkingSkeleton() {
-    EventInstanceId id = EventInstanceId.generate();
-    EventInstance created = EventInstance.create(id, WalkingSkeletonFixture.DEFINITION_ID);
-    EventLifecycleTransition transition = created.start(WalkingSkeletonFixture.getDefinition());
-
-    EventInstance running = transition.eventInstance();
-    repository.save(running);
-
-    LOGGER.info(
-        "Started event instance "
-            + id
-            + " using walking_skeleton in phase "
-            + running.currentPhase().orElseThrow());
-    return running;
-  }
-
-  /**
-   * Starts a new dev_meteor event instance.
-   *
-   * @return the newly started instance
-   */
-  public EventInstance startDevMeteor() {
-    EventInstanceId id = EventInstanceId.generate();
-    EventInstance created = EventInstance.create(id, MeteorFixture.DEFINITION_ID);
-    EventLifecycleTransition transition = created.start(MeteorFixture.getDefinition());
-
-    EventInstance running = transition.eventInstance();
-    repository.save(running);
-
-    LOGGER.info(
-        "Started event instance "
-            + id
-            + " using dev_meteor in phase "
-            + running.currentPhase().orElseThrow());
-    return running;
   }
 
   /**
@@ -237,17 +193,10 @@ public final class EventOrchestrationService {
     return definitionRegistry
         .get(definitionId)
         .map(RegisteredEventDefinition::definition)
-        .orElseGet(() -> resolveFixtureDefinition(definitionId));
-  }
-
-  private EventDefinition resolveFixtureDefinition(EventDefinitionId definitionId) {
-    if (definitionId.equals(WalkingSkeletonFixture.DEFINITION_ID)) {
-      return WalkingSkeletonFixture.getDefinition();
-    }
-    if (definitionId.equals(MeteorFixture.DEFINITION_ID)) {
-      return MeteorFixture.getDefinition();
-    }
-    throw new IllegalStateException("Unsupported event definition: " + definitionId.value());
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "Event definition is no longer registered: " + definitionId.value()));
   }
 
   private PhaseId resolveNextPhase(EventDefinition definition, PhaseId currentPhase) {

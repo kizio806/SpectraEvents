@@ -80,14 +80,14 @@ class BlockbenchProjectReaderTest {
   }
 
   @Test
-  void rejectsLooseBlockbenchProjectFiles() throws IOException {
+  void importsLooseBlockbenchProjectFiles() throws IOException {
     Path source = tempDirectory.resolve("model.bbmodel");
     Files.writeString(source, projectJson("free"));
 
-    IllegalArgumentException error =
-        Assertions.assertThrows(IllegalArgumentException.class, () -> reader.read(source));
+    var document = reader.read(source);
 
-    Assertions.assertTrue(error.getMessage().contains(".spectra.zip"));
+    Assertions.assertEquals("model", document.modelId());
+    Assertions.assertTrue(document.animations().containsKey("pulse"));
   }
 
   private Path writeBundle(String model, boolean corruptChecksum) throws Exception {
@@ -137,7 +137,7 @@ class BlockbenchProjectReaderTest {
     return """
         {
           "meta": {"format_version": "5.0.0", "model_format": "MODEL_FORMAT"},
-          "textures": [{"id": "texture", "name": "gem.png", "source": "textures/gem.png"}],
+          "textures": [{"id": "texture", "name": "gem.png", "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAF/gL+I0Yf9wAAAABJRU5ErkJggg=="}],
           "elements": [{
             "uuid": "cube",
             "from": [0, 0, 0],

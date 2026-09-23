@@ -35,10 +35,10 @@ cleanup, and restart-recovery workflow as every other declared row.
 
 ## Upgrade and rollback workflow
 
-1. Start the server and run `/event doctor`.
-2. Run `/event definition validate`, then `/event definition list`; resolve every reported definition
+1. Start the server and run `/spectraevents doctor`.
+2. Run `/spectraevents definition validate`, then `/spectraevents definition list`; resolve every reported definition
    error before starting an event.
-3. Start a disposable event, inspect it with `/event event inspect <instance-id>`, and cancel it.
+3. Start a disposable event, inspect it with `/spectraevents event inspect <instance-id>`, and cancel it.
    A cancelled instance must report `runtimeState=false`, `tasks=0`, and `resources=0`.
 4. For a recovery check, start a timer-driven event, stop the server cleanly, start it again, inspect
    the same instance, and cancel it only after its state and resources have been recovered.
@@ -56,8 +56,8 @@ event-owned Display, Interaction, and boss entities. Use these signals:
 | Signal | Healthy result | Operator response when unhealthy |
 | --- | --- | --- |
 | Startup log | `READY platform=...` and a reconciliation summary | Preserve the log, stop the server, back up the data directory, then investigate the first error |
-| `/event doctor` | Definitions loaded; active instances and reconciliation are visible | Run `/event definition validate`; resolve missing models/configuration before retrying |
-| `/event event inspect <id>` | Running state has runtime state, expected tasks/resources, and an optional recorded claimant | For terminal events, non-zero tasks/resources require log collection and a controlled restart; do not delete entities manually first |
+| `/spectraevents doctor` | Definitions loaded; active instances and reconciliation are visible | Run `/spectraevents definition validate`; resolve missing models/configuration before retrying |
+| `/spectraevents event inspect <id>` | Running state has runtime state, expected tasks/resources, and an optional recorded claimant | For terminal events, non-zero tasks/resources require log collection and a controlled restart; do not delete entities manually first |
 | Cancellation | `CANCELLED`, `runtimeState=false`, `tasks=0`, `resources=0` | Treat residual resources as a recovery incident and retain logs/database backup |
 
 ## Accepted-but-undelivered external effects
@@ -69,8 +69,8 @@ between. The claim is therefore **at-most-once in process, not exactly-once deli
 When a crash occurs around a reward:
 
 1. Do not rerun the event or grant a second automated reward.
-2. Save the instance ID, definition ID, and `claim=` value shown by `/event event inspect <id>` or
-   `/event doctor`.
+2. Save the instance ID, definition ID, and `claim=` value shown by `/spectraevents event inspect <id>` or
+   `/spectraevents doctor`.
 3. Compare that evidence with the server/economy/inventory logs for the same player and time window.
 4. If delivery cannot be confirmed, grant one manual compensating reward, record the action in the
    incident ticket, and retain the database backup. If delivery is confirmed, do nothing further.

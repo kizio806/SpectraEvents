@@ -23,6 +23,7 @@ import io.github.kizio806.spectraevents.platform.paper.lifecycle.PaperResourceCl
 import io.github.kizio806.spectraevents.platform.paper.metadata.SpectraPdcKeys;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import io.github.kizio806.spectraevents.platform.paper.scoreboard.EventScoreboardManager;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -31,6 +32,7 @@ import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import java.util.logging.Logger;
+import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -147,6 +149,7 @@ public final class PaperActionAdapter implements PlatformActionPort {
       case "drop_loot" -> handleDropLoot(instance, params, baseLoc);
       case "send_message" -> handleSendMessage(instance, params, context);
       case "broadcast_message", "broadcast" -> handleBroadcastMessage(instance, params);
+      case "show_title" -> handleShowTitle(instance, params);
       case "spawn_boss", "spawn_entity" -> handleSpawnBoss(instance, state, params, baseLoc);
       case "spawn_mobs", "spawn_wave" -> handleSpawnMobs(instance, params, baseLoc);
       case "show_bossbar", "create_bossbar" ->
@@ -414,6 +417,32 @@ public final class PaperActionAdapter implements PlatformActionPort {
           instance.id(),
           () -> Bukkit.broadcast(MiniPlaceholdersIntegration.getMiniMessage().deserialize(msg)));
     }
+  }
+
+  private void handleShowTitle(EventInstance instance, Map<String, Object> params) {
+    String title = getStringParam(params, "title", "");
+    if (title.isBlank()) {
+      throw new FatalActionException("show_title requires a title");
+    }
+    String subtitle = getStringParam(params, "subtitle", "");
+    int fadeIn = getIntParam(params, "fade-in", 10);
+    int stay = getIntParam(params, "stay", 50);
+    int fadeOut = getIntParam(params, "fade-out", 10);
+    if (fadeIn < 0 || stay < 1 || fadeOut < 0) {
+      throw new FatalActionException(
+          "show_title timings must be non-negative and stay must be positive");
+    }
+    Title rendered =
+        Title.title(
+            MiniPlaceholdersIntegration.getMiniMessage().deserialize(title),
+            MiniPlaceholdersIntegration.getMiniMessage().deserialize(subtitle),
+            Title.Times.times(
+                Duration.ofMillis(fadeIn * 50L),
+                Duration.ofMillis(stay * 50L),
+                Duration.ofMillis(fadeOut * 50L)));
+    executeGlobal(
+        instance.id(),
+        () -> Bukkit.getOnlinePlayers().forEach(player -> player.showTitle(rendered)));
   }
 
   private void handleSpawnBoss(

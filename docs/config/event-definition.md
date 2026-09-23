@@ -27,7 +27,7 @@ Action, trigger, and condition parameters are written directly next to `type`:
 ```yaml
 actions:
   - type: play_animation
-    model: dev_meteor_model
+    model: meteor_core
     animation: fall
 ```
 
@@ -58,7 +58,7 @@ phases:
 ## Runtime behavior
 
 The engine never reads raw YAML during gameplay. Files are parsed at startup (or on
-`/event definition validate`), compiled into immutable objects, and registered by `id`.
+`/spectraevents definition validate`), compiled into immutable objects, and registered by `id`.
 Running instances capture the compiled definition snapshot at start. Reloading a file changes only
 future instances; an already running instance continues with its original phases, transitions,
 conditions, and actions. When an instance ends, its snapshot is released.
@@ -85,8 +85,8 @@ Future schema versions may add explicit policies only with a migration rule.
 
 1. Copy one of the verified examples: `meteor`, `airdrop`, `metin`, `pinata`, or `boss-portal`.
 2. Change the event `id`, model IDs, messages, and gameplay parameters.
-3. Run `/event definition validate` and fix every diagnostic using its `file:path` location.
-4. Run `/event definition reload` to register the valid version.
-5. Start it with `/event event start <id>`.
-6. Inspect it with `/event event inspect <instance>` or `/event doctor`.
+3. Run `/spectraevents definition validate` and fix every diagnostic using its `file:path` location.
+4. Run `/spectraevents definition reload` to register the valid version.
+5. Start it with `/spectraevents event start <id>`.
+6. Inspect it with `/spectraevents event inspect <instance>` or `/spectraevents doctor`.
 7. Cancel or complete the event and confirm that resources are cleaned up.

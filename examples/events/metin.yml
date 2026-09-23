@@ -8,9 +8,9 @@ phases:
       - type: initialize_health
         max: 100
       - type: spawn_model
-        model: dev_metin_model
+        model: metin_stone
       - type: play_animation
-        model: dev_metin_model
+        model: metin_stone
         animation: pulse
         loop: LOOP
     transitions:

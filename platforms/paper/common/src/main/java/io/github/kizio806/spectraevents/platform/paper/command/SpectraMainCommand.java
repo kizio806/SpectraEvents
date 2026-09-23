@@ -9,6 +9,7 @@ import io.github.kizio806.spectraevents.application.port.EventInstanceRepository
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperDefinitionConfigBootstrap;
+import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
 import io.github.kizio806.spectraevents.platform.paper.gui.AdminGuiController;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
@@ -18,7 +19,7 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-/** Main production command tree for /event in Paper platform family. */
+/** Main production command tree for /spectraevents in Paper platform family. */
 public final class SpectraMainCommand {
   private final EventCommandHandler eventCommandHandler;
   private final DefinitionCommandHandler definitionCommandHandler;
@@ -28,6 +29,7 @@ public final class SpectraMainCommand {
   private final ModelCommandHandler modelCommandHandler;
   private final AnimationCommandHandler animationCommandHandler;
   private final AssetCommandHandler assetCommandHandler;
+  private final LocationCommandHandler locationCommandHandler;
   private final EventDefinitionRegistry definitionRegistry;
   private final EventInstanceRepository instanceRepository;
   private final AdminGuiController guiController;
@@ -40,9 +42,11 @@ public final class SpectraMainCommand {
       IntegrationRegistry integrationRegistry,
       UpdateService updateService,
       AdminGuiController guiController,
-      SpectraEventsApplication application) {
+      SpectraEventsApplication application,
+      PaperEventSettingsStore settingsStore) {
     this.eventCommandHandler =
-        new EventCommandHandler(orchestrationService, instanceRepository, definitionRegistry);
+        new EventCommandHandler(
+            orchestrationService, instanceRepository, definitionRegistry, settingsStore);
     this.definitionCommandHandler =
         new DefinitionCommandHandler(definitionRegistry, configBootstrap);
     this.updateCommandHandler = new UpdateCommandHandler(updateService);
@@ -64,13 +68,14 @@ public final class SpectraMainCommand {
             application.animationDefinitionRegistry(),
             application.animationRuntimeService());
     this.assetCommandHandler = new AssetCommandHandler(application.assetPipelineService());
+    this.locationCommandHandler = new LocationCommandHandler(settingsStore);
     this.definitionRegistry = definitionRegistry;
     this.instanceRepository = instanceRepository;
     this.guiController = guiController;
   }
 
   public LiteralArgumentBuilder<CommandSourceStack> buildCommand() {
-    return Commands.literal("event")
+    return Commands.literal("spectraevents")
         .executes(this::help)
         .then(Commands.literal("help").executes(this::help))
         .then(Commands.literal("version").executes(this::version))
@@ -83,6 +88,7 @@ public final class SpectraMainCommand {
         .then(modelCommandHandler.build())
         .then(animationCommandHandler.build())
         .then(assetCommandHandler.build())
+        .then(locationCommandHandler.build())
         .then(
             Commands.literal("admin")
                 .requires(s -> hasPerm(s, "spectraevents.gui"))
@@ -102,45 +108,48 @@ public final class SpectraMainCommand {
   private int help(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
     sender.sendMessage(
-        Component.text(
-            "SpectraEvents Management", NamedTextColor.DARK_PURPLE, TextDecoration.BOLD));
+        Component.text("SpectraEvents", NamedTextColor.DARK_PURPLE, TextDecoration.BOLD));
 
     sender.sendMessage(Component.text("\n[General]", NamedTextColor.AQUA));
-    sender.sendMessage(Component.text(" /event help - Show this help menu", NamedTextColor.GRAY));
     sender.sendMessage(
-        Component.text(" /event status - Quick status overview", NamedTextColor.GRAY));
+        Component.text(" /spectraevents help - Show available commands", NamedTextColor.GRAY));
+    sender.sendMessage(
+        Component.text(" /spectraevents status - View server event status", NamedTextColor.GRAY));
     sender.sendMessage(
         Component.text(
-            " /event event <list|start|stop|cancel> - Manage instances", NamedTextColor.GRAY));
+            " /spectraevents event <list|start|stop|cancel> - Manage events", NamedTextColor.GRAY));
 
     sender.sendMessage(Component.text("\n[Models & Animations]", NamedTextColor.AQUA));
     sender.sendMessage(
         Component.text(
-            " /event model <list|info|validate|spawn|remove> - Manage models",
+            " /spectraevents model <list|info|validate|spawn|remove> - Manage models",
             NamedTextColor.GRAY));
     sender.sendMessage(
         Component.text(
-            " /event animation <list|info|play|pause|resume|seek|stop> - Manage animations",
+            " /spectraevents animation <list|info|play|pause|resume|seek|stop> - Manage animations",
             NamedTextColor.GRAY));
 
     sender.sendMessage(Component.text("\n[Assets]", NamedTextColor.AQUA));
     sender.sendMessage(
         Component.text(
-            " /event assets <list|info|import|validate|build|refresh|clean> - Asset pipeline",
+            " /spectraevents assets <list|info|import|validate|build|refresh|clean> - Manage assets",
             NamedTextColor.GRAY));
 
     sender.sendMessage(Component.text("\n[Administration]", NamedTextColor.AQUA));
     sender.sendMessage(
-        Component.text(" /event admin - Open admin inventory GUI", NamedTextColor.GRAY));
+        Component.text(" /spectraevents admin - Open the admin panel", NamedTextColor.GRAY));
     sender.sendMessage(
         Component.text(
-            " /event definition <list|reload|validate> - Manage configs", NamedTextColor.GRAY));
+            " /spectraevents definition <list|reload|validate> - Manage definitions",
+            NamedTextColor.GRAY));
     sender.sendMessage(
-        Component.text(" /event doctor - Run diagnostic health check", NamedTextColor.GRAY));
+        Component.text(
+            " /spectraevents location <set|list|remove> - Manage locations", NamedTextColor.GRAY));
     sender.sendMessage(
-        Component.text(" /event integrations - View integration status", NamedTextColor.GRAY));
+        Component.text(" /spectraevents doctor - Run diagnostics", NamedTextColor.GRAY));
     sender.sendMessage(
-        Component.text(" /event update <check|info> - Check for updates", NamedTextColor.GRAY));
+        Component.text(
+            " /spectraevents update <check|info> - Check for updates", NamedTextColor.GRAY));
     return 1;
   }
 
