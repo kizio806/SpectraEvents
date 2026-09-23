@@ -1,79 +1,51 @@
 # Airdrop Event Specification
 
-## Purpose
-A loot crate drops into the world, requiring players to control the area and interact with it to claim the prize.
+`airdrop.yml` is a bundled, executable reference for a highly visible supply drop event that creates a
+point of interest on the map, forcing players to converge and fight for control before looting.
 
-## Player Experience
-A plane or crate descends slowly. Once it lands, players must secure the area and open the crate. It is a discrete interaction, not a combat boss.
+## Gameplay Summary
 
-## Event Lifecycle
-Standard global lifecycle.
+| Phase | What happens | Transition |
+|---|---|---|
+| `descent` | Airdrop crate spawns in the sky and descends on a parachute | `timer_elapsed` (15s parachute drop) |
+| `landed` | Crate hits the ground, parachute detaches, crate opens | `timer_elapsed` (5s unlatch delay) |
+| `looted` | Loot drops around the crate, visual beacon disabled | `timer_elapsed` (30s cleanup delay) |
+| `completed` | Crate model removed | Terminal |
 
-## Phases
+## Visual Model
 
-1. **FALLING**
-   - The crate descends with a parachute model.
-   - **Transitions**: Hits ground -> `LANDED`.
-2. **LANDED**
-   - The parachute model swaps to a landed crate model. Emits a smoke beacon.
-   - **Transitions**: Timer expires -> `LOCKED`.
-3. **LOCKED**
-   - A brief stabilization period.
-   - **Transitions**: Timer expires -> `OPEN`.
-4. **OPEN**
-   - The crate can be interacted with.
-   - **Transitions**: Player right-clicks -> `CLAIMED`.
-5. **CLAIMED**
-   - Loot is distributed.
-   - **Transitions**: Immediate -> `CLEANUP`.
-6. **CLEANUP**
-   - Removes models, transitions to `COMPLETED`.
+The `airdrop_crate` model ([`models/airdrop.yml`](../authoring/models.md)) is built from 12 parts:
 
-## Spawn
-- **Strategy**: Random Surface.
+| Group | Parts | Description |
+|---|---|---|
+| Crate | `base`, `lid` | The main container box |
+| Parachute | `chute_canopy`, `chute_lines_1/2/3/4` | The deployed parachute holding the crate |
+| Flare | `flare_base`, `flare_smoke` | Red signal flare attached to the crate |
+| Straps | `strap_front`, `strap_back` | Cargo straps securing the lid |
 
-## Visuals
-- Falling crate with a parachute model.
-- Smoke particle beacon indicating location.
-- Hologram indicating status.
+## Animations
 
-## Interactions
-- Right-click to open. Requires `InteractionComponent`. No health involved.
+| Animation | Loop | Trigger | Description |
+|---|---|---|---|
+| `descent` | LOOP | Phase `descent` on-enter | Parachute inflates, crate sways gently as it falls down the Y-axis |
+| `impact` | ONCE | Phase `landed` on-enter | Parachute collapses and fades out; crate bounces slightly on impact |
+| `open` | ONCE | Phase `looted` on-enter | Straps snap off, lid swings open 120 degrees; flare extinguishes |
 
-## Components
-- `ModelComponent`, `TimerComponent`, `InteractionComponent`.
+## Shared Contracts Used
 
-## Triggers
-- `ground-collision`, `timer-expired`, `player-interact`.
+| Concern | Contract |
+|---|---|
+| Visual asset | `models/airdrop.yml` — 12-part model |
+| Timers | `timer_elapsed` controls the entire event flow autonomously |
+| HUD | Dynamic scoreboard updates showing current phase |
+| Rewards | `drop_loot` triggers exactly when the lid opens |
+| Cleanup | `remove_model` triggers 30 seconds after opening |
 
-## Conditions
-- Optional: Player must hold a specific "Airdrop Key" item to trigger the interaction.
+## Operator Workflow
 
-## Actions
-- `broadcast`, `give-reward`, `spawn-particles`.
-
-## Rewards
-- **Distribution**: First-come, first-served (the player who triggers `player-interact`).
-- Alternatively, drops physical items on the ground (`world-drop`).
-
-## Leaderboard
-- Not required for standard Airdrop.
-
-## Event Area
-- PvP enabled.
-
-## Persistence & Restart Recovery
-- Restores state and location upon reboot. Parachute visual re-syncs.
-
-## Chunk Behavior
-- Force-loaded.
-
-## Failure Cases
-- Lands in void (fails safe, cancels event).
-
-## Abuse / Anti-Dupe Considerations
-- Ensure rapid right-clicking by multiple players only triggers the `CLAIMED` phase once.
-
-## Required Engine Primitives
-- `InteractionComponent` (Right-click).
-- Single-claim resolution.
+1. Move to a surface location with clear sky access.
+2. Run `/spectraevents event start airdrop`
+3. A parachute drops from 30 blocks above your position.
+4. Players rush to the landing zone as the crate falls for 15 seconds.
+5. Upon landing, the parachute detaches and 5 seconds later the crate springs open.
+6. Loot scatters on the ground and 30 seconds later the empty crate disappears.

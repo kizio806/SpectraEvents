@@ -1,98 +1,212 @@
 # 3D Model Authoring Guide
 
 > [!NOTE]
-> New to SpectraEvents? Start with [The Asset Pipeline](asset-pipeline.md), learn about [Blockbench Authoring](blockbench.md), or [Create Your First Model](create-your-first-model.md).
+> New to SpectraEvents? Start with [The Asset Pipeline](asset-pipeline.md), learn about
+> [Blockbench Authoring](blockbench.md), or [Create Your First Model](create-your-first-model.md).
 
-SpectraEvents supports data-driven 3D model definitions stored as YAML files in the `plugins/SpectraEvents/models/` directory.
+SpectraEvents renders 3D models using Minecraft's **Display entity** API (introduced in 1.19.4).
+No resource pack or NMS is required for the built-in vanilla-block models. Custom geometric models
+are loaded from `.spectra.zip` Blockbench bundles via the Asset Pipeline.
+
+---
 
 ## Model YAML Structure
 
-Each model file defines a single 3D model with a unique `id`, a map of `parts`, and optional `interactions`.
+Each file in `plugins/SpectraEvents/models/` defines one model. The top-level keys are:
+
+| Key | Required | Description |
+|---|---|---|
+| `id` | yes | Unique model identifier. Referenced by `spawn_model` actions. |
+| `parts` | yes | Map of named display-entity parts that form the model hierarchy. |
+| `interactions` | no | Named invisible interaction hitboxes for click detection. |
+| `animations` | no | Named keyframe animations played by `play_animation` actions. |
+
+---
+
+## Parts (`parts`)
+
+Every part maps to one Minecraft Display entity. Parts can reference a `parent:` part ID to form a
+hierarchy. Child parts are offset *relative to their parent*, not the world origin.
+
+### Part Types
+
+| `type` | Entity | Required field |
+|---|---|---|
+| `item_display` | ItemDisplay | `item` — namespaced item ID |
+| `block_display` | BlockDisplay | `block` — block state string |
+| `text_display` | TextDisplay | `text` — MiniMessage string |
+
+### Item ID formats
+
+| Source | Format | Example |
+|---|---|---|
+| Vanilla | `minecraft:<item>` | `minecraft:magma_block` |
+| Nexo | `nexo:<id>` | `nexo:my_custom_sword` |
+| Oraxen | `oraxen:<id>` | `oraxen:my_gem` |
+| ItemsAdder | `itemsadder:<namespace>:<id>` | `itemsadder:my_pack:gem` |
+
+### Transform fields (`transform`)
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `translation` | `[x, y, z]` | `[0, 0, 0]` | Position offset from parent or spawn point (blocks) |
+| `rotation.euler` | `[pitch, yaw, roll]` | `[0, 0, 0]` | Rotation in degrees around each axis |
+| `scale` | `[x, y, z]` | `[1, 1, 1]` | Size multiplier per axis (`2.0` = twice as large) |
+| `pivot` | `[x, y, z]` | `[0, 0, 0]` | Rotation/scale origin point |
+
+### Render properties (`render`)
+
+| Field | Values | Default | Description |
+|---|---|---|---|
+| `billboard` | `fixed`, `center`, `vertical`, `horizontal` | `fixed` | `fixed` = world-aligned; `center` = always faces player |
+| `brightness` | `0`–`15` | `15` | Block-light override. `15` = always fully lit |
+| `shadow_radius` | Float | `0.0` | Ground shadow size in blocks |
+| `shadow_strength` | Float | `1.0` | Shadow opacity (0 = invisible) |
+| `view_range` | Float | `64.0` | Visibility distance in blocks |
+
+---
+
+## Interactions (`interactions`)
+
+Interaction entities detect right-click and left-click events without a physical body.
+Each interaction entry fires the `interaction` trigger on its owning event instance.
 
 ```yaml
-id: meteor
+interactions:
+  main:
+    parent: core      # Anchor to a part; the hitbox follows that part's position
+    width: 3.0        # Bounding box width in blocks
+    height: 3.0       # Bounding box height in blocks
+```
+
+---
+
+## Animations (`animations`)
+
+Animations are named keyframe sequences referenced by `play_animation` actions in event YAML.
+
+### Animation header
+
+| Field | Values | Default | Description |
+|---|---|---|---|
+| `duration` | `Ns`, `Nms`, `Nm` | — | Total animation length (`3s`, `500ms`, `2m`) |
+| `loop` | `ONCE`, `LOOP`, `PING_PONG` | — | Playback mode after the last keyframe |
+| `recovery` | `RESTART`, `RESUME`, `STOP` | — | Behaviour when the event instance restarts after a server crash |
+
+**Recovery policies:**
+- `RESTART` — animation restarts from the beginning (good for entry animations like `fall`)
+- `RESUME` — animation resumes from the saved elapsed position (good for idle loops like `pulse`)
+- `STOP` — animation stays at its final keyframe (good for one-shot transitions like `collapse`)
+
+### Tracks
+
+Each animation declares a `tracks` map keyed by part ID. A track contains one or more
+keyframe channels: `translation`, `rotation`, or `scale`.
+
+```yaml
+animations:
+  pulse:
+    duration: 2s
+    loop: LOOP
+    recovery: RESUME
+    tracks:
+      core:
+        scale:
+          - at: 0s
+            value: [2.0, 2.0, 2.0]
+            easing: ease_in_out   # Optional; omit for linear interpolation
+          - at: 1s
+            value: [2.2, 2.2, 2.2]
+            easing: ease_in_out
+          - at: 2s
+            value: [2.0, 2.0, 2.0]
+```
+
+### Easing curves
+
+| Value | Description |
+|---|---|
+| `linear` | Constant interpolation speed (default when omitted) |
+| `ease_in` | Starts slow, accelerates — good for falling, gravity |
+| `ease_out` | Starts fast, decelerates — good for landing, settling |
+| `ease_in_out` | Slow at both ends, fast in the middle — good for breathing loops |
+
+---
+
+## Multi-Part Hierarchy Example
+
+The following excerpt from `meteor.yml` shows a hierarchy with a root part, a child glow part,
+and rock shard children with distinct offsets and rotations:
+
+```yaml
+id: meteor_core
 
 parts:
   core:
     type: item_display
     item: minecraft:magma_block
     transform:
-      translation: [0.0, 0.0, 0.0]
-      rotation:
-        euler: [0.0, 0.0, 0.0]
-      scale: [2.0, 2.0, 2.0]
-      pivot: [0.0, 0.0, 0.0]
+      scale: [2.2, 2.2, 2.2]
     render:
       billboard: fixed
       brightness: 15
-      shadow_radius: 1.5
-      shadow_strength: 0.8
-      view_range: 64.0
 
-  tail:
-    type: block_display
-    parent: core
-    block: minecraft:blackstone
+  glow:
+    type: item_display
+    parent: core            # Attached to core; moves with it
+    item: minecraft:shroomlight
     transform:
-      translation: [0.0, 1.0, 0.0]
-      scale: [0.8, 1.5, 0.8]
+      scale: [0.85, 0.85, 0.85]  # Fits inside the core block
 
-  label:
-    type: text_display
+  shard_n:
+    type: item_display
     parent: core
-    text: "<red><bold>FALLING METEOR</bold></red>"
-    alignment: center
+    item: minecraft:blackstone
     transform:
-      translation: [0.0, 2.5, 0.0]
-
-interactions:
-  main_hitbox:
-    parent: core
-    offset: [0.0, 0.0, 0.0]
-    width: 3.0
-    height: 3.0
+      translation: [0.0, 0.3, -1.4]    # 1.4 blocks north of core
+      rotation:
+        euler: [-20.0, 0.0, 15.0]       # Angled outward
+      scale: [0.7, 0.85, 0.55]
+    render:
+      brightness: 8                      # Slightly darker than core
 ```
 
 ---
 
-## Field Specifications
+## Built-in Event Models
 
-### 1. Root Fields
-- `id` (String, required): Unique identifier for the model (e.g. `meteor`, `airdrop`, `metin`).
-
-### 2. Part Definitions (`parts.<part_id>`)
-- `type` (String, required): One of `item_display`, `block_display`, `text_display`.
-- `parent` (String, optional): Part ID of the parent node. If omitted, part is attached to model root.
-- `item` (String, required for `item_display`): Item reference (`minecraft:magma_block`, `nexo:meteor_core`, `oraxen:meteor_core`, `itemsadder:namespace:meteor_core`).
-- `block` (String, required for `block_display`): Block material or block data string (e.g. `minecraft:obsidian`, `minecraft:oak_log[axis=y]`).
-- `text` (String, required for `text_display`): MiniMessage formatted text string.
-- `alignment` (String, optional for `text_display`): `center`, `left`, `right`. Default: `center`.
-
-### 3. Transform Fields (`transform`)
-- `translation` (Vector3 `[x, y, z]`, default `[0.0, 0.0, 0.0]`): Offset relative to parent or root.
-- `rotation.euler` (Vector3 `[pitch, yaw, roll]`, default `[0.0, 0.0, 0.0]`): Rotation in degrees.
-- `scale` (Vector3 `[x, y, z]`, default `[1.0, 1.0, 1.0]`): Scaling vector.
-- `pivot` (Vector3 `[x, y, z]`, default `[0.0, 0.0, 0.0]`): Origin point for rotation and scaling.
-
-### 4. Render Properties (`render`)
-- `billboard`: `fixed`, `center`, `vertical`, `horizontal`. Default: `fixed`.
-- `brightness` (Integer 0-15, default `15`): Light level override.
-- `shadow_radius` (Float, default `0.0`): Radius of ground entity shadow.
-- `shadow_strength` (Float, default `1.0`): Strength/opacity of ground shadow.
-- `view_range` (Float, default `64.0`): Entity view range multiplier.
-
-### 5. Interaction Hitboxes (`interactions.<interaction_id>`)
-- `parent` (String, optional): Parent part ID anchor.
-- `offset` (Vector3 `[x, y, z]`, default `[0.0, 0.0, 0.0]`): Offset from parent anchor.
-- `width` (Float, required): Width of interaction bounding box in blocks.
-- `height` (Float, required): Height of interaction bounding box in blocks.
+| Model ID | File | Parts | Animations |
+|---|---|---|---|
+| `meteor_core` | `models/meteor.yml` | core, glow, 4 shards, 3 trail, label | fall, impact, pulse, collapse |
+| `airdrop_crate` | `models/airdrop.yml` | body, lid, 2 straps, parachute, inner, 4 lines, label | descent, land, open |
+| `metin_stone` | `models/metin.yml` | base, stone, 4 crystals, 3 runes, crown, label | spawn, pulse, enraged |
+| `pinata` | `models/pinata.yml` | hook, rope, body, dome, tail, 4 legs, label | idle, hit, break |
+| `boss_portal` | `models/boss-portal.yml` | 4 pillars, 3 arch, gate, 4 eyes, 2 rings, label | opening, active, close |
 
 ---
 
 ## Administrative Commands
 
-- `/event model list`: Lists all compiled and registered 3D model definitions.
-- `/event model info <id>`: Displays detailed hierarchy and part properties for a model.
-- `/event model validate <id>`: Validates a compiled model definition.
-- `/event model spawn <id>`: Spawns a 3D model instance preview at player location.
-- `/event model remove <runtime-id>`: Despawns an active 3D model instance.
+| Command | Description |
+|---|---|
+| `/spectraevents model list` | Lists all registered model definitions |
+| `/spectraevents model info <id>` | Shows part hierarchy and render properties |
+| `/spectraevents model validate <id>` | Validates the compiled model definition |
+| `/spectraevents model spawn <id>` | Spawns a model preview at your location |
+| `/spectraevents model remove <runtime-id>` | Despawns an active model instance |
+
+---
+
+## Tips for Realistic Models
+
+1. **Use emissive blocks for lighting.** `shroomlight`, `magma_block`, `glowstone`, `sea_lantern`,
+   and `jack_o_lantern` are always fully lit in vanilla — no brightness override needed.
+2. **Layer a brighter block inside a transparent outer shell** (e.g. shroomlight inside magma)
+   for a glowing-core look without resource packs.
+3. **Stagger animation keyframes** across children to create secondary motion. Children that animate
+   50–200 ms *after* the parent feel physically accurate (pendulum lag, jelly bounce).
+4. **Use `ease_in` on falling objects** and `ease_out` on landing impacts. This matches real gravity.
+5. **Combine `ONCE` and `LOOP` in the same phase** by playing a `ONCE` intro animation on-enter
+   and then immediately starting a `LOOP` idle. The ONCE completes; the LOOP takes over.
+6. **Keep interaction hitboxes 10–20% larger** than the visual model. Players aim at the visual
+   centre, but the hitbox needs to forgive slight misclicks.

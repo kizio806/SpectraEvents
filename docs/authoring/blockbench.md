@@ -21,9 +21,9 @@ sources to the bundled PNG paths, and computes the SHA-256 checksums before the 
 The server independently validates all of that data; exporter output is not trusted merely because it
 comes from the supplied plugin.
 
-Restart the server or run `/event assets build` on Paper. A successful import registers the bundle
+Restart the server or run `/spectraevents assets build` on Paper. A successful import registers the bundle
 model ID for `spawn_model` and its animation names for `play_animation`. Inspect the import with
-`/event assets list`, `/event assets info <model-id>`, and `/event assets validate <model-id>`.
+`/spectraevents assets list`, `/spectraevents assets info <model-id>`, and `/spectraevents assets validate <model-id>`.
 
 M2 real-client rendering was confirmed by the operator. A new target profile or a changed
 custom-model-data mapping still requires its own real-client acceptance before it is release-ready.

@@ -1,88 +1,186 @@
+# =============================================================================
+# SpectraEvents — Event Definition: Airdrop
+# =============================================================================
+# A military-style supply crate descends from the sky on a parachute.
+# It lands and locks for a countdown period, then unlocks and can be claimed
+# by exactly one player (first-come, first-served via try_claim).
+#
+# PHASES
+#   falling → locked → open → claimed → completed
+#
+# DIFFICULTY PROFILES (configured via /spectraevents event config)
+#   easy:   lock-duration=20s
+#   normal: lock-duration=35s
+#   hard:   lock-duration=50s
+#
+# CLAIM GUARANTEE
+#   try_claim records the player claim in SQLite before delivering items.
+#   If the server crashes between claim acceptance and item delivery, the
+#   operator can identify the player from /spectraevents event inspect <id>
+#   and grant a manual compensating reward. See docs/operations/ for details.
+# =============================================================================
+
 id: airdrop
 schema-version: "1"
 initial-phase: falling
 
 phases:
+
+  # ---------------------------------------------------------------------------
+  # PHASE: falling
+  # The crate and parachute assembly descend. The "descent" animation moves
+  # the model slowly downward. A title and broadcast announce the event.
+  # After 3 s the crate hits the ground and the locked phase begins.
+  # ---------------------------------------------------------------------------
   falling:
     on-enter:
+      # height-offset: The crate spawns 15 blocks in the air so the descent
+      # animation is visible to players on the ground.
       - type: spawn_model
-        model: dev_airdrop_model
+        model: airdrop_crate
         height-offset: 15
+
       - type: play_animation
-        model: dev_airdrop_model
+        model: airdrop_crate
         animation: descent
         loop: ONCE
+
+      - type: show_title
+        title: "<gold><bold>AIRDROP INCOMING"
+        subtitle: "<yellow>Follow the landing coordinates"
+
       - type: broadcast_message
         message: "<gold><bold>[SpectraEvents]</bold> <yellow>A Supply Airdrop is descending from the sky!</yellow>"
+
     transitions:
       - trigger:
           type: timer_elapsed
           duration: 3s
         target: locked
 
+  # ---------------------------------------------------------------------------
+  # PHASE: locked
+  # The crate is on the ground but sealed. Players see a countdown bossbar.
+  # If they try to interact early they receive a "locked" personal message.
+  # set_locked duration matches the operator lock-duration profile setting.
+  # ---------------------------------------------------------------------------
   locked:
     on-enter:
+      # land animation: parachute collapses, crate bounces on landing.
+      - type: play_animation
+        model: airdrop_crate
+        animation: land
+        loop: ONCE
+
+      # move_model: lower the crate to ground level after the descent.
       - type: move_model
         target: ground
+
+      # set_locked: prevents the claim from being accepted until the duration
+      # has elapsed. Operator can adjust via lock-duration config setting.
       - type: set_locked
         duration: 30s
+
       - type: play_sound
         sound: minecraft:block.wood.place
         volume: 1.0
-        pitch: 0.5
+        pitch: 0.5                 # Low pitch = heavy wooden thud
+
       - type: spawn_particles
         particle: minecraft:cloud
         count: 20
+
+      # Bossbar countdown — shows "Unlocking in Xs" while the lock is active.
       - type: show_bossbar
         title: "<yellow><bold>AIRDROP CRATE</bold> <gray>[Unlocking in 30s...]</gray>"
         color: YELLOW
         style: PROGRESS
+
+      # Scoreboard sidebar with phase and location info.
+      # %phase%    — current phase name
+      # %location% — world name and block coordinates
       - type: show_scoreboard
         title: "<yellow><bold>AIRDROP EVENT</bold>"
         lines:
           - "<yellow>Phase: <white>%phase%</white>"
           - "<yellow>Status: <red>Locked (30s)</red>"
+          - "<yellow>Location: <white>%location%</white>"
+
       - type: broadcast_message
         message: "<gold><bold>[SpectraEvents]</bold> <yellow>Airdrop landed! Supply Crate unlocking in 30 seconds!</yellow>"
+
     transitions:
+      # Unlock timer — duration matches lock-duration operator override.
       - trigger:
           type: timer_elapsed
           duration: 30s
         target: open
+
+      # Early interaction: deliver a "come back later" message only to the
+      # triggering player. No phase change — stays in "locked".
       - trigger:
           type: interaction
         actions:
           - type: send_message
             message: "<red>The Supply Crate is locked! Please wait for the countdown timer.</red>"
 
+  # ---------------------------------------------------------------------------
+  # PHASE: open
+  # The crate unlocks and can now be claimed. The first player to interact
+  # successfully executes try_claim; subsequent players receive no reward.
+  # ---------------------------------------------------------------------------
   open:
     on-enter:
+      # Play the lid-opening animation.
+      - type: play_animation
+        model: airdrop_crate
+        animation: open
+        loop: ONCE
+
       - type: play_sound
         sound: minecraft:block.chest.open
         volume: 1.0
         pitch: 1.0
+
       - type: spawn_particles
         particle: minecraft:happy_villager
         count: 20
+
+      # Update bossbar to "UNLOCKED" state.
       - type: update_bossbar
         title: "<green><bold>AIRDROP CRATE UNLOCKED!</bold> <white>[Right-click to claim!]</white>"
         color: GREEN
         style: PROGRESS
+
       - type: update_scoreboard
         title: "<yellow><bold>AIRDROP EVENT</bold>"
         lines:
           - "<yellow>Phase: <green>Unlocked!</green>"
           - "<yellow>Status: <green>Ready to Claim!</green>"
+          - "<yellow>Location: <white>%location%</white>"
+
       - type: broadcast_message
         message: "<gold><bold>[SpectraEvents]</bold> <green><bold>Supply Crate Unlocked!</bold> Right-click to claim rewards!</green>"
+
     transitions:
       - trigger:
           type: interaction
         actions:
+          # try_claim: atomically records the claiming player in the database
+          # before any items are delivered. Protects against double-claiming
+          # even under concurrent interaction. If the claim is rejected (already
+          # claimed), the remaining actions in this list are skipped.
           - type: try_claim
+
+          # give_item: places the item directly into the player's inventory.
+          # Falls back to dropping at the player's feet if inventory is full.
+          # Supports Nexo, Oraxen, and ItemsAdder item IDs when integrated.
           - type: give_item
             material: minecraft:diamond
             amount: 5
+
+          # drop_loot: scatters additional items on the ground.
+          # Multiple players can pick these up — only the claimant gets give_item.
           - type: drop_loot
             radius: 2.0
             items:
@@ -91,25 +189,39 @@ phases:
                 chance: 100
               - material: minecraft:netherite_upgrade_smithing_template
                 amount: 1
-                chance: 50
+                chance: 50           # 50% rare drop
               - material: minecraft:experience_bottle
                 amount: 16
                 chance: 100
+
           - type: send_message
             message: "<green><bold>You claimed the Supply Airdrop Crate!</bold></green>"
+
           - type: play_sound
             sound: minecraft:entity.player.levelup
             volume: 1.0
             pitch: 1.0
+
           - type: broadcast_message
             message: "<gold><bold>[SpectraEvents]</bold> <green>The Supply Airdrop Crate has been claimed!</green>"
+
+        # target: moves to the claimed cleanup phase after all actions succeed.
         target: claimed
 
+  # ---------------------------------------------------------------------------
+  # PHASE: claimed
+  # Cleanup phase. Removes all HUD elements and the model, then signals the
+  # engine that this instance is complete.
+  # ---------------------------------------------------------------------------
   claimed:
     on-enter:
-      - type: remove_bossbar
-      - type: remove_scoreboard
-      - type: remove_model
-      - type: complete_event
+      - type: remove_bossbar       # Dismiss the bossbar for all nearby players
+      - type: remove_scoreboard    # Dismiss the sidebar scoreboard
+      - type: remove_model         # Despawn the 3D model entities
+      - type: complete_event       # Mark the instance COMPLETED in the database
 
+  # ---------------------------------------------------------------------------
+  # PHASE: completed
+  # Terminal state required by the schema. No actions necessary.
+  # ---------------------------------------------------------------------------
   completed: {}
