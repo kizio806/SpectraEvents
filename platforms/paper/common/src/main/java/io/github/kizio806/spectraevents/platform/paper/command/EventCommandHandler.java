@@ -137,6 +137,7 @@ public final class EventCommandHandler {
                 .executes(ctx -> missingArgument(ctx, "/spectraevents event inspect <instance-id>"))
                 .then(
                     Commands.argument("instance", StringArgumentType.word())
+                        .suggests(this::suggestActiveInstances)
                         .executes(this::eventInspect)));
   }
 

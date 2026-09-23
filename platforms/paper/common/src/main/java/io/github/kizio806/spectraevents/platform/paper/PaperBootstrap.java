@@ -234,7 +234,10 @@ public final class PaperBootstrap {
             event -> {
               event
                   .registrar()
-                  .register(mainCommand.buildCommand().build(), "SpectraEvents management command");
+                  .register(
+                      mainCommand.buildCommand().build(),
+                      "SpectraEvents management command",
+                      List.of("se"));
             });
 
     startupLogger.enabled((System.nanoTime() - startedAt) / 1_000_000L);
