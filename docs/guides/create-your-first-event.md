@@ -52,32 +52,29 @@ Notes:
 - `schema-version: 1` is required. Other values are rejected at load time.
 - `initial-phase` must reference a key under `phases`.
 - Each transition uses `trigger.type` and `target` (not the future design-doc aliases).
-- The `manual` trigger is advanced with `/event dev event next <instance>`.
+- The `manual` trigger is advanced with `/spectraevents event trigger <instance> manual`.
 
-## Developer commands
-
-Requires permission `spectra.dev`.
+## Operator commands
 
 | Command | Purpose |
 | :--- | :--- |
-| `/event definition list` | Lists loaded definition IDs |
-| `/event definition validate` | Parses files without changing running definitions and prints diagnostics |
-| `/event definition reload` | Atomically registers valid files; invalid files keep their previous version |
-| `/event event start <id>` | Starts a new instance from a loaded definition |
-| `/event event inspect <instance>` | Shows state, persisted runtime state, tasks, and resources |
-| `/event doctor` | Shows diagnostics and integration status |
+| `/spectraevents definition list` | Lists loaded definition IDs |
+| `/spectraevents definition validate` | Parses files without changing running definitions and prints diagnostics |
+| `/spectraevents definition reload` | Atomically registers valid files; invalid files keep their previous version |
+| `/spectraevents event start <id>` | Starts a new instance from a loaded definition |
+| `/spectraevents event inspect <instance>` | Shows state, persisted runtime state, tasks, and resources |
+| `/spectraevents doctor` | Shows diagnostics and integration status |
 
-On Paper, the development command `/eventdebug event next <instance>` advances the first manual
-transition. On Spigot/Bukkit, use `/event event trigger <instance> manual`.
+Use `/spectraevents event trigger <instance> manual` to advance a matching manual transition.
 
 ## Smoke test workflow
 
 1. Start the Paper server with SpectraEvents enabled.
 2. Copy `meteor.yml`, `airdrop.yml`, or `metin.yml` to a new file and change its `id`.
-3. Run `/event definition validate`; fix every `file:path` diagnostic before continuing.
-4. Run `/event definition reload` and verify the result reports the new definition as loaded.
-5. Run `/event event start <id>` and copy the returned instance UUID.
-6. Run `/event event inspect <instance>` and verify the expected initial phase, tasks, and resources.
+3. Run `/spectraevents definition validate`; fix every `file:path` diagnostic before continuing.
+4. Run `/spectraevents definition reload` and verify the result reports the new definition as loaded.
+5. Run `/spectraevents event start <id>` and copy the returned instance UUID.
+6. Run `/spectraevents event inspect <instance>` and verify the expected initial phase, tasks, and resources.
 7. Trigger the next phase using the Paper or Spigot command above, or wait for its timer.
 8. Complete/cancel the event and inspect it again to confirm cleanup.
 
@@ -96,10 +93,10 @@ phases:
       - type: initialize_health
         max: 20
       - type: spawn_model
-        model: dev_meteor_model
+        model: meteor_core
         height-offset: 20
       - type: play_animation
-        model: dev_meteor_model
+        model: meteor_core
         animation: fall
         loop: ONCE
     transitions:
@@ -159,7 +156,7 @@ phases:
 
 ## Running the Meteor Event
 
-1. Run `/event dev definition validate` to ensure definitions compile.
-2. Run `/event dev definition start meteor` or `/event dev meteor start`.
+1. Run `/spectraevents definition validate` to ensure definitions compile.
+2. Run `/spectraevents event start meteor`.
 3. Watch the automated falling -> impact -> locked -> active lifecycle.
 4. Interact (right-click) with the active meteor to deal damage. When health reaches 0, the meteor completes cleanly.

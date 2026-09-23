@@ -163,7 +163,7 @@ public final class SQLiteEventInstanceRepository implements EventInstanceReposit
       executor = new SingleWriterPersistenceExecutor(10000);
       executor.start();
 
-      LOGGER.info(
+      LOGGER.fine(
           "SQLite storage initialized at " + dbPath + " (Loaded " + cache.size() + " instances)");
     } catch (SQLException e) {
       LOGGER.log(Level.SEVERE, "Failed to initialize SQLite storage: " + e.getMessage(), e);

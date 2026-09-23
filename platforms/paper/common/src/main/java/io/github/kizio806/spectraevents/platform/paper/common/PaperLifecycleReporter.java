@@ -15,11 +15,11 @@ public final class PaperLifecycleReporter implements LifecycleReporter {
 
   @Override
   public void started() {
-    logger.info("SpectraEvents engine started successfully.");
+    logger.info("Engine recovery started.");
   }
 
   @Override
   public void stopped() {
-    logger.info("SpectraEvents engine stopped.");
+    logger.info("SpectraEvents stopped.");
   }
 }

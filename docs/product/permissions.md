@@ -5,12 +5,12 @@ SpectraEvents follows a structured permission namespace (`spectraevents.*`). Per
 ## Permission Nodes
 
 ### Global
-- `spectraevents.admin`: Grants access to all `/event commands` and bypasses event-area restrictions.
+- `spectraevents.admin`: Grants access to all `/spectraevents` commands and bypasses event-area restrictions.
 - `spectraevents.*`: Alias for `spectraevents.admin`.
 
 ### Commands
-- `spectraevents.command.help`: Allow `/event help`. (Usually default true).
-- `spectraevents.command.version`: Allow `/event version`.
+- `spectraevents.command.help`: Allow `/spectraevents help`. (Usually default true).
+- `spectraevents.command.version`: Allow `/spectraevents version`.
 
 ### Events
 - `spectraevents.event.*`: Grants all event instance controls.

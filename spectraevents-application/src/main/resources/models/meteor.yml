@@ -41,9 +41,9 @@ parts:
     type: item_display          # Renders a Minecraft item as a 3D entity
     item: minecraft:magma_block # Emissive orange glow — no resource pack needed
     transform:
-      translation: [0.0, 0.0, 0.0]   # Offset from the model's spawn point (blocks)
+      translation: [0.001, 0.001, 0.001]   # Offset from the model's spawn point (blocks)
       rotation:
-        euler: [0.0, 0.0, 0.0]       # Initial rotation [pitch, yaw, roll] in degrees
+        euler: [0.001, 0.001, 0.001]       # Initial rotation [pitch, yaw, roll] in degrees
       scale: [2.2, 2.2, 2.2]         # Displayed size relative to 1 block
     render:
       billboard: fixed          # fixed = does not rotate to face the player
@@ -60,7 +60,7 @@ parts:
     parent: core                # Attached to the core; moves with it
     item: minecraft:shroomlight
     transform:
-      translation: [0.0, 0.0, 0.0]
+      translation: [0.001, 0.001, 0.001]
       scale: [0.85, 0.85, 0.85] # Slightly smaller so it sits inside the core
     render:
       billboard: fixed
@@ -202,7 +202,7 @@ interactions:
 #   tracks    — per-part keyframe channels (translation, rotation, scale)
 #
 # Keyframes are interpolated linearly unless an "easing" field is added.
-# Supported easing values: linear (default), ease_in, ease_out, ease_in_out
+# Supported easing values: linear (default), ease_in_quad, ease_out_quad, ease_in_out_quad
 # ---------------------------------------------------------------------------
 animations:
 
@@ -217,8 +217,8 @@ animations:
       core:
         translation:
           - at: 0s
-            value: [0.0, 0.0, 0.0]
-            easing: ease_in       # Accelerate out of start — feels heavy
+            value: [0.001, 0.001, 0.001]
+            easing: ease_in_quad       # Accelerate out of start — feels heavy
           - at: 3s
             value: [0.0, -3.0, 0.0]
       # Shards spin inward as the meteor plunges
@@ -258,7 +258,7 @@ animations:
         translation:
           - at: 0s
             value: [0.0, 0.3, -1.4]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 400ms
             value: [0.0, 0.8, -2.4]
           - at: 800ms
@@ -267,7 +267,7 @@ animations:
         translation:
           - at: 0s
             value: [0.0, -0.2, 1.4]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 400ms
             value: [0.0, 0.4, 2.4]
           - at: 800ms
@@ -276,7 +276,7 @@ animations:
         translation:
           - at: 0s
             value: [1.4, 0.4, 0.0]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 400ms
             value: [2.4, 0.9, 0.0]
           - at: 800ms
@@ -285,7 +285,7 @@ animations:
         translation:
           - at: 0s
             value: [-1.4, -0.1, 0.0]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 400ms
             value: [-2.4, 0.5, 0.0]
           - at: 800ms
@@ -303,20 +303,20 @@ animations:
         scale:
           - at: 0s
             value: [2.2, 2.2, 2.2]
-            easing: ease_in_out
+            easing: ease_in_out_quad
           - at: 1s
             value: [2.4, 2.4, 2.4]
-            easing: ease_in_out
+            easing: ease_in_out_quad
           - at: 2s
             value: [2.2, 2.2, 2.2]
       glow:
         scale:
           - at: 0s
             value: [0.85, 0.85, 0.85]
-            easing: ease_in_out
+            easing: ease_in_out_quad
           - at: 1s
             value: [1.0, 1.0, 1.0]
-            easing: ease_in_out
+            easing: ease_in_out_quad
           - at: 2s
             value: [0.85, 0.85, 0.85]
       # Shards orbit in a slow lazy rotation while the event is active
@@ -345,7 +345,7 @@ animations:
         scale:
           - at: 0s
             value: [2.2, 2.2, 2.2]
-            easing: ease_in
+            easing: ease_in_quad
           - at: 1200ms
             value: [0.05, 0.05, 0.05]
       glow:
@@ -354,18 +354,18 @@ animations:
             value: [0.85, 0.85, 0.85]
           - at: 800ms
             value: [2.0, 2.0, 2.0]   # Glow flares before collapse
-            easing: ease_out
+            easing: ease_out_quad
           - at: 1200ms
-            value: [0.0, 0.0, 0.0]
+            value: [0.001, 0.001, 0.001]
       shard_n:
         translation:
           - at: 0s
             value: [0.0, 0.3, -1.4]
           - at: 600ms
             value: [0.0, 0.3, -3.0]   # Fly outward
-            easing: ease_out
+            easing: ease_out_quad
           - at: 1200ms
-            value: [0.0, 0.0, 0.0]    # Then snap to core
+            value: [0.001, 0.001, 0.001]    # Then snap to core
         scale:
           - at: 0s
             value: [0.7, 0.85, 0.55]
@@ -377,9 +377,9 @@ animations:
             value: [0.0, -0.2, 1.4]
           - at: 600ms
             value: [0.0, -0.2, 3.0]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 1200ms
-            value: [0.0, 0.0, 0.0]
+            value: [0.001, 0.001, 0.001]
         scale:
           - at: 0s
             value: [0.75, 0.9, 0.5]
@@ -391,9 +391,9 @@ animations:
             value: [1.4, 0.4, 0.0]
           - at: 600ms
             value: [3.0, 0.4, 0.0]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 1200ms
-            value: [0.0, 0.0, 0.0]
+            value: [0.001, 0.001, 0.001]
         scale:
           - at: 0s
             value: [0.55, 0.8, 0.7]
@@ -405,9 +405,9 @@ animations:
             value: [-1.4, -0.1, 0.0]
           - at: 600ms
             value: [-3.0, -0.1, 0.0]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 1200ms
-            value: [0.0, 0.0, 0.0]
+            value: [0.001, 0.001, 0.001]
         scale:
           - at: 0s
             value: [0.6, 0.75, 0.65]

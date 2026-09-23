@@ -31,7 +31,7 @@ A: Author native model YAML, or export a Blockbench Generic Model `.spectra.zip`
 
 **Q: Where do I edit models?**
 A: Use native YAML models or the supplied Blockbench Generic Model exporter. Paper provides
-`/event assets import` and `/event assets build`; both validate the bundle and update the local ZIP.
+`/spectraevents assets import` and `/spectraevents assets build`; both validate the bundle and update the local ZIP.
 
 **Q: Where are generated files?**
 A: `plugins/SpectraEvents/generated/resource-pack/` contains the generated ZIP.

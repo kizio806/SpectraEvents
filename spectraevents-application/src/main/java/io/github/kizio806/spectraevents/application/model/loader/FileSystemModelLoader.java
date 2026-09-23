@@ -44,7 +44,7 @@ public final class FileSystemModelLoader {
           if (in != null) {
             String content = new String(in.readAllBytes(), StandardCharsets.UTF_8);
             Files.writeString(targetPath, content, StandardCharsets.UTF_8);
-            LOGGER.info("Extracted default model definition to " + targetPath);
+            LOGGER.fine("Extracted default model definition to " + targetPath);
           }
         } catch (Exception e) {
           LOGGER.log(

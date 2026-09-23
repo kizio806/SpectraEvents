@@ -27,7 +27,7 @@ class EventDefinitionCompilerTest {
   void testCompileValidEventSpec() {
     EventSpec spec =
         new EventSpec(
-            "dev_airdrop",
+            "airdrop",
             "1.0",
             "falling",
             Map.of(
@@ -46,7 +46,7 @@ class EventDefinitionCompilerTest {
 
     EventDefinition def = compiler.compile(spec);
 
-    assertEquals("dev_airdrop", def.id().value());
+    assertEquals("airdrop", def.id().value());
     assertEquals(new PhaseId("falling"), def.initialPhase());
     assertTrue(def.phase(new PhaseId("falling")).isPresent());
     assertTrue(def.phase(new PhaseId("locked")).isPresent());
@@ -73,7 +73,7 @@ class EventDefinitionCompilerTest {
   void testCompileFailsOnMissingInitialPhase() {
     EventSpec spec =
         new EventSpec(
-            "dev_airdrop",
+            "airdrop",
             "1.0",
             "unknown_phase",
             Map.of("falling", new PhaseSpec(Set.of(), List.of(), List.of())));
@@ -92,7 +92,7 @@ class EventDefinitionCompilerTest {
   void testCompileFailsOnUnknownTargetPhase() {
     EventSpec spec =
         new EventSpec(
-            "dev_airdrop",
+            "airdrop",
             "1.0",
             "falling",
             Map.of("falling", new PhaseSpec(Set.of("non_existent"), List.of(), List.of())));

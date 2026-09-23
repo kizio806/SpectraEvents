@@ -178,10 +178,10 @@ animations:
         rotation:
           - at: 0s
             value: [0.0, 0.0, -10.0]    # Swing left
-            easing: ease_in_out
+            easing: ease_in_out_quad
           - at: 1s
             value: [0.0, 0.0, 10.0]     # Swing right
-            easing: ease_in_out
+            easing: ease_in_out_quad
           - at: 2s
             value: [0.0, 0.0, -10.0]    # Back to left — seamless loop
       # Legs lag slightly behind the body for a secondary-motion effect
@@ -189,20 +189,20 @@ animations:
         rotation:
           - at: 0s
             value: [0.0, 0.0, 5.0]
-            easing: ease_in_out
+            easing: ease_in_out_quad
           - at: 1s
             value: [0.0, 0.0, -5.0]
-            easing: ease_in_out
+            easing: ease_in_out_quad
           - at: 2s
             value: [0.0, 0.0, 5.0]
       leg_2:
         rotation:
           - at: 0s
             value: [0.0, 0.0, 5.0]
-            easing: ease_in_out
+            easing: ease_in_out_quad
           - at: 1s
             value: [0.0, 0.0, -5.0]
-            easing: ease_in_out
+            easing: ease_in_out_quad
           - at: 2s
             value: [0.0, 0.0, 5.0]
 
@@ -220,31 +220,31 @@ animations:
             value: [1.6, 2.0, 1.4]
           - at: 100ms
             value: [2.0, 1.4, 1.8]     # Squash on impact
-            easing: ease_out
+            easing: ease_out_quad
           - at: 200ms
             value: [1.4, 2.3, 1.2]     # Stretch rebound
-            easing: ease_in_out
+            easing: ease_in_out_quad
           - at: 350ms
             value: [1.6, 2.0, 1.4]     # Return to rest
       # Legs whip outward on impact
       leg_1:
         rotation:
           - at: 0s
-            value: [0.0, 0.0, 0.0]
+            value: [0.001, 0.001, 0.001]
           - at: 100ms
             value: [0.0, 0.0, 25.0]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 350ms
-            value: [0.0, 0.0, 0.0]
+            value: [0.001, 0.001, 0.001]
       leg_2:
         rotation:
           - at: 0s
-            value: [0.0, 0.0, 0.0]
+            value: [0.001, 0.001, 0.001]
           - at: 100ms
             value: [0.0, 0.0, -25.0]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 350ms
-            value: [0.0, 0.0, 0.0]
+            value: [0.001, 0.001, 0.001]
 
   # ----- break -----
   # The piñata shatters when the hit counter reaches max.
@@ -260,10 +260,10 @@ animations:
             value: [1.6, 2.0, 1.4]
           - at: 200ms
             value: [3.0, 3.5, 3.0]     # Explosive expansion
-            easing: ease_out
+            easing: ease_out_quad
           - at: 600ms
             value: [0.05, 0.05, 0.05]  # Disappears
-            easing: ease_in
+            easing: ease_in_quad
       # Legs fly outward as the piñata explodes
       leg_1:
         translation:
@@ -271,32 +271,32 @@ animations:
             value: [0.38, -1.15, 0.0]
           - at: 400ms
             value: [2.5, -1.5, 0.0]
-            easing: ease_out
+            easing: ease_out_quad
       leg_2:
         translation:
           - at: 0s
             value: [-0.38, -1.15, 0.0]
           - at: 400ms
             value: [-2.5, -1.5, 0.0]
-            easing: ease_out
+            easing: ease_out_quad
       leg_3:
         translation:
           - at: 0s
             value: [0.0, -1.15, 0.38]
           - at: 400ms
             value: [0.0, -1.5, 2.5]
-            easing: ease_out
+            easing: ease_out_quad
       leg_4:
         translation:
           - at: 0s
             value: [0.0, -1.15, -0.38]
           - at: 400ms
             value: [0.0, -1.5, -2.5]
-            easing: ease_out
+            easing: ease_out_quad
       hook:
         rotation:
           - at: 0s
-            value: [0.0, 0.0, 0.0]
+            value: [0.001, 0.001, 0.001]
           - at: 300ms
             value: [0.0, 0.0, 45.0]    # Hook tips over as everything falls apart
-            easing: ease_in
+            easing: ease_in_quad

@@ -118,7 +118,7 @@ val verifyPluginArtifact =
                     ) &&
                         pluginDescriptor.contains("api-version: '26.1'") &&
                         pluginDescriptor.contains("commands:") &&
-                        pluginDescriptor.contains("  event:")
+                        pluginDescriptor.contains("  spectraevents:")
 
                 if (missing.isNotEmpty() ||
                     forbiddenEntries.isNotEmpty() ||

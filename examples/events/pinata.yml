@@ -8,9 +8,9 @@ phases:
       - type: initialize_hit_counter
         max: 20
       - type: spawn_model
-        model: dev_pinata_model
+        model: pinata
       - type: play_animation
-        model: dev_pinata_model
+        model: pinata
         animation: sway
         loop: LOOP
     transitions:

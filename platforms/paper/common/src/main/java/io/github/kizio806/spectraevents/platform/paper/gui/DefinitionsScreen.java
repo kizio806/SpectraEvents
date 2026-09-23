@@ -13,13 +13,16 @@ import org.bukkit.inventory.Inventory;
 /** Renders the registered event definitions screen. */
 public final class DefinitionsScreen {
 
-  public static Inventory createInventory(EventDefinitionRegistry definitionRegistry) {
+  public static Inventory createInventory(
+      EventDefinitionRegistry definitionRegistry, int requestedPage) {
+    List<RegisteredEventDefinition> definitions = List.copyOf(definitionRegistry.getAll());
+    int page = EventGuiPagination.pageFor(requestedPage, definitions.size());
+    List<RegisteredEventDefinition> pageItems = EventGuiPagination.itemsOnPage(definitions, page);
     Map<Integer, String> slotPayloads = new HashMap<>();
 
     // Reserve slot 49 for the Back button; items fill rows 0–4 (slots 0–44).
     int slot = 0;
-    for (RegisteredEventDefinition registered : definitionRegistry.getAll()) {
-      if (slot >= 45) break;
+    for (RegisteredEventDefinition registered : pageItems) {
       slotPayloads.put(slot, registered.definition().id().value());
       slot++;
     }
@@ -27,14 +30,13 @@ public final class DefinitionsScreen {
     Inventory inv =
         AdminGuiHolder.createInventory(
             AdminGuiController.MenuType.DEFINITIONS,
-            null,
+            String.valueOf(page),
             slotPayloads,
             54,
             Component.text("Event Definitions", NamedTextColor.GREEN));
 
     int renderSlot = 0;
-    for (RegisteredEventDefinition registered : definitionRegistry.getAll()) {
-      if (renderSlot >= 45) break;
+    for (RegisteredEventDefinition registered : pageItems) {
       inv.setItem(
           renderSlot++,
           MainScreen.createGuiItem(
@@ -52,6 +54,13 @@ public final class DefinitionsScreen {
         49,
         MainScreen.createGuiItem(
             Material.BARRIER, Component.text("Back to Main Menu", NamedTextColor.RED), List.of()));
+    inv.setItem(
+        53,
+        MainScreen.createGuiItem(
+            Material.CLOCK,
+            Component.text("Refresh", NamedTextColor.AQUA),
+            List.of(Component.text("Reload registered definitions", NamedTextColor.GRAY))));
+    EventGuiPagination.addControls(inv, page, definitions.size());
     return inv;
   }
 }

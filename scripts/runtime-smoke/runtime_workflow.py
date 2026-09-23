@@ -127,8 +127,8 @@ def validate_artifact(artifact: pathlib.Path, family: str) -> None:
         descriptor = archive.read("plugin.yml").decode("utf-8")
     if f"main: {expected_main}" not in descriptor or "api-version: '26.1'" not in descriptor:
         raise RuntimeError(f"Invalid plugin.yml in {artifact.name}")
-    if family == "spigot" and ("commands:" not in descriptor or "event:" not in descriptor):
-        raise RuntimeError(f"The /event command is missing from {artifact.name}")
+    if family == "spigot" and ("commands:" not in descriptor or "spectraevents:" not in descriptor):
+        raise RuntimeError(f"The /spectraevents command is missing from {artifact.name}")
     if family == "paper" and not any(name.endswith("/command/SpectraMainCommand.class") for name in names):
         raise RuntimeError(f"The Paper command implementation is missing from {artifact.name}")
     if any(forbidden in f"/{name}" for name in names):
@@ -265,12 +265,12 @@ def wait_ready(session: ServerSession) -> None:
 
 
 def start_event(session: ServerSession, definition_id: str = "airdrop") -> str:
-    session.command(f"event event start {definition_id}")
+    session.command(f"spectraevents event start {definition_id}")
     return session.wait_for(rf"Started event instance ({UUID})", timeout=20).group(1)
 
 
 def inspect(session: ServerSession, instance_id: str) -> tuple[str, bool, int, int]:
-    session.command(f"event event inspect {instance_id}")
+    session.command(f"spectraevents event inspect {instance_id}")
     match = session.wait_for(
         rf"Event {instance_id} state=(\w+) runtimeState=(true|false) tasks=(-?\d+) resources=(-?\d+)",
         timeout=20,
@@ -302,7 +302,7 @@ def start_and_cancel_reference_event(session: ServerSession, definition_id: str)
     instance_id = start_event(session, definition_id)
     time.sleep(1)
     assert_running_with_model(inspect(session, instance_id), f"{definition_id} reference start")
-    session.command(f"event event cancel {instance_id}")
+    session.command(f"spectraevents event cancel {instance_id}")
     session.wait_for(rf"(?:Stopped|Cancelled) event instance {instance_id}", timeout=20)
     assert_cancelled(inspect(session, instance_id), f"{definition_id} reference cleanup")
 
@@ -417,7 +417,7 @@ def run_workflow(server_jar: pathlib.Path, artifact: pathlib.Path, work: pathlib
         asset_instance = start_event(first, "asset_smoke")
         time.sleep(1)
         assert_running_with_model(inspect(first, asset_instance), "asset import, spawn, and animation")
-        first.command(f"event event cancel {asset_instance}")
+        first.command(f"spectraevents event cancel {asset_instance}")
         first.wait_for(rf"(?:Stopped|Cancelled) event instance {asset_instance}", timeout=20)
         assert_cancelled(inspect(first, asset_instance), "asset cleanup")
         for reference_event in ("meteor", "metin", "pinata", "boss_portal"):
@@ -425,11 +425,11 @@ def run_workflow(server_jar: pathlib.Path, artifact: pathlib.Path, work: pathlib
         disposable = start_event(first)
         time.sleep(1)
         assert_running(inspect(first, disposable), "initial start")
-        first.command(f"event event trigger {disposable} timer_elapsed")
+        first.command(f"spectraevents event trigger {disposable} timer_elapsed")
         first.wait_for(r"Trigger timer_elapsed handled=true", timeout=20)
         time.sleep(1)
         assert_running(inspect(first, disposable), "post-transition")
-        first.command(f"event event cancel {disposable}")
+        first.command(f"spectraevents event cancel {disposable}")
         first.wait_for(rf"(?:Stopped|Cancelled) event instance {disposable}", timeout=20)
         assert_cancelled(inspect(first, disposable), "airdrop cleanup")
         recoverable = start_event(first)
@@ -444,7 +444,7 @@ def run_workflow(server_jar: pathlib.Path, artifact: pathlib.Path, work: pathlib
         wait_ready(second)
         time.sleep(2)
         assert_running(inspect(second, recoverable), "post-restart recovery")
-        second.command(f"event event cancel {recoverable}")
+        second.command(f"spectraevents event cancel {recoverable}")
         second.wait_for(rf"(?:Stopped|Cancelled) event instance {recoverable}", timeout=20)
         assert_cancelled(inspect(second, recoverable), "recovered cleanup")
     finally:

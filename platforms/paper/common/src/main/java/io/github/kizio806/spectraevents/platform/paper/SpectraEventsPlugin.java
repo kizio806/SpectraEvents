@@ -13,7 +13,7 @@ public final class SpectraEventsPlugin extends JavaPlugin {
     if (FoliaCompatibilityGuard.shouldRefuse(buildInfo)) {
       getLogger()
           .severe(
-              "[SpectraEvents] REFUSING TO ENABLE: Folia for Minecraft "
+              "REFUSING TO ENABLE: Folia for Minecraft "
                   + buildInfo.minecraftVersionId()
                   + " is not supported. Verified Folia versions: 26.1 and 26.2. "
                   + "Install a supported Folia server, or use Paper/Purpur for Minecraft 26.3."

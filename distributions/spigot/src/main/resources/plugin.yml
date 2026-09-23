@@ -6,9 +6,9 @@ authors: [kizio806]
 description: A modular, data-driven 3D event engine
 
 commands:
-  event:
+  spectraevents:
     description: SpectraEvents management command
-    usage: /event help
+    usage: /spectraevents help
 
 permissions:
   spectraevents.admin:

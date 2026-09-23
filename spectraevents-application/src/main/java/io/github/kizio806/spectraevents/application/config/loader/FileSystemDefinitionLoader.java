@@ -22,8 +22,7 @@ public final class FileSystemDefinitionLoader {
   private static final Logger LOGGER = Logger.getLogger(FileSystemDefinitionLoader.class.getName());
   private static final String EVENTS_DIRECTORY_NAME = "events";
   private static final List<String> DEFAULT_BUNDLED_EVENTS =
-      List.of(
-          "meteor.yml", "airdrop.yml", "metin.yml", "pinata.yml", "boss-portal.yml", "example.yml");
+      List.of("meteor.yml", "airdrop.yml", "metin.yml", "pinata.yml", "boss-portal.yml");
 
   private final Path dataDirectory;
   private final DefinitionLoader definitionLoader;
@@ -50,7 +49,7 @@ public final class FileSystemDefinitionLoader {
           if (in != null) {
             String content = new String(in.readAllBytes(), StandardCharsets.UTF_8);
             Files.writeString(targetPath, content, StandardCharsets.UTF_8);
-            LOGGER.info("Extracted default event definition to " + targetPath);
+            LOGGER.fine("Extracted default event definition to " + targetPath);
           }
         } catch (Exception e) {
           LOGGER.log(

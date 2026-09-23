@@ -8,10 +8,10 @@ phases:
       - type: broadcast_message
         message: "<gold>A meteor is falling.</gold>"
       - type: spawn_model
-        model: dev_meteor_model
+        model: meteor_core
         height-offset: 20
       - type: play_animation
-        model: dev_meteor_model
+        model: meteor_core
         animation: fall
         loop: ONCE
     transitions:

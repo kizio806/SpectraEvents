@@ -260,28 +260,28 @@ animations:
         translation:
           - at: 0s
             value: [0.0, -2.8, -1.8]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 1400ms
             value: [0.0, 0.0, -1.8]
       pillar_s:
         translation:
           - at: 0s
             value: [0.0, -2.8, 1.8]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 1400ms
             value: [0.0, 0.0, 1.8]
       pillar_e:
         translation:
           - at: 0s
             value: [1.8, -2.8, 0.0]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 1400ms
             value: [1.8, 0.0, 0.0]
       pillar_w:
         translation:
           - at: 0s
             value: [-1.8, -2.8, 0.0]
-            easing: ease_out
+            easing: ease_out_quad
           - at: 1400ms
             value: [-1.8, 0.0, 0.0]
       # Arch drops down from above after pillars are in position
@@ -293,7 +293,7 @@ animations:
             value: [0.0, 6.0, 0.0]    # Hold while pillars rise
           - at: 1800ms
             value: [0.0, 2.7, 0.0]
-            easing: ease_out
+            easing: ease_out_quad
       arch_e:
         translation:
           - at: 0s
@@ -302,7 +302,7 @@ animations:
             value: [1.8, 4.0, 0.0]
           - at: 1800ms
             value: [1.8, 1.3, 0.0]
-            easing: ease_out
+            easing: ease_out_quad
       arch_w:
         translation:
           - at: 0s
@@ -311,7 +311,7 @@ animations:
             value: [-1.8, 4.0, 0.0]
           - at: 1800ms
             value: [-1.8, 1.3, 0.0]
-            easing: ease_out
+            easing: ease_out_quad
       # Gate plane materialises last
       gate:
         scale:
@@ -321,18 +321,18 @@ animations:
             value: [0.01, 0.01, 0.01]  # Invisible while arch assembles
           - at: 2s
             value: [0.08, 2.6, 3.6]
-            easing: ease_out
+            easing: ease_out_quad
       # Rings spin into existence
       ring_inner:
         rotation:
           - at: 0s
-            value: [0.0, 0.0, 0.0]
+            value: [0.001, 0.001, 0.001]
           - at: 2s
             value: [0.0, 180.0, 0.0]
       ring_outer:
         rotation:
           - at: 0s
-            value: [0.0, 0.0, 0.0]
+            value: [0.001, 0.001, 0.001]
           - at: 2s
             value: [0.0, -180.0, 0.0]
 
@@ -348,14 +348,14 @@ animations:
       ring_inner:
         rotation:
           - at: 0s
-            value: [0.0, 0.0, 0.0]
+            value: [0.001, 0.001, 0.001]
           - at: 3s
             value: [0.0, 360.0, 0.0]
       # Outer ring: counter-clockwise orbit (negative Y)
       ring_outer:
         rotation:
           - at: 0s
-            value: [0.0, 0.0, 0.0]
+            value: [0.001, 0.001, 0.001]
           - at: 3s
             value: [0.0, -360.0, 0.0]
       # Gate plane gently pulses (scale X = thickness) like energy fields do
@@ -365,10 +365,10 @@ animations:
             value: [0.08, 2.6, 3.6]
           - at: 1500ms
             value: [0.12, 2.6, 3.6]
-            easing: ease_in_out
+            easing: ease_in_out_quad
           - at: 3s
             value: [0.08, 2.6, 3.6]
-            easing: ease_in_out
+            easing: ease_in_out_quad
 
   # ----- close -----
   # Boss defeated: everything implodes toward the centre simultaneously.
@@ -382,8 +382,8 @@ animations:
           - at: 0s
             value: [0.0, 0.0, -1.8]
           - at: 1200ms
-            value: [0.0, 0.0, 0.0]
-            easing: ease_in
+            value: [0.001, 0.001, 0.001]
+            easing: ease_in_quad
         scale:
           - at: 0s
             value: [0.55, 2.8, 0.55]
@@ -394,8 +394,8 @@ animations:
           - at: 0s
             value: [0.0, 0.0, 1.8]
           - at: 1200ms
-            value: [0.0, 0.0, 0.0]
-            easing: ease_in
+            value: [0.001, 0.001, 0.001]
+            easing: ease_in_quad
         scale:
           - at: 0s
             value: [0.55, 2.8, 0.55]
@@ -406,8 +406,8 @@ animations:
           - at: 0s
             value: [1.8, 0.0, 0.0]
           - at: 1200ms
-            value: [0.0, 0.0, 0.0]
-            easing: ease_in
+            value: [0.001, 0.001, 0.001]
+            easing: ease_in_quad
         scale:
           - at: 0s
             value: [0.55, 2.8, 0.55]
@@ -418,8 +418,8 @@ animations:
           - at: 0s
             value: [-1.8, 0.0, 0.0]
           - at: 1200ms
-            value: [0.0, 0.0, 0.0]
-            easing: ease_in
+            value: [0.001, 0.001, 0.001]
+            easing: ease_in_quad
         scale:
           - at: 0s
             value: [0.55, 2.8, 0.55]
@@ -431,28 +431,28 @@ animations:
             value: [0.55, 0.45, 4.1]
           - at: 1200ms
             value: [0.05, 0.05, 0.05]
-            easing: ease_in
+            easing: ease_in_quad
       gate:
         scale:
           - at: 0s
             value: [0.08, 2.6, 3.6]
           - at: 400ms
             value: [0.25, 2.8, 3.8]   # Flare before collapse
-            easing: ease_out
+            easing: ease_out_quad
           - at: 1200ms
-            value: [0.0, 0.0, 0.0]
-            easing: ease_in
+            value: [0.001, 0.001, 0.001]
+            easing: ease_in_quad
       ring_inner:
         scale:
           - at: 0s
             value: [2.4, 0.04, 2.4]
           - at: 1200ms
-            value: [0.0, 0.0, 0.0]
-            easing: ease_in
+            value: [0.001, 0.001, 0.001]
+            easing: ease_in_quad
       ring_outer:
         scale:
           - at: 0s
             value: [3.0, 0.04, 3.0]
           - at: 1200ms
-            value: [0.0, 0.0, 0.0]
-            easing: ease_in
+            value: [0.001, 0.001, 0.001]
+            easing: ease_in_quad

@@ -16,7 +16,7 @@ This document describes the expected end-to-end experience for a server administ
 
 3. **Import Optional Blockbench Asset**
    - Export a Generic Model `.spectra.zip` into `assets/source/`; the server validates and builds it
-     at startup. On Paper, `/event assets build` can run the same process manually.
+     at startup. On Paper, `/spectraevents assets build` can run the same process manually.
    - Use the imported model ID and animation names in the regular YAML `spawn_model` and
      `play_animation` actions. The generated ZIP must be hosted externally before it can be delivered
      to players.
@@ -26,29 +26,56 @@ This document describes the expected end-to-end experience for a server administ
    - This configuration file serves as the **Primary Source of Truth**.
 
 5. **Validation**
-   - The admin runs `/event definition validate`.
+   - The admin runs `/spectraevents definition validate`.
    - The engine parses the YAML and reports any semantic errors (e.g., missing referenced models, cyclical phases) as `ERROR`, `WARNING`, or `INFO`.
 
 6. **Preview / Test**
    - Paper operators may use the available model/debug commands to inspect native visual components. Spigot reports unsupported Paper-only admin features explicitly.
 
 7. **Reload Definition**
-   - The admin runs `/event definition reload`.
+   - The admin runs `/spectraevents definition reload`.
    - The engine compiles the YAML into an immutable `EventDefinition` in memory.
    - Any currently running `EventInstance` created from an older version of this definition retains its original configuration snapshot (or version reference) to prevent runtime corruption.
 
 8. **Manual Start**
-   - The admin executes `/event event start my-custom-meteor`.
+   - The admin executes `/spectraevents event start my-custom-meteor`.
    - The engine selects a valid spawn location (based on the strategy) and creates a new `EventInstance`.
 
 9. **Runtime Inspection**
-   - The admin tracks state, pending tasks and resource counts with `/event event inspect <instance-id>`.
+   - The admin tracks state, pending tasks and resource counts with `/spectraevents event inspect <instance-id>`.
 
 10. **Debug**
-   - The admin runs `/event doctor` and `/event event inspect <instance-id>` before collecting logs.
+   - The admin runs `/spectraevents doctor` and `/spectraevents event inspect <instance-id>` before collecting logs.
 
 11. **Production Scheduling**
     - The admin uses an external scheduler or a future SpectraEvents cron feature to run the event automatically.
 
-## Future GUI
-While a GUI editor (inventory-based) may be added in a Post-V1 release, it will act strictly as a frontend to generate or modify the underlying YAML files. The configuration files remain the canonical source of truth.
+## Admin GUI
+
+The Admin GUI is an in-game inventory panel opened with `/spectraevents admin` (requires
+`spectraevents.gui`). All GUI actions are equivalent to the corresponding command: the YAML
+definitions and `event-settings.yml` remain the canonical source of truth.
+
+### Navigation overview
+
+- **Main Menu** — entry point. Tiles navigate to Dashboard, Active Events, Definitions,
+  Integrations, Updates, Configuration, and Locations.
+- **Dashboard** — shows active event count, loaded definitions, storage status, and enabled
+  integrations. The Refresh tile reloads the values.
+- **Active Events** — paginated list of running instances. Click an instance to open its detail
+  view where you can inspect state or open the cancel confirmation.
+- **Definitions** — paginated list of registered definitions. Click a definition to open its detail
+  view, which shows phases and offers a **Start** button that spawns the event at your current
+  position using the saved profile and overrides.
+- **Configuration** — paginated list of definitions with saved operator overrides. Click a
+  definition to open its detail screen:
+  - The **Profile** tile cycles between `easy`, `normal`, and `hard`.
+  - Each override parameter tile shows the current value. Left-click increases; right-click
+    decreases. Changes persist to `event-settings.yml`.
+  - For an exact value, use `/spectraevents event config <id> set <parameter> <value>`.
+- **Locations** — paginated list of named event locations. The **Save Current Position** tile
+  (slot 45) records your standing location. Click a saved location name to open the removal
+  confirmation. Named locations can be used with `/spectraevents event start <id> location <name>`.
+- **Integrations** — shows which optional integrations (LuckPerms, WorldGuard, Vault,
+  PlaceholderAPI, MiniPlaceholders, Nexo, Oraxen, ItemsAdder) are active.
+- **Updates** — shows the current version and any available update.

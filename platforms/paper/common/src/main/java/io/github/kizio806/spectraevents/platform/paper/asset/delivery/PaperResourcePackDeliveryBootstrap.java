@@ -36,9 +36,7 @@ public final class PaperResourcePackDeliveryBootstrap {
     try {
       ResourcePackDeliverySettings settings = loadSettings(plugin.getDataFolder().toPath());
       if (!settings.enabled()) {
-        plugin
-            .getLogger()
-            .info("[SpectraEvents] Resource-pack delivery is disabled by configuration.");
+        plugin.getLogger().info("Resource-pack delivery is disabled by configuration.");
         return CompletableFuture.completedFuture(null);
       }
 
@@ -64,7 +62,7 @@ public final class PaperResourcePackDeliveryBootstrap {
                   plugin
                       .getLogger()
                       .info(
-                          "[SpectraEvents] Resource-pack delivery ready: "
+                          "Resource-pack delivery ready: "
                               + descriptor.url()
                               + " sha1="
                               + descriptor.sha1()))

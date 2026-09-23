@@ -8,10 +8,10 @@ phases:
       - type: broadcast_message
         message: "<yellow>An airdrop is descending.</yellow>"
       - type: spawn_model
-        model: dev_airdrop_model
+        model: airdrop_crate
         height-offset: 15
       - type: play_animation
-        model: dev_airdrop_model
+        model: airdrop_crate
         animation: descent
         loop: ONCE
     transitions:

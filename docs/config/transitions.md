@@ -30,8 +30,8 @@ The parser reads `target` (not design-draft `to:`). Trigger type lives at `trigg
 
 ## Manual transitions in development
 
-When `trigger.type` is `manual`, `/event dev event next <instance>` selects the first matching
-rule in declaration order and moves the instance to `target`.
+When `trigger.type` is `manual`, `/spectraevents event trigger <instance> manual` selects the first
+matching rule in declaration order and moves the instance to `target`.
 
 Conditions are evaluated before actions. Actions execute in declaration order. A fatal action
 failure fails the instance and invokes cleanup.

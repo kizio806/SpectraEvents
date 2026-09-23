@@ -113,7 +113,7 @@ public final class DiagnosticsCommandHandler {
     if (!eventsDirOk || defCount == 0) {
       sender.sendMessage(
           Component.text(
-              "Action: run /event definition validate, correct every reported file, then reload definitions.",
+              "Action: run /spectraevents definition validate, correct every reported file, then reload definitions.",
               NamedTextColor.RED));
     }
     if (activeCount > 0) {

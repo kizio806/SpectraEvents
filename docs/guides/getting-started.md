@@ -14,16 +14,16 @@ Welcome to **SpectraEvents**, a data-driven 3D event engine for Paper servers!
 
 | Command | Permission | Description |
 | :--- | :--- | :--- |
-| `/event status` | `spectraevents.status` | Views runtime status & active stats |
-| `/event doctor` | `spectraevents.doctor` | Performs installation health checks |
-| `/event admin` | `spectraevents.gui` | Opens the interactive Admin GUI |
-| `/event definition list` | `spectraevents.definition.list` | Lists loaded YAML event definitions |
-| `/event definition validate` | `spectraevents.definition.validate` | Validates YAML event definitions |
-| `/event definition reload-all` | `spectraevents.definition.reload` | Reloads all definitions from disk |
-| `/event event start <id>` | `spectraevents.event.start` | Starts an event instance by definition ID |
-| `/event event list` | `spectraevents.event.list` | Lists all active running instances |
-| `/event event cancel <instance>` | `spectraevents.event.cancel` | Cancels a running instance |
-| `/event update check` | `spectraevents.update.check` | Checks for plugin updates |
+| `/spectraevents status` | `spectraevents.status` | Views runtime status & active stats |
+| `/spectraevents doctor` | `spectraevents.doctor` | Performs installation health checks |
+| `/spectraevents admin` | `spectraevents.gui` | Opens the interactive Admin GUI |
+| `/spectraevents definition list` | `spectraevents.definition.list` | Lists loaded YAML event definitions |
+| `/spectraevents definition validate` | `spectraevents.definition.validate` | Validates YAML event definitions |
+| `/spectraevents definition reload` | `spectraevents.definition.reload` | Reloads definitions from disk |
+| `/spectraevents event start <id>` | `spectraevents.event.start` | Starts an event instance by definition ID |
+| `/spectraevents event list` | `spectraevents.event.list` | Lists stored event instances |
+| `/spectraevents event cancel <instance>` | `spectraevents.event.cancel` | Cancels a running instance |
+| `/spectraevents update check` | `spectraevents.update.check` | Checks for plugin updates |
 
 ## Default Included Events
 
