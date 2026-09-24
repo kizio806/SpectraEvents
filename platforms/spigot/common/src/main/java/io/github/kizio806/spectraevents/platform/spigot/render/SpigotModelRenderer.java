@@ -110,6 +110,7 @@ public class SpigotModelRenderer implements ModelRendererPort {
                 entity -> {
                   entity.setInteractionWidth(interaction.width());
                   entity.setInteractionHeight(interaction.height());
+                  entity.setPersistent(false);
 
                   PersistentDataContainer pdc = entity.getPersistentDataContainer();
                   pdc.set(
@@ -183,6 +184,7 @@ public class SpigotModelRenderer implements ModelRendererPort {
               entity.setItemStack(itemStack);
               entity.setTransformationMatrix(matrix);
               entity.setItemDisplayTransform(toItemDisplayTransform(itemRef.transformMode()));
+              entity.setPersistent(false);
               applyRenderProperties(entity, part.renderProperties());
               tagPdc(
                   entity.getPersistentDataContainer(),
@@ -203,6 +205,7 @@ public class SpigotModelRenderer implements ModelRendererPort {
             entity -> {
               entity.setBlock(blockData);
               entity.setTransformationMatrix(matrix);
+              entity.setPersistent(false);
               applyRenderProperties(entity, part.renderProperties());
               tagPdc(
                   entity.getPersistentDataContainer(),
@@ -224,6 +227,7 @@ public class SpigotModelRenderer implements ModelRendererPort {
                 entity.setText(textRef.text());
               }
               entity.setTransformationMatrix(matrix);
+              entity.setPersistent(false);
               entity.setAlignment(toTextAlignment(textRef.alignment()));
               entity.setLineWidth(textRef.lineWidth());
               entity.setTextOpacity((byte) textRef.textOpacity());

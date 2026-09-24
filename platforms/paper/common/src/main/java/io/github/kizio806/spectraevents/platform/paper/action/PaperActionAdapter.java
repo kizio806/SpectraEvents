@@ -415,7 +415,13 @@ public final class PaperActionAdapter implements PlatformActionPort {
     if (!msg.isEmpty()) {
       executeGlobal(
           instance.id(),
-          () -> Bukkit.broadcast(MiniPlaceholdersIntegration.getMiniMessage().deserialize(msg)));
+          () -> {
+            var component = MiniPlaceholdersIntegration.getMiniMessage().deserialize(msg);
+            for (org.bukkit.entity.Player p : Bukkit.getOnlinePlayers()) {
+              p.sendMessage(component);
+            }
+            Bukkit.getConsoleSender().sendMessage(component);
+          });
     }
   }
 

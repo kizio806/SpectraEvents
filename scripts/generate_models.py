@@ -102,7 +102,8 @@ def generate_meteor(output_path, texture_b64):
         children.append(uuid)
 
     model = {
-        "meta": {"format_version": "5.0.0", "model_format": "free"},
+        "meta": {"format_version": "5.0.0", "model_format": "java_block"},
+        "display": {"head": {"translation": [0, -15, 0], "scale": [2.0, 2.0, 2.0]}},
         "textures": [{"id": "ember", "name": "ember.png", "source": texture_b64}],
         "elements": elements,
         "outliner": [{
@@ -161,7 +162,8 @@ def generate_airdrop(output_path, texture_b64):
     children.append("panel_1")
     
     model = {
-        "meta": {"format_version": "5.0.0", "model_format": "free"},
+        "meta": {"format_version": "5.0.0", "model_format": "java_block"},
+        "display": {"head": {"translation": [0, -15, 0], "scale": [2.0, 2.0, 2.0]}},
         "textures": [{"id": "metal", "name": "metal.png", "source": texture_b64}],
         "elements": elements,
         "outliner": [{"uuid": "airdrop_group", "name": "Airdrop", "origin": center, "children": children}],
@@ -211,7 +213,8 @@ def generate_metin(output_path, texture_b64):
         children.append(uuid)
 
     model = {
-        "meta": {"format_version": "5.0.0", "model_format": "free"},
+        "meta": {"format_version": "5.0.0", "model_format": "java_block"},
+        "display": {"head": {"translation": [0, -15, 0], "scale": [2.0, 2.0, 2.0]}},
         "textures": [{"id": "magic", "name": "magic.png", "source": texture_b64}],
         "elements": elements,
         "outliner": [{"uuid": "metin_group", "name": "Metin", "origin": center, "children": children}],
@@ -264,7 +267,8 @@ def generate_pinata(output_path, texture_b64):
     children.append("leg4")
 
     model = {
-        "meta": {"format_version": "5.0.0", "model_format": "free"},
+        "meta": {"format_version": "5.0.0", "model_format": "java_block"},
+        "display": {"head": {"translation": [0, -15, 0], "scale": [2.0, 2.0, 2.0]}},
         "textures": [{"id": "paper", "name": "paper.png", "source": texture_b64}],
         "elements": elements,
         "outliner": [{"uuid": "pinata_group", "name": "Pinata", "origin": center, "children": children}],
@@ -329,7 +333,8 @@ def generate_portal(output_path, texture_b64):
         children.append(uuid)
 
     model = {
-        "meta": {"format_version": "5.0.0", "model_format": "free"},
+        "meta": {"format_version": "5.0.0", "model_format": "java_block"},
+        "display": {"head": {"translation": [0, -15, 0], "scale": [2.0, 2.0, 2.0]}},
         "textures": [{"id": "obsidian", "name": "obsidian.png", "source": texture_b64}],
         "elements": elements,
         "outliner": [{"uuid": "portal_group", "name": "Portal", "origin": center, "children": children}],

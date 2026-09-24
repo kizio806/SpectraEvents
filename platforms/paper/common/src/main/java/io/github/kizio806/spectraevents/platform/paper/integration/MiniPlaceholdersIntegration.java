@@ -18,7 +18,11 @@ public class MiniPlaceholdersIntegration {
     return TagResolver.empty();
   }
 
+  private static final class MiniMessageHolder {
+    static final MiniMessage INSTANCE = MiniMessage.builder().tags(getGlobalResolver()).build();
+  }
+
   public static MiniMessage getMiniMessage() {
-    return MiniMessage.builder().tags(getGlobalResolver()).build();
+    return MiniMessageHolder.INSTANCE;
   }
 }
