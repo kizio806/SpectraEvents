@@ -17,7 +17,6 @@ permissions:
       spectraevents.event.*: true
       spectraevents.definition.*: true
       spectraevents.update.*: true
-      spectraevents.debug.*: true
       spectraevents.gui: true
       spectraevents.status: true
       spectraevents.doctor: true
@@ -96,16 +95,6 @@ permissions:
 
   spectraevents.update.notify:
     description: "Receives update notifications on join."
-    default: op
-
-  spectraevents.debug.*:
-    description: "Grants access to all debug commands."
-    default: op
-    children:
-      spectraevents.debug.event: true
-
-  spectraevents.debug.event:
-    description: "Allows debugging events."
     default: op
 
   spectraevents.gui:

@@ -124,6 +124,7 @@ public class PaperModelRenderer implements ModelRendererPort {
                 entity -> {
                   entity.setInteractionWidth(interaction.width());
                   entity.setInteractionHeight(interaction.height());
+                  entity.setPersistent(false);
 
                   PersistentDataContainer pdc = entity.getPersistentDataContainer();
                   pdc.set(
@@ -198,6 +199,7 @@ public class PaperModelRenderer implements ModelRendererPort {
               entity.setItemStack(itemStack);
               entity.setTransformationMatrix(matrix);
               entity.setItemDisplayTransform(toItemDisplayTransform(itemRef.transformMode()));
+              entity.setPersistent(false);
               applyRenderProperties(entity, part.renderProperties());
               tagPdc(
                   entity.getPersistentDataContainer(),
@@ -218,6 +220,7 @@ public class PaperModelRenderer implements ModelRendererPort {
             entity -> {
               entity.setBlock(blockData);
               entity.setTransformationMatrix(matrix);
+              entity.setPersistent(false);
               applyRenderProperties(entity, part.renderProperties());
               tagPdc(
                   entity.getPersistentDataContainer(),
@@ -239,6 +242,7 @@ public class PaperModelRenderer implements ModelRendererPort {
                 entity.text(MiniMessage.miniMessage().deserialize(textRef.text()));
               }
               entity.setTransformationMatrix(matrix);
+              entity.setPersistent(false);
               entity.setAlignment(toTextAlignment(textRef.alignment()));
               entity.setLineWidth(textRef.lineWidth());
               entity.setTextOpacity((byte) textRef.textOpacity());
@@ -397,11 +401,28 @@ public class PaperModelRenderer implements ModelRendererPort {
     activeHandles.remove(handle.runtimeId());
     inFlightTransforms.remove(handle.runtimeId());
 
-    for (RenderedPartHandle partHandle : handle.parts().values()) {
-      removeEntityUuid(partHandle.entityUuid());
-    }
-    for (UUID interactionUuid : handle.interactions().values()) {
-      removeEntityUuid(interactionUuid);
+    World world = Bukkit.getWorld(handle.anchor().worldName());
+    if (world != null) {
+      Location loc =
+          new Location(world, handle.anchor().x(), handle.anchor().y(), handle.anchor().z());
+      Bukkit.getRegionScheduler()
+          .execute(
+              plugin,
+              loc,
+              () -> {
+                for (RenderedPartHandle partHandle : handle.parts().values()) {
+                  Entity entity = Bukkit.getEntity(partHandle.entityUuid());
+                  if (entity != null && entity.isValid()) {
+                    entity.remove();
+                  }
+                }
+                for (UUID interactionUuid : handle.interactions().values()) {
+                  Entity entity = Bukkit.getEntity(interactionUuid);
+                  if (entity != null && entity.isValid()) {
+                    entity.remove();
+                  }
+                }
+              });
     }
     return true;
   }
@@ -463,17 +484,6 @@ public class PaperModelRenderer implements ModelRendererPort {
       }
     }
     return discovered;
-  }
-
-  private void removeEntityUuid(UUID uuid) {
-    Entity entity = Bukkit.getEntity(uuid);
-    if (entity != null && entity.isValid()) {
-      if (Bukkit.isPrimaryThread()) {
-        entity.remove();
-      } else {
-        entity.getScheduler().execute(plugin, entity::remove, null, 1);
-      }
-    }
   }
 
   private ItemStack resolveItemStack(String itemRef) {

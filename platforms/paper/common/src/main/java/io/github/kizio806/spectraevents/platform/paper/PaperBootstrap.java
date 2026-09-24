@@ -14,11 +14,7 @@ import io.github.kizio806.spectraevents.platform.paper.common.PaperStartupLogger
 import io.github.kizio806.spectraevents.platform.paper.config.PaperDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
 import io.github.kizio806.spectraevents.platform.paper.gui.AdminGuiController;
-import io.github.kizio806.spectraevents.platform.paper.integration.LuckPermsIntegration;
 import io.github.kizio806.spectraevents.platform.paper.integration.PaperIntegrationManager;
-import io.github.kizio806.spectraevents.platform.paper.integration.PlaceholderAPIIntegration;
-import io.github.kizio806.spectraevents.platform.paper.integration.VaultIntegration;
-import io.github.kizio806.spectraevents.platform.paper.integration.WorldGuardIntegration;
 import io.github.kizio806.spectraevents.platform.paper.interaction.PaperEntityDeathRouter;
 import io.github.kizio806.spectraevents.platform.paper.interaction.PaperInteractionRouter;
 import io.github.kizio806.spectraevents.platform.paper.lifecycle.PaperEntityReconciler;
@@ -154,12 +150,70 @@ public final class PaperBootstrap {
 
     application.start();
 
-    // Initialize specific integrations
-    new PlaceholderAPIIntegration(sqliteRepository, application.executionEngine().stateStore());
+    // Initialize specific integrations safely
+    if (org.bukkit.Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
+      try {
+        Class.forName(
+                "io.github.kizio806.spectraevents.platform.paper.integration.PlaceholderAPIIntegration")
+            .getConstructor(
+                io.github.kizio806.spectraevents.application.port.EventInstanceRepository.class,
+                io.github.kizio806.spectraevents.application.execution.EventRuntimeStateStore.class)
+            .newInstance(sqliteRepository, application.executionEngine().stateStore());
+      } catch (Exception e) {
+        plugin.getLogger().warning("Failed to initialize PlaceholderAPI: " + e.getMessage());
+      }
+    }
 
-    application.executionEngine().registerConditionResolver(new LuckPermsIntegration());
-    application.executionEngine().registerConditionResolver(new WorldGuardIntegration());
-    application.executionEngine().registerActionResolver(new VaultIntegration());
+    if (org.bukkit.Bukkit.getPluginManager().getPlugin("LuckPerms") != null) {
+      try {
+        application
+            .executionEngine()
+            .registerConditionResolver(
+                Class.forName(
+                        "io.github.kizio806.spectraevents.platform.paper.integration.LuckPermsIntegration")
+                    .asSubclass(
+                        io.github.kizio806.spectraevents.application.execution
+                            .IntegrationConditionResolver.class)
+                    .getConstructor()
+                    .newInstance());
+      } catch (Exception e) {
+        plugin.getLogger().warning("Failed to initialize LuckPerms: " + e.getMessage());
+      }
+    }
+
+    if (org.bukkit.Bukkit.getPluginManager().getPlugin("WorldGuard") != null) {
+      try {
+        application
+            .executionEngine()
+            .registerConditionResolver(
+                Class.forName(
+                        "io.github.kizio806.spectraevents.platform.paper.integration.WorldGuardIntegration")
+                    .asSubclass(
+                        io.github.kizio806.spectraevents.application.execution
+                            .IntegrationConditionResolver.class)
+                    .getConstructor()
+                    .newInstance());
+      } catch (Exception e) {
+        plugin.getLogger().warning("Failed to initialize WorldGuard: " + e.getMessage());
+      }
+    }
+
+    if (org.bukkit.Bukkit.getPluginManager().getPlugin("Vault") != null) {
+      try {
+        application
+            .executionEngine()
+            .registerActionResolver(
+                Class.forName(
+                        "io.github.kizio806.spectraevents.platform.paper.integration.VaultIntegration")
+                    .asSubclass(
+                        io.github.kizio806.spectraevents.application.execution
+                            .IntegrationActionResolver.class)
+                    .getConstructor()
+                    .newInstance());
+      } catch (Exception e) {
+        plugin.getLogger().warning("Failed to initialize Vault: " + e.getMessage());
+      }
+    }
     startupLogger.integrations(integrationRegistry);
 
     Path updateDir = plugin.getDataFolder().toPath().resolve("update");
