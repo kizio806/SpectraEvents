@@ -28,10 +28,6 @@ SpectraEvents follows a structured permission namespace (`spectraevents.*`). Per
 - `spectraevents.definition.validate`: Allow running validation checks.
 - `spectraevents.definition.reload`: Allow reloading configurations.
 
-### Visuals
-- `spectraevents.model.preview`: Allow previewing 3D models.
-- `spectraevents.animation.preview`: Allow previewing animations.
-
 ### Debug & Testing
 - `spectraevents.reward.test`: Allow simulating loot tables.
 - `spectraevents.debug`: Grants access to all debugging tools (hitboxes, performance metrics, verbose logging).

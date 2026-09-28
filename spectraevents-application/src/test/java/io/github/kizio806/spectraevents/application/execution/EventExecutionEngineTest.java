@@ -15,6 +15,8 @@ import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
 import io.github.kizio806.spectraevents.core.event.execution.TransitionRule;
 import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
+import io.github.kizio806.spectraevents.core.event.execution.action.CoreActions;
+import io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseDefinition;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
@@ -28,6 +30,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -88,16 +91,15 @@ class EventExecutionEngineTest {
                     Set.of(),
                     List.of(),
                     List.of(
-                        new ConfiguredActionDefinition("initialize_health", Map.of("max", 250)),
-                        new ConfiguredActionDefinition(
-                            "initialize_hit_counter", Map.of("max", 12))))));
+                        new CoreActions.InitializeHealthAction(250),
+                        new CoreActions.InitializeHitCounterAction(12)))));
     registry.register(definition, "status_event.yml");
 
     EventLocation location = new EventLocation("world", 10.0, 65.0, -4.0, 0.0f, 0.0f);
     EventInstance instance = engine.startEvent("status_event", location);
 
     EventExecutionEngine.ExecutionStatus status = engine.status(instance.id()).orElseThrow();
-    assertEquals(location, status.location().orElseThrow());
+    assertEquals(location, status.location());
     assertEquals(250, status.maxHealth());
     assertEquals(250, status.currentHealth());
     assertEquals(12, status.maxHits());
@@ -166,8 +168,8 @@ class EventExecutionEngineTest {
                     Set.of(new PhaseId("phase2")),
                     List.of(
                         new TransitionRule(
-                            new ConfiguredTriggerDefinition(
-                                "timer_elapsed", Map.of("duration", "10s")),
+                            new io.github.kizio806.spectraevents.core.event.execution.trigger
+                                .CoreTriggers.TimerElapsedTrigger(java.time.Duration.ofSeconds(10)),
                             List.of(),
                             Optional.of(new PhaseId("phase2")),
                             List.of(new ConfiguredActionDefinition("rule_action")))),
@@ -182,7 +184,10 @@ class EventExecutionEngineTest {
 
     EventInstance instance = engine.startEvent("test_event", null);
     boolean handled =
-        engine.evaluateTrigger(instance.id(), new ConfiguredTriggerDefinition("timer_elapsed"));
+        engine.evaluateTrigger(
+            instance.id(),
+            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
+                .TimerElapsedTrigger(java.time.Duration.ofSeconds(1)));
 
     assertTrue(handled);
     EventInstance updated = repository.findById(instance.id()).orElseThrow();
@@ -192,6 +197,56 @@ class EventExecutionEngineTest {
     assertEquals(2, actionPort.executedActions.size());
     assertEquals("rule_action", actionPort.executedActions.get(0).type());
     assertEquals("enter_phase2", actionPort.executedActions.get(1).type());
+  }
+
+  @Test
+  void waitsForAsynchronousRuleActionsBeforeTransitioningPhase() {
+    EventDefinition definition =
+        new EventDefinition(
+            new EventDefinitionId("async_transition"),
+            new PhaseId("start"),
+            Map.of(
+                new PhaseId("start"),
+                new PhaseDefinition(
+                    new PhaseId("start"),
+                    Set.of(new PhaseId("end")),
+                    List.of(
+                        new TransitionRule(
+                            new ConfiguredTriggerDefinition("manual"),
+                            List.of(),
+                            Optional.of(new PhaseId("end")),
+                            List.of(
+                                new ConfiguredActionDefinition("first"),
+                                new ConfiguredActionDefinition("second")))),
+                    List.of()),
+                new PhaseId("end"),
+                new PhaseDefinition(
+                    new PhaseId("end"),
+                    Set.of(),
+                    List.of(),
+                    List.of(new ConfiguredActionDefinition("entered")))));
+    registry.register(definition, "async-transition.yml");
+    CompletableFuture<Boolean> firstAction = new CompletableFuture<>();
+    actionPort.results.put("first", firstAction);
+
+    EventInstance instance = engine.startEvent("async_transition", null);
+
+    assertTrue(engine.evaluateTrigger(instance.id(), new ConfiguredTriggerDefinition("manual")));
+    assertEquals(List.of("first"), actionTypes());
+    assertEquals(
+        new PhaseId("start"),
+        repository.findById(instance.id()).orElseThrow().currentPhase().orElseThrow());
+
+    firstAction.complete(true);
+
+    assertEquals(List.of("first", "second", "entered"), actionTypes());
+    assertEquals(
+        new PhaseId("end"),
+        repository.findById(instance.id()).orElseThrow().currentPhase().orElseThrow());
+  }
+
+  private List<String> actionTypes() {
+    return actionPort.executedActions.stream().map(ActionDefinition::type).toList();
   }
 
   @Test
@@ -318,7 +373,7 @@ class EventExecutionEngineTest {
             new ConfiguredTriggerDefinition("interaction"),
             ExecutionContext.withActor(actor)));
     assertEquals(1, actionPort.executedActions.size());
-    assertEquals(actor.toString(), engine.diagnostics(instance.id()).claimant().orElseThrow());
+    assertEquals(actor.toString(), engine.diagnostics(instance.id()).claimant());
   }
 
   @Test
@@ -334,8 +389,7 @@ class EventExecutionEngineTest {
                     Set.of(),
                     List.of(
                         new TransitionRule(
-                            new ConfiguredTriggerDefinition(
-                                "timer_elapsed", Map.of("duration", "10s")),
+                            new CoreTriggers.TimerElapsedTrigger(java.time.Duration.ofSeconds(10)),
                             List.of(),
                             Optional.empty(),
                             List.of())),
@@ -377,8 +431,7 @@ class EventExecutionEngineTest {
                     Set.of(),
                     List.of(
                         new TransitionRule(
-                            new ConfiguredTriggerDefinition(
-                                "timer_elapsed", Map.of("duration", "10s")),
+                            new CoreTriggers.TimerElapsedTrigger(java.time.Duration.ofSeconds(10)),
                             List.of(),
                             Optional.empty(),
                             List.of())),
@@ -430,6 +483,47 @@ class EventExecutionEngineTest {
     assertEquals("spawn_model", actionPort.executedActions.getFirst().type());
   }
 
+  @Test
+  void combatDamageUsesServerValueCapAndCannotSkipAPercentageGate() {
+    EventDefinition definition =
+        new EventDefinition(
+            new EventDefinitionId("combat_gate"),
+            new PhaseId("assault"),
+            Map.of(
+                new PhaseId("assault"),
+                new PhaseDefinition(
+                    new PhaseId("assault"),
+                    Set.of(new PhaseId("guard")),
+                    List.of(
+                        new TransitionRule(
+                            new CoreTriggers.CombatDamageTrigger(),
+                            List.of(),
+                            Optional.empty(),
+                            List.of(
+                                new CoreActions.ApplyCombatDamageAction(50, 75, Duration.ZERO))),
+                        new TransitionRule(
+                            new CoreTriggers.HealthPercentThresholdCrossedTrigger(75),
+                            List.of(),
+                            Optional.of(new PhaseId("guard")),
+                            List.of())),
+                    List.of(new CoreActions.InitializeHealthAction(100))),
+                new PhaseId("guard"),
+                new PhaseDefinition(new PhaseId("guard"), Set.of())));
+    registry.register(definition, "combat-gate.yml");
+    EventInstance instance = engine.startEvent("combat_gate", null);
+
+    assertTrue(
+        engine.evaluateTrigger(
+            instance.id(),
+            new CoreTriggers.CombatDamageTrigger(),
+            ExecutionContext.withCombatDamage(new Object(), UUID.randomUUID(), 999.0d)));
+
+    assertEquals(75, stateStore.get(instance.id()).orElseThrow().currentHealth());
+    assertEquals(
+        new PhaseId("guard"),
+        repository.findById(instance.id()).orElseThrow().currentPhase().orElseThrow());
+  }
+
   private boolean successful(java.util.concurrent.Future<Boolean> future) {
     try {
       return future.get();
@@ -460,12 +554,14 @@ class EventExecutionEngineTest {
 
   private static class FakePlatformActionPort implements PlatformActionPort {
     List<ActionDefinition> executedActions = new ArrayList<>();
+    Map<String, CompletableFuture<Boolean>> results = new java.util.HashMap<>();
     EventInstanceId cleanedInstance;
 
     @Override
-    public void executeAction(
+    public java.util.concurrent.CompletableFuture<Boolean> executeAction(
         EventInstance instance, EventRuntimeState state, ActionDefinition action) {
       executedActions.add(action);
+      return results.getOrDefault(action.type(), CompletableFuture.completedFuture(true));
     }
 
     @Override

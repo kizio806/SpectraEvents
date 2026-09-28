@@ -5,6 +5,7 @@ import io.github.kizio806.spectraevents.application.config.compiler.EventDefinit
 import io.github.kizio806.spectraevents.application.config.registry.DuplicateEventDefinitionException;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.registry.RegisteredEventDefinition;
+import io.github.kizio806.spectraevents.application.config.spec.EventSpec;
 import io.github.kizio806.spectraevents.application.config.validation.ValidationDiagnostic;
 import io.github.kizio806.spectraevents.application.config.yaml.EventSpecYamlParser;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
@@ -45,9 +46,10 @@ public final class DefinitionLoader {
       String content = entry.getValue();
 
       try {
-        EventDefinition definition = compiler.compile(parser.parse(content, sourceFile));
-        registry.register(definition, sourceFile);
-        loaded.add(new RegisteredEventDefinition(definition, sourceFile));
+        EventSpec spec = parser.parse(content, sourceFile);
+        EventDefinition definition = compiler.compile(spec);
+        registry.register(definition, sourceFile, spec);
+        loaded.add(new RegisteredEventDefinition(definition, sourceFile, spec));
       } catch (EventDefinitionCompilerException ex) {
         failures.add(
             new DefinitionLoadResult.SourceFileFailure(
@@ -80,9 +82,10 @@ public final class DefinitionLoader {
       String content = entry.getValue();
 
       try {
-        EventDefinition definition = compiler.compile(parser.parse(content, sourceFile));
-        registry.registerOrUpdate(definition, sourceFile);
-        loaded.add(new RegisteredEventDefinition(definition, sourceFile));
+        EventSpec spec = parser.parse(content, sourceFile);
+        EventDefinition definition = compiler.compile(spec);
+        registry.registerOrUpdate(definition, sourceFile, spec);
+        loaded.add(new RegisteredEventDefinition(definition, sourceFile, spec));
       } catch (EventDefinitionCompilerException ex) {
         failures.add(
             new DefinitionLoadResult.SourceFileFailure(

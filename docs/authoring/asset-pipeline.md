@@ -1,7 +1,7 @@
 # Asset Pipeline
 
-SpectraEvents supports one Blockbench input: a signed `.spectra.zip` exported from a **Generic
-Model** project by `tools/blockbench/spectraevents-exporter/spectraevents_exporter.js`.
+SpectraEvents supports signed `.spectra.zip` input exported from a Blockbench **Generic Model** or
+**Java Block** project by `tools/blockbench/spectraevents-exporter/spectraevents_exporter.js`.
 
 Place only these files directly in the plugin source directory:
 
@@ -53,10 +53,11 @@ on-enter:
 ## Safety limits
 
 The current schema intentionally has small, predictable limits: a 5 MB compressed archive; at most
-18 ZIP entries, 8 MB expanded data and 2 MB per entry; 16 PNG textures; 512 cubes; 128 groups with
+18 ZIP entries, 8 MB expanded data and 2 MB per entry; 16 textures; 512 cubes; 128 groups with
 32 levels of nesting; 32 animations; 2,000 keyframes; JSON depth 64; and 1024×1024 / 1,048,576-pixel
-textures. Textures must be embedded PNGs when exporting. These limits are part of the input contract,
-not recommendations.
+textures. Textures must be embedded PNG or JPEG data when exporting. JPEG inputs are transcoded to
+PNG before the resource pack is generated. These limits are part of the input contract, not
+recommendations.
 
 ## Generated resource pack
 

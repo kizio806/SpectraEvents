@@ -3,6 +3,7 @@ package io.github.kizio806.spectraevents.platform.paper;
 import io.github.kizio806.spectraevents.adapter.storage.sqlite.SQLiteEventInstanceRepository;
 import io.github.kizio806.spectraevents.adapter.update.http.HttpUpdateAdapter;
 import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
+import io.github.kizio806.spectraevents.application.config.DataDirectoryLayout;
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
@@ -19,11 +20,13 @@ import io.github.kizio806.spectraevents.platform.paper.interaction.PaperEntityDe
 import io.github.kizio806.spectraevents.platform.paper.interaction.PaperInteractionRouter;
 import io.github.kizio806.spectraevents.platform.paper.lifecycle.PaperEntityReconciler;
 import io.github.kizio806.spectraevents.platform.paper.lifecycle.PaperResourceCleaner;
+import io.github.kizio806.spectraevents.platform.paper.loot.PaperSharedLootListener;
 import io.github.kizio806.spectraevents.platform.paper.render.PaperModelRenderer;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.PaperEventTaskScheduler;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.PaperRegionTaskScheduler;
 import io.github.kizio806.spectraevents.platform.paper.update.UpdateNotificationListener;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -36,6 +39,7 @@ public final class PaperBootstrap {
   private PaperEventTaskScheduler eventTaskScheduler;
   private PaperRegionTaskScheduler regionScheduler;
   private PaperResourceCleaner cleaner;
+  private PaperActionAdapter actionAdapter;
   private PaperDefinitionConfigBootstrap definitionConfigBootstrap;
   private SQLiteEventInstanceRepository sqliteRepository;
   private IntegrationRegistry integrationRegistry;
@@ -63,13 +67,28 @@ public final class PaperBootstrap {
     renderer = new PaperModelRenderer(plugin);
     cleaner = new PaperResourceCleaner(renderer, eventTaskScheduler);
 
-    Path dbPath = plugin.getDataFolder().toPath().resolve("spectraevents.db");
+    DataDirectoryLayout dataLayout;
+    try {
+      dataLayout = DataDirectoryLayout.prepare(plugin.getDataFolder().toPath());
+    } catch (IOException exception) {
+      throw new IllegalStateException(
+          "Could not prepare the SpectraEvents data directory", exception);
+    }
+    try {
+      new io.github.kizio806.spectraevents.application.config.locale.FileSystemLocaleLoader(
+              dataLayout.root())
+          .ensureBundledLocales();
+    } catch (IOException exception) {
+      throw new IllegalStateException(
+          "Could not prepare the SpectraEvents locale catalog", exception);
+    }
+    Path dbPath = dataLayout.databaseFile();
     sqliteRepository = new SQLiteEventInstanceRepository(dbPath);
     sqliteRepository.initialize();
     eventSettingsStore = new PaperEventSettingsStore(plugin);
     startupLogger.storage(dbPath, sqliteRepository.findAll().size());
 
-    PaperActionAdapter actionAdapter = new PaperActionAdapter(regionScheduler, cleaner);
+    actionAdapter = new PaperActionAdapter(regionScheduler, cleaner);
     PaperEntityReconciler reconciler = new PaperEntityReconciler(plugin, cleaner);
 
     application =
@@ -86,7 +105,7 @@ public final class PaperBootstrap {
         new io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchProjectReader();
     io.github.kizio806.spectraevents.application.asset.ResourcePackBuilder rpBuilder =
         new io.github.kizio806.spectraevents.application.asset.ResourcePackBuilder(
-            plugin.getDataFolder().toPath().resolve("generated").resolve("resource-pack"));
+            dataLayout.resourcePackCacheDirectory());
     io.github.kizio806.spectraevents.application.asset.AssetPipelineService assetPipelineService =
         new io.github.kizio806.spectraevents.application.asset.AssetPipelineService(
             bbReader,
@@ -104,6 +123,9 @@ public final class PaperBootstrap {
             plugin,
             plugin.getPluginMeta().getVersion(),
             io.github.kizio806.spectraevents.application.asset.AssetTargetProfile.PROFILE_26_1);
+    boolean useImportedAssetModels =
+        io.github.kizio806.spectraevents.platform.paper.asset.delivery
+            .PaperResourcePackDeliveryBootstrap.isEnabled(plugin);
 
     actionAdapter.setModelRuntimeService(application.modelRuntimeService());
     actionAdapter.setModelAnimationActionService(
@@ -111,19 +133,12 @@ public final class PaperBootstrap {
             application.modelRuntimeService(), application.animationRuntimeService()));
 
     extractBundledAssetSources();
-    assetPipelineService.buildAssets();
-
-    // Load 3D Models
-    try {
-      io.github.kizio806.spectraevents.application.model.loader.FileSystemModelLoader
-          modelFileSystemLoader =
-              new io.github.kizio806.spectraevents.application.model.loader.FileSystemModelLoader(
-                  plugin.getDataFolder().toPath(), application.modelLoader());
-      var modelLoadResult = modelFileSystemLoader.loadFromDisk();
-      startupLogger.models(modelLoadResult.loadedCount(), modelLoadResult.invalidCount());
-    } catch (Exception e) {
-      plugin.getLogger().severe("Failed to load 3D models: " + e.getMessage());
+    if (!useImportedAssetModels) {
+      throw new IllegalStateException(
+          "SpectraEvents requires active resource-pack delivery. Enable it in resource-pack.yml.");
     }
+
+    assetPipelineService.buildAssets();
 
     definitionConfigBootstrap =
         new PaperDefinitionConfigBootstrap(plugin, application.definitionLoader());
@@ -142,76 +157,66 @@ public final class PaperBootstrap {
               .map(registered -> registered.definition().id().value())
               .toList();
       startupLogger.definitions(definitionIds, definitionLoadResult.failures().size());
-    } catch (Exception e) {
+    } catch (IOException | RuntimeException e) {
       plugin
           .getLogger()
           .severe("Failed to initialize event definitions or reconciliation: " + e.getMessage());
     }
 
+    try {
+      var schedules =
+          new io.github.kizio806.spectraevents.application.schedule.FileSystemScheduleLoader(
+                  new io.github.kizio806.spectraevents.application.schedule.ScheduleYamlLoader())
+              .load(dataLayout.schedulesFile());
+      schedules
+          .failures()
+          .forEach(
+              failure ->
+                  plugin
+                      .getLogger()
+                      .warning(
+                          "Ignoring invalid schedule "
+                              + failure.path()
+                              + ": "
+                              + failure.message()));
+      application.startSchedules(schedules.schedules());
+      plugin.getLogger().info("Loaded schedules=" + schedules.schedules().size());
+    } catch (IOException exception) {
+      plugin
+          .getLogger()
+          .warning(
+              "Could not load schedules.yml; scheduling remains disabled: "
+                  + exception.getMessage());
+    }
+
     application.start();
 
     // Initialize specific integrations safely
-    if (org.bukkit.Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-      try {
-        Class.forName(
-                "io.github.kizio806.spectraevents.platform.paper.integration.PlaceholderAPIIntegration")
-            .getConstructor(
-                io.github.kizio806.spectraevents.application.port.EventInstanceRepository.class,
-                io.github.kizio806.spectraevents.application.execution.EventRuntimeStateStore.class)
-            .newInstance(sqliteRepository, application.executionEngine().stateStore());
-      } catch (Exception e) {
-        plugin.getLogger().warning("Failed to initialize PlaceholderAPI: " + e.getMessage());
-      }
-    }
 
-    if (org.bukkit.Bukkit.getPluginManager().getPlugin("LuckPerms") != null) {
-      try {
-        application
-            .executionEngine()
-            .registerConditionResolver(
-                Class.forName(
-                        "io.github.kizio806.spectraevents.platform.paper.integration.LuckPermsIntegration")
-                    .asSubclass(
-                        io.github.kizio806.spectraevents.application.execution
-                            .IntegrationConditionResolver.class)
-                    .getConstructor()
-                    .newInstance());
-      } catch (Exception e) {
-        plugin.getLogger().warning("Failed to initialize LuckPerms: " + e.getMessage());
-      }
-    }
+    // Initialize specific integrations safely using ServiceLoader
+    io.github.kizio806.spectraevents.application.integration.IntegrationInitializationContext
+        integrationContext =
+            new io.github.kizio806.spectraevents.application.integration
+                .IntegrationInitializationContext(
+                application, sqliteRepository, plugin.getLogger());
 
-    if (org.bukkit.Bukkit.getPluginManager().getPlugin("WorldGuard") != null) {
-      try {
-        application
-            .executionEngine()
-            .registerConditionResolver(
-                Class.forName(
-                        "io.github.kizio806.spectraevents.platform.paper.integration.WorldGuardIntegration")
-                    .asSubclass(
-                        io.github.kizio806.spectraevents.application.execution
-                            .IntegrationConditionResolver.class)
-                    .getConstructor()
-                    .newInstance());
-      } catch (Exception e) {
-        plugin.getLogger().warning("Failed to initialize WorldGuard: " + e.getMessage());
-      }
-    }
-
-    if (org.bukkit.Bukkit.getPluginManager().getPlugin("Vault") != null) {
-      try {
-        application
-            .executionEngine()
-            .registerActionResolver(
-                Class.forName(
-                        "io.github.kizio806.spectraevents.platform.paper.integration.VaultIntegration")
-                    .asSubclass(
-                        io.github.kizio806.spectraevents.application.execution
-                            .IntegrationActionResolver.class)
-                    .getConstructor()
-                    .newInstance());
-      } catch (Exception e) {
-        plugin.getLogger().warning("Failed to initialize Vault: " + e.getMessage());
+    for (io.github.kizio806.spectraevents.application.integration.PlatformIntegrationModule module :
+        java.util.ServiceLoader.load(
+            io.github.kizio806.spectraevents.application.integration.PlatformIntegrationModule
+                .class,
+            plugin.getClass().getClassLoader())) {
+      if (org.bukkit.Bukkit.getPluginManager().getPlugin(module.requiredPluginName()) != null) {
+        try {
+          module.initialize(integrationContext);
+        } catch (RuntimeException e) {
+          plugin
+              .getLogger()
+              .warning(
+                  "Failed to initialize integration "
+                      + module.requiredPluginName()
+                      + ": "
+                      + e.getMessage());
+        }
       }
     }
     startupLogger.integrations(integrationRegistry);
@@ -265,6 +270,9 @@ public final class PaperBootstrap {
             application.orchestrationService(), application.executionEngine());
 
     org.bukkit.Bukkit.getPluginManager().registerEvents(interactionRouter, plugin);
+    org.bukkit.Bukkit.getPluginManager()
+        .registerEvents(
+            new PaperSharedLootListener(sqliteRepository, application.executionEngine()), plugin);
     org.bukkit.Bukkit.getPluginManager().registerEvents(entityDeathRouter, plugin);
     org.bukkit.Bukkit.getPluginManager().registerEvents(actionAdapter.bossBarManager(), plugin);
     org.bukkit.Bukkit.getPluginManager().registerEvents(actionAdapter.scoreboardManager(), plugin);
@@ -279,7 +287,9 @@ public final class PaperBootstrap {
             updateService,
             guiController,
             application,
-            eventSettingsStore);
+            eventSettingsStore,
+            actionAdapter,
+            dataLayout.schedulesFile());
 
     plugin
         .getLifecycleManager()
@@ -306,7 +316,10 @@ public final class PaperBootstrap {
       resourcePackDelivery.cancel(true);
       resourcePackDelivery = null;
     }
-    if (cleaner != null) {
+    if (actionAdapter != null) {
+      actionAdapter.cleanupAll();
+      actionAdapter = null;
+    } else if (cleaner != null) {
       cleaner.cleanupAll();
     }
     if (application != null) {

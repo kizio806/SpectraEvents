@@ -12,8 +12,8 @@ public final class EventDisplayPlaceholders {
     int hp = state.currentHealth();
     int maxHp = Math.max(1, state.maxHealth());
     int healthPercent = (int) (((double) hp / maxHp) * 100);
-    int hits = state.hitCounter().map(counter -> counter.current()).orElse(0);
-    int maxHits = state.hitCounter().map(counter -> counter.maximum()).orElse(0);
+    int hits = state.hitCounter() != null ? state.hitCounter().current() : 0;
+    int maxHits = state.hitCounter() != null ? state.hitCounter().maximum() : 0;
     long deadline = state.timerDeadlineMillis();
     long remainingSeconds =
         deadline == 0L ? 0L : Math.max(0L, (deadline - System.currentTimeMillis()) / 1_000L);

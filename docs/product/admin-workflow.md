@@ -29,8 +29,8 @@ This document describes the expected end-to-end experience for a server administ
    - The admin runs `/spectraevents definition validate`.
    - The engine parses the YAML and reports any semantic errors (e.g., missing referenced models, cyclical phases) as `ERROR`, `WARNING`, or `INFO`.
 
-6. **Preview / Test**
-   - Paper operators may use the available model/debug commands to inspect native visual components. Spigot reports unsupported Paper-only admin features explicitly.
+6. **Test Runtime**
+   - Start the definition at a controlled location and inspect its lifecycle with `/spectraevents event inspect <instance-id>`. Visual models and animations are owned by the event definition, not by ad-hoc player commands.
 
 7. **Reload Definition**
    - The admin runs `/spectraevents definition reload`.
@@ -54,7 +54,7 @@ This document describes the expected end-to-end experience for a server administ
 
 The Admin GUI is an in-game inventory panel opened with `/spectraevents admin` (requires
 `spectraevents.gui`). All GUI actions are equivalent to the corresponding command: the YAML
-definitions and `event-settings.yml` remain the canonical source of truth.
+definitions and `config.yml` remain the canonical source of truth.
 
 ### Navigation overview
 
@@ -66,12 +66,12 @@ definitions and `event-settings.yml` remain the canonical source of truth.
   view where you can inspect state or open the cancel confirmation.
 - **Definitions** — paginated list of registered definitions. Click a definition to open its detail
   view, which shows phases and offers a **Start** button that spawns the event at your current
-  position using the saved profile and overrides.
+  position using saved scalar overrides.
 - **Configuration** — paginated list of definitions with saved operator overrides. Click a
   definition to open its detail screen:
-  - The **Profile** tile cycles between `easy`, `normal`, and `hard`.
-  - Each override parameter tile shows the current value. Left-click increases; right-click
-    decreases. Changes persist to `event-settings.yml`.
+  - There is no difficulty-profile selector. Each YAML-declared, GUI-editable scalar parameter
+    has an override tile; left-click increases and right-click decreases it within its declared
+    range and step. Changes persist to `config.yml`.
   - For an exact value, use `/spectraevents event config <id> set <parameter> <value>`.
 - **Locations** — paginated list of named event locations. The **Save Current Position** tile
   (slot 45) records your standing location. Click a saved location name to open the removal

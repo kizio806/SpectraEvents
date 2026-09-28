@@ -19,6 +19,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 
 /** Manages Kyori Adventure BossBars for active SpectraEvents instances on Paper platform. */
 public final class EventBossBarManager implements Listener {
+  private static final int MAX_VISIBLE_EVENT_BOSS_BARS = 3;
 
   private static final class BossBarHolder {
     final BossBar bossBar;
@@ -32,6 +33,7 @@ public final class EventBossBarManager implements Listener {
 
   private final Map<UUID, BossBarHolder> activeBossBars = new ConcurrentHashMap<>();
   private final RegionTaskScheduler scheduler;
+  private volatile boolean shuttingDown;
 
   public EventBossBarManager(RegionTaskScheduler scheduler) {
     this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
@@ -43,6 +45,10 @@ public final class EventBossBarManager implements Listener {
     Objects.requireNonNull(state, "state");
 
     UUID instanceId = instance.id().value();
+    if (!activeBossBars.containsKey(instanceId)
+        && activeBossBars.size() >= MAX_VISIBLE_EVENT_BOSS_BARS) {
+      return;
+    }
     String titleTemplate = getString(params, "title", "<gold>Event Active");
     BossBar.Color color = parseColor(getString(params, "color", "PURPLE"));
     BossBar.Overlay overlay = parseOverlay(getString(params, "style", "PROGRESS"));
@@ -86,12 +92,28 @@ public final class EventBossBarManager implements Listener {
     holder.bossBar.name(renderTitle(holder.titleTemplate, instance, state));
   }
 
+  /**
+   * Refreshes the live value from runtime state; callers invoke this at a bounded one-second rate.
+   */
+  public void refreshBossBar(EventInstance instance, EventRuntimeState state) {
+    BossBarHolder holder = activeBossBars.get(instance.id().value());
+    if (holder == null) {
+      return;
+    }
+    holder.bossBar.progress(calculateProgress(state, Map.of()));
+    holder.bossBar.name(renderTitle(holder.titleTemplate, instance, state));
+  }
+
   public void removeBossBar(UUID instanceId) {
     if (instanceId == null) return;
     BossBarHolder holder = activeBossBars.remove(instanceId);
     if (holder != null) {
       for (Player player : Bukkit.getOnlinePlayers()) {
-        scheduler.executeFor(player, () -> player.hideBossBar(holder.bossBar));
+        if (shuttingDown) {
+          player.hideBossBar(holder.bossBar);
+        } else {
+          scheduler.executeFor(player, () -> player.hideBossBar(holder.bossBar));
+        }
       }
     }
   }
@@ -101,6 +123,11 @@ public final class EventBossBarManager implements Listener {
       removeBossBar(id);
     }
     activeBossBars.clear();
+  }
+
+  /** Switches cleanup to direct server-shutdown operations after scheduler registration closes. */
+  public void beginShutdown() {
+    shuttingDown = true;
   }
 
   public void attachPlayer(Player player) {
@@ -121,8 +148,8 @@ public final class EventBossBarManager implements Listener {
 
   private float calculateProgress(EventRuntimeState state, Map<String, Object> params) {
     if ("hits".equalsIgnoreCase(String.valueOf(params.get("progress")))
-        && state.hitCounter().isPresent()) {
-      var counter = state.hitCounter().orElseThrow();
+        && state.hitCounter() != null) {
+      var counter = state.hitCounter();
       return (float) counter.current() / (float) counter.maximum();
     }
     if (params.containsKey("progress")) {

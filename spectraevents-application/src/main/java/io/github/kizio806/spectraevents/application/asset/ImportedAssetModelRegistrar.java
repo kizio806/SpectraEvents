@@ -25,6 +25,7 @@ import java.util.Objects;
 /** Compiles imported Blockbench nodes into normal model and animation definitions. */
 public final class ImportedAssetModelRegistrar {
   private static final float BLOCKBENCH_UNITS_PER_BLOCK = 16.0f;
+  private static final float MINIMUM_RENDERABLE_SCALE = 0.001f;
 
   private final ModelCompiler modelCompiler;
   private final ModelDefinitionRegistry modelRegistry;
@@ -176,9 +177,9 @@ public final class ImportedAssetModelRegistrar {
                         commonKeyframe(keyframe.time().toMillis(), keyframe.easing());
                     convertedKeyframe.setValue(
                         vector(
-                            keyframe.scale().x(),
-                            keyframe.scale().y(),
-                            keyframe.scale().z(),
+                            renderableScale(keyframe.scale().x()),
+                            renderableScale(keyframe.scale().y()),
+                            renderableScale(keyframe.scale().z()),
                             false));
                     converted.add(convertedKeyframe);
                   });
@@ -201,5 +202,9 @@ public final class ImportedAssetModelRegistrar {
           z / BLOCKBENCH_UNITS_PER_BLOCK);
     }
     return List.of(x, y, z);
+  }
+
+  private static float renderableScale(float value) {
+    return value == 0.0f ? MINIMUM_RENDERABLE_SCALE : value;
   }
 }

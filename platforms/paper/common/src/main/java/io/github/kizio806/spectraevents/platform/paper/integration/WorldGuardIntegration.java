@@ -3,18 +3,36 @@ package io.github.kizio806.spectraevents.platform.paper.integration;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;
-import com.sk89q.worldguard.protection.regions.ProtectedRegion;
+import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
-import com.sk89q.worldguard.protection.regions.RegionQuery;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.application.execution.IntegrationConditionResolver;
+import io.github.kizio806.spectraevents.application.integration.IntegrationInitializationContext;
+import io.github.kizio806.spectraevents.application.integration.PlatformIntegrationModule;
 import io.github.kizio806.spectraevents.core.event.execution.condition.ConditionDefinition;
+import io.github.kizio806.spectraevents.core.event.execution.condition.IntegrationConditions;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
-import org.bukkit.Location;
+import java.util.UUID;
 import org.bukkit.entity.Player;
 
-public class WorldGuardIntegration implements IntegrationConditionResolver {
+public class WorldGuardIntegration
+    implements IntegrationConditionResolver, PlatformIntegrationModule {
+
+  @Override
+  public String requiredPluginName() {
+    return "WorldGuard";
+  }
+
+  @Override
+  public void initialize(IntegrationInitializationContext context) {
+    context.application().executionEngine().registerConditionResolver(this);
+  }
+
+  @Override
+  public boolean supports(String conditionType) {
+    return "in_region".equals(conditionType);
+  }
 
   @Override
   public boolean resolve(
@@ -22,44 +40,31 @@ public class WorldGuardIntegration implements IntegrationConditionResolver {
       EventInstance instance,
       EventRuntimeState state,
       ExecutionContext context) {
-    if (!"worldguard_region".equalsIgnoreCase(condition.type())) {
+    if (context == null || context.actor() == null) return false;
+
+    Player player = null;
+    if (context.actor() instanceof Player p) {
+      player = p;
+    } else if (context.actor() instanceof UUID uuid) {
+      player = org.bukkit.Bukkit.getPlayer(uuid);
+    }
+    if (player == null) return false;
+
+    if (!(condition instanceof IntegrationConditions.InRegionCondition regionCondition))
       return false;
-    }
-
-    Object regionObj = condition.parameters().get("region");
-    if (regionObj == null) return false;
-    String requiredRegion = String.valueOf(regionObj);
-
-    Location loc = null;
-    if (context != null && context.actor() instanceof Player p) {
-      loc = p.getLocation();
-    } else if (state.platformLocation().isPresent()
-        && state.platformLocation().get() instanceof Location l) {
-      loc = l;
-    }
-
-    if (loc == null) {
-      return false;
-    }
+    String regionId = regionCondition.region();
 
     try {
       RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
-      RegionQuery query = container.createQuery();
-      ApplicableRegionSet set = query.getApplicableRegions(BukkitAdapter.adapt(loc));
-
-      for (ProtectedRegion pr : set) {
-        if (pr.getId().equalsIgnoreCase(requiredRegion)) {
-          return true;
-        }
+      RegionManager regions = container.get(BukkitAdapter.adapt(player.getWorld()));
+      if (regions != null) {
+        ApplicableRegionSet set =
+            regions.getApplicableRegions(BukkitAdapter.asBlockVector(player.getLocation()));
+        return set.getRegions().stream().anyMatch(r -> r.getId().equalsIgnoreCase(regionId));
       }
-      return false;
-    } catch (NoClassDefFoundError | Exception e) {
-      return false;
+    } catch (NoClassDefFoundError expected) {
+      // Integration missing
     }
-  }
-
-  @Override
-  public boolean supports(String conditionType) {
-    return "worldguard_region".equalsIgnoreCase(conditionType);
+    return false;
   }
 }

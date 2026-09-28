@@ -21,6 +21,7 @@ import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetNode;
 import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetTexture;
 import io.github.kizio806.spectraevents.core.visual.model.EulerRotation;
 import io.github.kizio806.spectraevents.core.visual.model.Vector3;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -67,6 +68,7 @@ public final class BlockbenchProjectReader implements AssetImportPort {
   private static final long MAX_TEXTURE_PIXELS = 1_048_576L;
   private static final String MANIFEST_FILE = "manifest.json";
   private static final String MODEL_FILE = "model.bbmodel";
+  private static final Set<String> SUPPORTED_MODEL_FORMATS = Set.of("free", "java_block");
   private static final Pattern MODEL_ID = Pattern.compile("[a-z0-9][a-z0-9_-]{0,63}");
   private static final Pattern TEXTURE_PATH =
       Pattern.compile("textures/[a-z0-9][a-z0-9._-]{0,63}\\.png");
@@ -237,9 +239,11 @@ public final class BlockbenchProjectReader implements AssetImportPort {
               + formatVersion
               + ". Only 4.x and 5.x are supported.");
     }
-    if (!"free".equals(requiredString(meta, "model_format", MODEL_FILE))) {
+    String modelFormat = requiredString(meta, "model_format", MODEL_FILE);
+    if (!SUPPORTED_MODEL_FORMATS.contains(modelFormat)) {
       throw new IllegalArgumentException(
-          "Only Blockbench Generic Model projects (model_format=free) are supported");
+          "Only Blockbench Generic Model (model_format=free) and Java Block "
+              + "(model_format=java_block) projects are supported");
     }
 
     Map<String, SpectraAssetTexture> textures =
@@ -267,7 +271,8 @@ public final class BlockbenchProjectReader implements AssetImportPort {
       String textureName = requiredString(texture, "name", "textures[]");
       String source = requiredString(texture, "source", "textures[]");
       byte[] data;
-      if (source.startsWith("data:image/png;base64,")) {
+      if (source.startsWith("data:image/png;base64,")
+          || source.startsWith("data:image/jpeg;base64,")) {
         data = decodeEmbeddedTexture(source);
       } else {
         if (!TEXTURE_PATH.matcher(source).matches()) {
@@ -280,7 +285,7 @@ public final class BlockbenchProjectReader implements AssetImportPort {
               "Texture source is not present in the bundle: " + source);
         }
       }
-      validatePng(data, textureName);
+      data = normalizeTextureToPng(data, textureName);
       if (textures.putIfAbsent(textureId, new SpectraAssetTexture(textureName, data, null))
           != null) {
         throw new IllegalArgumentException(
@@ -557,14 +562,14 @@ public final class BlockbenchProjectReader implements AssetImportPort {
 
   private static byte[] decodeEmbeddedTexture(String source) {
     try {
-      return Base64.getDecoder().decode(source.substring("data:image/png;base64,".length()));
+      return Base64.getDecoder().decode(source.substring(source.indexOf(',') + 1));
     } catch (IllegalArgumentException exception) {
       throw new IllegalArgumentException(
           "Embedded texture is not valid Base64 PNG data", exception);
     }
   }
 
-  private static void validatePng(byte[] data, String textureName) {
+  private static byte[] normalizeTextureToPng(byte[] data, String textureName) {
     try (ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(data))) {
       Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
       if (!readers.hasNext()) {
@@ -573,9 +578,6 @@ public final class BlockbenchProjectReader implements AssetImportPort {
       ImageReader reader = readers.next();
       try {
         reader.setInput(input, true, true);
-        if (!"png".equalsIgnoreCase(reader.getFormatName())) {
-          throw new IllegalArgumentException("Texture must be PNG: " + textureName);
-        }
         int width = reader.getWidth(0);
         int height = reader.getHeight(0);
         if (width <= 0
@@ -586,6 +588,19 @@ public final class BlockbenchProjectReader implements AssetImportPort {
           throw new IllegalArgumentException(
               "Texture dimensions exceed 1024x1024 limit: " + textureName);
         }
+        if ("png".equalsIgnoreCase(reader.getFormatName())) {
+          return data;
+        }
+        if (!"jpeg".equalsIgnoreCase(reader.getFormatName())
+            && !"jpg".equalsIgnoreCase(reader.getFormatName())) {
+          throw new IllegalArgumentException("Texture must be PNG or JPEG: " + textureName);
+        }
+        BufferedImage image = reader.read(0);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        if (!ImageIO.write(image, "png", output)) {
+          throw new IllegalArgumentException("Could not encode texture as PNG: " + textureName);
+        }
+        return output.toByteArray();
       } finally {
         reader.dispose();
       }

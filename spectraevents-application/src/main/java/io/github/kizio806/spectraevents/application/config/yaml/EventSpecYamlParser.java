@@ -3,6 +3,8 @@ package io.github.kizio806.spectraevents.application.config.yaml;
 import io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompilerException;
 import io.github.kizio806.spectraevents.application.config.spec.ActionSpec;
 import io.github.kizio806.spectraevents.application.config.spec.ConditionSpec;
+import io.github.kizio806.spectraevents.application.config.spec.EventParameterSpec;
+import io.github.kizio806.spectraevents.application.config.spec.EventParameterType;
 import io.github.kizio806.spectraevents.application.config.spec.EventSpec;
 import io.github.kizio806.spectraevents.application.config.spec.PhaseSpec;
 import io.github.kizio806.spectraevents.application.config.spec.TransitionSpec;
@@ -10,6 +12,7 @@ import io.github.kizio806.spectraevents.application.config.spec.TriggerSpec;
 import io.github.kizio806.spectraevents.application.config.validation.ValidationDiagnostic;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +30,10 @@ public class EventSpecYamlParser {
   private static final int MAX_CONDITIONS_PER_TRANSITION = 64;
 
   private static final Set<String> ROOT_KEYS =
-      Set.of("schema-version", "id", "initial-phase", "phases");
+      Set.of(
+          "schema-version", "id", "initial-phase", "phases", "encounter", "limits", "parameters");
+  private static final Set<String> PARAMETER_KEYS =
+      Set.of("type", "default", "min", "max", "step", "gui-editable");
   private static final Set<String> PHASE_KEYS =
       Set.of("transitions", "on-enter", "onEnter", "on_enter");
   private static final Set<String> TRANSITION_KEYS =
@@ -126,7 +132,93 @@ public class EventSpecYamlParser {
       throw failure("YAML validation failed", sourceFile, diagnostics);
     }
 
-    return new EventSpec(id, schemaVersion, initialPhase, phases);
+    Map<String, Object> encounter = parseRootMap(rootMap, "encounter", diagnostics);
+    Map<String, Object> limits = parseRootMap(rootMap, "limits", diagnostics);
+    if (!diagnostics.isEmpty()) {
+      throw failure("YAML validation failed", sourceFile, diagnostics);
+    }
+    Map<String, EventParameterSpec> parameters = new LinkedHashMap<>();
+    Object parametersObject = rootMap.get("parameters");
+    if (parametersObject instanceof Map<?, ?> rawParameters) {
+      for (Map.Entry<?, ?> entry : rawParameters.entrySet()) {
+        String name = String.valueOf(entry.getKey());
+        if (!(entry.getValue() instanceof Map<?, ?> parameterMap)) {
+          addTypeError(
+              "parameters." + name, "parameter declaration must be an object/map", diagnostics);
+          continue;
+        }
+        rejectUnknownKeys(parameterMap, PARAMETER_KEYS, "parameters." + name, diagnostics);
+        try {
+          String type =
+              getString(parameterMap, "type", "parameters." + name + ".type", diagnostics);
+          Object defaultValue = parameterMap.get("default");
+          if (type == null || defaultValue == null) {
+            addTypeError("parameters." + name, "type and default are required", diagnostics);
+            continue;
+          }
+          java.math.BigDecimal minimum =
+              decimal(parameterMap.get("min"), "parameters." + name + ".min");
+          java.math.BigDecimal maximum =
+              decimal(parameterMap.get("max"), "parameters." + name + ".max");
+          java.math.BigDecimal step =
+              decimal(parameterMap.get("step"), "parameters." + name + ".step");
+          boolean guiEditable =
+              Boolean.parseBoolean(
+                  String.valueOf(
+                      parameterMap.containsKey("gui-editable")
+                          ? parameterMap.get("gui-editable")
+                          : false));
+          parameters.put(
+              name,
+              new EventParameterSpec(
+                  name,
+                  EventParameterType.parse(type),
+                  defaultValue,
+                  minimum,
+                  maximum,
+                  step,
+                  guiEditable));
+        } catch (IllegalArgumentException exception) {
+          diagnostics.add(
+              new ValidationDiagnostic(
+                  ValidationDiagnostic.Severity.ERROR,
+                  "SE-YAML-014",
+                  "parameters." + name,
+                  exception.getMessage()));
+        }
+      }
+    } else if (parametersObject != null) {
+      addTypeError("parameters", "parameters must be an object/map", diagnostics);
+    }
+    if (!diagnostics.isEmpty()) {
+      throw failure("YAML validation failed", sourceFile, diagnostics);
+    }
+    return new EventSpec(id, schemaVersion, initialPhase, phases, encounter, limits, parameters);
+  }
+
+  private Map<String, Object> parseRootMap(
+      Map<?, ?> rootMap, String key, List<ValidationDiagnostic> diagnostics) {
+    Object value = rootMap.get(key);
+    Map<String, Object> parsed = new LinkedHashMap<>();
+    if (value instanceof Map<?, ?> rawMap) {
+      for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+        parsed.put(String.valueOf(entry.getKey()), entry.getValue());
+      }
+    } else if (value != null) {
+      addTypeError(key, key + " must be an object/map", diagnostics);
+    }
+    return parsed;
+  }
+
+  private java.math.BigDecimal decimal(Object value, String path) {
+    if (value == null) {
+      return null;
+    }
+    try {
+      return new java.math.BigDecimal(String.valueOf(value));
+    } catch (NumberFormatException exception) {
+      throw new IllegalArgumentException(path + " must be numeric");
+    }
   }
 
   private PhaseSpec parsePhase(

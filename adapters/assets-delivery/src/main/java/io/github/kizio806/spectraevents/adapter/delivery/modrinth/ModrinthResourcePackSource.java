@@ -14,9 +14,16 @@ public final class ModrinthResourcePackSource implements ResourcePackSourcePort 
   private final ModrinthApiClient apiClient;
   private final String projectId;
   private final String gameVersion; // Resolved from server env, e.g. "26.3"
+  private final String versionId;
 
   public ModrinthResourcePackSource(
       ModrinthApiClient apiClient, String projectId, String gameVersion) {
+    this(apiClient, projectId, gameVersion, "");
+  }
+
+  /** Resolves a server-approved Modrinth version when {@code versionId} is configured. */
+  public ModrinthResourcePackSource(
+      ModrinthApiClient apiClient, String projectId, String gameVersion, String versionId) {
     if (projectId == null || projectId.isBlank() || projectId.startsWith("<")) {
       throw new IllegalArgumentException(
           "Modrinth project-id is missing or unconfigured. Please specify a valid Modrinth Project ID (e.g. 'Rg1nw8IW') in resource-pack configuration.");
@@ -24,6 +31,7 @@ public final class ModrinthResourcePackSource implements ResourcePackSourcePort 
     this.apiClient = apiClient;
     this.projectId = projectId;
     this.gameVersion = gameVersion;
+    this.versionId = versionId == null ? "" : versionId.trim();
   }
 
   @Override
@@ -41,8 +49,12 @@ public final class ModrinthResourcePackSource implements ResourcePackSourcePort 
               JsonObject selectedVersion = null;
               for (JsonElement el : versions) {
                 JsonObject v = el.getAsJsonObject();
+                if (!versionId.isBlank() && versionId.equals(v.get("id").getAsString())) {
+                  selectedVersion = v;
+                  break;
+                }
                 String versionNumber = v.get("version_number").getAsString();
-                if (versionNumber.equals(expectedVersion)) {
+                if (versionId.isBlank() && versionNumber.equals(expectedVersion)) {
                   selectedVersion = v;
                   break;
                 }
@@ -52,7 +64,7 @@ public final class ModrinthResourcePackSource implements ResourcePackSourcePort 
                 throw new java.util.concurrent.CompletionException(
                     new IllegalStateException(
                         "Version "
-                            + expectedVersion
+                            + (versionId.isBlank() ? expectedVersion : versionId)
                             + " not found on Modrinth for project "
                             + projectId));
               }

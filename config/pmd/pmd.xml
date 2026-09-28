@@ -12,7 +12,6 @@
         <exclude name="AvoidLiteralsInIfCondition"/>
         <exclude name="NullAssignment"/>
         <exclude name="AssignmentInOperand"/>
-        <exclude name="StringInstantiation"/>
         <exclude name="UseProperClassLoader"/>
         <exclude name="CloseResource"/>
         <exclude name="TestClassWithoutTestCases"/>

@@ -1,8 +1,8 @@
 # Command Contract
 
-The only public root command is `/spectraevents`. `/event` is not an alias. Commands use Brigadier
-suggestions for registered definitions, profiles, saved locations and active instance IDs. A missing
-value returns a short message with a correct example instead of a stack trace or raw parser error.
+The public root commands are `/spectraevents` and `/se`. `/event` is not an alias. Commands use
+suggestions for registered definitions, saved locations and active instance IDs. A missing value
+returns a short message with a correct example instead of a stack trace or raw parser error.
 
 ## Everyday administration
 
@@ -17,20 +17,23 @@ value returns a short message with a correct example instead of a stack trace or
 
 - `/spectraevents event list`
 - `/spectraevents event start <event-id>` — starts at the executor's position.
-- `/spectraevents event start <event-id> profile <easy|normal|hard>`
 - `/spectraevents event start <event-id> location <name>`
-- `/spectraevents event start <event-id> profile <easy|normal|hard> location <name>`
-- `/spectraevents event start <event-id> location <name> profile <easy|normal|hard>`
 - `/spectraevents event inspect <instance-id>`
-- `/spectraevents event stop <instance-id>`
 - `/spectraevents event cancel <instance-id>`
 - `/spectraevents event config <event-id> show`
-- `/spectraevents event config <event-id> profile <easy|normal|hard>`
-- `/spectraevents event config <event-id> set <health|damage|hits|duration|lock-duration> <value>`
+- `/spectraevents event config <event-id> set <yaml-declared-parameter> <value>`
 
-Profile values are applied after definition defaults. Saved configuration values are persistent
-overrides applied after the selected profile. A one-off profile passed to `event start` does not
-replace the saved profile.
+There are no global difficulty profiles. A parameter value resolves in this order: YAML default,
+saved server override, schedule override, then a one-off start override. Only scalar parameters
+explicitly declared as GUI-editable by YAML can be changed through commands or inventory GUI.
+
+## Player rewards
+
+- `/spectraevents rewards list`
+- `/spectraevents rewards claim <claim-id>`
+
+Rewards are durable mailbox claims. An offline player or a full inventory retains the claim until a
+later successful delivery.
 
 ## Locations
 
@@ -41,9 +44,9 @@ replace the saved profile.
 ## Definitions and assets
 
 - `/spectraevents definition <list|reload|validate>`
-- `/spectraevents model <list|info|validate|spawn|remove>`
-- `/spectraevents animation <list|info|play|pause|resume|seek|stop>`
-- `/spectraevents assets <list|info|import|validate|build|refresh|clean>`
+- `/spectraevents model <list|info>`
+- `/spectraevents assets <list|info|import|validate|build>`
 
-Asset, model and animation commands are operator tools. They are intentionally kept out of the
-short help path used during normal event operation.
+Asset and model commands are operator tools. They are intentionally kept out of the short help path
+used during normal event operation. Manual model spawning and animation playback are not public
+commands; event definitions own runtime visuals and animation lifecycle.

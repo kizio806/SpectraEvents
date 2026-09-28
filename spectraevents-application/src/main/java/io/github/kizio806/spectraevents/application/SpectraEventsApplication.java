@@ -14,8 +14,14 @@ import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeSe
 import io.github.kizio806.spectraevents.application.port.LifecycleReporter;
 import io.github.kizio806.spectraevents.application.port.ModelRendererPort;
 import io.github.kizio806.spectraevents.application.port.PlatformCapabilityQuery;
+import io.github.kizio806.spectraevents.application.port.RewardClaimRepository;
 import io.github.kizio806.spectraevents.application.repository.InMemoryEventInstanceRepository;
+import io.github.kizio806.spectraevents.application.schedule.EventSchedule;
+import io.github.kizio806.spectraevents.application.schedule.EventScheduleService;
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
+import io.github.kizio806.spectraevents.application.service.RewardMailboxService;
+import java.time.Clock;
+import java.util.List;
 import java.util.Objects;
 
 /** Coordinates the platform-neutral application lifecycle. */
@@ -33,6 +39,8 @@ public final class SpectraEventsApplication {
   private final PlatformCapabilityQuery capabilityQuery;
   private final io.github.kizio806.spectraevents.application.port.EventInstanceRepository
       repository;
+  private final RewardMailboxService rewardMailboxService;
+  private final EventScheduleService scheduleService;
 
   private final ModelDefinitionRegistry modelDefinitionRegistry;
   private final ModelCompiler modelCompiler;
@@ -98,6 +106,11 @@ public final class SpectraEventsApplication {
 
     var targetRepository = repository != null ? repository : new InMemoryEventInstanceRepository();
     this.repository = targetRepository;
+    if (!(targetRepository instanceof RewardClaimRepository rewardClaimRepository)) {
+      throw new IllegalArgumentException(
+          "Event instance repository must also provide durable reward-claim storage");
+    }
+    this.rewardMailboxService = new RewardMailboxService(rewardClaimRepository);
     var stateStore =
         new io.github.kizio806.spectraevents.application.execution.EventRuntimeStateStore();
 
@@ -111,6 +124,16 @@ public final class SpectraEventsApplication {
 
     this.orchestrationService =
         new EventOrchestrationService(targetRepository, definitionRegistry, executionEngine);
+    this.scheduleService =
+        scheduler == null
+            ? null
+            : new EventScheduleService(
+                scheduler,
+                orchestrationService,
+                Clock.systemUTC(),
+                message ->
+                    java.util.logging.Logger.getLogger(SpectraEventsApplication.class.getName())
+                        .info(message));
 
     this.assetPipelineService = null; // Will be properly wired by Bootstrap later
 
@@ -210,6 +233,10 @@ public final class SpectraEventsApplication {
     return orchestrationService;
   }
 
+  public RewardMailboxService rewardMailboxService() {
+    return rewardMailboxService;
+  }
+
   public io.github.kizio806.spectraevents.application.execution.EventExecutionEngine
       executionEngine() {
     return executionEngine;
@@ -238,8 +265,24 @@ public final class SpectraEventsApplication {
     }
   }
 
+  /** Enables minute-based schedule dispatch after configuration has been loaded. */
+  public void startSchedules(List<EventSchedule> schedules) {
+    if (scheduleService == null) {
+      throw new IllegalStateException(
+          "Event scheduling is unavailable without a platform scheduler");
+    }
+    scheduleService.start(schedules);
+  }
+
+  public EventScheduleService scheduleService() {
+    return scheduleService;
+  }
+
   /** Reports that the application is stopping. */
   public void stop() {
+    if (scheduleService != null) {
+      scheduleService.stop();
+    }
     if (executionEngine != null) {
       executionEngine.shutdown();
     }

@@ -50,15 +50,15 @@ class ResourcePackDeliveryCoordinatorTest {
         IllegalArgumentException.class,
         () ->
             new ResourcePackDeliverySettings(
-                true, false, "http://example.com/pack.zip", "a".repeat(40), "prompt"));
+                true, false, "http://example.com/pack.zip", "a".repeat(40), "prompt", ""));
     Assertions.assertThrows(
         IllegalArgumentException.class,
         () ->
             new ResourcePackDeliverySettings(
-                true, false, "https://example.com/pack.zip", "a", "prompt"));
+                true, false, "https://example.com/pack.zip", "a", "prompt", ""));
     ResourcePackDeliverySettings settings =
         new ResourcePackDeliverySettings(
-            true, true, "https://example.com/pack.zip", "a".repeat(40), "prompt");
+            true, true, "https://example.com/pack.zip", "a".repeat(40), "prompt", "");
     Assertions.assertEquals(64, settings.sourceConfigId().length());
   }
 

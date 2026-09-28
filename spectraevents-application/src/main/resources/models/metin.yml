@@ -379,3 +379,84 @@ animations:
             value: [0.55, 0.7, 0.55]
           - at: 800ms
             value: [0.5, 0.65, 0.5]
+
+  # Controlled phase telegraphs for the raid definition. They operate on the existing model;
+  # no model swap or additional display-entity set is created.
+  fracture:
+    duration: 1200ms
+    loop: ONCE
+    recovery: RESTART
+    tracks:
+      stone:
+        rotation:
+          - at: 0s
+            value: [0.0, 0.0, 0.0]
+          - at: 600ms
+            value: [8.0, 180.0, -8.0]
+          - at: 1200ms
+            value: [0.0, 360.0, 0.0]
+      crystal_n:
+        scale:
+          - at: 0s
+            value: [0.45, 0.6, 0.45]
+          - at: 600ms
+            value: [0.7, 0.25, 0.7]
+          - at: 1200ms
+            value: [0.45, 0.6, 0.45]
+
+  desperation:
+    duration: 900ms
+    loop: LOOP
+    recovery: RESUME
+    tracks:
+      stone:
+        scale:
+          - at: 0s
+            value: [2.5, 2.5, 2.5]
+          - at: 450ms
+            value: [2.8, 2.2, 2.8]
+          - at: 900ms
+            value: [2.5, 2.5, 2.5]
+        rotation:
+          - at: 0s
+            value: [0.0, 0.0, 0.0]
+          - at: 900ms
+            value: [0.0, 540.0, 0.0]
+
+  final_assault:
+    duration: 700ms
+    loop: LOOP
+    recovery: RESUME
+    tracks:
+      crown:
+        translation:
+          - at: 0s
+            value: [0.0, 1.85, 0.0]
+          - at: 350ms
+            value: [0.0, 2.45, 0.0]
+          - at: 700ms
+            value: [0.0, 1.85, 0.0]
+      stone:
+        rotation:
+          - at: 0s
+            value: [0.0, 0.0, 0.0]
+          - at: 700ms
+            value: [0.0, 720.0, 0.0]
+
+  collapse:
+    duration: 1000ms
+    loop: ONCE
+    recovery: RESTART
+    tracks:
+      stone:
+        scale:
+          - at: 0s
+            value: [2.5, 2.5, 2.5]
+          - at: 1000ms
+            value: [0.05, 0.05, 0.05]
+      crown:
+        translation:
+          - at: 0s
+            value: [0.0, 1.85, 0.0]
+          - at: 1000ms
+            value: [0.0, -1.0, 0.0]

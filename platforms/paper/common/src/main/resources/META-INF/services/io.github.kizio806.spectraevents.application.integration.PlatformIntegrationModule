@@ -1,0 +1,4 @@
+io.github.kizio806.spectraevents.platform.paper.integration.PlaceholderAPIIntegration
+io.github.kizio806.spectraevents.platform.paper.integration.LuckPermsIntegration
+io.github.kizio806.spectraevents.platform.paper.integration.WorldGuardIntegration
+io.github.kizio806.spectraevents.platform.paper.integration.VaultIntegration

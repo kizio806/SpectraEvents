@@ -10,7 +10,10 @@ import io.github.kizio806.spectraevents.application.service.EventOrchestrationSe
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
+import io.github.kizio806.spectraevents.platform.spigot.action.SpigotActionAdapter;
 import io.github.kizio806.spectraevents.platform.spigot.config.SpigotDefinitionConfigBootstrap;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -33,17 +36,22 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
   private final EventOrchestrationService orchestrationService;
   private final EventInstanceRepository repository;
   private final SpigotDefinitionConfigBootstrap definitions;
+  private final SpigotActionAdapter actionAdapter;
+  private final Path schedulesFile;
 
   public SpigotMainCommand(
       Plugin plugin,
       SpectraEventsApplication application,
       EventInstanceRepository repository,
-      SpigotDefinitionConfigBootstrap definitions) {
+      SpigotDefinitionConfigBootstrap definitions,
+      SpigotActionAdapter actionAdapter) {
     this.plugin = plugin;
     this.application = application;
     this.orchestrationService = application.orchestrationService();
     this.repository = repository;
     this.definitions = definitions;
+    this.actionAdapter = actionAdapter;
+    this.schedulesFile = plugin.getDataFolder().toPath().resolve("schedules.yml");
   }
 
   @Override
@@ -60,6 +68,8 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
         case "doctor" -> doctor(sender);
         case "event" -> event(sender, Arrays.copyOfRange(arguments, 1, arguments.length));
         case "definition" -> definition(sender, Arrays.copyOfRange(arguments, 1, arguments.length));
+        case "schedule" -> schedule(sender, Arrays.copyOfRange(arguments, 1, arguments.length));
+        case "rewards" -> rewards(sender, Arrays.copyOfRange(arguments, 1, arguments.length));
         case "assets" -> unavailableAssets(sender);
         case "admin" -> unsupported(sender, "Inventory GUI", "Paper family");
         case "update" -> unsupported(sender, "Update commands", "Paper family");
@@ -73,6 +83,94 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
       plugin.getLogger().warning("Command failed: " + exception.getMessage());
       return true;
     }
+  }
+
+  private boolean schedule(CommandSender sender, String[] arguments) {
+    require(sender, "spectraevents.schedule");
+    if (arguments.length == 0 || "list".equalsIgnoreCase(arguments[0])) {
+      var service = requireScheduleService();
+      sender.sendMessage("[SpectraEvents] Schedules: " + service.schedules().size());
+      for (var schedule : service.schedules()) {
+        sender.sendMessage(
+            " - "
+                + schedule.id()
+                + " -> "
+                + schedule.definitionId()
+                + " ("
+                + schedule.zoneId()
+                + ")");
+      }
+      return true;
+    }
+    if (!"reload".equalsIgnoreCase(arguments[0])) {
+      throw new IllegalArgumentException("Unknown schedule subcommand: " + arguments[0]);
+    }
+    try {
+      var result =
+          new io.github.kizio806.spectraevents.application.schedule.FileSystemScheduleLoader(
+                  new io.github.kizio806.spectraevents.application.schedule.ScheduleYamlLoader())
+              .load(schedulesFile);
+      requireScheduleService().replace(result.schedules());
+      sender.sendMessage(
+          "[SpectraEvents] Schedules loaded="
+              + result.schedules().size()
+              + " failed="
+              + result.failures().size());
+      for (var failure : result.failures()) {
+        sender.sendMessage(" - " + failure.path() + ": " + failure.message());
+      }
+      return true;
+    } catch (IOException exception) {
+      throw new IllegalStateException(
+          "Cannot read schedules.yml: " + exception.getMessage(), exception);
+    }
+  }
+
+  private io.github.kizio806.spectraevents.application.schedule.EventScheduleService
+      requireScheduleService() {
+    if (application.scheduleService() == null) {
+      throw new IllegalStateException("Scheduling is unavailable on this platform");
+    }
+    return application.scheduleService();
+  }
+
+  @SuppressWarnings("FutureReturnValueIgnored")
+  private boolean rewards(CommandSender sender, String[] arguments) {
+    require(sender, "spectraevents.rewards.claim");
+    if (!(sender instanceof Player player)) {
+      throw new IllegalStateException("Rewards are available to in-game players only");
+    }
+    if (arguments.length == 0 || "list".equalsIgnoreCase(arguments[0])) {
+      var claims = application.rewardMailboxService().pendingClaims(player.getUniqueId());
+      sender.sendMessage("[SpectraEvents] Pending rewards: " + claims.size());
+      for (var claim : claims) {
+        sender.sendMessage(" - " + claim.id() + " (" + claim.items().size() + " item entries)");
+      }
+      return true;
+    }
+    if (!"claim".equalsIgnoreCase(arguments[0])) {
+      throw new IllegalArgumentException("Unknown rewards subcommand: " + arguments[0]);
+    }
+    requireArguments(arguments, 2, "/spectraevents rewards claim <claim-id>");
+    UUID claimId = UUID.fromString(arguments[1]);
+    application
+        .rewardMailboxService()
+        .claim(
+            player.getUniqueId(),
+            claimId,
+            (ignored, items) -> actionAdapter.deliverRewardItems(player, items))
+        .thenAccept(
+            result ->
+                sender.sendMessage(
+                    "[SpectraEvents] "
+                        + switch (result.status()) {
+                          case DELIVERED -> "Reward delivered.";
+                          case RETAINED ->
+                              "Reward is retained. Make space in your inventory and try again.";
+                          case BUSY -> "That reward is already being delivered.";
+                          case NOT_AVAILABLE -> "That reward is not available.";
+                        }));
+    return true;
   }
 
   private boolean event(CommandSender sender, String[] arguments) {
@@ -124,8 +222,8 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
         requireArguments(arguments, 3, "/spectraevents event trigger <instance> <trigger>");
         EventInstanceId id = new EventInstanceId(UUID.fromString(arguments[1]));
         ExecutionContext context =
-            sender instanceof Player
-                ? ExecutionContext.withActor(sender)
+            sender instanceof Player player
+                ? ExecutionContext.withActor(player, player.getUniqueId())
                 : new ExecutionContext(sender, java.util.Map.of());
         boolean handled =
             application
@@ -152,13 +250,13 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
                 + " resources="
                 + diagnostics.platformResources()
                 + " claim="
-                + diagnostics.claimant().orElse("unclaimed"));
+                + (diagnostics.claimant() != null ? diagnostics.claimant() : "unclaimed"));
         if (!diagnostics.runtimeStatePresent()
             || (instance.state().isTerminal()
                 && (diagnostics.pendingTasks() != 0 || diagnostics.platformResources() != 0))) {
           sender.sendMessage(
               "[SpectraEvents] Recovery guidance: run /spectraevents doctor, preserve logs, and back up spectraevents.db before restarting.");
-        } else if (diagnostics.claimant().isPresent()) {
+        } else if (diagnostics.claimant() != null) {
           sender.sendMessage(
               "[SpectraEvents] Claim recorded: reconcile any external reward before granting a manual replacement.");
         }
@@ -229,7 +327,8 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
         String claim =
             repository
                 .findState(instance.id())
-                .flatMap(state -> state.claimant())
+                .map(state -> state.claimant())
+                .filter(c -> c != null)
                 .orElse("unclaimed");
         sender.sendMessage(
             "[SpectraEvents] instance="
@@ -272,7 +371,9 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
   private void help(CommandSender sender) {
     sender.sendMessage("[SpectraEvents] /spectraevents status|doctor|version");
     sender.sendMessage("[SpectraEvents] /spectraevents event list|start|trigger|inspect|cancel");
+    sender.sendMessage("[SpectraEvents] /spectraevents rewards list|claim <claim-id>");
     sender.sendMessage("[SpectraEvents] /spectraevents definition list|reload|validate");
+    sender.sendMessage("[SpectraEvents] /spectraevents schedule list|reload");
   }
 
   private Location eventLocation(CommandSender sender) {
@@ -304,7 +405,16 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
       CommandSender sender, Command command, String alias, String[] arguments) {
     if (arguments.length == 1) {
       return matches(
-          arguments[0], "help", "version", "status", "doctor", "event", "definition", "assets");
+          arguments[0],
+          "help",
+          "version",
+          "status",
+          "doctor",
+          "event",
+          "definition",
+          "schedule",
+          "rewards",
+          "assets");
     }
     if (arguments.length == 2 && "event".equalsIgnoreCase(arguments[0])) {
       return matches(arguments[1], "list", "start", "trigger", "inspect", "cancel");
@@ -319,6 +429,12 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
     }
     if (arguments.length == 2 && "definition".equalsIgnoreCase(arguments[0])) {
       return matches(arguments[1], "list", "reload", "validate");
+    }
+    if (arguments.length == 2 && "rewards".equalsIgnoreCase(arguments[0])) {
+      return matches(arguments[1], "list", "claim");
+    }
+    if (arguments.length == 2 && "schedule".equalsIgnoreCase(arguments[0])) {
+      return matches(arguments[1], "list", "reload");
     }
     return List.of();
   }

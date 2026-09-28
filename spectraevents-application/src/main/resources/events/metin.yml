@@ -1,280 +1,216 @@
-# =============================================================================
-# SpectraEvents — Event Definition: Metin Stone
-# =============================================================================
-# A cursed dark stone materialises in the world. Players must chip away its
-# HP across three escalating phases. At 50% HP the stone enrages; at 20% HP
-# it spawns a Defender Boss that must be killed before the stone can be
-# damaged further. When the Boss dies, the stone shatters and drops rare loot.
-#
-# PHASES
-#   spawning → active → enraged → boss → defeated → completed
-#
-# DIFFICULTY PROFILES (configured via /spectraevents event config)
-#   easy:   health=600,  damage=15
-#   normal: health=1000, damage=10
-#   hard:   health=1600, damage=7
-#
-# HEALTH THRESHOLDS (at normal profile, health=1000)
-#   1000 → 750 (75%) : First zombie wave spawns (4 Metin Minions)
-#   750  → 500 (50%) : Stone enrages — phase transition to "enraged"
-#   500  → 200 (20%) : Boss phase — transition to "boss"
-#   200  →   0 (  0%) : Boss must die (entity_death trigger in boss phase)
-# =============================================================================
-
+# Reference large-raid encounter. One Metin model persists through every phase.
 id: metin
 schema-version: "1"
-initial-phase: spawning
+initial-phase: manifestation
+
+encounter:
+  zone-radius: 160
+  deadline: 25m
+  minimum-contribution: 100
 
 phases:
-
-  # ---------------------------------------------------------------------------
-  # PHASE: spawning
-  # The stone appears in the world. The "spawn" animation grows the model
-  # from nothing to full size. After 2 s the active combat phase begins.
-  # ---------------------------------------------------------------------------
-  spawning:
+  manifestation:
     on-enter:
-      # initialize_health: sets the instance HP. Overridden by "health" setting.
       - type: initialize_health
         max: 1000
-
-      # height-offset: 0 — the stone spawns at ground level, not in the air.
+      - type: set_locked
+        duration: 30s
       - type: spawn_model
         model: metin_stone
         height-offset: 0
-
       - type: play_animation
-        model: metin_stone
-        animation: spawn
-        loop: ONCE
-
-      - type: show_title
-        title: "<dark_purple><bold>METIN STONE"
-        subtitle: "<yellow>Destroy the stone"
-
-      - type: broadcast_message
-        message: "<gold><bold>[SpectraEvents]</bold> <dark_purple>A powerful Metin Stone has landed!</dark_purple>"
-
-    transitions:
-      # Brief dramatic pause before players can interact.
-      - trigger:
-          type: timer_elapsed
-          duration: 2s
-        target: active
-
-  # ---------------------------------------------------------------------------
-  # PHASE: active
-  # Players attack the stone. Health threshold at 75% spawns the first wave.
-  # Threshold at 50% triggers the enraged phase transition.
-  # ---------------------------------------------------------------------------
-  active:
-    on-enter:
-      # Start the looping pulse breathing animation.
-      - type: play_animation
-        model: metin_stone
-        animation: pulse
-        loop: LOOP
-
-      # show_bossbar: NOTCHED_10 style shows discrete health notches —
-      # good for conveying milestone thresholds visually.
+        animation: idle
+      - type: spawn_particles
+        particle: minecraft:portal
+        count: 80
       - type: show_bossbar
-        title: "<dark_purple><bold>METIN STONE</bold> <purple>%health%/%max_health% HP (%health_percent%%)</purple>"
+        title: "<dark_purple><bold>METIN</bold> <gray>| %phase% | %health%/%max_health% HP | %location%"
         color: PURPLE
         style: NOTCHED_10
-
-      - type: show_scoreboard
-        title: "<purple><bold>METIN EVENT</bold>"
-        lines:
-          - "<purple>Phase: <white>%phase%</white>"
-          - "<purple>Health: <green>%health%</green>/<green>%max_health%</green>"
-          - "<purple>Status: <light_purple>Active</light_purple>"
-          - "<purple>Location: <white>%location%</white>"
-
-    transitions:
-      # Each player click deals damage and updates the HUD.
-      - trigger:
-          type: interaction
-        actions:
-          - type: apply_damage
-            amount: 10              # Overridden by "damage" operator setting
-
-          - type: update_bossbar
-            title: "<dark_purple><bold>METIN STONE</bold> <purple>%health%/%max_health% HP (%health_percent%%)</purple>"
-
-          - type: update_scoreboard
-            title: "<purple><bold>METIN EVENT</bold>"
-            lines:
-              - "<purple>Phase: <white>%phase%</white>"
-              - "<purple>Health: <green>%health%</green>/<green>%max_health%</green>"
-              - "<purple>Status: <light_purple>Active</light_purple>"
-
-      # --- Wave 1: at 75% HP (750 of 1000 normal) ---
-      # Threshold fires exactly once per instance, never repeats.
-      - trigger:
-          type: health_threshold_crossed
-          threshold: 750
-        actions:
-          - type: broadcast_message
-            message: "<gold><bold>[SpectraEvents]</bold> <purple>Metin Stone disturbed! Zombies summoned!</purple>"
-          - type: spawn_mobs
-            mobs:
-              - entity_type: minecraft:zombie
-                name: "<dark_purple>Metin Minion</dark_purple>"
-                amount: 4
-                radius: 5
-
-      # --- Enrage at 50% HP ---
-      # health_threshold_crossed with a target transitions the phase.
-      - trigger:
-          type: health_threshold_crossed
-          threshold: 500            # 50% of 1000 (normal)
-        target: enraged
-
-  # ---------------------------------------------------------------------------
-  # PHASE: enraged
-  # The stone accelerates its Y rotation and spawns archer skeletons.
-  # Players continue dealing damage. At 20% HP the Defender Boss spawns.
-  # ---------------------------------------------------------------------------
-  enraged:
-    on-enter:
-      # Switch from pulse to the faster enraged spin animation.
-      - type: play_animation
-        model: metin_stone
-        animation: enraged
-        loop: LOOP
-
       - type: broadcast_message
-        message: "<gold><bold>[SpectraEvents]</bold> <red><bold>METIN STONE IS ENRAGED!</bold></red>"
-
-      - type: play_sound
-        sound: minecraft:entity.ender_dragon.growl
-        volume: 1.0
-        pitch: 1.0
-
-      - type: spawn_particles
-        particle: minecraft:flame
-        count: 50
-
-      # update_bossbar: switch colour to RED and NOTCHED_12 to signal danger.
-      - type: update_bossbar
-        title: "<red><bold>METIN STONE (ENRAGED)</bold> <yellow>%health%/%max_health% HP (%health_percent%%)</yellow>"
-        color: RED
-        style: NOTCHED_12
-
-      # Enrage wave: archers surround the stone.
-      - type: spawn_mobs
-        mobs:
-          - entity_type: minecraft:skeleton
-            name: "<red>Metin Archer</red>"
-            amount: 4
-            radius: 5
-
+        message: "<gold>[SpectraEvents]</gold> <dark_purple>Metin manifested at %location%.</dark_purple>"
     transitions:
-      # Damage continues — each click still reduces HP.
+      - trigger:
+          type: timer_elapsed
+          duration: 30s
+        target: dominance
+
+  dominance:
+    on-enter:
+      - type: set_locked
+        duration: 0s
+      - type: play_animation
+        animation: idle
+      - type: update_bossbar
+        title: "<dark_purple><bold>METIN</bold> <gray>| Dominance | %health%/%max_health% HP | %location%"
+        color: PURPLE
+        style: NOTCHED_10
+      - type: broadcast_message
+        message: "<gold>[SpectraEvents]</gold> <light_purple>Metin is vulnerable.</light_purple>"
+    transitions:
       - trigger:
           type: interaction
+        conditions:
+          - type: not_locked
         actions:
           - type: apply_damage
             amount: 10
-
-          - type: update_bossbar
-            title: "<red><bold>METIN STONE (ENRAGED)</bold> <yellow>%health%/%max_health% HP (%health_percent%%)</yellow>"
-
-          - type: update_scoreboard
-            title: "<purple><bold>METIN EVENT</bold>"
-            lines:
-              - "<purple>Phase: <red>%phase%</red>"
-              - "<purple>Health: <red>%health%</red>/<red>%max_health%</red>"
-              - "<purple>Status: <red>ENRAGED!</red>"
-              - "<purple>Location: <white>%location%</white>"
-
-      # Boss phase at 20% HP (200 of 1000 normal).
       - trigger:
           type: health_threshold_crossed
-          threshold: 200
-        target: boss
+          threshold: 750
+        target: fracture
 
-  # ---------------------------------------------------------------------------
-  # PHASE: boss
-  # The Defender Boss spawns. The stone is now invulnerable to player clicks.
-  # Players must kill the boss; entity_death routes the kill back to this
-  # instance and triggers the defeated phase.
-  # ---------------------------------------------------------------------------
-  boss:
+  fracture:
     on-enter:
-      - type: broadcast_message
-        message: "<gold><bold>[SpectraEvents]</bold> <dark_red><bold>FINAL PHASE!</bold> Metin Defender has spawned!</dark_red>"
-
-      - type: play_sound
-        sound: minecraft:entity.wither.spawn
-        volume: 1.0
-        pitch: 1.0
-
-      # spawn_boss: spawns a named Minecraft entity and registers its entity ID
-      # with this event instance. When the entity dies, entity_death fires.
-      # offset-x: spawn position offset from the event centre (blocks).
-      - type: spawn_boss
-        entity_type: minecraft:zombie
-        name: "<dark_red><bold>Metin Defender Boss</bold></dark_red>"
-        offset-x: 2
-
-      # Update bossbar to indicate the boss-kill objective.
+      - type: set_locked
+        duration: 90s
+      - type: play_animation
+        animation: idle
+      - type: spawn_particles
+        particle: minecraft:crimson_spore
+        count: 120
       - type: update_bossbar
-        title: "<dark_red><bold>METIN DEFENDER BOSS</bold> <gray>[Kill the Boss!]</gray>"
-        color: PINK
-        style: PROGRESS
-
+        title: "<gold><bold>METIN FRACTURE</bold> <gray>| clear the wave | %location%"
+        color: YELLOW
+        style: NOTCHED_10
+      - type: spawn_wave
+        wave-id: fracture_guard
+        mobs:
+          - entity_type: minecraft:zombie
+            name: "<dark_purple>Metin Fracture Guard</dark_purple>"
+            amount: 12
+            radius: 18
+      - type: broadcast_message
+        message: "<gold>[SpectraEvents]</gold> <yellow>Metin fractured: clear its guards.</yellow>"
     transitions:
-      # While in boss phase, stone interactions show an invulnerable message.
+      - trigger:
+          type: wave_cleared
+          wave-id: fracture_guard
+        target: desperation
+      - trigger:
+          type: timer_elapsed
+          duration: 90s
+        target: desperation
+
+  desperation:
+    on-enter:
+      - type: set_locked
+        duration: 0s
+      - type: play_animation
+        animation: idle
+      - type: spawn_particles
+        particle: minecraft:reverse_portal
+        count: 160
+      - type: update_bossbar
+        title: "<red><bold>METIN DESPERATION</bold> <gray>| %health%/%max_health% HP | %location%"
+        color: RED
+        style: NOTCHED_12
+      - type: broadcast_message
+        message: "<gold>[SpectraEvents]</gold> <red>Metin has entered desperation.</red>"
+    transitions:
       - trigger:
           type: interaction
+        conditions:
+          - type: not_locked
         actions:
-          - type: send_message
-            message: "<red>Metin Stone is invulnerable! You must defeat the Metin Defender Boss!</red>"
-
-      # entity_death: fires when the registered boss entity is killed.
-      # The engine routes the kill event back via its PDC entity ownership tag.
+          - type: apply_damage
+            amount: 10
       - trigger:
-          type: entity_death
-        target: defeated
+          type: health_threshold_crossed
+          threshold: 500
+        actions:
+          - type: set_locked
+            duration: 90s
+          - type: spawn_wave
+            wave-id: desperation_guard
+            mobs:
+              - entity_type: minecraft:skeleton
+                name: "<red>Metin Desperation Archer</red>"
+                amount: 16
+                radius: 22
+      - trigger:
+          type: wave_cleared
+          wave-id: desperation_guard
+        actions:
+          - type: set_locked
+            duration: 0s
+      - trigger:
+          type: health_threshold_crossed
+          threshold: 250
+        conditions:
+          - type: not_locked
+        target: final_assault
 
-  # ---------------------------------------------------------------------------
-  # PHASE: defeated
-  # Boss dead, stone destroyed. Loot drops and everything is cleaned up.
-  # ---------------------------------------------------------------------------
-  defeated:
+  final_assault:
     on-enter:
-      - type: play_sound
-        sound: minecraft:ui.toast.challenge_complete
-        volume: 1.0
-        pitch: 1.0
-
+      - type: set_locked
+        duration: 5m
+      - type: play_animation
+        animation: idle
       - type: spawn_particles
         particle: minecraft:explosion_emitter
-        count: 3
-
-      - type: drop_loot
-        radius: 4.0
-        items:
-          - material: minecraft:netherite_block
+        count: 12
+      - type: update_bossbar
+        title: "<dark_red><bold>FINAL ASSAULT</bold> <gray>| defeat the Defender and its wave | %location%"
+        color: PINK
+        style: PROGRESS
+      - type: spawn_wave
+        wave-id: final_assault
+        mobs:
+          - entity_type: minecraft:wither_skeleton
+            name: "<dark_red><bold>Metin Defender</bold></dark_red>"
             amount: 1
-            chance: 50             # Rare — 50% drop rate
-          - material: minecraft:diamond
-            amount: 12
-            chance: 100
-          - material: minecraft:gold_ingot
-            amount: 32
-            chance: 100
-          - material: minecraft:totem_of_undying
-            amount: 1
-            chance: 75             # Common-rare — 75% drop rate
-
+            radius: 3
+          - entity_type: minecraft:vindicator
+            name: "<red>Metin Final Guard</red>"
+            amount: 18
+            radius: 24
       - type: broadcast_message
-        message: "<gold><bold>[SpectraEvents]</bold> <green>The Metin Stone and its Defender have been slain! Rare loot dropped!</green>"
+        message: "<gold>[SpectraEvents]</gold> <dark_red>Final assault: defeat the Metin Defender.</dark_red>"
+    transitions:
+      - trigger:
+          type: wave_cleared
+          wave-id: final_assault
+        target: victory
+      - trigger:
+          type: timer_elapsed
+          duration: 5m
+        actions:
+          - type: fail_event
 
+  victory:
+    on-enter:
+      - type: play_animation
+        animation: destroy
+      - type: spawn_particles
+        particle: minecraft:explosion_emitter
+        count: 18
+      # Pools are direct inventory delivery: first, second and third eligible damage contributor.
+      - type: award_podium
+        pools:
+          - items:
+              - material: minecraft:netherite_ingot
+                amount: 3
+                chance: 100
+              - material: minecraft:diamond
+                amount: 32
+                chance: 100
+          - items:
+              - material: minecraft:netherite_ingot
+                amount: 2
+                chance: 100
+              - material: minecraft:diamond
+                amount: 20
+                chance: 100
+          - items:
+              - material: minecraft:netherite_ingot
+                amount: 1
+                chance: 100
+              - material: minecraft:diamond
+                amount: 12
+                chance: 100
+      - type: broadcast_message
+        message: "<gold>[SpectraEvents]</gold> <green>Metin defeated. Podium rewards are being delivered.</green>"
       - type: remove_bossbar
-      - type: remove_scoreboard
       - type: remove_model
       - type: complete_event
-
-  completed: {}

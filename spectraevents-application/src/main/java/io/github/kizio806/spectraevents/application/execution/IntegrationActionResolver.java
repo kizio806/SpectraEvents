@@ -2,6 +2,7 @@ package io.github.kizio806.spectraevents.application.execution;
 
 import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
+import java.util.concurrent.CompletableFuture;
 
 public interface IntegrationActionResolver {
   /**
@@ -9,7 +10,7 @@ public interface IntegrationActionResolver {
    *
    * @return true if successfully executed, false if it failed.
    */
-  boolean execute(
+  CompletableFuture<Boolean> execute(
       ActionDefinition action,
       EventInstance instance,
       EventRuntimeState state,

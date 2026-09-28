@@ -50,6 +50,7 @@ public final class EventScoreboardManager implements Listener {
   private final Map<UUID, ScoreboardHolder> activeScoreboards = new ConcurrentHashMap<>();
   private final RegionTaskScheduler scheduler;
   private volatile boolean scoreboardsSupported = true;
+  private volatile boolean shuttingDown;
 
   public EventScoreboardManager(RegionTaskScheduler scheduler) {
     this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
@@ -131,13 +132,17 @@ public final class EventScoreboardManager implements Listener {
     if (holder != null) {
       Scoreboard mainScoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
       for (Player player : Bukkit.getOnlinePlayers()) {
-        scheduler.executeFor(
-            player,
+        Runnable restoreMainScoreboard =
             () -> {
               if (player.getScoreboard().equals(holder.scoreboard)) {
                 player.setScoreboard(mainScoreboard);
               }
-            });
+            };
+        if (shuttingDown) {
+          restoreMainScoreboard.run();
+        } else {
+          scheduler.executeFor(player, restoreMainScoreboard);
+        }
       }
       holder.objective.unregister();
     }
@@ -147,17 +152,26 @@ public final class EventScoreboardManager implements Listener {
     for (ScoreboardHolder holder : activeScoreboards.values()) {
       Scoreboard mainScoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
       for (Player player : Bukkit.getOnlinePlayers()) {
-        scheduler.executeFor(
-            player,
+        Runnable restoreMainScoreboard =
             () -> {
               if (player.getScoreboard().equals(holder.scoreboard)) {
                 player.setScoreboard(mainScoreboard);
               }
-            });
+            };
+        if (shuttingDown) {
+          restoreMainScoreboard.run();
+        } else {
+          scheduler.executeFor(player, restoreMainScoreboard);
+        }
       }
       holder.objective.unregister();
     }
     activeScoreboards.clear();
+  }
+
+  /** Switches cleanup to direct server-shutdown operations after scheduler registration closes. */
+  public void beginShutdown() {
+    shuttingDown = true;
   }
 
   public void attachPlayer(Player player) {

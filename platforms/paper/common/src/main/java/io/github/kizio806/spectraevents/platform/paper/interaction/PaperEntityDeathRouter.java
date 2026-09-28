@@ -53,13 +53,25 @@ public final class PaperEntityDeathRouter implements Listener {
       EventInstanceId instanceId = new EventInstanceId(UUID.fromString(instanceIdStr));
       EventInstance instance = orchestrationService.getEventInfo(instanceId.toString());
 
+      String waveId = pdc.get(SpectraPdcKeys.WAVE_ID, PersistentDataType.STRING);
+      if (waveId != null && executionEngine != null) {
+        org.bukkit.entity.Player killer = entity.getKiller();
+        ExecutionContext context =
+            killer != null
+                ? new ExecutionContext(killer, killer.getUniqueId(), Map.of())
+                : ExecutionContext.EMPTY;
+        executionEngine.recordWaveEntityDeath(instanceId, waveId, entity.getUniqueId(), context);
+      }
+
       EventEntityDeathDelegate delegate = delegates.get(instance.definitionId().value());
       if (delegate != null) {
         delegate.handleEntityDeath(entity, instance);
       } else if (executionEngine != null) {
-        Object killer = entity.getKiller();
+        org.bukkit.entity.Player killer = entity.getKiller();
         ExecutionContext ctx =
-            killer != null ? new ExecutionContext(killer, Map.of()) : ExecutionContext.EMPTY;
+            killer != null
+                ? new ExecutionContext(killer, killer.getUniqueId(), Map.of())
+                : ExecutionContext.EMPTY;
         executionEngine.evaluateTrigger(
             instanceId, new ConfiguredTriggerDefinition("entity_death"), ctx);
       }

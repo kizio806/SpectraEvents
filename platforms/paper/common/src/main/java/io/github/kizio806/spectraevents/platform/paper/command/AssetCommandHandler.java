@@ -33,10 +33,6 @@ public final class AssetCommandHandler {
                 .requires(s -> hasPerm(s, "spectraevents.admin.assets.list"))
                 .executes(this::listAssets))
         .then(
-            Commands.literal("clean")
-                .requires(s -> hasPerm(s, "spectraevents.admin.assets.clean"))
-                .executes(this::cleanAssets))
-        .then(
             Commands.literal("import")
                 .requires(s -> hasPerm(s, "spectraevents.admin.assets.import"))
                 .then(
@@ -113,14 +109,6 @@ public final class AssetCommandHandler {
     for (String m : models) {
       sender.sendMessage(Component.text("- " + m, NamedTextColor.GRAY));
     }
-    return 1;
-  }
-
-  private int cleanAssets(CommandContext<CommandSourceStack> ctx) {
-    CommandSender sender = ctx.getSource().getSender();
-    if (assetPipelineService == null) return unavailable(sender);
-    assetPipelineService.clean();
-    sender.sendMessage(Component.text("Asset import cache cleared.", NamedTextColor.GREEN));
     return 1;
   }
 
