@@ -38,8 +38,28 @@ public final class SpigotEventRouter implements Listener {
   @EventHandler(ignoreCancelled = true)
   public void onDamage(EntityDamageByEntityEvent event) {
     if (event.getDamager() instanceof Player player
-        && handleInteraction(player, event.getEntity())) {
+        && handleCombatDamage(player, event.getEntity(), event.getFinalDamage())) {
       event.setCancelled(true);
+    }
+  }
+
+  private boolean handleCombatDamage(Player player, Entity entity, double finalDamage) {
+    EventInstanceId instanceId = instanceId(entity);
+    if (instanceId == null) {
+      return false;
+    }
+    try {
+      orchestrationService.getEventInfo(instanceId.toString());
+      executionEngine.recordExternalContribution(instanceId, player.getUniqueId(), finalDamage);
+      boolean handled =
+          executionEngine.evaluateTrigger(
+              instanceId,
+              new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
+                  .CombatDamageTrigger(),
+              ExecutionContext.withCombatDamage(player, player.getUniqueId(), finalDamage));
+      return handled || handleInteraction(player, entity);
+    } catch (IllegalArgumentException ignored) {
+      return true;
     }
   }
 
@@ -53,7 +73,18 @@ public final class SpigotEventRouter implements Listener {
       orchestrationService.getEventInfo(instanceId.toString());
       Player killer = event.getEntity().getKiller();
       ExecutionContext context =
-          killer == null ? ExecutionContext.EMPTY : new ExecutionContext(killer, Map.of());
+          killer == null
+              ? ExecutionContext.EMPTY
+              : new ExecutionContext(killer, killer.getUniqueId(), Map.of());
+      String waveId =
+          event
+              .getEntity()
+              .getPersistentDataContainer()
+              .get(SpigotPdcKeys.WAVE_ID, PersistentDataType.STRING);
+      if (waveId != null) {
+        executionEngine.recordWaveEntityDeath(
+            instanceId, waveId, event.getEntity().getUniqueId(), context);
+      }
       executionEngine.evaluateTrigger(
           instanceId, new ConfiguredTriggerDefinition("entity_death"), context);
     } catch (IllegalArgumentException ignored) {
@@ -71,7 +102,7 @@ public final class SpigotEventRouter implements Listener {
       executionEngine.evaluateTrigger(
           instanceId,
           new ConfiguredTriggerDefinition("interaction"),
-          ExecutionContext.withActor(player));
+          ExecutionContext.withActor(player, player.getUniqueId()));
       return true;
     } catch (IllegalArgumentException ignored) {
       return true;

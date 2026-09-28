@@ -8,6 +8,7 @@ import io.github.kizio806.spectraevents.core.visual.animation.AnimationId;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationTime;
 import io.github.kizio806.spectraevents.core.visual.animation.Easing;
 import io.github.kizio806.spectraevents.core.visual.animation.LoopMode;
+import io.github.kizio806.spectraevents.core.visual.animation.ScaleKeyframe;
 import io.github.kizio806.spectraevents.core.visual.animation.Vector3Keyframe;
 import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetAnimation;
 import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetDocument;
@@ -40,6 +41,16 @@ class ImportedAssetModelRegistrarTest {
     Assertions.assertTrue(animationRegistry.find(modelId, new AnimationId("pulse")).isPresent());
   }
 
+  @Test
+  void mapsTerminalZeroScaleToMinimalRenderableScale() {
+    ModelDefinitionRegistry modelRegistry = new ModelDefinitionRegistry();
+    AnimationDefinitionRegistry animationRegistry = new AnimationDefinitionRegistry();
+    ImportedAssetModelRegistrar registrar =
+        new ImportedAssetModelRegistrar(new ModelCompiler(), modelRegistry, animationRegistry);
+
+    Assertions.assertDoesNotThrow(() -> registrar.register(documentWithTerminalZeroScale()));
+  }
+
   private static SpectraAssetDocument document() {
     SpectraAssetNode root =
         new SpectraAssetNode(
@@ -68,5 +79,32 @@ class ImportedAssetModelRegistrarTest {
             List.of());
     return new SpectraAssetDocument(
         1, "meteor", Map.of(), List.of(root), Map.of("pulse", animation));
+  }
+
+  private static SpectraAssetDocument documentWithTerminalZeroScale() {
+    SpectraAssetNode root =
+        new SpectraAssetNode(
+            "root",
+            Vector3.ZERO,
+            Vector3.ZERO,
+            EulerRotation.ZERO,
+            Vector3.ONE,
+            List.of(),
+            List.of());
+    SpectraAssetAnimation animation =
+        new SpectraAssetAnimation(
+            "collapse",
+            AnimationDuration.fromSeconds(1.0),
+            LoopMode.ONCE,
+            Map.of(),
+            Map.of(),
+            Map.of(
+                "root",
+                List.of(
+                    new ScaleKeyframe(
+                        AnimationTime.fromSeconds(1.0), Vector3.ZERO, Easing.LINEAR))),
+            List.of());
+    return new SpectraAssetDocument(
+        1, "meteor", Map.of(), List.of(root), Map.of("collapse", animation));
   }
 }

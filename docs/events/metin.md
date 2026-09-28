@@ -1,15 +1,18 @@
 # Metin Event Specification
 
-`metin.yml` is a bundled, executable reference for a combat-oriented event where players must
+`metin.yml` is a bundled, executable reference for a combat-oriented raid where players must
 destroy a corrupted, self-healing crystal monolith while fending off waves of monster spawns.
 
 ## Gameplay Summary
 
 | Phase | What happens | Transition |
 |---|---|---|
-| `spawn` | Crystal crashes into the ground | `timer_elapsed` (3s crash animation) |
-| `active` | Crystal can be damaged; waves of monsters spawn at health thresholds | `health_depleted` |
-| `completed` | Crystal shatters, loot drops | Terminal |
+| `manifestation` | Crystal manifests, locked for 30 seconds. | `timer_elapsed` (30s) |
+| `dominance` | Crystal is vulnerable (100–75% HP). | `health_threshold_crossed` (75%) |
+| `fracture` | Crystal becomes locked, spawns a wave of guards. | `wave_cleared` or `timer_elapsed` (90s) |
+| `desperation` | Crystal is vulnerable (75–25% HP), spawns guards at 50%. | `health_threshold_crossed` (25%) |
+| `final_assault` | Crystal becomes locked, spawns a Metin Defender boss. | `wave_cleared` |
+| `victory` | Boss defeated, crystal shatters, top-3 podium rewarded. | Terminal |
 
 ## Visual Model
 
@@ -26,26 +29,25 @@ The `metin_stone` model ([`models/metin.yml`](../authoring/models.md)) is built 
 
 | Animation | Loop | Trigger | Description |
 |---|---|---|---|
-| `spawn` | ONCE | Phase `spawn` on-enter | Crystal slams into the ground from slightly above, spikes extend outward |
-| `pulse` | LOOP | Phase `active` on-enter | Core throbs, runes orbit, tentacles writhe |
+| `idle` | LOOP | Phases `manifestation`, `dominance`, `fracture`, `desperation`, `final_assault` | Core throbs, runes orbit |
 | `hit` | ONCE | `interaction` (left-click) | Core flashes bright red, base shudders briefly |
-| `shatter` | ONCE | Phase `completed` on-enter | All spikes break off, core implodes, runes scatter and fade |
+| `destroy` | ONCE | Phase `victory` on-enter | All spikes break off, core implodes, runes scatter and fade |
 
 ## Shared Contracts Used
 
 | Concern | Contract |
 |---|---|
 | Visual asset | `models/metin.yml` — 14-part model |
-| Timers | `timer_elapsed` for the 3-second spawn intro |
-| Health | `damage_entity` with 1000 HP |
-| Damage Feedback | `interaction` triggers `hit` animation and updates the bossbar instantly |
+| Health | `initialize_health` with 1000 HP |
+| Damage Feedback | `interaction` triggers damage and updates the bossbar |
 | Mob Waves | `health_threshold_crossed` at 75%, 50%, and 25% HP spawns protecting mobs |
+| Ranking | `award_podium` directly drops loot for the top-3 damage contributors |
 | Recovery | Health and current state persist across server restarts |
 
 ## Operator Workflow
 
 1. Start the event: `/spectraevents event start metin`
-2. The crystal spawns and settles into the ground for 3 seconds.
-3. The crystal becomes `active` and players begin attacking it.
-4. Verify that when health reaches 75%, 50%, and 25%, a wave of monsters (`spawn_wave`) spawns to defend the crystal.
-5. Destroy the crystal to see it shatter and drop its loot.
+2. The crystal manifests and is locked for 30 seconds.
+3. The crystal enters `dominance` and players begin attacking it.
+4. Verify that when health reaches 75% and 25%, the crystal locks and waves of monsters (`spawn_wave`) spawn to defend it.
+5. Defeat the final Metin Defender boss to see the crystal shatter and drop its loot.

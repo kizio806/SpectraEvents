@@ -1,0 +1,5 @@
+schema-version: 1
+messages:
+  reward-delivered: "Recompensa entregada."
+  reward-retained: "La recompensa permanece en el buzón. Libera espacio en el inventario e inténtalo de nuevo."
+  resource-pack-required: "No se pudo cargar el paquete de recursos obligatorio de SpectraEvents."

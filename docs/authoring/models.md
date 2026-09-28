@@ -191,9 +191,6 @@ parts:
 |---|---|
 | `/spectraevents model list` | Lists all registered model definitions |
 | `/spectraevents model info <id>` | Shows part hierarchy and render properties |
-| `/spectraevents model validate <id>` | Validates the compiled model definition |
-| `/spectraevents model spawn <id>` | Spawns a model preview at your location |
-| `/spectraevents model remove <runtime-id>` | Despawns an active model instance |
 
 ---
 

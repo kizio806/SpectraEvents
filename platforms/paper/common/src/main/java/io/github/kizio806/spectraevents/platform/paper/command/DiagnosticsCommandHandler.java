@@ -133,7 +133,9 @@ public final class DiagnosticsCommandHandler {
                             + " definition="
                             + instance.definitionId().value()
                             + " claim="
-                            + diagnostics.claimant().orElse("unclaimed"),
+                            + (diagnostics.claimant() != null
+                                ? diagnostics.claimant()
+                                : "unclaimed"),
                         NamedTextColor.GRAY));
               });
     }

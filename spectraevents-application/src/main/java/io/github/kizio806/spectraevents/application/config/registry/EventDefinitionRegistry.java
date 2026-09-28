@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.application.config.registry;
 
+import io.github.kizio806.spectraevents.application.config.spec.EventSpec;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
 import java.util.Collection;
@@ -23,6 +24,13 @@ public final class EventDefinitionRegistry {
    * @throws DuplicateEventDefinitionException if the ID is already registered
    */
   public void register(EventDefinition definition, String sourceFile) {
+    register(definition, sourceFile, null);
+  }
+
+  /**
+   * Registers a compiled definition together with the source declaration used for safe overrides.
+   */
+  public void register(EventDefinition definition, String sourceFile, EventSpec sourceSpec) {
     Objects.requireNonNull(definition, "definition");
     Objects.requireNonNull(sourceFile, "sourceFile");
 
@@ -32,7 +40,7 @@ public final class EventDefinitionRegistry {
       throw new DuplicateEventDefinitionException(id, existing.sourceFile(), sourceFile);
     }
 
-    definitions.put(id, new RegisteredEventDefinition(definition, sourceFile));
+    definitions.put(id, new RegisteredEventDefinition(definition, sourceFile, sourceSpec));
   }
 
   /**
@@ -42,6 +50,12 @@ public final class EventDefinitionRegistry {
    * @param sourceFile authoring source path or name
    */
   public void registerOrUpdate(EventDefinition definition, String sourceFile) {
+    registerOrUpdate(definition, sourceFile, null);
+  }
+
+  /** Updates a definition while retaining its parsed YAML parameter declaration. */
+  public void registerOrUpdate(
+      EventDefinition definition, String sourceFile, EventSpec sourceSpec) {
     Objects.requireNonNull(definition, "definition");
     Objects.requireNonNull(sourceFile, "sourceFile");
     RegisteredEventDefinition existing = definitions.get(definition.id());
@@ -55,7 +69,8 @@ public final class EventDefinitionRegistry {
             entry ->
                 entry.getValue().sourceFile().equals(sourceFile)
                     && !entry.getKey().equals(definition.id()));
-    definitions.put(definition.id(), new RegisteredEventDefinition(definition, sourceFile));
+    definitions.put(
+        definition.id(), new RegisteredEventDefinition(definition, sourceFile, sourceSpec));
   }
 
   /** Removes definitions whose source files no longer exist after a disk reload. */

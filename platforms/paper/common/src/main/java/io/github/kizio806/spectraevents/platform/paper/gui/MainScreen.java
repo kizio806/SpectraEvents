@@ -57,7 +57,7 @@ public final class MainScreen {
         createGuiItem(
             Material.REPEATER,
             Component.text("Event Configuration", NamedTextColor.YELLOW),
-            List.of(Component.text("Set difficulty profiles and overrides", NamedTextColor.GRAY))));
+            List.of(Component.text("Set YAML-declared scalar overrides", NamedTextColor.GRAY))));
     inv.setItem(
         22,
         createGuiItem(

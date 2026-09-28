@@ -4,10 +4,6 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import io.github.kizio806.spectraevents.application.model.registry.ModelDefinitionRegistry;
-import io.github.kizio806.spectraevents.application.model.runtime.ModelAnchor;
-import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeId;
-import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeService;
-import io.github.kizio806.spectraevents.application.model.runtime.RenderedModelHandle;
 import io.github.kizio806.spectraevents.core.visual.model.ModelDefinition;
 import io.github.kizio806.spectraevents.core.visual.model.ModelId;
 import io.github.kizio806.spectraevents.core.visual.model.ModelPartDefinition;
@@ -19,19 +15,14 @@ import java.util.Optional;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 
-/** Brigadier command handler for 3D model management (/event model). */
+/** Read-only Brigadier command handler for registered model definitions. */
 public final class ModelCommandHandler {
   private final ModelDefinitionRegistry modelRegistry;
-  private final ModelRuntimeService modelRuntimeService;
 
-  public ModelCommandHandler(
-      ModelDefinitionRegistry modelRegistry, ModelRuntimeService modelRuntimeService) {
+  public ModelCommandHandler(ModelDefinitionRegistry modelRegistry) {
     this.modelRegistry = modelRegistry;
-    this.modelRuntimeService = modelRuntimeService;
   }
 
   public LiteralArgumentBuilder<CommandSourceStack> build() {
@@ -47,21 +38,7 @@ public final class ModelCommandHandler {
                 .then(
                     Commands.argument("id", StringArgumentType.string())
                         .suggests(this::suggestModelIds)
-                        .executes(this::modelInfo)))
-        .then(
-            Commands.literal("spawn")
-                .requires(s -> hasPerm(s, "spectraevents.admin.model.spawn"))
-                .then(
-                    Commands.argument("id", StringArgumentType.string())
-                        .suggests(this::suggestModelIds)
-                        .executes(this::spawnModel)))
-        .then(
-            Commands.literal("remove")
-                .requires(s -> hasPerm(s, "spectraevents.admin.model.remove"))
-                .then(
-                    Commands.argument("runtimeId", StringArgumentType.string())
-                        .suggests(this::suggestActiveModelRuntimeIds)
-                        .executes(this::removeModel)));
+                        .executes(this::modelInfo)));
   }
 
   private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions>
@@ -74,22 +51,6 @@ public final class ModelCommandHandler {
         String id = model.id().value();
         if (id.toLowerCase(Locale.ROOT).startsWith(remaining)) {
           builder.suggest(id);
-        }
-      }
-    }
-    return builder.buildFuture();
-  }
-
-  private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions>
-      suggestActiveModelRuntimeIds(
-          CommandContext<CommandSourceStack> ctx,
-          com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
-    String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
-    if (modelRuntimeService != null) {
-      for (RenderedModelHandle handle : modelRuntimeService.getActiveInstances()) {
-        String rId = handle.runtimeId().value();
-        if (rId.toLowerCase(Locale.ROOT).startsWith(remaining)) {
-          builder.suggest(rId);
         }
       }
     }
@@ -169,83 +130,5 @@ public final class ModelCommandHandler {
                       NamedTextColor.GRAY)));
     }
     return 1;
-  }
-
-  private int spawnModel(CommandContext<CommandSourceStack> ctx) {
-    CommandSender sender = ctx.getSource().getSender();
-    if (!(sender instanceof Player player)) {
-      sender.sendMessage(
-          Component.text("This command can only be executed by a player.", NamedTextColor.RED));
-      return 0;
-    }
-
-    if (modelRuntimeService == null) {
-      sender.sendMessage(
-          Component.text("3D Model Runtime Service is not available.", NamedTextColor.RED));
-      return 0;
-    }
-
-    String idStr = StringArgumentType.getString(ctx, "id");
-    ModelId id = new ModelId(idStr);
-
-    if (!modelRegistry.contains(id)) {
-      sender.sendMessage(
-          Component.text("Model definition '" + idStr + "' not found.", NamedTextColor.RED));
-      return 0;
-    }
-
-    Location loc = player.getLocation();
-    ModelAnchor anchor =
-        ModelAnchor.of(
-            loc.getWorld().getName(),
-            loc.getX(),
-            loc.getY(),
-            loc.getZ(),
-            loc.getYaw(),
-            loc.getPitch());
-
-    try {
-      RenderedModelHandle handle = modelRuntimeService.spawnModel(id, anchor, null);
-      if (handle != null) {
-        player.sendMessage(
-            Component.text("Spawned 3D model preview '", NamedTextColor.GREEN)
-                .append(Component.text(idStr, NamedTextColor.YELLOW))
-                .append(Component.text("' with runtime ID: ", NamedTextColor.GREEN))
-                .append(Component.text(handle.runtimeId().value(), NamedTextColor.GOLD)));
-        return 1;
-      } else {
-        player.sendMessage(Component.text("Failed to spawn 3D model preview.", NamedTextColor.RED));
-        return 0;
-      }
-    } catch (Exception e) {
-      player.sendMessage(
-          Component.text("Error spawning model: " + e.getMessage(), NamedTextColor.RED));
-      return 0;
-    }
-  }
-
-  private int removeModel(CommandContext<CommandSourceStack> ctx) {
-    CommandSender sender = ctx.getSource().getSender();
-    if (modelRuntimeService == null) {
-      sender.sendMessage(
-          Component.text("3D Model Runtime Service is not available.", NamedTextColor.RED));
-      return 0;
-    }
-
-    String runtimeIdStr = StringArgumentType.getString(ctx, "runtimeId");
-    ModelRuntimeId runtimeId = ModelRuntimeId.of(runtimeIdStr);
-
-    boolean removed = modelRuntimeService.removeModel(runtimeId);
-    if (removed) {
-      sender.sendMessage(
-          Component.text(
-              "Removed model runtime instance '" + runtimeIdStr + "'.", NamedTextColor.GREEN));
-      return 1;
-    } else {
-      sender.sendMessage(
-          Component.text(
-              "Model runtime instance '" + runtimeIdStr + "' not found.", NamedTextColor.RED));
-      return 0;
-    }
   }
 }

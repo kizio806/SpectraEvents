@@ -1,0 +1,5 @@
+schema-version: 1
+messages:
+  reward-delivered: "Nagroda została dostarczona."
+  reward-retained: "Nagroda pozostaje w skrzynce odbioru. Zwolnij miejsce w ekwipunku i spróbuj ponownie."
+  resource-pack-required: "Wymagany pakiet zasobów SpectraEvents nie został wczytany."

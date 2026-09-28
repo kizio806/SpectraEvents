@@ -1,11 +1,14 @@
 package io.github.kizio806.spectraevents.platform.paper.asset.delivery;
 
 import io.github.kizio806.spectraevents.adapter.delivery.manual.ManualUrlResourcePackSource;
+import io.github.kizio806.spectraevents.adapter.delivery.modrinth.ModrinthApiClient;
+import io.github.kizio806.spectraevents.adapter.delivery.modrinth.ModrinthResourcePackSource;
 import io.github.kizio806.spectraevents.application.asset.AssetTargetProfile;
 import io.github.kizio806.spectraevents.application.asset.delivery.PlayerResourcePackService;
 import io.github.kizio806.spectraevents.application.asset.delivery.ResourcePackDeliveryCoordinator;
 import io.github.kizio806.spectraevents.application.asset.delivery.ResourcePackDeliverySettings;
 import io.github.kizio806.spectraevents.application.asset.delivery.ResourcePackDescriptorCache;
+import io.github.kizio806.spectraevents.application.asset.delivery.ResourcePackSourcePort;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -26,6 +29,8 @@ public final class PaperResourcePackDeliveryBootstrap {
       required: false
       url: ""
       sha1: ""
+      modrinthProjectId: ""
+      modrinthVersionId: ""
       prompt: "<yellow>Server resources are required for SpectraEvents.</yellow>"
       """;
 
@@ -43,13 +48,20 @@ public final class PaperResourcePackDeliveryBootstrap {
       ResourcePackDescriptorCache cache = new ResourcePackDescriptorCache();
       PlayerResourcePackService service =
           new PlayerResourcePackService(cache, settings.required(), settings.prompt());
+      ResourcePackSourcePort source;
+      if (!settings.modrinthProjectId().isBlank()) {
+        source =
+            new ModrinthResourcePackSource(
+                new ModrinthApiClient(pluginVersion),
+                settings.modrinthProjectId(),
+                plugin.getServer().getMinecraftVersion(),
+                settings.modrinthVersionId());
+      } else {
+        source = new ManualUrlResourcePackSource(settings.url(), settings.sha1());
+      }
       ResourcePackDeliveryCoordinator coordinator =
           new ResourcePackDeliveryCoordinator(
-              new ManualUrlResourcePackSource(settings.url(), settings.sha1()),
-              cache,
-              pluginVersion,
-              profile,
-              settings.sourceConfigId());
+              source, cache, pluginVersion, profile, settings.sourceConfigId());
       Bukkit.getPluginManager()
           .registerEvents(
               new PaperPlayerResourcePackAdapter(
@@ -84,6 +96,15 @@ public final class PaperResourcePackDeliveryBootstrap {
     }
   }
 
+  /** Returns whether validated delivery is configured, without resolving or publishing a pack. */
+  public static boolean isEnabled(JavaPlugin plugin) {
+    try {
+      return loadSettings(plugin.getDataFolder().toPath()).enabled();
+    } catch (RuntimeException | IOException exception) {
+      return false;
+    }
+  }
+
   private static ResourcePackDeliverySettings loadSettings(Path dataDirectory) throws IOException {
     Path configurationFile = dataDirectory.resolve(CONFIG_FILE);
     if (!Files.exists(configurationFile)) {
@@ -97,6 +118,8 @@ public final class PaperResourcePackDeliveryBootstrap {
         configuration.getBoolean("required", false),
         configuration.getString("url", ""),
         configuration.getString("sha1", ""),
-        configuration.getString("prompt", ResourcePackDeliverySettings.DEFAULT_PROMPT));
+        configuration.getString("prompt", ResourcePackDeliverySettings.DEFAULT_PROMPT),
+        configuration.getString("modrinthProjectId", ""),
+        configuration.getString("modrinthVersionId", ""));
   }
 }

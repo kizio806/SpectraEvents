@@ -166,6 +166,12 @@ public class PaperModelRenderer implements ModelRendererPort {
       return handle;
 
     } catch (Exception e) {
+      plugin
+          .getLogger()
+          .log(
+              java.util.logging.Level.WARNING,
+              "Failed to spawn model " + definition.id().value() + " (" + runtimeId.value() + ")",
+              e);
       // Atomic Spawn Rollback: cleanup any already-spawned entities in this batch
       for (Entity entity : spawnedBatch) {
         if (entity != null && entity.isValid()) {
@@ -405,26 +411,28 @@ public class PaperModelRenderer implements ModelRendererPort {
     if (world != null) {
       Location loc =
           new Location(world, handle.anchor().x(), handle.anchor().y(), handle.anchor().z());
-      Bukkit.getRegionScheduler()
-          .execute(
-              plugin,
-              loc,
-              () -> {
-                for (RenderedPartHandle partHandle : handle.parts().values()) {
-                  Entity entity = Bukkit.getEntity(partHandle.entityUuid());
-                  if (entity != null && entity.isValid()) {
-                    entity.remove();
-                  }
-                }
-                for (UUID interactionUuid : handle.interactions().values()) {
-                  Entity entity = Bukkit.getEntity(interactionUuid);
-                  if (entity != null && entity.isValid()) {
-                    entity.remove();
-                  }
-                }
-              });
+      if (!plugin.isEnabled()) {
+        removeEntities(handle);
+        return true;
+      }
+      Bukkit.getRegionScheduler().execute(plugin, loc, () -> removeEntities(handle));
     }
     return true;
+  }
+
+  private static void removeEntities(RenderedModelHandle handle) {
+    for (RenderedPartHandle partHandle : handle.parts().values()) {
+      Entity entity = Bukkit.getEntity(partHandle.entityUuid());
+      if (entity != null && entity.isValid()) {
+        entity.remove();
+      }
+    }
+    for (UUID interactionUuid : handle.interactions().values()) {
+      Entity entity = Bukkit.getEntity(interactionUuid);
+      if (entity != null && entity.isValid()) {
+        entity.remove();
+      }
+    }
   }
 
   public void cleanupInstance(EventInstanceId ownerEventId) {

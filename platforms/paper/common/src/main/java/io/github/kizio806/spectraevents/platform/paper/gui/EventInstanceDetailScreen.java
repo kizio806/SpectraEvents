@@ -50,21 +50,20 @@ public final class EventInstanceDetailScreen {
                         "Hits: " + status.currentHits() + "/" + status.maxHits(),
                         NamedTextColor.LIGHT_PURPLE));
               }
-              status
-                  .location()
-                  .ifPresent(
-                      location ->
-                          details.add(
-                              Component.text(
-                                  "Location: "
-                                      + location.world()
-                                      + " "
-                                      + Math.round(location.x())
-                                      + ", "
-                                      + Math.round(location.y())
-                                      + ", "
-                                      + Math.round(location.z()),
-                                  NamedTextColor.AQUA)));
+              if (status.location() != null) {
+                var location = status.location();
+                details.add(
+                    Component.text(
+                        "Location: "
+                            + location.world()
+                            + " "
+                            + Math.round(location.x())
+                            + ", "
+                            + Math.round(location.y())
+                            + ", "
+                            + Math.round(location.z()),
+                        NamedTextColor.AQUA));
+              }
               if (status.timerDeadlineMillis() > 0) {
                 long remaining =
                     Math.max(0L, status.timerDeadlineMillis() - System.currentTimeMillis());

@@ -1,51 +1,33 @@
-# Airdrop Event Specification
+# Airdrop PvP event
 
-`airdrop.yml` is a bundled, executable reference for a highly visible supply drop event that creates a
-point of interest on the map, forcing players to converge and fight for control before looting.
+`airdrop.yml` is the public, durable supply-crate reference. It creates a time-bounded point of
+conflict; the plugin leaves PvP and team policy to the server's own rules and region system.
 
-## Gameplay Summary
+## Flow
 
-| Phase | What happens | Transition |
+| Phase | Behaviour | Exit |
 |---|---|---|
-| `descent` | Airdrop crate spawns in the sky and descends on a parachute | `timer_elapsed` (15s parachute drop) |
-| `landed` | Crate hits the ground, parachute detaches, crate opens | `timer_elapsed` (5s unlatch delay) |
-| `looted` | Loot drops around the crate, visual beacon disabled | `timer_elapsed` (30s cleanup delay) |
-| `completed` | Crate model removed | Terminal |
+| `announced` | Global warning and HUD before the landing. | Configured announcement timer (15 minutes by default). |
+| `falling` | The crate model descends to the reserved landing zone. | Landing sequence completes. |
+| `locked` | The physical crate is visible but cannot be opened. | Configured lock expires (five minutes by default). |
+| `open` | The pre-rolled public inventory can be opened; no item has been taken yet. | First atomic slot withdrawal, or the first-loot deadline. |
+| `looted` | Everyone may immediately take remaining slots. | The final slot is removed. |
+| `empty_display` | The empty crate remains as a visible objective. | Configured display timer expires (five minutes by default). |
+| `evacuated` | Nobody took an item before the deadline. | Terminal cleanup without rewards. |
 
-## Visual Model
+The first-loot window is 15 minutes by default. Airdrop's 45-minute encounter deadline covers
+the normal timeline and protects recovery from an indefinitely running definition.
 
-The `airdrop_crate` model ([`models/airdrop.yml`](../authoring/models.md)) is built from 12 parts:
+## Loot and recovery
 
-| Group | Parts | Description |
-|---|---|---|
-| Crate | `base`, `lid` | The main container box |
-| Parachute | `chute_canopy`, `chute_lines_1/2/3/4` | The deployed parachute holding the crate |
-| Flare | `flare_base`, `flare_smoke` | Red signal flare attached to the crate |
-| Straps | `strap_front`, `strap_back` | Cargo straps securing the lid |
+The YAML pool is rolled exactly once before the crate opens. The resulting slot snapshot, its
+empty state and the first-loot state are persisted. Each slot withdrawal is atomic, so concurrent
+players can take different slots while only one can win a race for the same slot. Restart recovery
+restores the phase, countdown, zone and remaining slots without rerolling loot.
 
-## Animations
+## Operator configuration
 
-| Animation | Loop | Trigger | Description |
-|---|---|---|---|
-| `descent` | LOOP | Phase `descent` on-enter | Parachute inflates, crate sways gently as it falls down the Y-axis |
-| `impact` | ONCE | Phase `landed` on-enter | Parachute collapses and fades out; crate bounces slightly on impact |
-| `open` | ONCE | Phase `looted` on-enter | Straps snap off, lid swings open 120 degrees; flare extinguishes |
-
-## Shared Contracts Used
-
-| Concern | Contract |
-|---|---|
-| Visual asset | `models/airdrop.yml` — 12-part model |
-| Timers | `timer_elapsed` controls the entire event flow autonomously |
-| HUD | Dynamic scoreboard updates showing current phase |
-| Rewards | `drop_loot` triggers exactly when the lid opens |
-| Cleanup | `remove_model` triggers 30 seconds after opening |
-
-## Operator Workflow
-
-1. Move to a surface location with clear sky access.
-2. Run `/spectraevents event start airdrop`
-3. A parachute drops from 30 blocks above your position.
-4. Players rush to the landing zone as the crate falls for 15 seconds.
-5. Upon landing, the parachute detaches and 5 seconds later the crate springs open.
-6. Loot scatters on the ground and 30 seconds later the empty crate disappears.
+Only the announcement, lock, first-loot and empty-display durations are GUI-editable scalar
+parameters. Loot, model, animations and messages remain YAML-owned. The Airdrop uses the shared
+zone contract (128-block radius by default) and counts toward the maximum of three large events
+per world.

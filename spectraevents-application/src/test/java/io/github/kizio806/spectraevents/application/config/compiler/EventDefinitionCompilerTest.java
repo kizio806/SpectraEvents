@@ -13,6 +13,7 @@ import io.github.kizio806.spectraevents.application.config.spec.TransitionSpec;
 import io.github.kizio806.spectraevents.application.config.spec.TriggerSpec;
 import io.github.kizio806.spectraevents.application.config.validation.ValidationDiagnostic;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
+import io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
 import java.util.List;
 import java.util.Map;
@@ -66,7 +67,7 @@ class EventDefinitionCompilerTest {
     assertEquals("play_sound", rule.actions().get(0).type());
 
     assertEquals(1, fallingPhase.onEnterActions().size());
-    assertEquals("spawn_entity", fallingPhase.onEnterActions().get(0).type());
+    assertEquals("spawn_boss", fallingPhase.onEnterActions().get(0).type());
   }
 
   @Test
@@ -108,5 +109,33 @@ class EventDefinitionCompilerTest {
                 d ->
                     d.code().equals("SE-DEF-005")
                         && d.path().equals("phases.falling.transitions")));
+  }
+
+  @Test
+  void compilesTypedHitPercentageThresholdTrigger() {
+    EventSpec spec =
+        new EventSpec(
+            "pinata",
+            "1",
+            "active",
+            Map.of(
+                "active",
+                new PhaseSpec(
+                    Set.of("frenzy"),
+                    List.of(
+                        new TransitionSpec(
+                            new TriggerSpec(
+                                "hits_percent_threshold_crossed", Map.of("percent", 75)),
+                            List.of(),
+                            "frenzy",
+                            List.of())),
+                    List.of()),
+                "frenzy",
+                new PhaseSpec(Set.of(), List.of(), List.of())));
+
+    EventDefinition definition = compiler.compile(spec);
+    assertTrue(
+        definition.phase(new PhaseId("active")).orElseThrow().rules().getFirst().trigger()
+            instanceof CoreTriggers.HitsPercentThresholdCrossedTrigger);
   }
 }

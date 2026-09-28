@@ -63,6 +63,12 @@ public class PaperPlayerResourcePackAdapter implements Listener {
           default -> PlayerResourcePackState.FAILED;
         };
     service.updateState(event.getPlayer().getUniqueId(), state);
+    if (service.isRequired()
+        && (state == PlayerResourcePackState.DECLINED || state == PlayerResourcePackState.FAILED)) {
+      event
+          .getPlayer()
+          .kick(Component.text("The required SpectraEvents resource pack could not be loaded."));
+    }
   }
 
   @EventHandler

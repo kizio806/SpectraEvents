@@ -54,9 +54,34 @@ public final class PaperInteractionRouter implements Listener {
   @EventHandler(ignoreCancelled = true)
   public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
     if (event.getDamager() instanceof Player player) {
-      if (handleEntityEvent(player, event.getEntity())) {
+      if (handleCombatDamage(player, event.getEntity(), event.getFinalDamage())) {
         event.setCancelled(true);
       }
+    }
+  }
+
+  private boolean handleCombatDamage(Player player, Entity target, double finalDamage) {
+    if (executionEngine == null) {
+      return handleEntityEvent(player, target);
+    }
+    PersistentDataContainer pdc = target.getPersistentDataContainer();
+    String instanceIdStr = pdc.get(SpectraPdcKeys.INSTANCE_ID, PersistentDataType.STRING);
+    if (instanceIdStr == null) {
+      return false;
+    }
+    try {
+      EventInstanceId instanceId = new EventInstanceId(UUID.fromString(instanceIdStr));
+      orchestrationService.getEventInfo(instanceId.toString());
+      executionEngine.recordExternalContribution(instanceId, player.getUniqueId(), finalDamage);
+      boolean handled =
+          executionEngine.evaluateTrigger(
+              instanceId,
+              new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
+                  .CombatDamageTrigger(),
+              ExecutionContext.withCombatDamage(player, player.getUniqueId(), finalDamage));
+      return handled || handleEntityEvent(player, target);
+    } catch (IllegalArgumentException ignored) {
+      return true;
     }
   }
 
@@ -83,7 +108,7 @@ public final class PaperInteractionRouter implements Listener {
                 instanceId,
                 new io.github.kizio806.spectraevents.application.config.compiled
                     .ConfiguredTriggerDefinition("interaction"),
-                ExecutionContext.withActor(player));
+                ExecutionContext.withActor(player, player.getUniqueId()));
         if (handled) {
           executionEngine
               .stateStore()

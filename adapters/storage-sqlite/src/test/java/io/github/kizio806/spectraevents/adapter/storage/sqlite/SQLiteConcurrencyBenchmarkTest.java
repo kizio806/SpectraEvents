@@ -1,5 +1,7 @@
 package io.github.kizio806.spectraevents.adapter.storage.sqlite;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
@@ -8,7 +10,6 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -54,39 +55,31 @@ public class SQLiteConcurrencyBenchmarkTest {
   }
 
   private void runBenchmarkScenario(int threads) throws InterruptedException {
-    System.out.println("--- BENCHMARK SCENARIO: " + threads + " concurrent writers ---");
-
     AtomicInteger successCount = new AtomicInteger(0);
     AtomicInteger busyCount = new AtomicInteger(0);
     AtomicInteger otherErrorCount = new AtomicInteger(0);
-    List<Long> latencies = Collections.synchronizedList(new ArrayList<>());
 
     EventDefinitionId defId = new EventDefinitionId("test_def");
     PhaseId phaseId = new PhaseId("phase1");
 
     int totalOperations = 1000;
 
-    long startTime = System.currentTimeMillis();
-
     try (ExecutorService executor = Executors.newFixedThreadPool(threads)) {
       List<Callable<Void>> tasks = new ArrayList<>();
       for (int i = 0; i < totalOperations; i++) {
         tasks.add(
             () -> {
-              long startOp = System.nanoTime();
               try {
                 EventInstance instance =
                     EventInstance.reconstitute(
                         EventInstanceId.generate(), defId, EventLifecycleState.RUNNING, phaseId);
                 repository.save(instance);
                 successCount.incrementAndGet();
-                latencies.add((System.nanoTime() - startOp) / 1_000_000); // ms
               } catch (RuntimeException e) {
                 if (e.getMessage() != null && e.getMessage().contains("SQLITE_BUSY")) {
                   busyCount.incrementAndGet();
                 } else {
                   otherErrorCount.incrementAndGet();
-                  e.printStackTrace();
                 }
               }
               return null;
@@ -105,26 +98,7 @@ public class SQLiteConcurrencyBenchmarkTest {
       executor.awaitTermination(10, TimeUnit.SECONDS);
     }
 
-    long endTime = System.currentTimeMillis();
-    long durationMs = endTime - startTime;
-    double opsPerSec = (successCount.get() * 1000.0) / durationMs;
-
-    List<Long> sortedLatencies = new ArrayList<>(latencies);
-    Collections.sort(sortedLatencies);
-
-    long p50 =
-        sortedLatencies.isEmpty() ? 0 : sortedLatencies.get((int) (sortedLatencies.size() * 0.50));
-    long p95 =
-        sortedLatencies.isEmpty() ? 0 : sortedLatencies.get((int) (sortedLatencies.size() * 0.95));
-    long p99 =
-        sortedLatencies.isEmpty() ? 0 : sortedLatencies.get((int) (sortedLatencies.size() * 0.99));
-    long max = sortedLatencies.isEmpty() ? 0 : sortedLatencies.get(sortedLatencies.size() - 1);
-
-    System.out.printf(
-        "Threads: %d | Ops: %d | Duration: %d ms | Ops/s: %.2f%n",
-        threads, successCount.get(), durationMs, opsPerSec);
-    System.out.printf("Latencies (ms): p50=%d, p95=%d, p99=%d, max=%d%n", p50, p95, p99, max);
-    System.out.printf(
-        "Errors: SQLITE_BUSY=%d, Other=%d%n%n", busyCount.get(), otherErrorCount.get());
+    assertEquals(totalOperations, successCount.get(), "all writes must complete");
+    assertEquals(0, busyCount.get() + otherErrorCount.get(), "benchmark must not lose writes");
   }
 }

@@ -1,6 +1,8 @@
 package io.github.kizio806.spectraevents.platform.spigot.asset.delivery;
 
 import io.github.kizio806.spectraevents.adapter.delivery.manual.ManualUrlResourcePackSource;
+import io.github.kizio806.spectraevents.adapter.delivery.modrinth.ModrinthApiClient;
+import io.github.kizio806.spectraevents.adapter.delivery.modrinth.ModrinthResourcePackSource;
 import io.github.kizio806.spectraevents.application.asset.AssetTargetProfile;
 import io.github.kizio806.spectraevents.application.asset.delivery.PlayerResourcePackService;
 import io.github.kizio806.spectraevents.application.asset.delivery.ResourcePackDeliveryCoordinator;
@@ -25,6 +27,8 @@ public final class SpigotResourcePackDeliveryBootstrap {
       required: false
       url: ""
       sha1: ""
+      modrinthProjectId: ""
+      modrinthVersionId: ""
       prompt: "Server resources are required for SpectraEvents."
       """;
 
@@ -46,7 +50,13 @@ public final class SpigotResourcePackDeliveryBootstrap {
           new PlayerResourcePackService(cache, settings.required(), settings.prompt());
       ResourcePackDeliveryCoordinator coordinator =
           new ResourcePackDeliveryCoordinator(
-              new ManualUrlResourcePackSource(settings.url(), settings.sha1()),
+              settings.modrinthProjectId().isBlank()
+                  ? new ManualUrlResourcePackSource(settings.url(), settings.sha1())
+                  : new ModrinthResourcePackSource(
+                      new ModrinthApiClient(pluginVersion),
+                      settings.modrinthProjectId(),
+                      minecraftVersion(plugin),
+                      settings.modrinthVersionId()),
               cache,
               pluginVersion,
               profile,
@@ -87,6 +97,15 @@ public final class SpigotResourcePackDeliveryBootstrap {
     }
   }
 
+  /** Returns whether validated delivery is configured, without resolving or publishing a pack. */
+  public static boolean isEnabled(JavaPlugin plugin) {
+    try {
+      return loadSettings(plugin.getDataFolder().toPath()).enabled();
+    } catch (RuntimeException | IOException exception) {
+      return false;
+    }
+  }
+
   private static ResourcePackDeliverySettings loadSettings(Path dataDirectory) throws IOException {
     Path configurationFile = dataDirectory.resolve(CONFIG_FILE);
     if (!Files.exists(configurationFile)) {
@@ -100,6 +119,14 @@ public final class SpigotResourcePackDeliveryBootstrap {
         configuration.getBoolean("required", false),
         configuration.getString("url", ""),
         configuration.getString("sha1", ""),
-        configuration.getString("prompt", ResourcePackDeliverySettings.DEFAULT_PROMPT));
+        configuration.getString("prompt", ResourcePackDeliverySettings.DEFAULT_PROMPT),
+        configuration.getString("modrinthProjectId", ""),
+        configuration.getString("modrinthVersionId", ""));
+  }
+
+  private static String minecraftVersion(JavaPlugin plugin) {
+    String bukkitVersion = plugin.getServer().getBukkitVersion();
+    int separator = bukkitVersion.indexOf('-');
+    return separator < 0 ? bukkitVersion : bukkitVersion.substring(0, separator);
   }
 }

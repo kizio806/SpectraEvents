@@ -2,6 +2,8 @@ package io.github.kizio806.spectraevents.adapter.blockbench;
 
 import io.github.kizio806.spectraevents.core.visual.animation.Easing;
 import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetDocument;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -11,6 +13,7 @@ import java.util.Base64;
 import java.util.Locale;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -46,12 +49,37 @@ class BlockbenchProjectReaderTest {
 
   @Test
   void rejectsUnsupportedBlockbenchProjectFormat() throws Exception {
-    Path bundle = writeBundle(projectJson("java_block"), false);
+    Path bundle = writeBundle(projectJson("bedrock"), false);
 
     IllegalArgumentException error =
         Assertions.assertThrows(IllegalArgumentException.class, () -> reader.read(bundle));
 
     Assertions.assertTrue(error.getMessage().contains("Generic Model"));
+  }
+
+  @Test
+  void importsJavaBlockProjectGeometryTextureHierarchyAndAnimation() throws Exception {
+    Path bundle = writeBundle(projectJson("java_block"), false);
+
+    SpectraAssetDocument document = reader.read(bundle);
+
+    Assertions.assertEquals("meteor", document.modelId());
+    Assertions.assertEquals(1, document.nodes().size());
+    Assertions.assertTrue(document.animations().containsKey("pulse"));
+  }
+
+  @Test
+  void normalizesEmbeddedJpegTextureToPng() throws Exception {
+    Path bundle =
+        writeBundle(
+            projectJson("free").replaceFirst("data:image/png;base64,[^\"]+", embeddedJpegDataUri()),
+            false);
+
+    SpectraAssetDocument document = reader.read(bundle);
+
+    byte[] texture = document.textures().get("texture").data().orElseThrow();
+    Assertions.assertArrayEquals(
+        new byte[] {(byte) 0x89, 0x50, 0x4e, 0x47}, java.util.Arrays.copyOf(texture, 4));
   }
 
   @Test
@@ -160,5 +188,12 @@ class BlockbenchProjectReaderTest {
         }
         """
         .replace("MODEL_FORMAT", modelFormat);
+  }
+
+  private static String embeddedJpegDataUri() throws IOException {
+    BufferedImage image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    Assertions.assertTrue(ImageIO.write(image, "jpeg", output));
+    return "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(output.toByteArray());
   }
 }

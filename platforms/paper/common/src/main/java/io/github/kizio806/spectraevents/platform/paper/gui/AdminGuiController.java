@@ -1,6 +1,5 @@
 package io.github.kizio806.spectraevents.platform.paper.gui;
 
-import io.github.kizio806.spectraevents.application.config.EventDefinitionProfileApplier;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
@@ -128,7 +127,8 @@ public final class AdminGuiController implements Listener {
   private void openConfigurationDetailMenu(Player player, String definitionId) {
     openSessions.put(player.getUniqueId(), MenuType.EVENT_CONFIGURATION_DETAIL);
     player.openInventory(
-        EventConfigurationDetailScreen.createInventory(definitionId, settingsStore));
+        EventConfigurationDetailScreen.createInventory(
+            definitionId, definitionRegistry, settingsStore));
   }
 
   public void openLocationsMenu(Player player) {
@@ -267,8 +267,6 @@ public final class AdminGuiController implements Listener {
       case EVENT_CONFIGURATION_DETAIL -> {
         if (slot == EventConfigurationDetailScreen.SLOT_BACK) {
           openConfigurationMenu(player);
-        } else if (slot == EventConfigurationDetailScreen.SLOT_PROFILE) {
-          cycleProfile(player, holder.extra());
         } else if (slot == EventConfigurationDetailScreen.SLOT_REFRESH) {
           openConfigurationDetailMenu(player, holder.extra());
         } else {
@@ -333,23 +331,21 @@ public final class AdminGuiController implements Listener {
               loc.getZ(),
               loc.getYaw(),
               loc.getPitch());
-      var definition =
+      var registered =
           definitionRegistry
               .get(new EventDefinitionId(definitionId))
-              .orElseThrow(() -> new IllegalArgumentException("Definition is not registered."))
-              .definition();
-      String profile = settingsStore.profileFor(definitionId);
+              .orElseThrow(() -> new IllegalArgumentException("Definition is not registered."));
       var engine =
           Objects.requireNonNull(orchestrationService.executionEngine(), "executionEngine");
       var instance =
           engine.startEvent(
-              EventDefinitionProfileApplier.apply(
-                  definition, settingsStore.settingsFor(definitionId, profile)),
+              new io.github.kizio806.spectraevents.application.config.compiler
+                      .EventDefinitionCompiler()
+                  .compile(registered.sourceSpec(), settingsStore.overridesFor(definitionId)),
               platformLocation);
       player.sendMessage(
           Component.text(
-              "Started " + definitionId + " (" + profile + ", " + instance.id() + ")",
-              NamedTextColor.GREEN));
+              "Started " + definitionId + " (" + instance.id() + ")", NamedTextColor.GREEN));
       player.closeInventory();
     } catch (Exception e) {
       player.sendMessage(
@@ -357,27 +353,25 @@ public final class AdminGuiController implements Listener {
     }
   }
 
-  private void cycleProfile(Player player, String definitionId) {
-    String current = settingsStore.profileFor(definitionId);
-    String next =
-        switch (current) {
-          case PaperEventSettingsStore.EASY -> PaperEventSettingsStore.NORMAL;
-          case PaperEventSettingsStore.NORMAL -> PaperEventSettingsStore.HARD;
-          default -> PaperEventSettingsStore.EASY;
-        };
-    settingsStore.setProfile(definitionId, next);
-    player.sendMessage(
-        Component.text(
-            "Profile for " + definitionId + " set to " + next + ".", NamedTextColor.GREEN));
-    openConfigurationDetailMenu(player, definitionId);
-  }
-
   private void adjustConfiguration(
       Player player, String definitionId, String parameter, boolean decrease) {
     try {
-      String profile = settingsStore.profileFor(definitionId);
-      Object value = settingsStore.settingsFor(definitionId, profile).get(parameter);
-      String adjusted = adjustedValue(parameter, value, decrease);
+      var declaration =
+          definitionRegistry
+              .findById(definitionId)
+              .orElseThrow()
+              .sourceSpec()
+              .parameters()
+              .get(parameter);
+      Object value =
+          settingsStore
+              .overridesFor(definitionId)
+              .getOrDefault(parameter, declaration.defaultValue());
+      String adjusted = adjustedValue(declaration, value, decrease);
+      new io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompiler()
+          .compile(
+              definitionRegistry.findById(definitionId).orElseThrow().sourceSpec(),
+              java.util.Map.of(parameter, adjusted));
       settingsStore.setParameter(definitionId, parameter, adjusted);
       player.sendMessage(
           Component.text(
@@ -390,15 +384,31 @@ public final class AdminGuiController implements Listener {
     }
   }
 
-  private String adjustedValue(String parameter, Object value, boolean decrease) {
-    if ("duration".equals(parameter) || "lock-duration".equals(parameter)) {
+  private String adjustedValue(
+      io.github.kizio806.spectraevents.application.config.spec.EventParameterSpec declaration,
+      Object value,
+      boolean decrease) {
+    if (declaration.type()
+        == io.github.kizio806.spectraevents.application.config.spec.EventParameterType.DURATION) {
       long seconds = durationSeconds(String.valueOf(value));
-      long adjusted = Math.max(1L, seconds + (decrease ? -10L : 10L));
+      long adjusted =
+          Math.max(
+              1L,
+              seconds
+                  + (decrease ? -declaration.step().longValue() : declaration.step().longValue()));
       return adjusted + "s";
     }
-    int current = Integer.parseInt(String.valueOf(value));
-    int step = Math.max(1, current / 10);
-    return String.valueOf(Math.max(1, current + (decrease ? -step : step)));
+    java.math.BigDecimal adjusted =
+        new java.math.BigDecimal(String.valueOf(value))
+            .add(decrease ? declaration.step().negate() : declaration.step());
+    if (declaration.minimum() != null) {
+      adjusted = adjusted.max(declaration.minimum()).min(declaration.maximum());
+    }
+    if (declaration.type()
+        == io.github.kizio806.spectraevents.application.config.spec.EventParameterType.INTEGER) {
+      return adjusted.toBigIntegerExact().toString();
+    }
+    return adjusted.stripTrailingZeros().toPlainString();
   }
 
   private long durationSeconds(String value) {

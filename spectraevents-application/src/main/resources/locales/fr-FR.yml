@@ -1,0 +1,5 @@
+schema-version: 1
+messages:
+  reward-delivered: "Récompense livrée."
+  reward-retained: "La récompense reste dans la boîte de réception. Libérez de la place et réessayez."
+  resource-pack-required: "Le pack de ressources SpectraEvents requis n'a pas pu être chargé."

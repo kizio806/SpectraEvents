@@ -3,6 +3,13 @@ package io.github.kizio806.spectraevents.platform.paper.config;
 import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -12,51 +19,40 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/** Durable Paper-owned operator overrides and named event locations. */
+/** Durable Paper-owned scalar overrides and named event locations. */
 public final class PaperEventSettingsStore {
-  public static final String EASY = "easy";
-  public static final String NORMAL = "normal";
-  public static final String HARD = "hard";
-  private static final java.util.Set<String> PROFILES = java.util.Set.of(EASY, NORMAL, HARD);
-  private static final java.util.Set<String> PARAMETERS =
-      java.util.Set.of("health", "damage", "hits", "duration", "lock-duration");
-
   private final File file;
   private final YamlConfiguration yaml;
 
   public PaperEventSettingsStore(JavaPlugin plugin) {
     Objects.requireNonNull(plugin, "plugin");
-    this.file = new File(plugin.getDataFolder(), "event-settings.yml");
+    archiveLegacySettingsFile(plugin.getDataFolder().toPath());
+    this.file = new File(plugin.getDataFolder(), "config.yml");
     this.yaml = YamlConfiguration.loadConfiguration(file);
+    initializeSchema();
   }
 
-  public Map<String, Object> settingsFor(String definitionId, String profile) {
+  /** Returns only explicitly saved overrides; YAML owns all defaults. */
+  public Map<String, Object> overridesFor(String definitionId) {
     validateDefinitionId(definitionId);
-    String normalizedProfile = normalizeProfile(profile);
     Map<String, Object> settings = new LinkedHashMap<>();
-    settings.putAll(builtInProfile(definitionId, normalizedProfile));
-    copySection("profiles." + normalizedProfile + ".defaults", settings);
-    copySection("profiles." + normalizedProfile + ".events." + definitionId, settings);
-    copySection("events." + definitionId, settings);
+    copySection("overrides." + definitionId, settings);
     return Map.copyOf(settings);
-  }
-
-  public void setProfile(String definitionId, String profile) {
-    validateDefinitionId(definitionId);
-    yaml.set("events." + definitionId + ".profile", normalizeProfile(profile));
-    save();
-  }
-
-  public String profileFor(String definitionId) {
-    validateDefinitionId(definitionId);
-    return normalizeProfile(yaml.getString("events." + definitionId + ".profile", NORMAL));
   }
 
   public void setParameter(String definitionId, String parameter, String value) {
     validateDefinitionId(definitionId);
     String normalizedParameter = normalizeParameter(parameter);
-    Object parsed = parseParameter(normalizedParameter, value);
-    yaml.set("events." + definitionId + "." + normalizedParameter, parsed);
+    if (value == null || value.isBlank()) {
+      throw new IllegalArgumentException("Value is required.");
+    }
+    yaml.set("overrides." + definitionId + "." + normalizedParameter, value.trim());
+    save();
+  }
+
+  public void removeParameter(String definitionId, String parameter) {
+    validateDefinitionId(definitionId);
+    yaml.set("overrides." + definitionId + "." + normalizeParameter(parameter), null);
     save();
   }
 
@@ -99,89 +95,18 @@ public final class PaperEventSettingsStore {
     if (section == null) {
       return;
     }
-    for (String key : PARAMETERS) {
-      if (section.contains(key)) {
-        target.put(key, section.get(key));
+    for (String key : section.getKeys(false)) {
+      if (section.isConfigurationSection(key)) {
+        continue;
       }
+      target.put(key, section.get(key));
     }
-  }
-
-  /**
-   * Provides usable production defaults even before an operator creates event-settings.yml. YAML
-   * profile sections intentionally override these values.
-   */
-  private Map<String, Object> builtInProfile(String definitionId, String profile) {
-    Map<String, Object> values = new LinkedHashMap<>();
-    switch (definitionId) {
-      case "meteor" -> {
-        values.put("health", profileValue(profile, 300, 500, 900));
-        values.put("damage", profileValue(profile, 15, 10, 7));
-        values.put("lock-duration", profileDuration(profile, "8s", "12s", "18s"));
-      }
-      case "airdrop" -> values.put("lock-duration", profileDuration(profile, "20s", "35s", "50s"));
-      case "metin" -> {
-        values.put("health", profileValue(profile, 600, 1_000, 1_600));
-        values.put("damage", profileValue(profile, 15, 10, 7));
-      }
-      case "pinata" -> values.put("hits", profileValue(profile, 12, 20, 35));
-      case "boss_portal" -> values.put("duration", profileDuration(profile, "90s", "120s", "180s"));
-      default -> {
-        // Definitions supplied by operators begin with their own YAML values.
-      }
-    }
-    return values;
-  }
-
-  private int profileValue(String profile, int easy, int normal, int hard) {
-    return switch (profile) {
-      case EASY -> easy;
-      case HARD -> hard;
-      default -> normal;
-    };
-  }
-
-  private String profileDuration(String profile, String easy, String normal, String hard) {
-    return switch (profile) {
-      case EASY -> easy;
-      case HARD -> hard;
-      default -> normal;
-    };
-  }
-
-  private Object parseParameter(String parameter, String value) {
-    if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException("Value is required.");
-    }
-    if ("duration".equals(parameter) || "lock-duration".equals(parameter)) {
-      if (!value.matches("[1-9][0-9]{0,5}(ms|s|m|h)")) {
-        throw new IllegalArgumentException("Duration must look like 30s, 10m, or 1h.");
-      }
-      return value;
-    }
-    try {
-      int parsed = Integer.parseInt(value);
-      if (parsed < 1 || parsed > 1_000_000) {
-        throw new IllegalArgumentException("Value must be between 1 and 1000000.");
-      }
-      return parsed;
-    } catch (NumberFormatException exception) {
-      throw new IllegalArgumentException("Value must be a whole number.");
-    }
-  }
-
-  private String normalizeProfile(String profile) {
-    String normalized = Objects.requireNonNull(profile, "profile").toLowerCase(Locale.ROOT);
-    if (!PROFILES.contains(normalized)) {
-      throw new IllegalArgumentException("Profile must be easy, normal, or hard.");
-    }
-    return normalized;
   }
 
   private String normalizeParameter(String parameter) {
     String normalized = Objects.requireNonNull(parameter, "parameter").toLowerCase(Locale.ROOT);
-    if (!PARAMETERS.contains(normalized)) {
-      throw new IllegalArgumentException(
-          "Setting must be health, damage, hits, duration, or lock-duration.");
+    if (!normalized.matches("[a-z][a-z0-9-]{0,63}")) {
+      throw new IllegalArgumentException("Setting name is invalid.");
     }
     return normalized;
   }
@@ -203,9 +128,56 @@ public final class PaperEventSettingsStore {
 
   private void save() {
     try {
-      yaml.save(file);
+      Path target = file.toPath();
+      Files.createDirectories(target.getParent());
+      Path temporary = Files.createTempFile(target.getParent(), "config", ".yml.tmp");
+      try {
+        yaml.save(temporary.toFile());
+        moveAtomically(temporary, target);
+      } finally {
+        Files.deleteIfExists(temporary);
+      }
     } catch (IOException exception) {
-      throw new IllegalStateException("Could not save event settings.", exception);
+      throw new IllegalStateException("Could not save SpectraEvents configuration.", exception);
+    }
+  }
+
+  private void initializeSchema() {
+    if (yaml.contains("schema-version")) {
+      return;
+    }
+    yaml.set("schema-version", 1);
+    if (!yaml.isConfigurationSection("overrides")) {
+      yaml.createSection("overrides");
+    }
+    if (!yaml.isConfigurationSection("locations")) {
+      yaml.createSection("locations");
+    }
+    save();
+  }
+
+  private void archiveLegacySettingsFile(Path dataDirectory) {
+    Path legacy = dataDirectory.resolve("event-settings.yml");
+    if (!Files.isRegularFile(legacy)) {
+      return;
+    }
+    try {
+      String timestamp =
+          ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+      Path backup =
+          dataDirectory.resolve("backups").resolve(timestamp).resolve("event-settings.yml");
+      Files.createDirectories(backup.getParent());
+      moveAtomically(legacy, backup);
+    } catch (IOException exception) {
+      throw new IllegalStateException("Could not preserve legacy event-settings.yml", exception);
+    }
+  }
+
+  private void moveAtomically(Path source, Path target) throws IOException {
+    try {
+      Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);
+    } catch (AtomicMoveNotSupportedException exception) {
+      Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
     }
   }
 }

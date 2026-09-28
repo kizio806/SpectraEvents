@@ -82,6 +82,34 @@ class ModrinthResourcePackSourceTest {
   }
 
   @Test
+  void selectsThePinnedVersionIdInsteadOfTheReleaseVersionName() throws Exception {
+    String fixture =
+        """
+        [
+          {
+            "id": "unapproved",
+            "version_number": "1.0.0+26.1",
+            "files": [{"url": "https://cdn.modrinth.com/unapproved.zip", "primary": true, "size": 1, "hashes": {"sha1": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}]
+          },
+          {
+            "id": "approved",
+            "version_number": "different-release-name",
+            "files": [{"url": "https://cdn.modrinth.com/approved.zip", "primary": true, "size": 1, "hashes": {"sha1": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}]
+          }
+        ]
+        """;
+
+    ResourcePackDescriptor descriptor =
+        new ModrinthResourcePackSource(
+                new StubClient(fixture), "xyz", TEST_MINECRAFT_VERSION, "approved")
+            .resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_1)
+            .get();
+
+    Assertions.assertEquals("approved", descriptor.id());
+    Assertions.assertEquals("https://cdn.modrinth.com/approved.zip", descriptor.url());
+  }
+
+  @Test
   void testInvalidFileUrlRejected() {
     String fixture =
         """

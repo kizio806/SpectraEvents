@@ -4,8 +4,8 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
-import io.github.kizio806.spectraevents.application.config.EventDefinitionProfileApplier;
 import io.github.kizio806.spectraevents.application.config.compiled.ConfiguredTriggerDefinition;
+import io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompiler;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
@@ -75,30 +75,10 @@ public final class EventCommandHandler {
                                 missingArgument(ctx, "/spectraevents event config <event-id> show"))
                         .then(Commands.literal("show").executes(this::showConfiguration))
                         .then(
-                            Commands.literal("profile")
-                                .then(
-                                    Commands.argument("profile", StringArgumentType.word())
-                                        .suggests(
-                                            (ctx, builder) -> {
-                                              builder.suggest(PaperEventSettingsStore.EASY);
-                                              builder.suggest(PaperEventSettingsStore.NORMAL);
-                                              builder.suggest(PaperEventSettingsStore.HARD);
-                                              return builder.buildFuture();
-                                            })
-                                        .executes(this::setProfile)))
-                        .then(
                             Commands.literal("set")
                                 .then(
                                     Commands.argument("parameter", StringArgumentType.word())
-                                        .suggests(
-                                            (ctx, builder) -> {
-                                              builder.suggest("health");
-                                              builder.suggest("damage");
-                                              builder.suggest("hits");
-                                              builder.suggest("duration");
-                                              builder.suggest("lock-duration");
-                                              return builder.buildFuture();
-                                            })
+                                        .suggests(this::suggestParameters)
                                         .then(
                                             Commands.argument("value", StringArgumentType.word())
                                                 .executes(this::setConfiguration))))))
@@ -159,38 +139,13 @@ public final class EventCommandHandler {
     return Commands.argument("definition", StringArgumentType.word())
         .suggests(this::suggestDefinitions)
         .executes(this::eventStart)
-        .then(Commands.literal("profile").then(profileArgument(true)))
-        .then(Commands.literal("location").then(locationArgument(true)));
+        .then(Commands.literal("location").then(locationArgument()));
   }
 
-  private RequiredArgumentBuilder<CommandSourceStack, String> profileArgument(
-      boolean allowLocation) {
-    RequiredArgumentBuilder<CommandSourceStack, String> argument =
-        Commands.argument("profile", StringArgumentType.word())
-            .suggests(
-                (ctx, builder) -> {
-                  builder.suggest(PaperEventSettingsStore.EASY);
-                  builder.suggest(PaperEventSettingsStore.NORMAL);
-                  builder.suggest(PaperEventSettingsStore.HARD);
-                  return builder.buildFuture();
-                })
-            .executes(this::eventStart);
-    if (allowLocation) {
-      argument.then(Commands.literal("location").then(locationArgument(false)));
-    }
-    return argument;
-  }
-
-  private RequiredArgumentBuilder<CommandSourceStack, String> locationArgument(
-      boolean allowProfile) {
-    RequiredArgumentBuilder<CommandSourceStack, String> argument =
-        Commands.argument("location", StringArgumentType.word())
-            .suggests(this::suggestLocations)
-            .executes(this::eventStart);
-    if (allowProfile) {
-      argument.then(Commands.literal("profile").then(profileArgument(false)));
-    }
-    return argument;
+  private RequiredArgumentBuilder<CommandSourceStack, String> locationArgument() {
+    return Commands.argument("location", StringArgumentType.word())
+        .suggests(this::suggestLocations)
+        .executes(this::eventStart);
   }
 
   private int missingArgument(CommandContext<CommandSourceStack> ctx, String example) {
@@ -248,6 +203,25 @@ public final class EventCommandHandler {
     return builder.buildFuture();
   }
 
+  private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions>
+      suggestParameters(
+          CommandContext<CommandSourceStack> ctx,
+          com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
+    if (definitionRegistry != null) {
+      String id = StringArgumentType.getString(ctx, "definition");
+      definitionRegistry
+          .findById(id)
+          .map(registered -> registered.sourceSpec())
+          .ifPresent(
+              spec ->
+                  spec.parameters().values().stream()
+                      .filter(parameter -> parameter.guiEditable())
+                      .map(parameter -> parameter.name())
+                      .forEach(builder::suggest));
+    }
+    return builder.buildFuture();
+  }
+
   private int eventList(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
     Collection<EventInstance> instances = instanceRepository.findAll();
@@ -271,13 +245,6 @@ public final class EventCommandHandler {
 
     try {
       Location bukkitLocation = null;
-      String profile =
-          settingsStore == null
-              ? PaperEventSettingsStore.NORMAL
-              : settingsStore.profileFor(defIdStr);
-      if (ctx.getNodes().stream().anyMatch(node -> "profile".equals(node.getNode().getName()))) {
-        profile = StringArgumentType.getString(ctx, "profile");
-      }
       EventLocation namedLocation = null;
       if (ctx.getNodes().stream().anyMatch(node -> "location".equals(node.getNode().getName()))) {
         if (settingsStore == null) {
@@ -308,29 +275,32 @@ public final class EventCommandHandler {
                   bukkitLocation.getYaw(),
                   bukkitLocation.getPitch())
               : namedLocation;
-      var definition =
+      var registered =
           definitionRegistry
               .findById(defIdStr)
               .orElseThrow(
-                  () -> new IllegalArgumentException("Event '" + defIdStr + "' is not registered."))
-              .definition();
+                  () ->
+                      new IllegalArgumentException("Event '" + defIdStr + "' is not registered."));
       Map<String, Object> settings =
-          settingsStore == null ? Map.of() : settingsStore.settingsFor(defIdStr, profile);
+          settingsStore == null ? Map.of() : settingsStore.overridesFor(defIdStr);
       var instance =
           orchestrationService
               .executionEngine()
               .startEvent(
-                  EventDefinitionProfileApplier.apply(definition, settings), platformLocation);
+                  new EventDefinitionCompiler()
+                      .compile(
+                          java.util.Objects.requireNonNull(
+                              registered.sourceSpec(), "Definition source is unavailable"),
+                          settings),
+                  platformLocation);
       sender.sendMessage(
           Component.text(
               "Started "
                   + defIdStr
-                  + " ("
-                  + profile
-                  + ") at "
+                  + " at "
                   + platformLocation.world()
                   + ". Instance: "
-                  + instance.id().toString().substring(0, 8),
+                  + instance.id(),
               NamedTextColor.GREEN));
     } catch (Exception e) {
       sender.sendMessage(
@@ -344,35 +314,13 @@ public final class EventCommandHandler {
     String definition = StringArgumentType.getString(ctx, "definition");
     try {
       requireSettingsStore();
-      String profile = settingsStore.profileFor(definition);
       sender.sendMessage(
           Component.text(
-              definition
-                  + " profile="
-                  + profile
-                  + " settings="
-                  + settingsStore.settingsFor(definition, profile),
+              definition + " overrides=" + settingsStore.overridesFor(definition),
               NamedTextColor.AQUA));
     } catch (IllegalArgumentException | IllegalStateException exception) {
       sender.sendMessage(
           Component.text("Configuration error: " + exception.getMessage(), NamedTextColor.RED));
-    }
-    return 1;
-  }
-
-  private int setProfile(CommandContext<CommandSourceStack> ctx) {
-    CommandSender sender = ctx.getSource().getSender();
-    try {
-      requireSettingsStore();
-      String definition = StringArgumentType.getString(ctx, "definition");
-      String profile = StringArgumentType.getString(ctx, "profile");
-      settingsStore.setProfile(definition, profile);
-      sender.sendMessage(
-          Component.text(
-              "Saved " + definition + " profile: " + profile + ".", NamedTextColor.GREEN));
-    } catch (IllegalArgumentException | IllegalStateException exception) {
-      sender.sendMessage(
-          Component.text("Profile was not saved: " + exception.getMessage(), NamedTextColor.RED));
     }
     return 1;
   }
@@ -384,6 +332,21 @@ public final class EventCommandHandler {
       String definition = StringArgumentType.getString(ctx, "definition");
       String parameter = StringArgumentType.getString(ctx, "parameter");
       String value = StringArgumentType.getString(ctx, "value");
+      var declaration =
+          definitionRegistry
+              .findById(definition)
+              .orElseThrow(() -> new IllegalArgumentException("Event is not registered."))
+              .sourceSpec()
+              .parameters()
+              .get(parameter);
+      if (declaration == null || !declaration.guiEditable()) {
+        throw new IllegalArgumentException(
+            "Setting is not declared as GUI/command editable in YAML.");
+      }
+      new EventDefinitionCompiler()
+          .compile(
+              definitionRegistry.findById(definition).orElseThrow().sourceSpec(),
+              Map.of(parameter, value));
       settingsStore.setParameter(definition, parameter, value);
       sender.sendMessage(
           Component.text("Saved " + parameter + " for " + definition + ".", NamedTextColor.GREEN));
@@ -425,8 +388,8 @@ public final class EventCommandHandler {
       EventInstanceId instanceId = instanceId(ctx);
       String trigger = StringArgumentType.getString(ctx, "trigger");
       ExecutionContext context =
-          sender instanceof Player
-              ? ExecutionContext.withActor(sender)
+          sender instanceof Player player
+              ? ExecutionContext.withActor(player, player.getUniqueId())
               : new ExecutionContext(sender, Map.of());
       boolean handled =
           orchestrationService
@@ -461,7 +424,7 @@ public final class EventCommandHandler {
                   + " resources="
                   + diagnostics.platformResources()
                   + " claim="
-                  + diagnostics.claimant().orElse("unclaimed"),
+                  + (diagnostics.claimant() != null ? diagnostics.claimant() : "unclaimed"),
               NamedTextColor.YELLOW));
       if (!diagnostics.runtimeStatePresent()
           || (instance.state().isTerminal()
@@ -470,7 +433,7 @@ public final class EventCommandHandler {
             Component.text(
                 "Recovery guidance: run /spectraevents doctor, preserve logs, and back up spectraevents.db before restarting.",
                 NamedTextColor.RED));
-      } else if (diagnostics.claimant().isPresent()) {
+      } else if (diagnostics.claimant() != null) {
         sender.sendMessage(
             Component.text(
                 "Claim recorded: reconcile any external reward before granting a manual replacement.",

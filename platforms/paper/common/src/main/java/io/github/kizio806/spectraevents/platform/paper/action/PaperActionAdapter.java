@@ -2,16 +2,19 @@ package io.github.kizio806.spectraevents.platform.paper.action;
 
 import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
+import io.github.kizio806.spectraevents.application.execution.EventZone;
 import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.application.execution.FatalActionException;
 import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelAnchor;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeService;
 import io.github.kizio806.spectraevents.application.model.runtime.RenderedModelHandle;
-import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
-import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
+import io.github.kizio806.spectraevents.application.port.AbstractPlatformActionAdapter;
+import io.github.kizio806.spectraevents.core.event.execution.action.PlatformActions;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
+import io.github.kizio806.spectraevents.core.gameplay.contribution.ContributionRanking;
+import io.github.kizio806.spectraevents.core.gameplay.reward.RewardItem;
 import io.github.kizio806.spectraevents.core.visual.model.ModelId;
 import io.github.kizio806.spectraevents.platform.paper.bossbar.EventBossBarManager;
 import io.github.kizio806.spectraevents.platform.paper.integration.MiniPlaceholdersIntegration;
@@ -20,6 +23,7 @@ import io.github.kizio806.spectraevents.platform.paper.integration.item.ItemsAdd
 import io.github.kizio806.spectraevents.platform.paper.integration.item.NexoItemProvider;
 import io.github.kizio806.spectraevents.platform.paper.integration.item.OraxenItemProvider;
 import io.github.kizio806.spectraevents.platform.paper.lifecycle.PaperResourceCleaner;
+import io.github.kizio806.spectraevents.platform.paper.loot.PaperSharedLootHolder;
 import io.github.kizio806.spectraevents.platform.paper.metadata.SpectraPdcKeys;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import io.github.kizio806.spectraevents.platform.paper.scoreboard.EventScoreboardManager;
@@ -29,9 +33,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import java.util.logging.Logger;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -42,12 +51,14 @@ import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
-/** Paper platform action adapter implementing {@link PlatformActionPort}. */
-public final class PaperActionAdapter implements PlatformActionPort {
+@SuppressWarnings("StringConcatToTextBlock")
+public final class PaperActionAdapter extends AbstractPlatformActionAdapter {
   private static final Logger LOGGER = Logger.getLogger(PaperActionAdapter.class.getName());
   private static final int MAX_PARTICLES_PER_ACTION = 10_000;
   private static final int MAX_MOBS_PER_ACTION = 128;
@@ -60,6 +71,7 @@ public final class PaperActionAdapter implements PlatformActionPort {
   private final List<CustomItemProvider> itemProviders = new ArrayList<>();
   private ModelRuntimeService modelRuntimeService;
   private ModelAnimationActionService modelAnimationActionService;
+  private volatile boolean shuttingDown;
   private BiConsumer<EventInstanceId, Throwable> fatalActionHandler =
       (instanceId, throwable) ->
           LOGGER.severe(
@@ -93,6 +105,54 @@ public final class PaperActionAdapter implements PlatformActionPort {
     this.modelAnimationActionService = modelAnimationActionService;
   }
 
+  /**
+   * Delivers a mailbox snapshot on the player's owning region only when the full snapshot fits.
+   *
+   * <p>This method deliberately has no event-instance side effects: a mailbox delivery is owned by
+   * the durable reward-claim transaction, not by a currently running encounter.
+   */
+  public CompletableFuture<Boolean> deliverRewardItems(Player player, List<RewardItem> items) {
+    Objects.requireNonNull(player, "player");
+    List<RewardItem> snapshot = List.copyOf(Objects.requireNonNull(items, "items"));
+    CompletableFuture<Boolean> future = new CompletableFuture<>();
+    if (shuttingDown || !player.isOnline()) {
+      future.complete(false);
+      return future;
+    }
+    try {
+      regionScheduler.executeFor(
+          player,
+          () -> {
+            try {
+              if (!player.isOnline()) {
+                future.complete(false);
+                return;
+              }
+              List<ItemStack> stacks = mailboxItemStacks(snapshot);
+              Inventory inventory = player.getInventory();
+              if (!canContainAll(inventory, stacks)) {
+                future.complete(false);
+                return;
+              }
+              Map<Integer, ItemStack> leftovers =
+                  inventory.addItem(stacks.toArray(ItemStack[]::new));
+              future.complete(leftovers.isEmpty());
+            } catch (RuntimeException exception) {
+              LOGGER.log(
+                  java.util.logging.Level.WARNING,
+                  "Could not deliver reward mailbox claim",
+                  exception);
+              future.complete(false);
+            }
+          });
+    } catch (RuntimeException exception) {
+      LOGGER.log(
+          java.util.logging.Level.WARNING, "Could not schedule reward mailbox delivery", exception);
+      future.complete(false);
+    }
+    return future;
+  }
+
   @Override
   public void setFatalActionHandler(BiConsumer<EventInstanceId, Throwable> handler) {
     this.fatalActionHandler = Objects.requireNonNull(handler, "handler");
@@ -100,14 +160,22 @@ public final class PaperActionAdapter implements PlatformActionPort {
 
   @Override
   public void cleanupEvent(EventInstanceId instanceId) {
-    if (modelAnimationActionService != null) {
-      modelAnimationActionService.stopForEvent(instanceId);
-    }
+    Bukkit.getOnlinePlayers().stream()
+        .filter(
+            player ->
+                player.getOpenInventory().getTopInventory().getHolder()
+                        instanceof PaperSharedLootHolder holder
+                    && holder.instanceId().equals(instanceId))
+        .forEach(Player::closeInventory);
+    if (modelAnimationActionService != null) modelAnimationActionService.stopForEvent(instanceId);
     cleaner.cleanup(instanceId);
   }
 
   @Override
   public void cleanupAll() {
+    shuttingDown = true;
+    bossBarManager.beginShutdown();
+    scoreboardManager.beginShutdown();
     if (modelAnimationActionService != null && modelRuntimeService != null) {
       for (RenderedModelHandle handle : modelRuntimeService.getActiveInstances()) {
         modelAnimationActionService.stopForModel(handle);
@@ -122,116 +190,84 @@ public final class PaperActionAdapter implements PlatformActionPort {
   }
 
   @Override
-  public void executeAction(
-      EventInstance instance, EventRuntimeState state, ActionDefinition action) {
-    executeAction(instance, state, action, ExecutionContext.EMPTY);
-  }
-
-  @Override
-  public void executeAction(
-      EventInstance instance,
-      EventRuntimeState state,
-      ActionDefinition action,
-      ExecutionContext context) {
-    String type = action.type().toLowerCase(Locale.ROOT);
-    Map<String, Object> params = action.parameters();
-
-    Location baseLoc = resolveLocation(state);
-
-    switch (type) {
-      case "spawn_model" -> handleSpawnModel(instance, params, baseLoc);
-      case "move_model" -> handleMoveModel(instance, baseLoc);
-      case "remove_model" -> removeModels(instance.id());
-      case "play_animation", "play-animation" -> handlePlayAnimation(instance, params, baseLoc);
-      case "play_sound" -> handlePlaySound(instance, params, baseLoc);
-      case "spawn_particles" -> handleSpawnParticles(instance, params, baseLoc);
-      case "give_item" -> handleGiveItem(instance, params, context);
-      case "drop_loot" -> handleDropLoot(instance, params, baseLoc);
-      case "send_message" -> handleSendMessage(instance, params, context);
-      case "broadcast_message", "broadcast" -> handleBroadcastMessage(instance, params);
-      case "show_title" -> handleShowTitle(instance, params);
-      case "spawn_boss", "spawn_entity" -> handleSpawnBoss(instance, state, params, baseLoc);
-      case "spawn_mobs", "spawn_wave" -> handleSpawnMobs(instance, params, baseLoc);
-      case "show_bossbar", "create_bossbar" ->
-          executeGlobal(
-              instance.id(),
-              () -> {
-                bossBarManager.showBossBar(instance, state, params);
-                cleaner.registerCustomCleanup(
-                    instance.id(),
-                    () ->
-                        executeGlobal(
-                            instance.id(),
-                            () -> bossBarManager.removeBossBar(instance.id().value())));
-              });
-      case "update_bossbar" ->
-          executeGlobal(instance.id(), () -> bossBarManager.updateBossBar(instance, state, params));
-      case "remove_bossbar" ->
-          executeGlobal(instance.id(), () -> bossBarManager.removeBossBar(instance.id().value()));
-      case "show_scoreboard", "create_scoreboard" ->
-          executeGlobal(
-              instance.id(),
-              () -> {
-                scoreboardManager.showScoreboard(instance, state, params);
-                cleaner.registerCustomCleanup(
-                    instance.id(),
-                    () ->
-                        executeGlobal(
-                            instance.id(),
-                            () -> scoreboardManager.removeScoreboard(instance.id().value())));
-              });
-      case "update_scoreboard" ->
-          executeGlobal(
-              instance.id(), () -> scoreboardManager.updateScoreboard(instance, state, params));
-      case "remove_scoreboard" ->
-          executeGlobal(
-              instance.id(), () -> scoreboardManager.removeScoreboard(instance.id().value()));
-      default ->
-          throw new FatalActionException(
-              "Unsupported Paper action type '" + type + "' for instance " + instance.id());
+  public void refreshHud(EventInstance instance, EventRuntimeState state) {
+    if (shuttingDown) {
+      return;
     }
+    regionScheduler.executeGlobal(() -> bossBarManager.refreshBossBar(instance, state));
   }
 
   private Location resolveLocation(EventRuntimeState state) {
     Object stored = state.platformLocation().orElse(null);
-    if (stored instanceof Location location) {
-      return location;
-    }
+    if (stored instanceof Location location) return location;
     if (stored instanceof EventLocation location) {
       World world = Bukkit.getWorld(location.world());
-      if (world != null) {
+      if (world != null)
         return new Location(
             world, location.x(), location.y(), location.z(), location.yaw(), location.pitch());
-      }
     }
     return null;
   }
 
-  private void handleSpawnModel(
-      EventInstance instance, Map<String, Object> params, Location baseLoc) {
-    if (baseLoc == null) {
-      throw new FatalActionException(
-          "Cannot spawn model: platform location reference is null for instance " + instance.id());
-    }
+  @Override
+  protected CompletableFuture<Boolean> handleOpenSharedLoot(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.OpenSharedLootAction action,
+      ExecutionContext context) {
+    if (!(context.actor() instanceof Player player))
+      return CompletableFuture.completedFuture(false);
+    CompletableFuture<Boolean> result = new CompletableFuture<>();
+    regionScheduler.executeFor(
+        player,
+        () -> {
+          Inventory inventory =
+              Bukkit.createInventory(
+                  new PaperSharedLootHolder(instance.id()), 27, Component.text(action.title()));
+          state
+              .sharedLootSnapshot()
+              .forEach(
+                  (slot, loot) -> {
+                    Material material =
+                        Material.matchMaterial(loot.material().replace("minecraft:", ""));
+                    inventory.setItem(
+                        slot,
+                        new ItemStack(
+                            material == null ? Material.DIAMOND : material, loot.amount()));
+                  });
+          player.openInventory(inventory);
+          result.complete(true);
+        });
+    return result;
+  }
 
-    String modelIdStr = getStringParam(params, "model", "meteor");
-    int defaultHeightOffset = "meteor".equalsIgnoreCase(modelIdStr) ? 20 : 0;
-    int heightOffset = getIntParam(params, "height-offset", defaultHeightOffset);
-    if (!params.containsKey("height-offset") && params.containsKey("height_offset")) {
-      heightOffset = getIntParam(params, "height_offset", defaultHeightOffset);
-    }
+  private void requireLocation(Location loc, String actionName) {
+    if (loc == null)
+      throw new FatalActionException(actionName + " requires a valid platform location");
+  }
 
-    Location spawnLoc = baseLoc.clone().add(0, heightOffset, 0);
-    ModelId modelId = new ModelId(modelIdStr);
+  private void requireRange(int value, int min, int max, String fieldName) {
+    if (value < min || value > max)
+      throw new FatalActionException(fieldName + " must be between " + min + " and " + max);
+  }
 
-    executeAt(
+  @Override
+  protected CompletableFuture<Boolean> handleSpawnModel(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.SpawnModelAction action,
+      ExecutionContext context) {
+    Location baseLoc = resolveLocation(state);
+    requireLocation(baseLoc, "spawn_model");
+    Location spawnLoc = baseLoc.clone().add(0, action.heightOffset(), 0);
+    ModelId modelId = new ModelId(action.model());
+
+    return executeAt(
         instance.id(),
         spawnLoc,
         () -> {
-          if (modelRuntimeService == null) {
+          if (modelRuntimeService == null)
             throw new FatalActionException("Model runtime is unavailable on Paper");
-          }
-
           ModelAnchor anchor =
               new ModelAnchor(
                   spawnLoc.getWorld().getName(),
@@ -240,17 +276,14 @@ public final class PaperActionAdapter implements PlatformActionPort {
                   spawnLoc.getZ(),
                   spawnLoc.getYaw(),
                   spawnLoc.getPitch());
-
           RenderedModelHandle handle =
               modelRuntimeService.spawnModel(modelId, anchor, instance.id());
-
           if (handle != null) {
             cleaner.registerCustomCleanup(
                 instance.id(),
                 () -> {
-                  if (modelAnimationActionService != null) {
+                  if (modelAnimationActionService != null)
                     modelAnimationActionService.stopForModel(handle);
-                  }
                   modelRuntimeService.removeModel(handle.runtimeId());
                 });
           } else {
@@ -260,12 +293,17 @@ public final class PaperActionAdapter implements PlatformActionPort {
         });
   }
 
-  private void handleMoveModel(EventInstance instance, Location baseLoc) {
+  @Override
+  protected CompletableFuture<Boolean> handleMoveModel(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.MoveModelAction action,
+      ExecutionContext context) {
+    Location baseLoc = resolveLocation(state);
     requireLocation(baseLoc, "move_model");
-    if (modelRuntimeService == null) {
+    if (modelRuntimeService == null)
       throw new FatalActionException("Model runtime is unavailable on Paper");
-    }
-    executeAt(
+    return executeAt(
         instance.id(),
         baseLoc,
         () -> {
@@ -285,88 +323,100 @@ public final class PaperActionAdapter implements PlatformActionPort {
         });
   }
 
-  private void handlePlayAnimation(
-      EventInstance instance, Map<String, Object> params, Location baseLoc) {
+  @Override
+  protected CompletableFuture<Boolean> handlePlayAnimation(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.PlayAnimationAction action,
+      ExecutionContext context) {
+    Location baseLoc = resolveLocation(state);
     requireLocation(baseLoc, "play_animation");
-    if (modelAnimationActionService == null) {
+    if (modelAnimationActionService == null)
       throw new FatalActionException("Model animation runtime is unavailable on Paper");
-    }
-    executeAt(
-        instance.id(), baseLoc, () -> modelAnimationActionService.play(instance.id(), params));
+    return executeAt(
+        instance.id(),
+        baseLoc,
+        () ->
+            modelAnimationActionService.play(
+                instance.id(), Map.of("animation", action.animation())));
   }
 
-  private void removeModels(EventInstanceId instanceId) {
-    if (modelRuntimeService == null) {
-      return;
-    }
-    for (RenderedModelHandle handle : List.copyOf(modelRuntimeService.getActiveInstances())) {
-      if (instanceId.equals(handle.ownerEventId())) {
-        if (modelAnimationActionService != null) {
-          modelAnimationActionService.stopForModel(handle);
+  @Override
+  protected CompletableFuture<Boolean> handleRemoveModel(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.RemoveModelAction action,
+      ExecutionContext context) {
+    if (modelRuntimeService != null) {
+      for (RenderedModelHandle handle : List.copyOf(modelRuntimeService.getActiveInstances())) {
+        if (instance.id().equals(handle.ownerEventId())) {
+          if (modelAnimationActionService != null) modelAnimationActionService.stopForModel(handle);
+          modelRuntimeService.removeModel(handle.runtimeId());
         }
-        modelRuntimeService.removeModel(handle.runtimeId());
       }
     }
+    return CompletableFuture.completedFuture(true);
   }
 
-  private void handlePlaySound(
-      EventInstance instance, Map<String, Object> params, Location baseLoc) {
+  @Override
+  protected CompletableFuture<Boolean> handlePlaySound(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.PlaySoundAction action,
+      ExecutionContext context) {
+    Location baseLoc = resolveLocation(state);
     requireLocation(baseLoc, "play_sound");
     World world = baseLoc.getWorld();
     if (world == null) throw new FatalActionException("play_sound requires a loaded world");
 
-    String soundName = getStringParam(params, "sound", "minecraft:entity.generic.explode");
-    float volume = getFloatParam(params, "volume", 1.0f);
-    float pitch = getFloatParam(params, "pitch", 1.0f);
-
-    Sound sound = resolveSound(soundName);
-    executeAt(
+    Sound sound = resolveSound(action.sound());
+    return executeAt(
         instance.id(),
         baseLoc,
         () -> {
           if (sound != null) {
-            world.playSound(baseLoc, sound, volume, pitch);
+            world.playSound(baseLoc, sound, action.volume(), action.pitch());
           } else {
-            world.playSound(baseLoc, soundName, volume, pitch);
+            world.playSound(baseLoc, action.sound(), action.volume(), action.pitch());
           }
         });
   }
 
-  private void handleSpawnParticles(
-      EventInstance instance, Map<String, Object> params, Location baseLoc) {
+  @Override
+  protected CompletableFuture<Boolean> handleSpawnParticles(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.SpawnParticlesAction action,
+      ExecutionContext context) {
+    Location baseLoc = resolveLocation(state);
     requireLocation(baseLoc, "spawn_particles");
     World world = baseLoc.getWorld();
     if (world == null) throw new FatalActionException("spawn_particles requires a loaded world");
+    requireRange(action.count(), 0, MAX_PARTICLES_PER_ACTION, "spawn_particles.count");
 
-    String particleName = getStringParam(params, "particle", "minecraft:explosion");
-    int count = getIntParam(params, "count", 10);
-    requireRange(count, 0, MAX_PARTICLES_PER_ACTION, "spawn_particles.count");
-
-    Particle particle = resolveParticle(particleName);
-    executeAt(
+    Particle particle = resolveParticle(action.particle());
+    return executeAt(
         instance.id(),
         baseLoc,
         () -> {
-          if (particle != null) {
-            world.spawnParticle(particle, baseLoc, count);
-          }
+          if (particle != null) world.spawnParticle(particle, baseLoc, action.count());
         });
   }
 
-  private void handleGiveItem(
-      EventInstance instance, Map<String, Object> params, ExecutionContext context) {
-    if (context == null || !(context.actor() instanceof Player player)) {
+  @Override
+  protected CompletableFuture<Boolean> handleGiveItem(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.GiveItemAction action,
+      ExecutionContext context) {
+    if (context == null || !(context.actor() instanceof Player player))
       throw new FatalActionException("give_item requires a player interaction context");
-    }
-    String materialName = getStringParam(params, "material", "minecraft:diamond");
-    int amount = getIntParam(params, "amount", 1);
-    requireRange(amount, 1, 64, "give_item.amount");
+    requireRange(action.amount(), 1, 64, "give_item.amount");
 
     ItemStack itemStack = null;
-
     for (CustomItemProvider provider : itemProviders) {
       if (provider.isAvailable()) {
-        ItemStack custom = provider.resolveItem(materialName, amount);
+        ItemStack custom = provider.resolveItem(action.material(), action.amount());
         if (custom != null) {
           itemStack = custom;
           break;
@@ -375,238 +425,451 @@ public final class PaperActionAdapter implements PlatformActionPort {
     }
 
     if (itemStack == null) {
-      Material mat = resolveMaterial(materialName);
-      if (mat != null) {
-        itemStack = new ItemStack(mat, amount);
-      }
+      Material mat = resolveMaterial(action.material());
+      if (mat != null) itemStack = new ItemStack(mat, action.amount());
     }
 
     if (itemStack != null) {
       ItemStack finalStack = itemStack;
-      executeFor(
-          instance.id(),
-          player,
-          () -> {
-            player.getInventory().addItem(finalStack);
-          });
+      return executeFor(instance.id(), player, () -> player.getInventory().addItem(finalStack));
     } else {
-      throw new FatalActionException("Unknown item material or provider item: " + materialName);
+      throw new FatalActionException(
+          "Unknown item material or provider item: " + action.material());
     }
   }
 
-  private void handleSendMessage(
-      EventInstance instance, Map<String, Object> params, ExecutionContext context) {
-    if (context == null || !(context.actor() instanceof CommandSender sender)) {
+  @Override
+  protected CompletableFuture<Boolean> handleSendMessage(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.SendMessageAction action,
+      ExecutionContext context) {
+    if (context == null || !(context.actor() instanceof CommandSender sender))
       throw new FatalActionException("send_message requires a command-sender context");
-    }
-    String msg = getStringParam(params, "message", "");
-    if (!msg.isEmpty()) {
-      var component = MiniPlaceholdersIntegration.getMiniMessage().deserialize(msg);
+    if (!action.message().isEmpty()) {
+      var component = MiniPlaceholdersIntegration.getMiniMessage().deserialize(action.message());
       if (sender instanceof Player player) {
-        executeFor(instance.id(), player, () -> player.sendMessage(component));
+        return executeFor(instance.id(), player, () -> player.sendMessage(component));
       } else {
         sender.sendMessage(component);
       }
     }
+    return CompletableFuture.completedFuture(true);
   }
 
-  private void handleBroadcastMessage(EventInstance instance, Map<String, Object> params) {
-    String msg = getStringParam(params, "message", "");
-    if (!msg.isEmpty()) {
-      executeGlobal(
+  @Override
+  protected CompletableFuture<Boolean> handleBroadcastMessage(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.BroadcastMessageAction action,
+      ExecutionContext context) {
+    if (!action.message().isEmpty()) {
+      return executeGlobal(
           instance.id(),
           () -> {
-            var component = MiniPlaceholdersIntegration.getMiniMessage().deserialize(msg);
-            for (org.bukkit.entity.Player p : Bukkit.getOnlinePlayers()) {
-              p.sendMessage(component);
-            }
+            var component =
+                MiniPlaceholdersIntegration.getMiniMessage().deserialize(action.message());
+            for (Player p : Bukkit.getOnlinePlayers()) p.sendMessage(component);
             Bukkit.getConsoleSender().sendMessage(component);
           });
     }
+    return CompletableFuture.completedFuture(true);
   }
 
-  private void handleShowTitle(EventInstance instance, Map<String, Object> params) {
-    String title = getStringParam(params, "title", "");
-    if (title.isBlank()) {
-      throw new FatalActionException("show_title requires a title");
-    }
-    String subtitle = getStringParam(params, "subtitle", "");
-    int fadeIn = getIntParam(params, "fade-in", 10);
-    int stay = getIntParam(params, "stay", 50);
-    int fadeOut = getIntParam(params, "fade-out", 10);
-    if (fadeIn < 0 || stay < 1 || fadeOut < 0) {
+  @Override
+  protected CompletableFuture<Boolean> handleShowTitle(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.ShowTitleAction action,
+      ExecutionContext context) {
+    if (action.title().isBlank()) throw new FatalActionException("show_title requires a title");
+    if (action.fadeIn() < 0 || action.stay() < 1 || action.fadeOut() < 0)
       throw new FatalActionException(
           "show_title timings must be non-negative and stay must be positive");
-    }
+
     Title rendered =
         Title.title(
-            MiniPlaceholdersIntegration.getMiniMessage().deserialize(title),
-            MiniPlaceholdersIntegration.getMiniMessage().deserialize(subtitle),
+            MiniPlaceholdersIntegration.getMiniMessage().deserialize(action.title()),
+            MiniPlaceholdersIntegration.getMiniMessage().deserialize(action.subtitle()),
             Title.Times.times(
-                Duration.ofMillis(fadeIn * 50L),
-                Duration.ofMillis(stay * 50L),
-                Duration.ofMillis(fadeOut * 50L)));
-    executeGlobal(
+                Duration.ofMillis(action.fadeIn() * 50L),
+                Duration.ofMillis(action.stay() * 50L),
+                Duration.ofMillis(action.fadeOut() * 50L)));
+
+    return executeGlobal(
         instance.id(),
         () -> Bukkit.getOnlinePlayers().forEach(player -> player.showTitle(rendered)));
   }
 
-  private void handleSpawnBoss(
+  @Override
+  protected CompletableFuture<Boolean> handleSpawnBoss(
       EventInstance instance,
       EventRuntimeState state,
-      Map<String, Object> params,
-      Location baseLoc) {
+      PlatformActions.SpawnBossAction action,
+      ExecutionContext context) {
+    Location baseLoc = resolveLocation(state);
     requireLocation(baseLoc, "spawn_boss");
+    Location spawnLoc = baseLoc.clone().add(action.offsetX(), action.offsetY(), action.offsetZ());
+    EntityType entityType = resolveEntityType(action.entityType());
 
-    int offsetX = getIntParam(params, "offset-x", 2);
-    int offsetY = getIntParam(params, "offset-y", 0);
-    int offsetZ = getIntParam(params, "offset-z", 0);
-    String typeName = getStringParam(params, "entity_type", "minecraft:zombie");
-    String name = getStringParam(params, "name", "<red>Boss");
-
-    Location spawnLoc = baseLoc.clone().add(offsetX, offsetY, offsetZ);
-    EntityType entityType = resolveEntityType(typeName);
-
-    executeAt(
+    return executeAt(
         instance.id(),
         spawnLoc,
         () -> {
           World world = spawnLoc.getWorld();
           if (world == null) return;
-
           Entity entity = world.spawnEntity(spawnLoc, entityType);
-          entity.customName(MiniPlaceholdersIntegration.getMiniMessage().deserialize(name));
+          entity.customName(
+              MiniPlaceholdersIntegration.getMiniMessage().deserialize(action.name()));
           entity.setCustomNameVisible(true);
-
           entity
               .getPersistentDataContainer()
               .set(SpectraPdcKeys.INSTANCE_ID, PersistentDataType.STRING, instance.id().toString());
-
           state.setBossEntityId(entity.getUniqueId());
-
           cleaner.registerCustomCleanup(
               instance.id(),
               () -> {
-                if (entity.isValid()) {
-                  entity.remove();
-                }
+                if (entity.isValid()) entity.remove();
               });
         });
+  }
+
+  @Override
+  protected CompletableFuture<Boolean> handleDropLoot(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.DropLootAction action,
+      ExecutionContext context) {
+    Location baseLoc = resolveLocation(state);
+    requireLocation(baseLoc, "drop_loot");
+    World world = baseLoc.getWorld();
+    if (world == null) throw new FatalActionException("drop_loot requires a loaded world");
+    if (action.items().size() > MAX_LOOT_ENTRIES)
+      throw new FatalActionException(
+          "drop_loot exceeds the limit of " + MAX_LOOT_ENTRIES + " item entries");
+    requireRange((int) Math.ceil(action.radius()), 0, 128, "drop_loot.radius");
+
+    return executeAt(
+        instance.id(),
+        baseLoc,
+        () -> {
+          ThreadLocalRandom rng = ThreadLocalRandom.current();
+          for (PlatformActions.LootItem item : action.items()) {
+            requireRange(item.amount(), 1, 64, "drop_loot.items.amount");
+            requireRange(item.chance(), 0, 100, "drop_loot.items.chance");
+            if (rng.nextInt(100) < item.chance()) {
+              ItemStack stack = resolveItemStack(item.material(), item.amount());
+              if (stack != null) {
+                double offsetX = (rng.nextDouble() - 0.5) * action.radius();
+                double offsetZ = (rng.nextDouble() - 0.5) * action.radius();
+                world.dropItemNaturally(baseLoc.clone().add(offsetX, 0.5, offsetZ), stack);
+              }
+            }
+          }
+        });
+  }
+
+  @Override
+  protected CompletableFuture<Boolean> handleReleaseGroundLoot(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.ReleaseGroundLootAction action,
+      ExecutionContext context) {
+    Location baseLoc = resolveLocation(state);
+    requireLocation(baseLoc, "release_ground_loot");
+    World world = baseLoc.getWorld();
+    if (world == null)
+      throw new FatalActionException("release_ground_loot requires a loaded world");
+    requireRange((int) Math.ceil(action.radius()), 0, 128, "release_ground_loot.radius");
+    return executeAt(
+        instance.id(),
+        baseLoc,
+        () ->
+            state
+                .sharedLootSnapshot()
+                .forEach(
+                    (slot, loot) -> {
+                      if (groundLootExists(world, baseLoc, instance.id(), slot, action.radius()))
+                        return;
+                      ItemStack stack = resolveItemStack(loot.material(), loot.amount());
+                      if (stack == null) return;
+                      double offsetX =
+                          (ThreadLocalRandom.current().nextDouble() - 0.5d) * action.radius();
+                      double offsetZ =
+                          (ThreadLocalRandom.current().nextDouble() - 0.5d) * action.radius();
+                      Item item =
+                          world.dropItemNaturally(
+                              baseLoc.clone().add(offsetX, 0.5d, offsetZ), stack);
+                      item.getPersistentDataContainer()
+                          .set(
+                              SpectraPdcKeys.INSTANCE_ID,
+                              PersistentDataType.STRING,
+                              instance.id().toString());
+                      item.getPersistentDataContainer()
+                          .set(SpectraPdcKeys.GROUND_LOOT_SLOT, PersistentDataType.INTEGER, slot);
+                    }));
+  }
+
+  private boolean groundLootExists(
+      World world, Location center, EventInstanceId instanceId, int slot, double radius) {
+    return world.getNearbyEntities(center, radius + 2.0d, 3.0d, radius + 2.0d).stream()
+        .anyMatch(
+            entity ->
+                instanceId
+                        .toString()
+                        .equals(
+                            entity
+                                .getPersistentDataContainer()
+                                .get(SpectraPdcKeys.INSTANCE_ID, PersistentDataType.STRING))
+                    && Integer.valueOf(slot)
+                        .equals(
+                            entity
+                                .getPersistentDataContainer()
+                                .get(SpectraPdcKeys.GROUND_LOOT_SLOT, PersistentDataType.INTEGER)));
+  }
+
+  @Override
+  protected CompletableFuture<Boolean> handleAwardPodium(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.AwardPodiumAction action,
+      ExecutionContext context) {
+    EventZone zone =
+        state
+            .eventZone()
+            .orElseThrow(() -> new FatalActionException("award_podium requires an event zone"));
+    Set<UUID> eligible = ConcurrentHashMap.newKeySet();
+    List<CompletableFuture<Boolean>> checks = new ArrayList<>();
+    for (Player player : Bukkit.getOnlinePlayers()) {
+      checks.add(
+          executeFor(
+              instance.id(),
+              player,
+              () -> {
+                Location location = player.getLocation();
+                if (location.getWorld() != null
+                    && zone.contains(
+                        new EventLocation(
+                            location.getWorld().getName(),
+                            location.getX(),
+                            location.getY(),
+                            location.getZ(),
+                            location.getYaw(),
+                            location.getPitch()))) {
+                  eligible.add(player.getUniqueId());
+                }
+              }));
+    }
+    CompletableFuture<Void> inspected =
+        CompletableFuture.allOf(checks.toArray(CompletableFuture[]::new));
+    return inspected.thenCompose(
+        ignored -> {
+          List<UUID> podium =
+              ContributionRanking.podium(
+                  state.contribution(),
+                  eligible,
+                  state.minimumContribution(),
+                  state.contributionThresholdMillis());
+          regionScheduler.executeGlobal(
+              () ->
+                  Bukkit.broadcast(
+                      Component.text("[SpectraEvents] Metin podium: " + podiumLabel(podium))));
+          List<CompletableFuture<Boolean>> deliveries = new ArrayList<>();
+          for (int place = 0; place < podium.size(); place++) {
+            Player winner = Bukkit.getPlayer(podium.get(place));
+            if (winner == null) {
+              continue;
+            }
+            PlatformActions.PodiumPool pool = action.pools().get(place);
+            deliveries.add(
+                executeFor(instance.id(), winner, () -> deliverPodiumPool(winner, pool)));
+          }
+          return CompletableFuture.allOf(deliveries.toArray(CompletableFuture[]::new))
+              .thenApply(ignoredDeliveries -> true);
+        });
+  }
+
+  private void deliverPodiumPool(Player player, PlatformActions.PodiumPool pool) {
+    ThreadLocalRandom random = ThreadLocalRandom.current();
+    for (PlatformActions.LootItem item : pool.items()) {
+      requireRange(item.amount(), 1, 64, "award_podium.items.amount");
+      requireRange(item.chance(), 0, 100, "award_podium.items.chance");
+      if (random.nextInt(100) < item.chance()) {
+        ItemStack stack = resolveItemStack(item.material(), item.amount());
+        if (stack != null) {
+          Map<Integer, ItemStack> leftover = player.getInventory().addItem(stack);
+          leftover
+              .values()
+              .forEach(value -> player.getWorld().dropItemNaturally(player.getLocation(), value));
+        }
+      }
+    }
+  }
+
+  private String podiumLabel(List<UUID> podium) {
+    if (podium.isEmpty()) {
+      return "no eligible finalists";
+    }
+    List<String> names = new ArrayList<>();
+    for (int i = 0; i < podium.size(); i++) {
+      Player player = Bukkit.getPlayer(podium.get(i));
+      names.add((i + 1) + ". " + (player != null ? player.getName() : podium.get(i)));
+    }
+    return String.join(", ", names);
+  }
+
+  @Override
+  protected CompletableFuture<Boolean> handleSpawnMobs(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.SpawnMobsAction action,
+      ExecutionContext context) {
+    Location baseLoc = resolveLocation(state);
+    requireLocation(baseLoc, "spawn_mobs");
+    int totalMobs = 0;
+    for (PlatformActions.MobSpawn mob : action.mobs()) {
+      requireRange(mob.amount(), 1, MAX_MOBS_PER_ACTION, "spawn_mobs.mobs.amount");
+      totalMobs = Math.addExact(totalMobs, mob.amount());
+    }
+    if (totalMobs > MAX_MOBS_PER_ACTION)
+      throw new FatalActionException(
+          "spawn_mobs exceeds the limit of " + MAX_MOBS_PER_ACTION + " entities per action");
+    if (!action.waveId().isBlank()) {
+      state.beginWave(action.waveId());
+    }
+
+    return executeAt(
+        instance.id(),
+        baseLoc,
+        () -> {
+          World world = baseLoc.getWorld();
+          if (world == null) return;
+          ThreadLocalRandom rng = ThreadLocalRandom.current();
+          for (PlatformActions.MobSpawn mob : action.mobs()) {
+            requireRange((int) Math.ceil(mob.radius()), 0, 128, "spawn_mobs.mobs.radius");
+            EntityType type = resolveEntityType(mob.entityType());
+            for (int i = 0; i < mob.amount(); i++) {
+              double offsetX = (rng.nextDouble() - 0.5) * mob.radius() * 2;
+              double offsetZ = (rng.nextDouble() - 0.5) * mob.radius() * 2;
+              Location spawnLoc = baseLoc.clone().add(offsetX, 0, offsetZ);
+              Entity entity = world.spawnEntity(spawnLoc, type);
+              entity.customName(
+                  MiniPlaceholdersIntegration.getMiniMessage().deserialize(mob.name()));
+              entity.setCustomNameVisible(true);
+              entity
+                  .getPersistentDataContainer()
+                  .set(
+                      SpectraPdcKeys.INSTANCE_ID,
+                      PersistentDataType.STRING,
+                      instance.id().toString());
+              if (!action.waveId().isBlank()) {
+                entity
+                    .getPersistentDataContainer()
+                    .set(SpectraPdcKeys.WAVE_ID, PersistentDataType.STRING, action.waveId());
+                state.trackWaveEntity(action.waveId(), entity.getUniqueId());
+              }
+              cleaner.registerCustomCleanup(
+                  instance.id(),
+                  () -> {
+                    if (entity.isValid()) entity.remove();
+                  });
+            }
+          }
+        });
+  }
+
+  @Override
+  protected CompletableFuture<Boolean> handleShowBossbar(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.ShowBossbarAction action,
+      ExecutionContext context) {
+    return executeGlobal(
+        instance.id(),
+        () -> {
+          bossBarManager.showBossBar(
+              instance,
+              state,
+              Map.of(
+                  "color",
+                  action.color(),
+                  "style",
+                  action.style(),
+                  "title",
+                  action.title(),
+                  "progress",
+                  action.progress()));
+          cleaner.registerCustomCleanup(
+              instance.id(), () -> bossBarManager.removeBossBar(instance.id().value()));
+        });
+  }
+
+  @Override
+  protected CompletableFuture<Boolean> handleUpdateBossbar(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.UpdateBossbarAction action,
+      ExecutionContext context) {
+    return executeGlobal(
+        instance.id(),
+        () ->
+            bossBarManager.updateBossBar(
+                instance, state, Map.of("title", action.title(), "progress", action.progress())));
+  }
+
+  @Override
+  protected CompletableFuture<Boolean> handleRemoveBossbar(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.RemoveBossbarAction action,
+      ExecutionContext context) {
+    return executeGlobal(instance.id(), () -> bossBarManager.removeBossBar(instance.id().value()));
+  }
+
+  @SuppressWarnings("FutureReturnValueIgnored")
+  @Override
+  protected CompletableFuture<Boolean> handleShowScoreboard(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.ShowScoreboardAction action,
+      ExecutionContext context) {
+    return executeGlobal(
+        instance.id(),
+        () -> {
+          scoreboardManager.showScoreboard(
+              instance, state, Map.of("title", action.title(), "lines", action.lines()));
+          cleaner.registerCustomCleanup(
+              instance.id(), () -> scoreboardManager.removeScoreboard(instance.id().value()));
+        });
+  }
+
+  @Override
+  protected CompletableFuture<Boolean> handleUpdateScoreboard(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.UpdateScoreboardAction action,
+      ExecutionContext context) {
+    return executeGlobal(
+        instance.id(),
+        () -> scoreboardManager.updateScoreboard(instance, state, Map.of("lines", action.lines())));
+  }
+
+  @SuppressWarnings("FutureReturnValueIgnored")
+  @Override
+  protected CompletableFuture<Boolean> handleRemoveScoreboard(
+      EventInstance instance,
+      EventRuntimeState state,
+      PlatformActions.RemoveScoreboardAction action,
+      ExecutionContext context) {
+    return executeGlobal(
+        instance.id(), () -> scoreboardManager.removeScoreboard(instance.id().value()));
   }
 
   private Material resolveMaterial(String name) {
     String formatted = name.replace("minecraft:", "").toUpperCase(Locale.ROOT);
     Material material = Material.matchMaterial(formatted);
-    if (material == null) {
-      throw new FatalActionException("Unknown material: " + name);
-    }
+    if (material == null) throw new FatalActionException("Unknown material: " + name);
     return material;
-  }
-
-  private EntityType resolveEntityType(String name) {
-    try {
-      String formatted = name.replace("minecraft:", "").toUpperCase(Locale.ROOT);
-      return EntityType.valueOf(formatted);
-    } catch (IllegalArgumentException e) {
-      throw new FatalActionException("Unknown entity type: " + name, e);
-    }
-  }
-
-  @SuppressWarnings("removal")
-  private Sound resolveSound(String name) {
-    try {
-      String formatted = name.replace("minecraft:", "").replace('.', '_').toUpperCase(Locale.ROOT);
-      return Sound.valueOf(formatted);
-    } catch (Exception e) {
-      return Sound.ENTITY_GENERIC_EXPLODE;
-    }
-  }
-
-  private Particle resolveParticle(String name) {
-    try {
-      String formatted = name.replace("minecraft:", "").toUpperCase(Locale.ROOT);
-      return Particle.valueOf(formatted);
-    } catch (IllegalArgumentException e) {
-      throw new FatalActionException("Unknown particle: " + name, e);
-    }
-  }
-
-  private String getStringParam(Map<String, Object> params, String key, String defaultValue) {
-    Object val = params.get(key);
-    return val != null ? String.valueOf(val) : defaultValue;
-  }
-
-  private int getIntParam(Map<String, Object> params, String key, int defaultValue) {
-    Object val = params.get(key);
-    if (val == null) return defaultValue;
-    if (val instanceof Number n) return n.intValue();
-    try {
-      return Integer.parseInt(String.valueOf(val));
-    } catch (Exception e) {
-      return defaultValue;
-    }
-  }
-
-  private float getFloatParam(Map<String, Object> params, String key, float defaultValue) {
-    Object val = params.get(key);
-    if (val == null) return defaultValue;
-    if (val instanceof Number n) return n.floatValue();
-    try {
-      return Float.parseFloat(String.valueOf(val));
-    } catch (Exception e) {
-      return defaultValue;
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  private void handleDropLoot(
-      EventInstance instance, Map<String, Object> params, Location baseLoc) {
-    requireLocation(baseLoc, "drop_loot");
-    World world = baseLoc.getWorld();
-    if (world == null) throw new FatalActionException("drop_loot requires a loaded world");
-
-    double radius = getFloatParam(params, "radius", 2.0f);
-    Object itemsObj = params.get("items");
-    if (!(itemsObj instanceof List<?> itemsList)) {
-      throw new FatalActionException("drop_loot requires an items list");
-    }
-    if (itemsList.size() > MAX_LOOT_ENTRIES) {
-      throw new FatalActionException(
-          "drop_loot exceeds the limit of " + MAX_LOOT_ENTRIES + " item entries");
-    }
-    requireRange((int) Math.ceil(radius), 0, 128, "drop_loot.radius");
-
-    executeAt(
-        instance.id(),
-        baseLoc,
-        () -> {
-          ThreadLocalRandom rng = ThreadLocalRandom.current();
-          for (Object itemObj : itemsList) {
-            if (!(itemObj instanceof Map<?, ?> itemMap)) continue;
-            Object matObj = itemMap.get("material");
-            String materialName = matObj != null ? String.valueOf(matObj) : "minecraft:diamond";
-            int amount = 1;
-            if (itemMap.containsKey("amount")) {
-              amount = Integer.parseInt(String.valueOf(itemMap.get("amount")));
-            }
-            requireRange(amount, 1, 64, "drop_loot.items.amount");
-            int chance = 100;
-            if (itemMap.containsKey("chance")) {
-              chance = Integer.parseInt(String.valueOf(itemMap.get("chance")));
-            }
-            requireRange(chance, 0, 100, "drop_loot.items.chance");
-
-            if (rng.nextInt(100) < chance) {
-              ItemStack stack = resolveItemStack(materialName, amount);
-              if (stack != null) {
-                double offsetX = (rng.nextDouble() - 0.5) * radius;
-                double offsetZ = (rng.nextDouble() - 0.5) * radius;
-                Location dropLoc = baseLoc.clone().add(offsetX, 0.5, offsetZ);
-                world.dropItemNaturally(dropLoc, stack);
-              }
-            }
-          }
-        });
   }
 
   private ItemStack resolveItemStack(String materialName, int amount) {
@@ -620,111 +883,142 @@ public final class PaperActionAdapter implements PlatformActionPort {
     return mat != null ? new ItemStack(mat, amount) : null;
   }
 
-  @SuppressWarnings("unchecked")
-  private void handleSpawnMobs(
-      EventInstance instance, Map<String, Object> params, Location baseLoc) {
-    requireLocation(baseLoc, "spawn_mobs");
-
-    Object mobsObj = params.get("mobs");
-    if (!(mobsObj instanceof List<?> mobsList)) {
-      throw new FatalActionException("spawn_mobs requires a mobs list");
-    }
-    int totalMobs = 0;
-    for (Object mobObj : mobsList) {
-      if (!(mobObj instanceof Map<?, ?> mobMap)) {
-        throw new FatalActionException("spawn_mobs entries must be objects");
+  private List<ItemStack> mailboxItemStacks(List<RewardItem> items) {
+    List<ItemStack> stacks = new ArrayList<>();
+    for (RewardItem item : items) {
+      int remaining = item.amount();
+      while (remaining > 0) {
+        ItemStack stack = resolveItemStack(item.material(), Math.min(remaining, 64));
+        int amount = Math.min(remaining, stack.getMaxStackSize());
+        stack.setAmount(amount);
+        stacks.add(stack);
+        remaining -= amount;
       }
-      int amount =
-          mobMap.containsKey("amount") ? Integer.parseInt(String.valueOf(mobMap.get("amount"))) : 1;
-      requireRange(amount, 1, MAX_MOBS_PER_ACTION, "spawn_mobs.mobs.amount");
-      totalMobs = Math.addExact(totalMobs, amount);
     }
-    if (totalMobs > MAX_MOBS_PER_ACTION) {
-      throw new FatalActionException(
-          "spawn_mobs exceeds the limit of " + MAX_MOBS_PER_ACTION + " entities per action");
-    }
-
-    executeAt(
-        instance.id(),
-        baseLoc,
-        () -> {
-          World world = baseLoc.getWorld();
-          if (world == null) return;
-          ThreadLocalRandom rng = ThreadLocalRandom.current();
-
-          for (Object mobObj : mobsList) {
-            if (!(mobObj instanceof Map<?, ?> mobMap)) continue;
-            Object typeObj = mobMap.get("entity_type");
-            String entityTypeStr = typeObj != null ? String.valueOf(typeObj) : "minecraft:zombie";
-            Object nameObj = mobMap.get("name");
-            String name = nameObj != null ? String.valueOf(nameObj) : "<red>Mob";
-            int amount = 1;
-            if (mobMap.containsKey("amount")) {
-              amount = Integer.parseInt(String.valueOf(mobMap.get("amount")));
-            }
-            double radius = 3.0;
-            if (mobMap.containsKey("radius")) {
-              radius = Double.parseDouble(String.valueOf(mobMap.get("radius")));
-            }
-            requireRange((int) Math.ceil(radius), 0, 128, "spawn_mobs.mobs.radius");
-
-            EntityType type = resolveEntityType(entityTypeStr);
-            for (int i = 0; i < amount; i++) {
-              double offsetX = (rng.nextDouble() - 0.5) * radius * 2;
-              double offsetZ = (rng.nextDouble() - 0.5) * radius * 2;
-              Location spawnLoc = baseLoc.clone().add(offsetX, 0, offsetZ);
-
-              Entity mob = world.spawnEntity(spawnLoc, type);
-              mob.customName(MiniPlaceholdersIntegration.getMiniMessage().deserialize(name));
-              mob.setCustomNameVisible(true);
-              mob.getPersistentDataContainer()
-                  .set(
-                      SpectraPdcKeys.INSTANCE_ID,
-                      PersistentDataType.STRING,
-                      instance.id().toString());
-
-              cleaner.registerCustomCleanup(
-                  instance.id(),
-                  () -> {
-                    if (mob.isValid()) mob.remove();
-                  });
-            }
-          }
-        });
+    return stacks;
   }
 
-  private void executeAt(EventInstanceId instanceId, Location location, Runnable action) {
+  private boolean canContainAll(Inventory inventory, List<ItemStack> items) {
+    ItemStack[] contents = inventory.getStorageContents();
+    for (int slot = 0; slot < contents.length; slot++) {
+      if (contents[slot] != null) {
+        contents[slot] = contents[slot].clone();
+      }
+    }
+    for (ItemStack item : items) {
+      int remaining = item.getAmount();
+      for (int slot = 0; slot < contents.length && remaining > 0; slot++) {
+        ItemStack existing = contents[slot];
+        if (existing == null || existing.getType().isAir() || !existing.isSimilar(item)) {
+          continue;
+        }
+        int capacity = existing.getMaxStackSize() - existing.getAmount();
+        int accepted = Math.min(capacity, remaining);
+        existing.setAmount(existing.getAmount() + accepted);
+        remaining -= accepted;
+      }
+      for (int slot = 0; slot < contents.length && remaining > 0; slot++) {
+        ItemStack existing = contents[slot];
+        if (existing != null && !existing.getType().isAir()) {
+          continue;
+        }
+        int accepted = Math.min(item.getMaxStackSize(), remaining);
+        ItemStack placed = item.clone();
+        placed.setAmount(accepted);
+        contents[slot] = placed;
+        remaining -= accepted;
+      }
+      if (remaining > 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private EntityType resolveEntityType(String name) {
     try {
-      regionScheduler.executeAt(location, () -> runGuarded(instanceId, action));
+      return EntityType.valueOf(name.replace("minecraft:", "").toUpperCase(Locale.ROOT));
+    } catch (IllegalArgumentException e) {
+      throw new FatalActionException("Unknown entity type: " + name, e);
+    }
+  }
+
+  @SuppressWarnings("removal")
+  private Sound resolveSound(String name) {
+    try {
+      return Sound.valueOf(
+          name.replace("minecraft:", "").replace('.', '_').toUpperCase(Locale.ROOT));
+    } catch (Exception e) {
+      return Sound.ENTITY_GENERIC_EXPLODE;
+    }
+  }
+
+  private Particle resolveParticle(String name) {
+    try {
+      return Particle.valueOf(name.replace("minecraft:", "").toUpperCase(Locale.ROOT));
+    } catch (IllegalArgumentException e) {
+      throw new FatalActionException("Unknown particle: " + name, e);
+    }
+  }
+
+  private CompletableFuture<Boolean> executeAt(
+      EventInstanceId instanceId, Location location, Runnable action) {
+    CompletableFuture<Boolean> future = new CompletableFuture<>();
+    if (shuttingDown) {
+      future.complete(false);
+      return future;
+    }
+    try {
+      regionScheduler.executeAt(location, () -> runGuarded(instanceId, action, future));
     } catch (RuntimeException exception) {
       runFailureHandler(instanceId, exception);
+      future.complete(false);
       throw exception;
     }
+    return future;
   }
 
-  private void executeGlobal(EventInstanceId instanceId, Runnable action) {
+  private CompletableFuture<Boolean> executeGlobal(EventInstanceId instanceId, Runnable action) {
+    CompletableFuture<Boolean> future = new CompletableFuture<>();
+    if (shuttingDown) {
+      future.complete(false);
+      return future;
+    }
     try {
-      regionScheduler.executeGlobal(() -> runGuarded(instanceId, action));
+      regionScheduler.executeGlobal(() -> runGuarded(instanceId, action, future));
     } catch (RuntimeException exception) {
       runFailureHandler(instanceId, exception);
+      future.complete(false);
       throw exception;
     }
+    return future;
   }
 
-  private void executeFor(EventInstanceId instanceId, Player player, Runnable action) {
+  private CompletableFuture<Boolean> executeFor(
+      EventInstanceId instanceId, Player player, Runnable action) {
+    CompletableFuture<Boolean> future = new CompletableFuture<>();
+    if (shuttingDown) {
+      future.complete(false);
+      return future;
+    }
     try {
-      regionScheduler.executeFor(player, () -> runGuarded(instanceId, action));
+      regionScheduler.executeFor(player, () -> runGuarded(instanceId, action, future));
     } catch (RuntimeException exception) {
       runFailureHandler(instanceId, exception);
+      future.complete(false);
       throw exception;
     }
+    return future;
   }
 
-  private void runGuarded(EventInstanceId instanceId, Runnable action) {
+  private void runGuarded(
+      EventInstanceId instanceId, Runnable action, CompletableFuture<Boolean> future) {
     try {
       action.run();
+      if (future != null) future.complete(true);
     } catch (RuntimeException throwable) {
       runFailureHandler(instanceId, throwable);
+      if (future != null) future.complete(false);
     }
   }
 
@@ -741,19 +1035,6 @@ public final class PaperActionAdapter implements PlatformActionPort {
               + instanceId
               + " after action error: "
               + handlerFailure.getMessage());
-    }
-  }
-
-  private void requireLocation(Location location, String action) {
-    if (location == null) {
-      throw new FatalActionException(action + " requires a persisted event location");
-    }
-  }
-
-  private void requireRange(int value, int minimum, int maximum, String field) {
-    if (value < minimum || value > maximum) {
-      throw new FatalActionException(
-          field + " must be between " + minimum + " and " + maximum + ", got " + value);
     }
   }
 }

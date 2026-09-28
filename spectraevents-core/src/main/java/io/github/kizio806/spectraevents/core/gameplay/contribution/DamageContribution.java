@@ -48,7 +48,10 @@ public record DamageContribution(Map<UUID, Integer> contributions) {
       return Collections.emptyList();
     }
     return contributions.entrySet().stream()
-        .sorted((e1, e2) -> Integer.compare(e2.getValue(), e1.getValue()))
+        .sorted(
+            java.util.Comparator.<Map.Entry<UUID, Integer>>comparingInt(Map.Entry::getValue)
+                .reversed()
+                .thenComparing(entry -> entry.getKey().toString()))
         .limit(limit)
         .collect(Collectors.toList());
   }

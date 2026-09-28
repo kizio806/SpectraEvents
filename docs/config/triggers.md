@@ -22,6 +22,8 @@ trigger:
 | `manual` | Admin/command initiated | None |
 | `timer_elapsed` | Fires when a phase timer completes | `duration` (e.g. `3s`, `10s`, `500ms`) |
 | `interaction` | Player right-click on event model | None |
+| `combat_damage` | Direct player melee damage on an event hitbox | The final server damage is carried by the runtime context. |
+| `health_percent_threshold_crossed` | Health crosses a relative percentage boundary | `percent` (0–100) |
 | `health_depleted` | Fired when event Health reaches 0 | None |
 | `hits_reached` | Fired when `increment_hits` reaches the configured hit-counter maximum | None |
 

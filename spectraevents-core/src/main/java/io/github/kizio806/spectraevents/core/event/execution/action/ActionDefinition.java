@@ -8,9 +8,4 @@ package io.github.kizio806.spectraevents.core.event.execution.action;
 public interface ActionDefinition {
   /** Gets the string identifier of the action type (e.g. "transition", "spawn_model") */
   String type();
-
-  /** Gets configuration parameters associated with this action definition. */
-  default java.util.Map<String, Object> parameters() {
-    return java.util.Map.of();
-  }
 }

@@ -1,53 +1,42 @@
-# Meteor Event Specification
+# Meteor raid
 
-`meteor.yml` is a bundled, executable reference for an event that drops a fiery celestial rock from the sky,
-incorporating altitude-based spawning, phased gameplay, and ranked damage leaderboards.
+`meteor.yml` is the reference large-raid definition. It uses the shared encounter zone,
+tracked-wave, global HUD and durable public-loot primitives; it is not implemented by an
+event-specific coordinator.
 
-## Gameplay Summary
+## Flow
 
-| Phase | What happens | Transition |
+| Phase | Behaviour | Exit |
 |---|---|---|
-| `falling` | Meteor spawns high up and falls (animated descent) | `timer_elapsed` (10s fall duration) |
-| `locked` | Meteor is embedded in ground but too hot to mine | `timer_elapsed` (15s cooling) |
-| `active` | Meteor cools down; players can mine/damage it | `health_depleted` |
-| `completed` | Core shatters, drops loot, HUD cleared | Terminal |
+| `announced` | Three-minute global warning and HUD. | Warning timer. |
+| `falling` | The model descends for 15 seconds. | Impact. |
+| `impact_lock` | Impact effects and a 45-second protected cooling period. | Cooling timer. |
+| `assault_one` | Melee damage can reduce the core from 100% to 75%. | `fracture_guard`. |
+| `fracture_guard` | Core is protected until its bounded first wave dies. | Clear within two minutes. |
+| `assault_two` | Core can be reduced from 75% to 50%. | `eruption_guard`. |
+| `eruption_guard` | Second bounded wave protects the core. | Clear within two minutes. |
+| `assault_three` | Core can be reduced from 50% to 25%. | `cataclysm`. |
+| `cataclysm` | Meteor Warden and the final bounded wave must die. | Clear within three minutes. |
+| `final_core` | The remaining 25% can be destroyed. | `victory`. |
 
-## Visual Model
+Each uncleared wave, and the absolute 20-minute encounter deadline, causes `failed`: no loot is
+released and every event-owned model, wave and HUD resource is cleaned up.
 
-The `meteor_core` model ([`models/meteor.yml`](../authoring/models.md)) is built from 12 parts to simulate a real burning rock:
+## Combat and rewards
 
-| Group | Parts | Description |
-|---|---|---|
-| Core | `core` | Central deepslate/magma block structure |
-| Outer Crust | `shell_n/s/e/w`, `shell_top/bottom` | Jagged rocky armor plates wrapping the core |
-| Debris | `debris_1/2/3/4` | Small floating fragments orbiting the meteor |
-| Marker | `impact_crater` | Visual scorch mark placed on the ground |
+Only direct player melee hits on the model hitbox count. The platform passes Bukkit's final
+damage value into the platform-neutral `combat_damage` trigger; the YAML-configured cap and
+per-player cooldown are then applied. Percentage gates clamp a hit at the boundary, so an
+overpowered weapon cannot skip a wave.
 
-## Animations
+Victory rolls the YAML loot pool once, persists the resulting slots, then releases tagged item
+entities around the core. The items are public immediately. Their tags and snapshot prevent a
+recovery replay from rerolling or spawning a second copy; normal Minecraft item despawn remains
+five minutes.
 
-| Animation | Loop | Trigger | Description |
-|---|---|---|---|
-| `fall` | ONCE | Phase `falling` on-enter | Meteor plunges from Y+40 down to ground level (Z-axis rotation) |
-| `pulse` | LOOP | Phase `locked` on-enter | Magma core glows and throbs; crust shifts slightly |
-| `cool` | LOOP | Phase `active` on-enter | Core stops pulsing; debris orbits slowly |
-| `break` | ONCE | Phase `completed` on-enter | Shell plates explode outward; core shrinks and vanishes |
+## Operator configuration
 
-## Shared Contracts Used
-
-| Concern | Contract |
-|---|---|
-| Visual asset | `models/meteor.yml` — 12-part model |
-| Timers | `timer_elapsed` for both fall duration and cooling period |
-| Health | `damage_entity` with 500 HP |
-| HUD | Bossbar updates dynamically with `%health%/%max_health%` |
-| Rewards | `drop_loot` based on damage participation |
-| Recovery | Position and health state persist across server restarts |
-
-## Operator Workflow
-
-1. Stand in a wide open area (or allow automatic surface spawning).
-2. Start the event: `/spectraevents event start meteor`
-3. The meteor spawns high in the air and descends rapidly with the `fall` animation.
-4. Players wait 15 seconds during `locked` phase for it to cool.
-5. Players damage the meteor in `active` phase until broken.
-6. Verify model breaks apart via `break` animation and loot drops.
+The definition exposes only bounded scalar parameters to command/GUI overrides: maximum HP,
+damage cap, hit cooldown, timings, zone radius and deadline. Waves, messages, models, animations
+and loot remain YAML-owned. A Meteor reserves a non-overlapping 160-block zone by default and
+counts toward the maximum of three large encounters per world.

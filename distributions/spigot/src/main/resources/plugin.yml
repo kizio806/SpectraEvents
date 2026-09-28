@@ -9,6 +9,7 @@ commands:
   spectraevents:
     description: SpectraEvents management command
     usage: /spectraevents help
+    aliases: [se]
 
 permissions:
   spectraevents.admin:
@@ -24,6 +25,8 @@ permissions:
       spectraevents.event.inspect: true
       spectraevents.definition.list: true
       spectraevents.definition.reload: true
+      spectraevents.rewards.claim: true
+      spectraevents.schedule: true
   spectraevents.status:
     default: op
   spectraevents.doctor:
@@ -41,4 +44,8 @@ permissions:
   spectraevents.definition.list:
     default: op
   spectraevents.definition.reload:
+    default: op
+  spectraevents.rewards.claim:
+    default: true
+  spectraevents.schedule:
     default: op

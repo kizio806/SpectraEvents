@@ -25,6 +25,8 @@ Actions are one-shot operations executed by the engine. They can fire when enter
 | `set_locked` | Locks the event for a duration. |
 | `try_claim` | Atomically claims a reward transition. |
 | `apply_damage` | Applies damage and emits health triggers. |
+| `apply_combat_damage` | Applies the server-calculated combat value from `combat_damage`, bounded by `maximum`, `cooldown`, and `health-floor-percent`. |
+| `initialize_ground_loot` / `release_ground_loot` | Rolls a public ground-loot pool once, persists its slots, then releases tagged item entities. |
 | `initialize_hit_counter` | Domain | Initializes a per-instance equal-value hit counter | `max` |
 | `increment_hits` | Domain | Records hits and emits `hits_reached` on the configured target | optional `amount` (default `1`) |
 | `complete_event` / `cancel_event` | Ends the event and invokes cleanup. |

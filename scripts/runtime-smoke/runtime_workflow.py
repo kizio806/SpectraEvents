@@ -260,13 +260,15 @@ class ServerSession:
 
 
 def wait_ready(session: ServerSession) -> None:
-    session.wait_for(r"\[SpectraEvents\] READY platform=", timeout=90)
+    session.wait_for(r"(?:\[SpectraEvents\] READY platform=|SpectraEvents enabled successfully\.)", timeout=90)
     session.wait_for(r"Done \(.*\)! For help", timeout=90)
 
 
 def start_event(session: ServerSession, definition_id: str = "airdrop") -> str:
     session.command(f"spectraevents event start {definition_id}")
-    return session.wait_for(rf"Started event instance ({UUID})", timeout=20).group(1)
+    return session.wait_for(rf"(?:Started event instance |Instance: )(?P<instance>{UUID})", timeout=20).group(
+        "instance"
+    )
 
 
 def inspect(session: ServerSession, instance_id: str) -> tuple[str, bool, int, int]:
@@ -411,7 +413,7 @@ def run_workflow(server_jar: pathlib.Path, artifact: pathlib.Path, work: pathlib
     first = ServerSession(work, server_jar)
     try:
         wait_ready(first)
-        generated_pack = plugin_directory / "generated" / "resource-pack" / "spectraevents-profile_26_1.zip"
+        generated_pack = plugin_directory / "cache" / "resource-pack" / "spectraevents-profile_26_1.zip"
         if not generated_pack.is_file() or generated_pack.stat().st_size == 0:
             raise RuntimeError("Asset smoke fixture did not produce the expected resource-pack ZIP")
         asset_instance = start_event(first, "asset_smoke")

@@ -2,74 +2,33 @@ package io.github.kizio806.spectraevents.application.execution;
 
 import io.github.kizio806.spectraevents.application.config.compiled.ConfiguredTriggerDefinition;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
-import io.github.kizio806.spectraevents.application.config.registry.RegisteredEventDefinition;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.application.port.EventTaskScheduler;
 import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
-import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
-import io.github.kizio806.spectraevents.core.event.execution.TransitionRule;
-import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
-import io.github.kizio806.spectraevents.core.event.execution.condition.ConditionDefinition;
 import io.github.kizio806.spectraevents.core.event.execution.trigger.TriggerDefinition;
-import io.github.kizio806.spectraevents.core.event.phase.PhaseDefinition;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
-import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
-import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleTransition;
-import io.github.kizio806.spectraevents.core.gameplay.health.Health;
-import io.github.kizio806.spectraevents.core.gameplay.hits.HitCounter;
-import java.time.Duration;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
- * Deterministic execution engine for data-driven event definitions. Evaluates incoming triggers
- * against phase transition rules, checks conditions, executes actions in order, and manages phase
- * entry side-effects and timers.
+ * Deterministic execution engine for data-driven event definitions. This acts as a facade,
+ * delegating to focused components.
  */
 public final class EventExecutionEngine {
-  private static final Logger LOGGER = Logger.getLogger(EventExecutionEngine.class.getName());
-  private static final int MAX_RUNNING_INSTANCES = 64;
-  private static final Duration MAX_TIMER_DURATION = Duration.ofDays(7);
-
-  private final EventInstanceRepository repository;
-  private final EventDefinitionRegistry definitionRegistry;
-  private final EventTaskScheduler scheduler;
-  private final PlatformActionPort platformActionPort;
-  private final EventRuntimeStateStore stateStore;
-  private final ConcurrentHashMap<EventInstanceId, ReentrantLock> instanceLocks =
-      new ConcurrentHashMap<>();
-  private final ConcurrentHashMap<EventInstanceId, EventDefinition> definitionSnapshots =
-      new ConcurrentHashMap<>();
-  private static final Set<String> REWARD_ACTION_TYPES = Set.of("give_item", "drop_loot");
-  private static final Set<String> RECOVERABLE_RESOURCE_ACTION_TYPES =
-      Set.of(
-          "spawn_model",
-          "play_animation",
-          "move_model",
-          "spawn_boss",
-          "spawn_entity",
-          "spawn_mobs",
-          "spawn_wave",
-          "show_bossbar",
-          "create_bossbar",
-          "update_bossbar",
-          "show_scoreboard",
-          "create_scoreboard",
-          "update_scoreboard");
+  private final EngineContext context;
+  private final EventLifecycleManager lifecycleManager;
+  private final PhaseExecutionController phaseController;
+  private final ActionExecutionCoordinator actionCoordinator;
 
   private final java.util.List<IntegrationConditionResolver> conditionResolvers =
       new java.util.ArrayList<>();
   private final java.util.List<IntegrationActionResolver> actionResolvers =
       new java.util.ArrayList<>();
+  private final InternalActionExecutor internalActionExecutor;
+  private final EventTriggerEvaluator triggerEvaluator;
 
   public EventExecutionEngine(
       EventInstanceRepository repository,
@@ -77,17 +36,28 @@ public final class EventExecutionEngine {
       EventTaskScheduler scheduler,
       PlatformActionPort platformActionPort,
       EventRuntimeStateStore stateStore) {
-    this.repository = Objects.requireNonNull(repository, "repository");
-    this.definitionRegistry = Objects.requireNonNull(definitionRegistry, "definitionRegistry");
-    this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
-    this.platformActionPort = Objects.requireNonNull(platformActionPort, "platformActionPort");
-    this.stateStore = Objects.requireNonNull(stateStore, "stateStore");
-    this.platformActionPort.setFatalActionHandler(
-        (instanceId, cause) -> failEvent(instanceId, cause));
+    this.context =
+        new EngineContext(
+            repository, definitionRegistry, scheduler, platformActionPort, stateStore);
+    this.internalActionExecutor = new InternalActionExecutor(repository, actionResolvers, this);
+    this.triggerEvaluator = new EventTriggerEvaluator(conditionResolvers);
+
+    this.lifecycleManager = new EventLifecycleManager(this.context);
+    this.actionCoordinator =
+        new ActionExecutionCoordinator(
+            this.context, this.internalActionExecutor, this.lifecycleManager);
+    this.phaseController =
+        new PhaseExecutionController(
+            this.context, this.actionCoordinator, this.triggerEvaluator, this.lifecycleManager);
+    this.lifecycleManager.setPhaseController(this.phaseController);
+
+    this.context
+        .platformActionPort()
+        .setFatalActionHandler((instanceId, cause) -> failEvent(instanceId, cause));
   }
 
   public EventRuntimeStateStore stateStore() {
-    return stateStore;
+    return context.stateStore();
   }
 
   public void registerConditionResolver(IntegrationConditionResolver resolver) {
@@ -98,52 +68,19 @@ public final class EventExecutionEngine {
     actionResolvers.add(resolver);
   }
 
-  /** Starts a config-driven event instance. */
   public EventInstance startEvent(String definitionId, Object platformLocationReference) {
-    return startEvent(getDefinition(definitionId), platformLocationReference);
+    return lifecycleManager.startEvent(
+        lifecycleManager.getDefinition(definitionId), platformLocationReference);
   }
 
-  /**
-   * Starts an immutable definition snapshot, optionally tailored for one operator-selected profile.
-   */
   public EventInstance startEvent(EventDefinition definition, Object platformLocationReference) {
-    Objects.requireNonNull(definition, "definition");
-    long runningInstances =
-        repository.findAll().stream()
-            .filter(instance -> instance.state() == EventLifecycleState.RUNNING)
-            .count();
-    if (runningInstances >= MAX_RUNNING_INSTANCES) {
-      throw new IllegalStateException(
-          "Refusing to start event: maximum of " + MAX_RUNNING_INSTANCES + " running instances");
-    }
-    EventInstanceId id = EventInstanceId.generate();
-    definitionSnapshots.put(id, definition);
-    EventInstance created = EventInstance.create(id, definition.id());
-
-    EventLifecycleTransition transition = created.start(definition);
-    EventInstance running = transition.eventInstance();
-
-    EventRuntimeState state = stateStore.getOrCreate(id);
-    if (platformLocationReference != null) {
-      state.setPlatformLocation(platformLocationReference);
-    }
-    repository.saveWithStateDurably(running, state);
-
-    try {
-      executePhaseEntry(running, definition, definition.initialPhase());
-    } catch (RuntimeException exception) {
-      failEvent(running.id(), exception);
-      throw exception;
-    }
-    return running;
+    return lifecycleManager.startEvent(definition, platformLocationReference);
   }
 
-  /** Evaluates an incoming trigger against the current phase of the event instance. */
   public boolean evaluateTrigger(EventInstanceId instanceId, TriggerDefinition trigger) {
-    return evaluateTrigger(instanceId, trigger, ExecutionContext.EMPTY);
+    return phaseController.evaluateTrigger(instanceId, trigger, ExecutionContext.EMPTY);
   }
 
-  /** Advances a running instance through its first matching manual transition. */
   public EventInstance triggerManualTransition(EventInstanceId instanceId) {
     Objects.requireNonNull(instanceId, "instanceId");
     boolean handled = evaluateTrigger(instanceId, new ConfiguredTriggerDefinition("manual"));
@@ -151,278 +88,108 @@ public final class EventExecutionEngine {
       throw new IllegalStateException(
           "No manual transition is available for event instance " + instanceId);
     }
-    return repository
+    return context
+        .repository()
         .findById(instanceId)
         .orElseThrow(() -> new IllegalStateException("Event instance disappeared: " + instanceId));
   }
 
-  /** Evaluates an incoming trigger with execution context. */
   public boolean evaluateTrigger(
       EventInstanceId instanceId, TriggerDefinition trigger, ExecutionContext context) {
-    ReentrantLock lock = instanceLocks.computeIfAbsent(instanceId, ignored -> new ReentrantLock());
-    lock.lock();
-    try {
-      return evaluateTriggerLocked(instanceId, trigger, context);
-    } finally {
-      lock.unlock();
-    }
+    return phaseController.evaluateTrigger(instanceId, trigger, context);
   }
 
-  private boolean evaluateTriggerLocked(
-      EventInstanceId instanceId, TriggerDefinition trigger, ExecutionContext context) {
-    Optional<EventInstance> instanceOpt = repository.findById(instanceId);
-    if (instanceOpt.isEmpty()) {
+  /** Records one owned wave entity death and emits {@code wave_cleared} exactly once. */
+  public boolean recordWaveEntityDeath(
+      EventInstanceId instanceId,
+      String waveId,
+      java.util.UUID entityId,
+      ExecutionContext context) {
+    Objects.requireNonNull(instanceId, "instanceId");
+    Objects.requireNonNull(waveId, "waveId");
+    Objects.requireNonNull(entityId, "entityId");
+    EventRuntimeState state = context().stateStore().get(instanceId).orElse(null);
+    if (state == null || !state.recordWaveEntityDeath(waveId, entityId)) {
       return false;
     }
-
-    EventInstance instance = instanceOpt.get();
-    if (instance.state() != EventLifecycleState.RUNNING) {
-      return false;
-    }
-
-    EventDefinition definition = definitionForInstance(instance);
-    PhaseId currentPhaseId =
-        instance
-            .currentPhase()
-            .orElseThrow(() -> new IllegalStateException("Running instance has no current phase"));
-
-    PhaseDefinition phaseDef =
-        definition
-            .phase(currentPhaseId)
-            .orElseThrow(
-                () -> new IllegalStateException("Phase unknown to definition: " + currentPhaseId));
-
-    EventRuntimeState state = stateStore.getOrCreate(instanceId);
-
-    // Evaluate rules in deterministic list order
-    for (TransitionRule rule : phaseDef.rules()) {
-      if (matchesTrigger(rule.trigger(), trigger)
-          && evaluateConditions(rule.conditions(), state, context)) {
-        if (containsRewardAction(rule.actions()) && !acceptRewardClaim(state, trigger, context)) {
-          return false;
-        }
-        // Execute rule actions
-        boolean actionsOk = executeActions(instance, state, rule.actions(), context);
-        if (!actionsOk) {
-          return false;
-        }
-
-        // Execute phase transition if target phase specified
-        if (rule.targetPhase().isPresent()) {
-          PhaseId targetPhase = rule.targetPhase().get();
-          EventLifecycleTransition transition = instance.transitionPhase(definition, targetPhase);
-          EventInstance nextInstance = transition.eventInstance();
-          repository.save(nextInstance);
-
-          try {
-            executePhaseEntry(nextInstance, definition, targetPhase, context);
-          } catch (RuntimeException exception) {
-            failEvent(nextInstance.id(), exception);
-            throw exception;
-          }
-        }
-        return true;
-      }
-    }
-    return false;
+    return evaluateTrigger(
+        instanceId,
+        new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
+            .WaveClearedTrigger(waveId),
+        context);
   }
 
-  /** Executes phase entry side-effects and schedules phase timers. */
+  /**
+   * Records real platform combat against a tagged event entity without changing its native health.
+   */
+  public void recordExternalContribution(
+      EventInstanceId instanceId, java.util.UUID playerId, double damage) {
+    if (playerId == null || damage <= 0.0d) {
+      return;
+    }
+    context()
+        .stateStore()
+        .get(instanceId)
+        .ifPresent(state -> state.recordDamage(playerId, Math.max(1, (int) Math.ceil(damage))));
+  }
+
+  private EngineContext context() {
+    return context;
+  }
+
   public void executePhaseEntry(
       EventInstance instance, EventDefinition definition, PhaseId phaseId) {
-    executePhaseEntry(instance, definition, phaseId, ExecutionContext.EMPTY);
+    phaseController.executePhaseEntry(instance, definition, phaseId, ExecutionContext.EMPTY);
   }
 
-  /** Executes phase entry side-effects with context and schedules phase timers. */
   public void executePhaseEntry(
       EventInstance instance,
       EventDefinition definition,
       PhaseId phaseId,
       ExecutionContext context) {
-    // Cancel previous phase timers
-    scheduler.cancelAll(instance.id());
-
-    PhaseDefinition phaseDef =
-        definition
-            .phase(phaseId)
-            .orElseThrow(() -> new IllegalStateException("Phase unknown: " + phaseId));
-
-    EventRuntimeState state = stateStore.getOrCreate(instance.id());
-
-    // Execute on-enter actions deterministically in list order
-    executeActions(instance, state, phaseDef.onEnterActions(), context);
-
-    // Inspect rules for timer_elapsed triggers and schedule tasks
-    for (TransitionRule rule : phaseDef.rules()) {
-      if ("timer_elapsed".equalsIgnoreCase(rule.trigger().type())) {
-        Duration duration = parseDuration(rule.trigger().parameters().get("duration"));
-        validateTimerDuration(duration, "timer_elapsed.duration");
-        TriggerDefinition timerTrigger = rule.trigger();
-        long deadline = Math.addExact(System.currentTimeMillis(), duration.toMillis());
-        state.setTimerDeadlineMillis(deadline);
-        repository.saveState(state);
-        scheduler.schedule(
-            instance.id(),
-            duration,
-            () -> {
-              try {
-                evaluateTrigger(instance.id(), timerTrigger, context);
-              } catch (Exception e) {
-                LOGGER.log(
-                    Level.SEVERE, "Error executing timer trigger for event " + instance.id(), e);
-              }
-            });
-      }
-    }
+    phaseController.executePhaseEntry(instance, definition, phaseId, context);
   }
 
-  /** Cancels an event instance and cleans up runtime state and scheduled timers. */
   public EventInstance cancelEvent(EventInstanceId instanceId) {
-    ReentrantLock lock = instanceLocks.computeIfAbsent(instanceId, ignored -> new ReentrantLock());
-    lock.lock();
-    try {
-      Optional<EventInstance> instanceOpt = repository.findById(instanceId);
-      if (instanceOpt.isPresent()) {
-        EventInstance instance = instanceOpt.get();
-        if (instance.state() == EventLifecycleState.RUNNING) {
-          EventLifecycleTransition transition = instance.cancel();
-          EventInstance cancelled = transition.eventInstance();
-          repository.save(cancelled);
-          cleanupInstance(instanceId);
-          return cancelled;
-        }
-      }
-      cleanupInstance(instanceId);
-      return null;
-    } finally {
-      lock.unlock();
-    }
+    return lifecycleManager.cancelEvent(instanceId);
   }
 
-  /** Completes an event instance and cleans up. */
   public EventInstance completeEvent(EventInstanceId instanceId) {
-    ReentrantLock lock = instanceLocks.computeIfAbsent(instanceId, ignored -> new ReentrantLock());
-    lock.lock();
-    try {
-      Optional<EventInstance> instanceOpt = repository.findById(instanceId);
-      if (instanceOpt.isPresent()) {
-        EventInstance instance = instanceOpt.get();
-        if (instance.state() == EventLifecycleState.RUNNING) {
-          EventLifecycleTransition transition = instance.complete();
-          EventInstance completed = transition.eventInstance();
-          repository.save(completed);
-          cleanupInstance(instanceId);
-          return completed;
-        }
-      }
-      cleanupInstance(instanceId);
-      return null;
-    } finally {
-      lock.unlock();
-    }
+    return lifecycleManager.completeEvent(instanceId);
   }
 
-  /** Fails an event instance cleanly. */
   public EventInstance failEvent(EventInstanceId instanceId, Throwable cause) {
-    ReentrantLock lock = instanceLocks.computeIfAbsent(instanceId, ignored -> new ReentrantLock());
-    lock.lock();
-    try {
-      Optional<EventInstance> instanceOpt = repository.findById(instanceId);
-      if (instanceOpt.isPresent()) {
-        EventInstance instance = instanceOpt.get();
-        if (instance.state() == EventLifecycleState.RUNNING) {
-          EventLifecycleTransition transition = instance.fail();
-          EventInstance failed = transition.eventInstance();
-          repository.save(failed);
-          cleanupInstance(instanceId);
-          return failed;
-        }
-      }
-      cleanupInstance(instanceId);
-      return null;
-    } finally {
-      lock.unlock();
-    }
+    return lifecycleManager.failEvent(instanceId, cause);
   }
 
-  /** Recovers persistent phase timers after a system restart. */
   public void recoverTimers() {
-    for (EventInstance instance : repository.findAll()) {
-      if (instance.state() == EventLifecycleState.RUNNING) {
-        EventDefinition definition;
-        try {
-          definition = definitionForInstance(instance);
-        } catch (IllegalArgumentException exception) {
-          LOGGER.log(
-              Level.WARNING,
-              "Cannot recover event instance "
-                  + instance.id()
-                  + " because definition '"
-                  + instance.definitionId().value()
-                  + "' is not registered; marking the instance as failed.");
-          failEvent(instance.id(), exception);
-          continue;
-        }
-
-        repository.findState(instance.id()).ifPresent(stateStore::put);
-        EventRuntimeState state = stateStore.getOrCreate(instance.id());
-        recoverPlatformResources(instance, state, definition);
-        long deadline = state.timerDeadlineMillis();
-        if (deadline > 0) {
-          long remaining = deadline - System.currentTimeMillis();
-          if (remaining < 0) remaining = 0;
-
-          PhaseId currentPhaseId = instance.currentPhase().orElse(null);
-          if (currentPhaseId != null) {
-            PhaseDefinition phaseDef = definition.phase(currentPhaseId).orElse(null);
-            if (phaseDef != null) {
-              for (TransitionRule rule : phaseDef.rules()) {
-                if ("timer_elapsed".equalsIgnoreCase(rule.trigger().type())) {
-                  TriggerDefinition timerTrigger = rule.trigger();
-                  scheduler.schedule(
-                      instance.id(),
-                      Duration.ofMillis(remaining),
-                      () -> {
-                        try {
-                          evaluateTrigger(instance.id(), timerTrigger, ExecutionContext.EMPTY);
-                        } catch (Exception e) {
-                          LOGGER.log(
-                              Level.SEVERE,
-                              "Error executing recovered timer for " + instance.id(),
-                              e);
-                        }
-                      });
-                  break; // Assume max 1 timer rule per phase
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+    phaseController.recoverTimers();
   }
 
-  /** Cancels all execution work and releases platform-owned resources. */
   public void shutdown() {
-    scheduler.cancelAll();
-    platformActionPort.cleanupAll();
-    stateStore.clear();
-    instanceLocks.clear();
-    definitionSnapshots.clear();
+    context.scheduler().cancelAll();
+    context.platformActionPort().cleanupAll();
+    context.stateStore().clear();
+    context.instanceLocks().clear();
+    context.definitionSnapshots().clear();
+  }
+
+  public EventDefinition definitionForInstance(EventInstance instance) {
+    return lifecycleManager.definitionForInstance(instance);
   }
 
   public ExecutionDiagnostics diagnostics(EventInstanceId instanceId) {
-    Optional<EventRuntimeState> state = stateStore.get(instanceId);
+    Optional<EventRuntimeState> state = context.stateStore().get(instanceId);
     return new ExecutionDiagnostics(
         state.isPresent(),
-        scheduler.pendingTaskCount(instanceId),
-        platformActionPort.resourceCount(instanceId),
-        state.flatMap(EventRuntimeState::claimant));
+        context.scheduler().pendingTaskCount(instanceId),
+        context.platformActionPort().resourceCount(instanceId),
+        state.map(EventRuntimeState::claimant).orElse(null));
   }
 
-  /** Returns the operator-facing runtime snapshot when an instance has active runtime state. */
   public Optional<ExecutionStatus> status(EventInstanceId instanceId) {
-    return stateStore
+    return context
+        .stateStore()
         .get(Objects.requireNonNull(instanceId, "instanceId"))
         .map(
             state ->
@@ -430,353 +197,27 @@ public final class EventExecutionEngine {
                     state
                         .platformLocation()
                         .filter(EventLocation.class::isInstance)
-                        .map(EventLocation.class::cast),
+                        .map(EventLocation.class::cast)
+                        .orElse(null),
                     state.currentHealth(),
                     state.maxHealth(),
-                    state.hitCounter().map(HitCounter::current).orElse(0),
-                    state.hitCounter().map(HitCounter::maximum).orElse(0),
+                    state.hitCounter() != null ? state.hitCounter().current() : 0,
+                    state.hitCounter() != null ? state.hitCounter().maximum() : 0,
                     state.timerDeadlineMillis(),
                     state.isLocked(),
                     state.claimant()));
   }
 
   public record ExecutionDiagnostics(
-      boolean runtimeStatePresent,
-      int pendingTasks,
-      int platformResources,
-      Optional<String> claimant) {}
+      boolean runtimeStatePresent, int pendingTasks, int platformResources, String claimant) {}
 
-  /** Immutable state suitable for operator views without exposing mutable execution internals. */
   public record ExecutionStatus(
-      Optional<EventLocation> location,
+      EventLocation location,
       int currentHealth,
       int maxHealth,
       int currentHits,
       int maxHits,
       long timerDeadlineMillis,
       boolean locked,
-      Optional<String> claimant) {}
-
-  private boolean containsRewardAction(List<ActionDefinition> actions) {
-    return actions.stream()
-        .anyMatch(
-            action ->
-                REWARD_ACTION_TYPES.contains(action.type().toLowerCase(java.util.Locale.ROOT)));
-  }
-
-  private boolean acceptRewardClaim(
-      EventRuntimeState state, TriggerDefinition trigger, ExecutionContext context) {
-    String claimantId =
-        context != null && context.actor() != null
-            ? context.actor().toString()
-            : "system:" + trigger.type().toLowerCase(java.util.Locale.ROOT);
-    if (state.isClaimed() || !state.tryClaim(claimantId)) {
-      return false;
-    }
-    repository.saveStateDurably(state);
-    return true;
-  }
-
-  private void recoverPlatformResources(
-      EventInstance instance, EventRuntimeState state, EventDefinition definition) {
-    PhaseId currentPhase = instance.currentPhase().orElse(null);
-    if (currentPhase == null) {
-      return;
-    }
-    PhaseDefinition phase = definition.phase(currentPhase).orElse(null);
-    if (phase == null) {
-      return;
-    }
-
-    platformActionPort.cleanupEvent(instance.id());
-    for (ActionDefinition action : phase.onEnterActions()) {
-      if (RECOVERABLE_RESOURCE_ACTION_TYPES.contains(
-          action.type().toLowerCase(java.util.Locale.ROOT))) {
-        try {
-          platformActionPort.executeAction(instance, state, action, ExecutionContext.EMPTY);
-        } catch (RuntimeException exception) {
-          failEvent(instance.id(), exception);
-          throw exception;
-        }
-      }
-    }
-  }
-
-  private void cleanupInstance(EventInstanceId instanceId) {
-    scheduler.cancelAll(instanceId);
-    platformActionPort.cleanupEvent(instanceId);
-    stateStore.remove(instanceId);
-    definitionSnapshots.remove(instanceId);
-  }
-
-  private boolean executeActions(
-      EventInstance instance,
-      EventRuntimeState state,
-      List<ActionDefinition> actions,
-      ExecutionContext context) {
-    for (ActionDefinition action : actions) {
-      try {
-        Boolean internalResult = executeInternalAction(instance, state, action, context);
-        if (internalResult != null) {
-          if (!internalResult) {
-            return false;
-          }
-          continue;
-        }
-        platformActionPort.executeAction(instance, state, action, context);
-      } catch (FatalActionException e) {
-        LOGGER.log(
-            Level.SEVERE,
-            "Fatal action failure during action " + action.type() + " for event " + instance.id(),
-            e);
-        failEvent(instance.id(), e);
-        throw e;
-      } catch (Exception e) {
-        FatalActionException fatal =
-            new FatalActionException(
-                "Action " + action.type() + " failed for event " + instance.id(), e);
-        LOGGER.log(Level.SEVERE, fatal.getMessage(), fatal);
-        failEvent(instance.id(), fatal);
-        throw fatal;
-      }
-    }
-    return true;
-  }
-
-  private Boolean executeInternalAction(
-      EventInstance instance,
-      EventRuntimeState state,
-      ActionDefinition action,
-      ExecutionContext context)
-      throws FatalActionException {
-
-    for (IntegrationActionResolver resolver : actionResolvers) {
-      if (resolver.supports(action.type())) {
-        return resolver.execute(action, instance, state, context);
-      }
-    }
-
-    String type = action.type().toLowerCase(java.util.Locale.ROOT);
-    switch (type) {
-      case "initialize_health" -> {
-        int maxHealth = getIntParam(action.parameters(), "max", 20);
-        state.setHealth(new Health(maxHealth, maxHealth));
-        repository.saveState(state);
-        return Boolean.TRUE;
-      }
-      case "initialize_hit_counter" -> {
-        int maximum = getIntParam(action.parameters(), "max", 20);
-        state.setHitCounter(HitCounter.startingAt(maximum));
-        repository.saveState(state);
-        return Boolean.TRUE;
-      }
-      case "set_locked" -> {
-        Duration lockDuration = parseDuration(action.parameters().get("duration"));
-        validateTimerDuration(lockDuration, "set_locked.duration");
-        long durationMs = lockDuration.toMillis();
-        state.setLockedUntilMillis(System.currentTimeMillis() + durationMs);
-        repository.saveState(state);
-        return Boolean.TRUE;
-      }
-      case "try_claim" -> {
-        String claimantId =
-            context != null && context.actor() != null ? context.actor().toString() : "unknown";
-        boolean claimed = state.tryClaim(claimantId);
-        if (claimed) {
-          repository.saveState(state);
-        }
-        return claimed ? Boolean.TRUE : Boolean.FALSE;
-      }
-      case "apply_damage" -> {
-        int amount = getIntParam(action.parameters(), "amount", 1);
-        if (state.health().isPresent()) {
-          Health oldHealth = state.health().get();
-          Health updated = state.updateHealth(h -> h.damage(amount));
-
-          if (context != null && context.actor() != null) {
-            if (context.actor() instanceof java.util.UUID uuid) {
-              state.recordDamage(uuid, amount);
-            } else {
-              try {
-                java.lang.reflect.Method m = context.actor().getClass().getMethod("getUniqueId");
-                Object res = m.invoke(context.actor());
-                if (res instanceof java.util.UUID uuid) {
-                  state.recordDamage(uuid, amount);
-                }
-              } catch (Exception ignored) {
-                // ignoring reflection failures
-              }
-            }
-          }
-
-          if (updated != null) {
-            EventDefinition definition = definitionForInstance(instance);
-            List<Integer> declaredThresholds = new java.util.ArrayList<>();
-            if (definition != null && instance.currentPhase().isPresent()) {
-              PhaseDefinition phaseDef =
-                  definition.phase(instance.currentPhase().get()).orElse(null);
-              if (phaseDef != null) {
-                for (TransitionRule rule : phaseDef.rules()) {
-                  if ("health_threshold_crossed".equalsIgnoreCase(rule.trigger().type())) {
-                    int t = getIntParam(rule.trigger().parameters(), "threshold", -1);
-                    if (t != -1) {
-                      declaredThresholds.add(t);
-                    }
-                  }
-                }
-              }
-            }
-            if (!declaredThresholds.isEmpty()) {
-              io.github.kizio806.spectraevents.core.gameplay.health.HealthThresholds thresholds =
-                  new io.github.kizio806.spectraevents.core.gameplay.health.HealthThresholds(
-                      declaredThresholds);
-              List<Integer> crossed = thresholds.checkCrossed(oldHealth, updated);
-              for (Integer threshold : crossed) {
-                evaluateTrigger(
-                    instance.id(),
-                    new ConfiguredTriggerDefinition(
-                        "health_threshold_crossed", java.util.Map.of("threshold", threshold)),
-                    context);
-              }
-            }
-            if (updated.isDepleted()) {
-              evaluateTrigger(
-                  instance.id(), new ConfiguredTriggerDefinition("health_depleted"), context);
-            }
-          }
-          repository.saveState(state);
-        }
-        return Boolean.TRUE;
-      }
-      case "increment_hits" -> {
-        int amount = getIntParam(action.parameters(), "amount", 1);
-        if (state.hitCounter().isPresent()) {
-          HitCounter previous = state.hitCounter().orElseThrow();
-          HitCounter updated = state.updateHitCounter(counter -> counter.addHits(amount));
-          repository.saveState(state);
-          if (!previous.isReached() && updated.isReached()) {
-            evaluateTrigger(
-                instance.id(), new ConfiguredTriggerDefinition("hits_reached"), context);
-          }
-        }
-        return Boolean.TRUE;
-      }
-      case "complete_event" -> {
-        completeEvent(instance.id());
-        return Boolean.TRUE;
-      }
-      case "cancel_event" -> {
-        cancelEvent(instance.id());
-        return Boolean.TRUE;
-      }
-      default -> {
-        return null;
-      }
-    }
-  }
-
-  private boolean matchesTrigger(TriggerDefinition ruleTrigger, TriggerDefinition incomingTrigger) {
-    if (!ruleTrigger.type().equalsIgnoreCase(incomingTrigger.type())) {
-      return false;
-    }
-    if ("health_threshold_crossed".equalsIgnoreCase(ruleTrigger.type())) {
-      int ruleThreshold = getIntParam(ruleTrigger.parameters(), "threshold", -1);
-      int incomingThreshold = getIntParam(incomingTrigger.parameters(), "threshold", -2);
-      if (ruleThreshold != -1 && incomingThreshold != -2 && ruleThreshold != incomingThreshold) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  private boolean evaluateConditions(
-      List<ConditionDefinition> conditions, EventRuntimeState state, ExecutionContext context) {
-    for (ConditionDefinition cond : conditions) {
-      String type = cond.type().toLowerCase(java.util.Locale.ROOT);
-
-      boolean resolvedByIntegration = false;
-      for (IntegrationConditionResolver resolver : conditionResolvers) {
-        if (resolver.supports(type)) {
-          if (!resolver.resolve(cond, null, state, context)) {
-            return false;
-          }
-          resolvedByIntegration = true;
-          break;
-        }
-      }
-      if (resolvedByIntegration) continue;
-
-      if ("not_locked".equals(type) && state.isLocked()) {
-        return false;
-      }
-      if ("is_locked".equals(type) && !state.isLocked()) {
-        return false;
-      }
-      if (!"not_locked".equals(type) && !"is_locked".equals(type)) {
-        LOGGER.warning("Unsupported condition type rejected: " + cond.type());
-        return false;
-      }
-    }
-    return true;
-  }
-
-  private EventDefinition getDefinition(String definitionId) {
-    EventDefinitionId id = new EventDefinitionId(definitionId);
-    return definitionRegistry
-        .get(id)
-        .map(RegisteredEventDefinition::definition)
-        .orElseThrow(
-            () -> new IllegalArgumentException("Event definition not registered: " + definitionId));
-  }
-
-  /** Returns the immutable definition captured when an instance started. */
-  private EventDefinition definitionForInstance(EventInstance instance) {
-    return definitionSnapshots.computeIfAbsent(
-        instance.id(), ignored -> getDefinition(instance.definitionId().value()));
-  }
-
-  private Duration parseDuration(Object obj) {
-    if (obj == null) return null;
-    if (obj instanceof Duration d) return d;
-    String str = String.valueOf(obj).trim();
-    if (str.endsWith("ms")) {
-      long ms = Long.parseLong(str.substring(0, str.length() - 2));
-      return Duration.ofMillis(ms);
-    }
-    if (str.endsWith("s")) {
-      long sec = Long.parseLong(str.substring(0, str.length() - 1));
-      return Duration.ofSeconds(sec);
-    }
-    if (str.endsWith("m")) {
-      long min = Long.parseLong(str.substring(0, str.length() - 1));
-      return Duration.ofMinutes(min);
-    }
-    try {
-      long sec = Long.parseLong(str);
-      return Duration.ofSeconds(sec);
-    } catch (NumberFormatException e) {
-      return null;
-    }
-  }
-
-  private int getIntParam(java.util.Map<String, Object> params, String key, int defaultValue) {
-    if (params == null) return defaultValue;
-    Object val = params.get(key);
-    if (val == null) return defaultValue;
-    if (val instanceof Number n) return n.intValue();
-    try {
-      return Integer.parseInt(String.valueOf(val));
-    } catch (NumberFormatException e) {
-      return defaultValue;
-    }
-  }
-
-  private void validateTimerDuration(Duration duration, String field) {
-    if (duration == null || duration.isZero() || duration.isNegative()) {
-      throw new FatalActionException(field + " must be a positive duration");
-    }
-    if (duration.compareTo(MAX_TIMER_DURATION) > 0) {
-      throw new FatalActionException(field + " must not exceed " + MAX_TIMER_DURATION);
-    }
-  }
+      String claimant) {}
 }

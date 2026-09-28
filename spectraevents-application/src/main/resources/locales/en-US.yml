@@ -1,0 +1,5 @@
+schema-version: 1
+messages:
+  reward-delivered: "Reward delivered."
+  reward-retained: "Reward is retained. Make space in your inventory and try again."
+  resource-pack-required: "The required SpectraEvents resource pack could not be loaded."

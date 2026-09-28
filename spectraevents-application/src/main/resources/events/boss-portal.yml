@@ -1,179 +1,149 @@
-# =============================================================================
-# SpectraEvents — Event Definition: Boss Portal
-# =============================================================================
-# A dimensional rift tears open in the world. Pillars rise, an arch assembles,
-# and a shimmering gate materialises. After the portal activates, a powerful
-# Guardian Boss emerges. The event completes when the boss is killed. Players
-# must coordinate: the portal itself cannot be damaged — only the boss.
-#
-# PHASES
-#   opening → active → completed
-#
-# BOSS KILL ROUTING
-#   When spawn_boss spawns the boss entity, the engine tags it with a
-#   Persistent Data Container (PDC) entry linking it to this event instance.
-#   When the entity dies, entity_death automatically resolves back to this
-#   instance regardless of which player or cause delivered the killing blow.
-#
-# DIFFICULTY PROFILES (configured via /spectraevents event config)
-#   All three profiles use the same phase flow; adjust mob equipment or
-#   custom mob type via a resource pack or Nexo/Oraxen integration.
-#
-# PORTAL TIMELINE
-#   t=0s   — portal spawns + "opening" animation begins (2 s build-up)
-#   t=10s  — timer fires: portal is active, Boss spawns immediately
-#   Boss dies → instance completes
-# =============================================================================
-
 id: boss_portal
 schema-version: "1"
-initial-phase: opening
+initial-phase: gathering
+
+encounter:
+  zone-radius: 128
+  deadline: 25m
+  minimum-contribution: 1
+
+limits:
+  max-active-per-world: 1
+
+parameters:
+  gathering-duration:
+    type: duration
+    default: 5m
+    min: 60
+    max: 900
+    step: 30
+    gui-editable: true
 
 phases:
-
-  # ---------------------------------------------------------------------------
-  # PHASE: opening
-  # The portal assembles dramatically. The "opening" animation raises pillars
-  # and materialises the gate. Players watch from a safe distance.
-  # A 10 s countdown gives nearby players time to prepare.
-  # ---------------------------------------------------------------------------
-  opening:
+  gathering:
     on-enter:
-      # height-offset: 0 — the portal assembles at ground level.
-      # The arch and pillars extend 2.7+ blocks above the spawn point.
       - type: spawn_model
         model: boss_portal
-        height-offset: 0
-
-      # opening is a ONCE animation — 2 s, then the model holds final pose.
       - type: play_animation
-        model: boss_portal
         animation: opening
         loop: ONCE
-
-      - type: show_title
-        title: "<dark_purple><bold>BOSS PORTAL"
-        subtitle: "<yellow>Prepare yourself — a boss is coming"
-
+      - type: show_bossbar
+        title: "<dark_purple><bold>BOSS PORTAL</bold> <gray>| gathering | %location%"
+        color: PURPLE
+        style: PROGRESS
       - type: broadcast_message
-        message: "<gold><bold>[SpectraEvents]</bold> <dark_purple>A Boss Portal is tearing open the world!</dark_purple>"
-
-      - type: play_sound
-        sound: minecraft:block.end_portal.spawn
-        volume: 1.0
-        pitch: 1.0
-
+        message: "<gold>[SpectraEvents]</gold> <dark_purple>Boss Portal gathering at %location%.</dark_purple>"
     transitions:
-      # 10 s preparation countdown before the boss emerges.
-      # Adjust the duration to match your server pace.
       - trigger:
           type: timer_elapsed
-          duration: 10s
-        target: active
+          duration: ${gathering-duration}
+        target: first-wave
 
-  # ---------------------------------------------------------------------------
-  # PHASE: active
-  # The portal gate is fully open. The "active" animation loops — rings orbit
-  # in opposite directions. The boss spawns immediately when this phase starts.
-  # entity_death will fire when players kill the boss, completing the event.
-  # ---------------------------------------------------------------------------
-  active:
+  first-wave:
     on-enter:
-      # Switch to the looping active animation (counter-rotating halo rings).
       - type: play_animation
-        model: boss_portal
         animation: active
         loop: LOOP
+      - type: update_bossbar
+        title: "<dark_purple><bold>BOSS PORTAL</bold> <gray>| first defense wave | %location%"
+      - type: spawn_wave
+        wave-id: portal-vanguard
+        mobs:
+          - entity_type: minecraft:enderman
+            name: "<dark_purple>Portal Vanguard</dark_purple>"
+            amount: 12
+            radius: 20
+    transitions:
+      - trigger:
+          type: wave_cleared
+          wave-id: portal-vanguard
+        target: second-wave
 
-      # spawn_boss: creates a named mob entity and links it to this instance.
-      # offset-x/y/z: position the boss on top of or in front of the portal.
-      # The engine records the entity UUID so entity_death can route back.
+  second-wave:
+    on-enter:
+      - type: update_bossbar
+        title: "<dark_purple><bold>BOSS PORTAL</bold> <gray>| second defense wave | %location%"
+      - type: spawn_wave
+        wave-id: portal-wardens
+        mobs:
+          - entity_type: minecraft:evoker
+            name: "<dark_purple>Portal Warden</dark_purple>"
+            amount: 4
+            radius: 16
+          - entity_type: minecraft:vindicator
+            name: "<red>Rift Guard</red>"
+            amount: 16
+            radius: 24
+    transitions:
+      - trigger:
+          type: wave_cleared
+          wave-id: portal-wardens
+        target: boss
+
+  boss:
+    on-enter:
       - type: spawn_boss
-        entity_type: minecraft:zombie
-        name: "<dark_purple><bold>PORTAL GUARDIAN</bold></dark_purple>"
+        entity_type: minecraft:wither_skeleton
+        name: "<dark_red><bold>PORTAL OVERLORD</bold></dark_red>"
         offset-x: 0
         offset-y: 0
-        offset-z: 1               # Spawn 1 block south of the portal centre
-
-      - type: broadcast_message
-        message: "<gold><bold>[SpectraEvents]</bold> <dark_red><bold>The Portal Guardian has emerged! Defeat it!</bold></dark_red>"
-
-      - type: play_sound
-        sound: minecraft:entity.ender_dragon.growl
-        volume: 1.0
-        pitch: 0.9                # Slightly lower than default — more menacing
-
-      - type: spawn_particles
-        particle: minecraft:dragon_breath
-        count: 50
-
-      # Bossbar: RED with NOTCHED_6 to communicate the boss-kill goal.
-      - type: show_bossbar
-        title: "<dark_red><bold>PORTAL GUARDIAN</bold> <gray>[Defeat the boss!]</gray>"
-        color: RED
-        style: NOTCHED_6
-
-      - type: show_scoreboard
-        title: "<dark_purple><bold>BOSS PORTAL</bold>"
-        lines:
-          - "<purple>Phase: <red>%phase%</red>"
-          - "<purple>Boss: <red>ALIVE — Defeat it!</red>"
-          - "<purple>Location: <white>%location%</white>"
-
+        offset-z: 2
+      - type: update_bossbar
+        title: "<dark_red><bold>PORTAL OVERLORD</bold> <gray>| defeat before enrage | %location%"
     transitions:
-      # entity_death: fires when the spawn_boss entity is killed.
-      # No manual inspection of the killer is needed — the engine resolves
-      # the route via the entity PDC tag automatically.
       - trigger:
           type: entity_death
-        target: completed
+        target: victory
+      - trigger:
+          type: timer_elapsed
+          duration: 10m
+        target: enrage
 
-  # ---------------------------------------------------------------------------
-  # PHASE: completed
-  # Boss has been killed. Close the portal, drop rewards, clean up everything.
-  # ---------------------------------------------------------------------------
-  completed:
+  enrage:
     on-enter:
-      # The "close" animation implodes the entire portal structure inward.
-      - type: play_animation
-        model: boss_portal
-        animation: close
-        loop: ONCE
-
-      - type: play_sound
-        sound: minecraft:ui.toast.challenge_complete
-        volume: 1.0
-        pitch: 1.0
-
       - type: spawn_particles
-        particle: minecraft:explosion_emitter
-        count: 5
-
-      # Boss rewards drop at the event centre.
-      - type: drop_loot
-        radius: 3.0
-        items:
-          - material: minecraft:netherite_ingot
-            amount: 3
-            chance: 100
-          - material: minecraft:diamond
-            amount: 16
-            chance: 100
-          - material: minecraft:enchanted_golden_apple
-            amount: 4
-            chance: 100
-          - material: minecraft:ancient_debris
-            amount: 2
-            chance: 75             # Rare tier
-
+        particle: minecraft:dragon_breath
+        count: 120
+      - type: update_bossbar
+        title: "<red><bold>PORTAL OVERLORD ENRAGED</bold> <gray>| finish the raid | %location%"
       - type: broadcast_message
-        message: "<gold><bold>[SpectraEvents]</bold> <green><bold>Portal Guardian defeated! The Boss Portal has collapsed!</bold></green>"
+        message: "<gold>[SpectraEvents]</gold> <red>The Portal Overlord is enraged.</red>"
+    transitions:
+      - trigger:
+          type: entity_death
+        target: victory
+      - trigger:
+          type: timer_elapsed
+          duration: 10m
+        actions:
+          - type: fail_event
 
-      # Clean up in this order:
-      #   1. HUD first (players see completion immediately)
-      #   2. Model (portal implodes)
-      #   3. complete_event (marks instance COMPLETED in database)
+  victory:
+    on-enter:
+      - type: create_participant_reward_claims
+        items:
+          - material: minecraft:diamond
+            amount: 8
+            chance: 100
+          - material: minecraft:golden_apple
+            amount: 2
+            chance: 100
+      - type: award_podium
+        pools:
+          - items:
+              - material: minecraft:netherite_ingot
+                amount: 3
+                chance: 100
+          - items:
+              - material: minecraft:netherite_ingot
+                amount: 2
+                chance: 100
+          - items:
+              - material: minecraft:netherite_ingot
+                amount: 1
+                chance: 100
+      - type: broadcast_message
+        message: "<gold>[SpectraEvents]</gold> <green>Boss Portal conquered. Personal rewards are in /se rewards.</green>"
       - type: remove_bossbar
-      - type: remove_scoreboard
       - type: remove_model
       - type: complete_event

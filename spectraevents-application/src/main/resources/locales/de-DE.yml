@@ -1,0 +1,5 @@
+schema-version: 1
+messages:
+  reward-delivered: "Belohnung zugestellt."
+  reward-retained: "Die Belohnung bleibt im Postfach. Schaffe Inventarplatz und versuche es erneut."
+  resource-pack-required: "Das erforderliche SpectraEvents-Ressourcenpaket konnte nicht geladen werden."

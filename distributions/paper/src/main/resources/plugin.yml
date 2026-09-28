@@ -21,6 +21,8 @@ permissions:
       spectraevents.status: true
       spectraevents.doctor: true
       spectraevents.integrations: true
+      spectraevents.rewards.claim: true
+      spectraevents.schedule: true
 
   spectraevents.event.*:
     description: "Grants access to all event management commands."
@@ -111,4 +113,12 @@ permissions:
 
   spectraevents.integrations:
     description: "Allows checking integration status."
+    default: op
+
+  spectraevents.rewards.claim:
+    description: "Allows a player to list and claim their own durable rewards."
+    default: true
+
+  spectraevents.schedule:
+    description: "Allows listing and reloading configured event schedules."
     default: op

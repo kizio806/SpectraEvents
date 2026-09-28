@@ -2,8 +2,11 @@
 
 ## Current Milestone
 
-M5 complete — operational admin GUI, runtime configuration editing, paginated GUI screens, named
-location management, documentation cleanup, and smoke test corrections.
+1.0 implementation in progress — the shared large-encounter foundation now includes zones,
+per-definition capacity, tracked waves, contribution checkpoints, participant checkpoints and a
+durable reward mailbox. Metin, Airdrop, Meteor, Piñata and Boss Portal are bundled definitions;
+Piñata and Boss Portal are being migrated to their final phased contracts. The retired public
+`examples/events` catalogue is intentionally removed and no longer participates in validation.
 
 ## Current Target
 
@@ -14,7 +17,8 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
 - Native server-side model definitions and Display/Interaction rendering are active.
 - Signed `.spectra.zip` Generic Model bundles import into the normal model/animation registries and
   build a local verified resource-pack ZIP.
-- Administrator-owned HTTPS/SHA-1 player delivery is opt-in; Modrinth publishing remains disabled.
+- Delivery now accepts a pinned Modrinth version ID on both platform families; required-delivery
+  failure or refusal disconnects the player. Publication and full runtime certification remain open.
 - The operator confirmed custom-model-data rendering and the real-player delivery workflow after M2.
   Exact server/client versions were not recorded and are not inferred retrospectively.
 
@@ -109,18 +113,16 @@ Data-driven 3D model engine for Paper and Spigot platform families across Minecr
 
 ## Current State
 
-- M5 is complete: the admin GUI, runtime configuration editing, named location management,
-  all five event gameplay definitions, and documentation cleanup are done. Build is green at
-  130 tasks. The smoke test command prefix has been corrected.
-- M4 is complete: release eligibility is executable, artifacts/checksums and recovery procedures are
-  documented, and Paper/Purpur + Spigot/CraftBukkit 26.1–26.3 and Folia 26.1–26.2 have real-server
-  coverage. Folia 26.3+ remains fail-closed until explicitly added and verified.
+- M5 admin GUI work remains complete.
+- All five bundled event definitions (Meteor, Airdrop, Metin, Piñata, and Boss Portal) have been fully migrated to their final, data-driven phased contracts using zones, tracked waves, contribution checkpoints, and durable reward mailboxes.
+- Resource-pack delivery is now strictly mandatory on all platforms (Paper and Spigot). The fallback YAML models have been removed, and startup is actively blocked if delivery is not configured.
+- The global Event BossBar Manager is fully implemented and handles up to three concurrent bossbars with one-second refreshes.
+- All out-of-date documentation (profiles, sidebars, old Metin phases, Modrinth delivery block) has been replaced. ADR 0006 now mandates Modrinth resource-pack delivery.
+- M4 is complete: release eligibility is executable, artifacts/checksums and recovery procedures are documented, and Paper/Purpur + Spigot/CraftBukkit 26.1–26.3 and Folia 26.1–26.2 have real-server coverage.
 
 ## Next Planned Milestone
 
-V1 release candidate: confirm the real-server matrix on the current build, cut the release, and
-publish artifacts. No public addon API is planned without a concrete demonstrated use case; ADR 0005
-remains in effect.
+V1 release candidate: confirm the real-server matrix on the current build, prepare the worktree (confirm deletions, split commits), cut the release, and publish artifacts. No public addon API is planned without a concrete demonstrated use case; ADR 0005 remains in effect.
 
 ## Important Active Decisions
 
@@ -137,4 +139,4 @@ remains in effect.
 
 ## Last Updated
 
-2026-09-22
+2026-09-27
