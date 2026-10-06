@@ -1,6 +1,7 @@
 package io.github.kizio806.spectraevents.adapter.update.http;
 
 import io.github.kizio806.spectraevents.application.update.SemVer;
+import io.github.kizio806.spectraevents.application.update.UpdateCheckStatus;
 import io.github.kizio806.spectraevents.application.update.UpdateInfo;
 import io.github.kizio806.spectraevents.application.update.UpdatePort;
 import java.net.URI;
@@ -59,16 +60,20 @@ public final class HttpUpdateAdapter implements UpdatePort {
                     available,
                     DEFAULT_UPDATE_URL,
                     "New version " + latest + " available.",
-                    Instant.now());
+                    Instant.now(),
+                    available ? UpdateCheckStatus.UPDATE_AVAILABLE : UpdateCheckStatus.UP_TO_DATE);
               }
             }
+            return UpdateInfo.failed(
+                currentVersion, "Update endpoint returned no usable release metadata.");
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             LOGGER.fine("Update check interrupted: " + e.getMessage());
+            return UpdateInfo.failed(currentVersion, "Update check was interrupted.");
           } catch (java.io.IOException e) {
             LOGGER.fine("Update check unreachable or failed: " + e.getMessage());
+            return UpdateInfo.failed(currentVersion, "Update endpoint could not be reached.");
           }
-          return UpdateInfo.upToDate(currentVersion);
         });
   }
 

@@ -71,13 +71,24 @@ final class PhaseExecutionController {
     for (TransitionRule rule : phaseDef.rules()) {
       if (triggerEvaluator.matchesTrigger(rule.trigger(), trigger)
           && triggerEvaluator.evaluateConditions(rule.conditions(), state, execContext)) {
-        if (actionCoordinator.containsRewardAction(rule.actions())
-            && !actionCoordinator.acceptRewardClaim(state, trigger, execContext)) {
+        boolean rewardRule = actionCoordinator.containsRewardAction(rule.actions());
+        if (rewardRule && state.isClaimed()) {
           return false;
         }
+        java.util.concurrent.CompletableFuture<Boolean> actions =
+            rewardRule
+                ? actionCoordinator
+                    .acceptRewardClaim(state, trigger, execContext)
+                    .thenCompose(
+                        accepted ->
+                            accepted
+                                ? actionCoordinator.executeActions(
+                                    instance, state, rule.actions(), execContext)
+                                : java.util.concurrent.CompletableFuture.completedFuture(false))
+                : actionCoordinator.executeActions(instance, state, rule.actions(), execContext);
         actionCoordinator.observeActionCompletion(
             instance.id(),
-            actionCoordinator.executeActions(instance, state, rule.actions(), execContext),
+            actions,
             (actionsOk, ex) -> {
               if (ex != null) {
                 lifecycleManager.failEvent(

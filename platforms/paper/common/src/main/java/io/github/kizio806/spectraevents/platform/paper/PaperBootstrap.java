@@ -4,6 +4,7 @@ import io.github.kizio806.spectraevents.adapter.storage.sqlite.SQLiteEventInstan
 import io.github.kizio806.spectraevents.adapter.update.http.HttpUpdateAdapter;
 import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
 import io.github.kizio806.spectraevents.application.config.DataDirectoryLayout;
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
@@ -56,7 +57,9 @@ public final class PaperBootstrap {
     long startedAt = System.nanoTime();
     PaperStartupLogger startupLogger = new PaperStartupLogger(plugin);
     startupLogger.printBanner(
-        plugin.getPluginMeta().getVersion(), plugin.getPluginMeta().getAPIVersion());
+        plugin.getPluginMeta().getVersion(),
+        plugin.getServer().getName(),
+        plugin.getServer().getMinecraftVersion());
     eventTaskScheduler = new PaperEventTaskScheduler(plugin);
     regionScheduler = new PaperRegionTaskScheduler(plugin);
 
@@ -74,10 +77,13 @@ public final class PaperBootstrap {
       throw new IllegalStateException(
           "Could not prepare the SpectraEvents data directory", exception);
     }
+    eventSettingsStore = new PaperEventSettingsStore(plugin);
+    LocaleCatalog locales;
     try {
-      new io.github.kizio806.spectraevents.application.config.locale.FileSystemLocaleLoader(
-              dataLayout.root())
-          .ensureBundledLocales();
+      locales =
+          new io.github.kizio806.spectraevents.application.config.locale.FileSystemLocaleLoader(
+                  dataLayout.root())
+              .loadCatalog(eventSettingsStore.locale());
     } catch (IOException exception) {
       throw new IllegalStateException(
           "Could not prepare the SpectraEvents locale catalog", exception);
@@ -85,10 +91,9 @@ public final class PaperBootstrap {
     Path dbPath = dataLayout.databaseFile();
     sqliteRepository = new SQLiteEventInstanceRepository(dbPath);
     sqliteRepository.initialize();
-    eventSettingsStore = new PaperEventSettingsStore(plugin);
     startupLogger.storage(dbPath, sqliteRepository.findAll().size());
 
-    actionAdapter = new PaperActionAdapter(regionScheduler, cleaner);
+    actionAdapter = new PaperActionAdapter(regionScheduler, cleaner, locales);
     PaperEntityReconciler reconciler = new PaperEntityReconciler(plugin, cleaner);
 
     application =
@@ -106,12 +111,15 @@ public final class PaperBootstrap {
     io.github.kizio806.spectraevents.application.asset.ResourcePackBuilder rpBuilder =
         new io.github.kizio806.spectraevents.application.asset.ResourcePackBuilder(
             dataLayout.resourcePackCacheDirectory());
+    io.github.kizio806.spectraevents.application.asset.AssetTargetProfile assetTargetProfile =
+        io.github.kizio806.spectraevents.application.asset.AssetTargetProfile.forMinecraftVersion(
+            plugin.getServer().getMinecraftVersion());
     io.github.kizio806.spectraevents.application.asset.AssetPipelineService assetPipelineService =
         new io.github.kizio806.spectraevents.application.asset.AssetPipelineService(
             bbReader,
             rpBuilder,
             plugin.getDataFolder().toPath().resolve("assets").resolve("source"),
-            io.github.kizio806.spectraevents.application.asset.AssetTargetProfile.PROFILE_26_1,
+            assetTargetProfile,
             new io.github.kizio806.spectraevents.application.asset.ImportedAssetModelRegistrar(
                 application.modelCompiler(),
                 application.modelDefinitionRegistry(),
@@ -120,25 +128,14 @@ public final class PaperBootstrap {
     resourcePackDelivery =
         io.github.kizio806.spectraevents.platform.paper.asset.delivery
             .PaperResourcePackDeliveryBootstrap.configure(
-            plugin,
-            plugin.getPluginMeta().getVersion(),
-            io.github.kizio806.spectraevents.application.asset.AssetTargetProfile.PROFILE_26_1);
-    boolean useImportedAssetModels =
-        io.github.kizio806.spectraevents.platform.paper.asset.delivery
-            .PaperResourcePackDeliveryBootstrap.isEnabled(plugin);
-
+            plugin, plugin.getPluginMeta().getVersion(), assetTargetProfile, locales);
     actionAdapter.setModelRuntimeService(application.modelRuntimeService());
     actionAdapter.setModelAnimationActionService(
         new ModelAnimationActionService(
             application.modelRuntimeService(), application.animationRuntimeService()));
 
-    extractBundledAssetSources();
-    if (!useImportedAssetModels) {
-      throw new IllegalStateException(
-          "SpectraEvents requires active resource-pack delivery. Enable it in resource-pack.yml.");
-    }
-
-    assetPipelineService.buildAssets();
+    extractBundledTemplates();
+    assetPipelineService.buildAssetsAsync().join();
 
     definitionConfigBootstrap =
         new PaperDefinitionConfigBootstrap(plugin, application.definitionLoader());
@@ -147,8 +144,6 @@ public final class PaperBootstrap {
       definitionConfigBootstrap.ensureDefaultConfiguration();
       var definitionLoadResult = definitionConfigBootstrap.loadFromDisk();
       definitionConfigBootstrap.logLoadResult(definitionLoadResult);
-
-      // Reconcile entities after definitions are loaded
       io.github.kizio806.spectraevents.application.service.EntityReconciliationReport report =
           application.reconciliationService().reconcileAll();
       application.setLastReconciliationReport(report);
@@ -157,10 +152,17 @@ public final class PaperBootstrap {
               .map(registered -> registered.definition().id().value())
               .toList();
       startupLogger.definitions(definitionIds, definitionLoadResult.failures().size());
-    } catch (IOException | RuntimeException e) {
-      plugin
-          .getLogger()
-          .severe("Failed to initialize event definitions or reconciliation: " + e.getMessage());
+      if (definitionIds.isEmpty()) {
+        plugin
+            .getLogger()
+            .info(
+                "No active event definitions are installed. Install a template with "
+                    + "/spectraevents template install metin.");
+      }
+    } catch (IOException | RuntimeException exception) {
+      throw new IllegalStateException(
+          "Cannot safely enable SpectraEvents: definitions or entity reconciliation failed",
+          exception);
     }
 
     try {
@@ -249,7 +251,7 @@ public final class PaperBootstrap {
                   return null;
                 });
     org.bukkit.Bukkit.getPluginManager()
-        .registerEvents(new UpdateNotificationListener(updateService), plugin);
+        .registerEvents(new UpdateNotificationListener(updateService, locales), plugin);
 
     AdminGuiController guiController =
         new AdminGuiController(
@@ -258,12 +260,13 @@ public final class PaperBootstrap {
             integrationRegistry,
             updateService,
             application.orchestrationService(),
-            eventSettingsStore);
+            eventSettingsStore,
+            locales);
     org.bukkit.Bukkit.getPluginManager().registerEvents(guiController, plugin);
 
     PaperInteractionRouter interactionRouter =
         new PaperInteractionRouter(
-            application.orchestrationService(), application.executionEngine());
+            application.orchestrationService(), application.executionEngine(), locales);
 
     PaperEntityDeathRouter entityDeathRouter =
         new PaperEntityDeathRouter(
@@ -272,13 +275,15 @@ public final class PaperBootstrap {
     org.bukkit.Bukkit.getPluginManager().registerEvents(interactionRouter, plugin);
     org.bukkit.Bukkit.getPluginManager()
         .registerEvents(
-            new PaperSharedLootListener(sqliteRepository, application.executionEngine()), plugin);
+            new PaperSharedLootListener(plugin, sqliteRepository, application.executionEngine()),
+            plugin);
     org.bukkit.Bukkit.getPluginManager().registerEvents(entityDeathRouter, plugin);
     org.bukkit.Bukkit.getPluginManager().registerEvents(actionAdapter.bossBarManager(), plugin);
     org.bukkit.Bukkit.getPluginManager().registerEvents(actionAdapter.scoreboardManager(), plugin);
 
     SpectraMainCommand mainCommand =
         new SpectraMainCommand(
+            plugin,
             application.orchestrationService(),
             application.definitionRegistry(),
             sqliteRepository,
@@ -289,7 +294,9 @@ public final class PaperBootstrap {
             application,
             eventSettingsStore,
             actionAdapter,
-            dataLayout.schedulesFile());
+            regionScheduler,
+            dataLayout.schedulesFile(),
+            locales);
 
     plugin
         .getLifecycleManager()
@@ -329,19 +336,10 @@ public final class PaperBootstrap {
     plugin.getLogger().info("SpectraEvents disabled cleanly.");
   }
 
-  private void extractBundledAssetSources() {
-    for (String file :
-        List.of(
-            "meteor_core.bbmodel",
-            "airdrop_crate.bbmodel",
-            "metin_stone.bbmodel",
-            "pinata.bbmodel",
-            "boss_portal.bbmodel")) {
-      Path target =
-          plugin.getDataFolder().toPath().resolve("assets").resolve("source").resolve(file);
-      if (!java.nio.file.Files.exists(target)) {
-        plugin.saveResource("assets/source/" + file, false);
-      }
+  private void extractBundledTemplates() {
+    Path target = plugin.getDataFolder().toPath().resolve("templates").resolve("metin.spectra.zip");
+    if (!java.nio.file.Files.exists(target)) {
+      plugin.saveResource("templates/metin.spectra.zip", false);
     }
   }
 }

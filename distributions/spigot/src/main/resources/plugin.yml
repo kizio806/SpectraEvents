@@ -18,19 +18,23 @@ permissions:
     children:
       spectraevents.status: true
       spectraevents.doctor: true
-      spectraevents.event.list: true
-      spectraevents.event.start: true
-      spectraevents.event.cancel: true
-      spectraevents.event.trigger: true
-      spectraevents.event.inspect: true
-      spectraevents.definition.list: true
-      spectraevents.definition.reload: true
+      spectraevents.event.*: true
+      spectraevents.definition.*: true
+      spectraevents.template: true
       spectraevents.rewards.claim: true
       spectraevents.schedule: true
   spectraevents.status:
     default: op
   spectraevents.doctor:
     default: op
+  spectraevents.event.*:
+    default: op
+    children:
+      spectraevents.event.list: true
+      spectraevents.event.start: true
+      spectraevents.event.cancel: true
+      spectraevents.event.trigger: true
+      spectraevents.event.inspect: true
   spectraevents.event.list:
     default: op
   spectraevents.event.start:
@@ -41,9 +45,19 @@ permissions:
     default: op
   spectraevents.event.inspect:
     default: op
+  spectraevents.definition.*:
+    default: op
+    children:
+      spectraevents.definition.list: true
+      spectraevents.definition.reload: true
+      spectraevents.definition.validate: true
   spectraevents.definition.list:
     default: op
   spectraevents.definition.reload:
+    default: op
+  spectraevents.definition.validate:
+    default: op
+  spectraevents.template:
     default: op
   spectraevents.rewards.claim:
     default: true

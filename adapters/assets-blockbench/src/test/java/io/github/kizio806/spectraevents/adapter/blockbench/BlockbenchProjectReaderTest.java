@@ -83,6 +83,29 @@ class BlockbenchProjectReaderTest {
   }
 
   @Test
+  void acceptsAnEmbedded4096By4096Texture() throws Exception {
+    Path source = tempDirectory.resolve("model.bbmodel");
+    Files.writeString(
+        source,
+        projectJson("free")
+            .replaceFirst("data:image/png;base64,[^\"]+", embeddedPngDataUri(4096, 4096)));
+
+    SpectraAssetDocument document = reader.read(source);
+
+    Assertions.assertTrue(document.textures().get("texture").data().orElseThrow().length > 0);
+  }
+
+  @Test
+  void acceptsAProjectLargerThanTheLegacyTwoMegabyteLimit() throws Exception {
+    Path source = tempDirectory.resolve("model.bbmodel");
+    Files.writeString(source, projectJson("free") + " ".repeat(2_100_000));
+
+    SpectraAssetDocument document = reader.read(source);
+
+    Assertions.assertEquals("model", document.modelId());
+  }
+
+  @Test
   void rejectsChecksumMismatch() throws Exception {
     Path bundle = writeBundle(projectJson("free"), true);
 
@@ -116,6 +139,63 @@ class BlockbenchProjectReaderTest {
 
     Assertions.assertEquals("model", document.modelId());
     Assertions.assertTrue(document.animations().containsKey("pulse"));
+  }
+
+  @Test
+  void importsBlockbenchTextureIndexReferences() throws IOException {
+    Path source = tempDirectory.resolve("model.bbmodel");
+    Files.writeString(
+        source, projectJson("free").replace("\"texture\": \"#texture\"", "\"texture\": 0"));
+
+    SpectraAssetDocument document = reader.read(source);
+
+    Assertions.assertEquals(
+        "texture",
+        document.nodes().getFirst().cubes().getFirst().faces().get("north").textureRef());
+  }
+
+  @Test
+  void normalizesMirroredCubeBoundsForVanillaResourcePackOutput() throws IOException {
+    Path source = tempDirectory.resolve("model.bbmodel");
+    Files.writeString(
+        source,
+        projectJson("free")
+            .replace("\"from\": [0, 0, 0]", "\"from\": [16, 0, 0]")
+            .replace("\"to\": [16, 16, 16]", "\"to\": [0, 16, 16]"));
+
+    SpectraAssetDocument document = reader.read(source);
+
+    Assertions.assertEquals(0.0f, document.nodes().getFirst().cubes().getFirst().from().x());
+    Assertions.assertEquals(16.0f, document.nodes().getFirst().cubes().getFirst().to().x());
+  }
+
+  @Test
+  void rejectsMeshGeometryWithAnActionableExportDiagnostic() throws IOException {
+    Path source = tempDirectory.resolve("mesh.bbmodel");
+    Files.writeString(
+        source,
+        projectJson("free")
+            .replace("\"uuid\": \"cube\"", "\"uuid\": \"cube\", \"type\": \"mesh\""));
+
+    IllegalArgumentException error =
+        Assertions.assertThrows(IllegalArgumentException.class, () -> reader.read(source));
+
+    Assertions.assertTrue(error.getMessage().contains("export cuboid elements"));
+  }
+
+  @Test
+  void mapsBlockbenchCatmullRomInterpolationToTheSupportedSmoothCurve() throws IOException {
+    Path source = tempDirectory.resolve("model.bbmodel");
+    Files.writeString(
+        source,
+        projectJson("free")
+            .replace("\"interpolation\": \"step\"", "\"interpolation\": \"catmullrom\""));
+
+    SpectraAssetDocument document = reader.read(source);
+
+    Assertions.assertEquals(
+        Easing.EASE_IN_OUT_CUBIC,
+        document.animations().get("pulse").rotationTracks().get("root").getFirst().easing());
   }
 
   private Path writeBundle(String model, boolean corruptChecksum) throws Exception {
@@ -195,5 +275,12 @@ class BlockbenchProjectReaderTest {
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     Assertions.assertTrue(ImageIO.write(image, "jpeg", output));
     return "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(output.toByteArray());
+  }
+
+  private static String embeddedPngDataUri(int width, int height) throws IOException {
+    BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    Assertions.assertTrue(ImageIO.write(image, "png", output));
+    return "data:image/png;base64," + Base64.getEncoder().encodeToString(output.toByteArray());
   }
 }

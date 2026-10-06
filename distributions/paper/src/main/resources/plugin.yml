@@ -16,6 +16,7 @@ permissions:
     children:
       spectraevents.event.*: true
       spectraevents.definition.*: true
+      spectraevents.template: true
       spectraevents.update.*: true
       spectraevents.gui: true
       spectraevents.status: true
@@ -23,6 +24,8 @@ permissions:
       spectraevents.integrations: true
       spectraevents.rewards.claim: true
       spectraevents.schedule: true
+      spectraevents.admin.assets: true
+      spectraevents.admin.model: true
 
   spectraevents.event.*:
     description: "Grants access to all event management commands."
@@ -30,7 +33,6 @@ permissions:
     children:
       spectraevents.event.list: true
       spectraevents.event.start: true
-      spectraevents.event.stop: true
       spectraevents.event.cancel: true
       spectraevents.event.trigger: true
       spectraevents.event.inspect: true
@@ -41,10 +43,6 @@ permissions:
 
   spectraevents.event.start:
     description: "Allows starting events."
-    default: op
-
-  spectraevents.event.stop:
-    description: "Allows stopping events."
     default: op
 
   spectraevents.event.cancel:
@@ -77,6 +75,10 @@ permissions:
 
   spectraevents.definition.validate:
     description: "Allows validating event definitions."
+    default: op
+
+  spectraevents.template:
+    description: "Allows listing and installing bundled event templates."
     default: op
 
   spectraevents.update.*:
@@ -121,4 +123,35 @@ permissions:
 
   spectraevents.schedule:
     description: "Allows listing and reloading configured event schedules."
+    default: op
+
+  spectraevents.admin.assets:
+    description: "Grants access to Paper asset-pipeline commands."
+    default: op
+    children:
+      spectraevents.admin.assets.build: true
+      spectraevents.admin.assets.import: true
+      spectraevents.admin.assets.info: true
+      spectraevents.admin.assets.list: true
+      spectraevents.admin.assets.validate: true
+  spectraevents.admin.assets.build:
+    default: op
+  spectraevents.admin.assets.import:
+    default: op
+  spectraevents.admin.assets.info:
+    default: op
+  spectraevents.admin.assets.list:
+    default: op
+  spectraevents.admin.assets.validate:
+    default: op
+
+  spectraevents.admin.model:
+    description: "Grants access to Paper model-inspection commands."
+    default: op
+    children:
+      spectraevents.admin.model.info: true
+      spectraevents.admin.model.list: true
+  spectraevents.admin.model.info:
+    default: op
+  spectraevents.admin.model.list:
     default: op

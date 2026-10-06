@@ -5,29 +5,37 @@ This document describes the expected end-to-end experience for a server administ
 ## The Journey
 
 1. **Install Plugin**
-   - Install `SpectraEvents-<version>-paper.jar` on Paper/Purpur/Folia or `SpectraEvents-<version>-spigot.jar` on Spigot/CraftBukkit.
+   - Install `SpectraEvents-<version>-paper.jar` on Paper/Purpur or Folia 26.1–26.2, or
+     `SpectraEvents-<version>-spigot.jar` on Spigot/CraftBukkit. Folia 26.3 is refused safely.
    - Do not mix the two artifacts. The generated resource pack is local by default; player delivery is
      opt-in and requires the explicit HTTPS/SHA-1 configuration.
 
-2. **Generate Defaults**
-   - On first boot, the engine generates `events/` and `models/` directories containing paired
-     reference definitions (`meteor.yml`, `airdrop.yml`, `metin.yml`, `pinata.yml`, and
-     `boss-portal.yml`).
+2. **Install a Template or Choose a Preset**
+   - On first boot, the engine extracts authoring examples to `events/presets/` and the installable
+     `templates/metin.spectra.zip`. No event is silently activated and no loose model source is
+     copied into `assets/source/`.
+   - Run `/spectraevents template install metin` to atomically install the bundled Metin definition
+     and its declared model source. The command validates the bundle, builds its resource pack and
+     reloads the definition. For a custom event, copy a preset into `events/` and give it a unique
+     `id` before validation and reload.
 
 3. **Import Optional Blockbench Asset**
-   - Export a Generic Model `.spectra.zip` into `assets/source/`; the server validates and builds it
-     at startup. On Paper, `/spectraevents assets build` can run the same process manually.
+   - Place a Generic Model `.bbmodel` (the canonical source) or `.spectra.zip` into
+     `assets/source/`; the server validates and builds it at startup. On Paper,
+     `/spectraevents assets build` can run the same process manually.
    - Use the imported model ID and animation names in the regular YAML `spawn_model` and
      `play_animation` actions. The generated ZIP must be hosted externally before it can be delivered
      to players.
 
 4. **Create Event Definition**
-   - The admin copies `events/meteor.yml` to `events/my-custom-meteor.yml` and gives it a unique `id` before editing health, model, or loot.
+   - The admin copies `events/presets/meteor.yml` to `events/my-custom-meteor.yml` and gives it a unique `id` before editing health, model, or loot.
    - This configuration file serves as the **Primary Source of Truth**.
 
 5. **Validation**
-   - The admin runs `/spectraevents definition validate`.
-   - The engine parses the YAML and reports any semantic errors (e.g., missing referenced models, cyclical phases) as `ERROR`, `WARNING`, or `INFO`.
+   - The admin runs `/spectraevents validate` (or `/spectraevents definition validate`).
+   - The engine parses YAML and checks duplicate IDs, referenced models and animations; an invalid
+     asset is rejected by the same build path before it can be used. Diagnostics are reported as
+     `ERROR`, `WARNING`, or `INFO` rather than a raw exception.
 
 6. **Test Runtime**
    - Start the definition at a controlled location and inspect its lifecycle with `/spectraevents event inspect <instance-id>`. Visual models and animations are owned by the event definition, not by ad-hoc player commands.
@@ -48,13 +56,25 @@ This document describes the expected end-to-end experience for a server administ
    - The admin runs `/spectraevents doctor` and `/spectraevents event inspect <instance-id>` before collecting logs.
 
 11. **Production Scheduling**
-    - The admin uses an external scheduler or a future SpectraEvents cron feature to run the event automatically.
+    - The admin adds an entry to `schedules.yml`, including an explicit timezone, location and,
+      when needed, a scalar `parameters` mapping. `/spectraevents schedule reload` applies it;
+      missed occurrences are deliberately not replayed after a restart.
 
-## Admin GUI
+## Platform-specific administration
+
+The detailed GUI and named-location steps below apply to Paper/Purpur and supported Folia 26.1–26.2. Spigot/Bukkit server
+owners use the shared event, definition, reward, schedule, status, and doctor commands; custom
+assets are picked up during startup rather than through a manual asset command. See the
+[platform support contract](feature-matrix.md#platform-support-contract) before selecting an
+artifact.
+
+## Admin GUI — Paper family
 
 The Admin GUI is an in-game inventory panel opened with `/spectraevents admin` (requires
-`spectraevents.gui`). All GUI actions are equivalent to the corresponding command: the YAML
-definitions and `config.yml` remain the canonical source of truth.
+`spectraevents.gui`). Event definitions remain in `events/<id>.yml`. GUI and command changes are
+stored as small, explicit overlays in `events/overrides/<id>.yml`; the panel never rewrites an
+operator's definition, comments, messages or phases. `config.yml` is only for global plugin settings
+such as the default locale.
 
 ### Navigation overview
 
@@ -71,8 +91,11 @@ definitions and `config.yml` remain the canonical source of truth.
   definition to open its detail screen:
   - There is no difficulty-profile selector. Each YAML-declared, GUI-editable scalar parameter
     has an override tile; left-click increases and right-click decreases it within its declared
-    range and step. Changes persist to `config.yml`.
+    range and step. Duration values are rendered and stored in a compact human-readable unit
+    (`15m`, `90s`, `1h`). Changes persist to `events/overrides/<id>.yml`.
   - For an exact value, use `/spectraevents event config <id> set <parameter> <value>`.
+    Use `/spectraevents definition reload` after changing a definition; an override is applied when
+    a new instance is started.
 - **Locations** — paginated list of named event locations. The **Save Current Position** tile
   (slot 45) records your standing location. Click a saved location name to open the removal
   confirmation. Named locations can be used with `/spectraevents event start <id> location <name>`.

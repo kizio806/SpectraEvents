@@ -5,7 +5,8 @@
 - Unit tests verify isolated domain and application behavior.
 - Architecture tests enforce dependency direction and platform isolation.
 - Integration tests use the `integrationTest` source set and task for real infrastructure boundaries.
-- Runtime workflows run the built JAR on real Paper, Purpur, Folia, Spigot, and CraftBukkit servers.
+- Runtime workflows run the built JAR on real Paper, Purpur, Folia 26.1–26.2, Spigot, and
+  CraftBukkit servers.
 - Regression tests reproduce fixed defects before verifying their correction.
 
 Every meaningful domain behavior should have unit tests. Every fixed, reproducible bug should get a

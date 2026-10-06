@@ -19,10 +19,12 @@ is invalid or cannot be resolved.
 ## Server Owner FAQ
 
 **Q: Which plugin file do I install?**
-A: Install the Paper-family JAR on Paper/Purpur/Folia or the Spigot-family JAR on Spigot/CraftBukkit. Do not mix the artifacts.
+A: Install the Paper-family JAR on Paper/Purpur or Folia 26.1–26.2, or the Spigot-family JAR on
+Spigot/CraftBukkit. Folia 26.3 is refused before initialization; install a newer SpectraEvents
+version when its Folia support returns. Do not mix the artifacts.
 
 **Q: How do I use my own models?**
-A: Author native model YAML, or export a Blockbench Generic Model `.spectra.zip` to
+A: Save a Blockbench `.bbmodel`, or export a Blockbench Generic Model/Java Block `.spectra.zip`, to
 `plugins/SpectraEvents/assets/source/`. See the Blockbench guide before enabling player delivery.
 
 ---
@@ -30,11 +32,11 @@ A: Author native model YAML, or export a Blockbench Generic Model `.spectra.zip`
 ## Maintainer / Asset Author FAQ
 
 **Q: Where do I edit models?**
-A: Use native YAML models or the supplied Blockbench Generic Model exporter. Paper provides
-`/spectraevents assets import` and `/spectraevents assets build`; both validate the bundle and update the local ZIP.
+A: Edit the canonical Blockbench `.bbmodel` or use the supplied exporter. Paper provides
+`/spectraevents assets import` and `/spectraevents assets build`; both validate the source and update the local ZIP.
 
 **Q: Where are generated files?**
-A: `plugins/SpectraEvents/generated/resource-pack/` contains the generated ZIP.
+A: `plugins/SpectraEvents/cache/resource-pack/` contains the generated ZIP.
 
 **Q: Should I edit generated JSON manually?**
 A: No. Treat the ZIP as generated output; fix the Blockbench source bundle and rebuild it.

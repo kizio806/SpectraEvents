@@ -64,6 +64,8 @@ public final class EventScheduleService {
     scheduler.scheduleGlobal(delay, this::onMinute);
   }
 
+  @SuppressWarnings(
+      "FutureReturnValueIgnored") // Completion is observed for per-schedule diagnostics.
   private void onMinute() {
     if (!running) {
       return;
@@ -72,8 +74,25 @@ public final class EventScheduleService {
       try {
         ZonedDateTime localTime = ZonedDateTime.now(clock).withZoneSameInstant(schedule.zoneId());
         if (schedule.cron().matches(localTime)) {
-          orchestrationService.startDefinition(schedule.definitionId(), schedule.location());
-          diagnostics.accept("Schedule " + schedule.id() + " started " + schedule.definitionId());
+          orchestrationService
+              .startDefinitionAsync(
+                  schedule.definitionId(), schedule.location(), schedule.parameterOverrides())
+              .whenComplete(
+                  (started, failure) -> {
+                    if (failure == null) {
+                      diagnostics.accept(
+                          "Schedule " + schedule.id() + " started " + schedule.definitionId());
+                    } else {
+                      Throwable cause = failure.getCause() == null ? failure : failure.getCause();
+                      diagnostics.accept(
+                          "Schedule "
+                              + schedule.id()
+                              + " skipped: "
+                              + (cause.getMessage() == null
+                                  ? cause.getClass().getSimpleName()
+                                  : cause.getMessage()));
+                    }
+                  });
         }
       } catch (RuntimeException exception) {
         diagnostics.accept(

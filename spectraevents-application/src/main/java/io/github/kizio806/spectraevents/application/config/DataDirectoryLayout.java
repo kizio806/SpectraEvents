@@ -18,13 +18,57 @@ public record DataDirectoryLayout(Path root) {
       DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
   private static final String DEFAULT_CONFIG =
       """
+      # =============================================================================
+      # SpectraEvents — Global Configuration
+      # =============================================================================
+      # This file contains plugin-wide settings only. Do not put event values here:
+      #   events/<id>.yml           = the complete event definition
+      #   events/overrides/<id>.yml = values changed through the admin panel or command
+      #   locales/<locale>.yml      = player-facing text
+      #   schedules.yml             = automatic starts
+      #   locations.yml             = named event locations, created when first used
+      #   data/                     = SQLite runtime state; do not edit while the server runs
+      #
+      # Use a bundled locale file name without the .yml suffix. English is the fallback
+      # if a key is missing from the selected translation.
+      schema-version: 2
+      locale: en-US
+      """;
+  private static final String DEFAULT_SCHEDULES =
+      """
+      # =============================================================================
+      # SpectraEvents — Scheduled Event Starts
+      # =============================================================================
+      # Add one schedule entry per automatic event start. Each entry is validated
+      # independently, so an invalid entry does not disable valid siblings.
+      # Give every entry an explicit IANA timezone. Optional parameters are scalar
+      # per-run definition overrides, not a global settings layer.
+      #
+      # schedules:
+      #   - id: weekday-meteor
+      #     definition: meteor
+      #     cron: "0 20 * * 1-5"
+      #     timezone: Europe/Warsaw
+      #     world: world
+      #     x: 0
+      #     y: 100
+      #     z: 0
+      #     parameters:
+      #       health: 250
+      # Use /spectraevents schedule list after editing and reload to apply changes.
       schema-version: 1
-      default-locale: en-US
-      history-retention-days: 90
-      overrides: {}
+      schedules: []
+      """;
+  private static final String DEFAULT_LOCATIONS =
+      """
+      # =============================================================================
+      # SpectraEvents — Named Event Locations
+      # =============================================================================
+      # The admin panel and /spectraevents location commands add entries here.
+      # Coordinates are plugin-managed; edit only while the server is stopped.
+      schema-version: 1
       locations: {}
       """;
-  private static final String DEFAULT_SCHEDULES = "schema-version: 1\nschedules: []\n";
 
   public DataDirectoryLayout {
     root = Objects.requireNonNull(root, "root").toAbsolutePath().normalize();
@@ -44,6 +88,9 @@ public record DataDirectoryLayout(Path root) {
     if (!Files.exists(layout.schedulesFile())) {
       writeAtomically(layout.schedulesFile(), DEFAULT_SCHEDULES);
     }
+    if (!Files.exists(layout.locationsFile())) {
+      writeAtomically(layout.locationsFile(), DEFAULT_LOCATIONS);
+    }
     return layout;
   }
 
@@ -55,8 +102,12 @@ public record DataDirectoryLayout(Path root) {
     return root.resolve("events");
   }
 
-  public Path modelsDirectory() {
-    return root.resolve("models");
+  public Path eventOverridesDirectory() {
+    return eventsDirectory().resolve("overrides");
+  }
+
+  public Path locationsFile() {
+    return root.resolve("locations.yml");
   }
 
   public Path lootDirectory() {
@@ -83,15 +134,21 @@ public record DataDirectoryLayout(Path root) {
     return root.resolve("cache").resolve("resource-pack");
   }
 
+  /** Contains bundled, installable templates; its contents are never active definitions. */
+  public Path templatesDirectory() {
+    return root.resolve("templates");
+  }
+
   private List<Path> requiredDirectories() {
     return List.of(
         eventsDirectory(),
-        modelsDirectory(),
+        eventOverridesDirectory(),
         lootDirectory(),
         localesDirectory(),
         databaseFile().getParent(),
         backupsDirectory(),
-        resourcePackCacheDirectory());
+        resourcePackCacheDirectory(),
+        templatesDirectory());
   }
 
   private void migrateLegacyDatabase() throws IOException {

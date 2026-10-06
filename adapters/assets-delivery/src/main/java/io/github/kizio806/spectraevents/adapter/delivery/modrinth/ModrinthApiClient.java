@@ -28,10 +28,19 @@ public class ModrinthApiClient {
       String projectId, String loader, String gameVersion) {
     return CompletableFuture.supplyAsync(
         () -> {
+          String encodedLoader =
+              java.net.URLEncoder.encode(
+                  "[\"" + loader + "\"]", java.nio.charset.StandardCharsets.UTF_8);
+          String encodedGameVersion =
+              java.net.URLEncoder.encode(
+                  "[\"" + gameVersion + "\"]", java.nio.charset.StandardCharsets.UTF_8);
           String url =
               String.format(
-                  "%s/project/%s/version?loaders=[\"%s\"]&game_versions=[\"%s\"]",
-                  API_BASE, projectId, loader, gameVersion);
+                  "%s/project/%s/version?loaders=%s&game_versions=%s",
+                  API_BASE,
+                  java.net.URLEncoder.encode(projectId, java.nio.charset.StandardCharsets.UTF_8),
+                  encodedLoader,
+                  encodedGameVersion);
 
           HttpRequest request =
               HttpRequest.newBuilder()

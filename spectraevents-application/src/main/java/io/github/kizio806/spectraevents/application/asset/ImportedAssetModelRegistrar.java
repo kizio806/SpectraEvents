@@ -8,6 +8,7 @@ import io.github.kizio806.spectraevents.application.model.animation.spec.Keyfram
 import io.github.kizio806.spectraevents.application.model.compiler.CompiledModel;
 import io.github.kizio806.spectraevents.application.model.compiler.ModelCompiler;
 import io.github.kizio806.spectraevents.application.model.registry.ModelDefinitionRegistry;
+import io.github.kizio806.spectraevents.application.model.spec.InteractionSpec;
 import io.github.kizio806.spectraevents.application.model.spec.ModelPartSpec;
 import io.github.kizio806.spectraevents.application.model.spec.ModelSpec;
 import io.github.kizio806.spectraevents.application.model.spec.TransformSpec;
@@ -26,6 +27,7 @@ import java.util.Objects;
 public final class ImportedAssetModelRegistrar {
   private static final float BLOCKBENCH_UNITS_PER_BLOCK = 16.0f;
   private static final float MINIMUM_RENDERABLE_SCALE = 0.001f;
+  private static final float DEFAULT_INTERACTION_SIZE = 4.0f;
 
   private final ModelCompiler modelCompiler;
   private final ModelDefinitionRegistry modelRegistry;
@@ -59,8 +61,18 @@ public final class ImportedAssetModelRegistrar {
       addNodeParts(document.modelId(), node, null, parts);
     }
     model.setParts(Map.copyOf(parts));
+    model.setInteractions(Map.of("primary", defaultInteraction()));
     model.setAnimations(toAnimationSpecs(document.animations()));
     return model;
+  }
+
+  private static InteractionSpec defaultInteraction() {
+    InteractionSpec interaction = new InteractionSpec();
+    interaction.setOffset(List.of(0.0f, 0.0f, 0.0f));
+    interaction.setWidth(DEFAULT_INTERACTION_SIZE);
+    interaction.setHeight(DEFAULT_INTERACTION_SIZE);
+    interaction.setResponsive(true);
+    return interaction;
   }
 
   private void addNodeParts(

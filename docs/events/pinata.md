@@ -14,7 +14,7 @@ across the area — rewarding the crowd, not just a single claimant.
 
 ## Visual Model
 
-The `pinata` model ([`models/pinata.yml`](../authoring/models.md)) is built from 9 hierarchical parts:
+The `pinata` model ([`assets/source/pinata.bbmodel`](../authoring/models.md)) is imported from Blockbench:
 
 | Part | Type | Role |
 |---|---|---|
@@ -38,7 +38,7 @@ The `pinata` model ([`models/pinata.yml`](../authoring/models.md)) is built from
 
 | Concern | Contract |
 |---|---|
-| Visual asset | `models/pinata.yml` — 9-part hierarchy with interaction hitbox |
+| Visual asset | `assets/source/pinata.bbmodel` — imported hierarchy with interaction hitbox |
 | State | `initialize_hit_counter` creates a durable SQLite-backed counter |
 | Input | Platform router emits generic `interaction`; YAML calls `increment_hit_counter` |
 | Completion | Engine emits `hits_reached` exactly once when counter == max |
@@ -67,5 +67,5 @@ No `health` or `damage` settings — Piñata uses the hit counter exclusively.
 4. At `hits` count the piñata shatters and loot drops.
 5. Verify bossbar, scoreboard, and model are removed after completion.
 
-To customise: copy `events/pinata.yml`, change the `id`, adjust `max:` on `initialize_hit_counter`,
+To customise: copy `events/presets/pinata.yml` into `events/`, change the `id`, adjust `max:` on `initialize_hit_counter`,
 change the loot table under `drop_loot`, and reload with `/spectraevents definition reload`.

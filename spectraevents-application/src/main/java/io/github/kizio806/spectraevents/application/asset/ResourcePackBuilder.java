@@ -31,7 +31,6 @@ import java.util.zip.ZipOutputStream;
 /** Builds a deterministic local Minecraft resource pack from verified Spectra asset documents. */
 public final class ResourcePackBuilder {
   private static final String NAMESPACE = GeneratedAssetItem.NAMESPACE;
-  private static final String BASE_ITEM = "paper";
 
   private final Path outputDirectory;
 
@@ -85,10 +84,6 @@ public final class ResourcePackBuilder {
       AssetTargetProfile profile) {
     Map<String, byte[]> entries = new TreeMap<>();
     entries.put("pack.mcmeta", packMeta(profile).getBytes(StandardCharsets.UTF_8));
-    entries.put(
-        "assets/minecraft/items/" + BASE_ITEM + ".json",
-        baseItemOverrides(modelNodes, customModelData).getBytes(StandardCharsets.UTF_8));
-
     for (SpectraAssetDocument document : documents) {
       Map<String, String> textureLocations = writeTextures(entries, document);
       for (ModelNode node : modelNodes) {
@@ -105,6 +100,16 @@ public final class ResourcePackBuilder {
                 + ".json";
         entries.put(
             path, modelJson(node.node(), textureLocations).getBytes(StandardCharsets.UTF_8));
+        entries.put(
+            "assets/"
+                + NAMESPACE
+                + "/items/"
+                + document.modelId()
+                + "/"
+                + node.node().nodeId()
+                + ".json",
+            itemDefinitionJson(document.modelId(), node.node().nodeId())
+                .getBytes(StandardCharsets.UTF_8));
       }
     }
     entries.put(
@@ -153,35 +158,6 @@ public final class ResourcePackBuilder {
         profile.getMinorFormat());
   }
 
-  private static String baseItemOverrides(
-      List<ModelNode> modelNodes, Map<String, Integer> customModelData) {
-    List<ModelNode> orderedNodes =
-        modelNodes.stream()
-            .sorted(Comparator.comparingInt(node -> customModelData.get(node.key())))
-            .toList();
-    StringBuilder json =
-        new StringBuilder(
-            "{\"model\":{\"type\":\"minecraft:range_dispatch\",\"property\":\"minecraft:custom_model_data\",\"entries\":[");
-    for (int index = 0; index < orderedNodes.size(); index++) {
-      if (index > 0) {
-        json.append(',');
-      }
-      ModelNode node = orderedNodes.get(index);
-      json.append("{\"threshold\":")
-          .append(customModelData.get(node.key()))
-          .append(",\"model\":{\"type\":\"minecraft:model\",\"model\":\"")
-          .append(NAMESPACE)
-          .append(":item/")
-          .append(node.document().modelId())
-          .append('/')
-          .append(node.node().nodeId())
-          .append("\"}}");
-    }
-    return json.append(
-            "],\"fallback\":{\"type\":\"minecraft:model\",\"model\":\"minecraft:item/paper\"}}}")
-        .toString();
-  }
-
   private static String modelJson(SpectraAssetNode node, Map<String, String> textureLocations) {
     StringBuilder json = new StringBuilder("{\"textures\":{");
     List<String> textureIds = textureLocations.keySet().stream().sorted().toList();
@@ -202,6 +178,16 @@ public final class ResourcePackBuilder {
       appendGeometry(json, node.cubes().get(index));
     }
     return json.append("]}").toString();
+  }
+
+  private static String itemDefinitionJson(String modelId, String nodeId) {
+    return "{\"model\":{\"type\":\"minecraft:model\",\"model\":\""
+        + NAMESPACE
+        + ":item/"
+        + modelId
+        + "/"
+        + nodeId
+        + "\"}}";
   }
 
   private static void appendGeometry(StringBuilder json, SpectraAssetGeometry geometry) {

@@ -3,6 +3,7 @@ package io.github.kizio806.spectraevents.application.service;
 import io.github.kizio806.spectraevents.application.port.RewardClaimRepository;
 import io.github.kizio806.spectraevents.application.port.RewardDeliveryPort;
 import io.github.kizio806.spectraevents.core.gameplay.reward.RewardClaim;
+import io.github.kizio806.spectraevents.core.gameplay.reward.RewardClaimStatus;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -16,8 +17,25 @@ public final class RewardMailboxService {
     this.repository = Objects.requireNonNull(repository, "repository");
   }
 
-  public List<RewardClaim> pendingClaims(UUID playerId) {
-    return repository.findPending(Objects.requireNonNull(playerId, "playerId"));
+  public CompletableFuture<List<RewardClaim>> pendingClaims(UUID playerId) {
+    return repository.findPendingAsync(Objects.requireNonNull(playerId, "playerId"));
+  }
+
+  /** Lists claims left ambiguous by a process failure for an explicit operator decision. */
+  public CompletableFuture<List<RewardClaim>> deliveringClaims() {
+    return repository.findByStatusAsync(RewardClaimStatus.DELIVERING);
+  }
+
+  /**
+   * Resolves an ambiguous delivery only after an operator has established whether the external
+   * inventory mutation happened. This method never guesses and never reissues automatically.
+   */
+  public CompletableFuture<Boolean> reconcile(UUID claimId, ReconciliationDecision decision) {
+    Objects.requireNonNull(claimId, "claimId");
+    return switch (Objects.requireNonNull(decision, "decision")) {
+      case MARK_DELIVERED -> repository.markDeliveredAsync(claimId);
+      case RETURN_TO_PENDING -> repository.returnToPendingAsync(claimId);
+    };
   }
 
   /**
@@ -34,36 +52,71 @@ public final class RewardMailboxService {
     Objects.requireNonNull(claimId, "claimId");
     Objects.requireNonNull(deliveryPort, "deliveryPort");
 
-    RewardClaim claim =
-        pendingClaims(playerId).stream()
-            .filter(candidate -> candidate.id().equals(claimId))
-            .findFirst()
-            .orElse(null);
-    if (claim == null) {
-      return CompletableFuture.completedFuture(ClaimDeliveryResult.notAvailable());
-    }
-    if (!repository.beginDelivery(claim.id())) {
-      return CompletableFuture.completedFuture(ClaimDeliveryResult.busy());
-    }
+    return pendingClaims(playerId)
+        .thenCompose(
+            claims -> {
+              RewardClaim claim =
+                  claims.stream()
+                      .filter(candidate -> candidate.id().equals(claimId))
+                      .findFirst()
+                      .orElse(null);
+              if (claim == null) {
+                return CompletableFuture.completedFuture(ClaimDeliveryResult.notAvailable());
+              }
+              return repository
+                  .beginDeliveryAsync(claim.id())
+                  .thenCompose(
+                      reserved -> {
+                        if (!reserved) {
+                          return CompletableFuture.completedFuture(ClaimDeliveryResult.busy());
+                        }
+                        return deliverReservedClaim(playerId, claim, deliveryPort);
+                      });
+            });
+  }
 
+  private CompletableFuture<ClaimDeliveryResult> deliverReservedClaim(
+      UUID playerId, RewardClaim claim, RewardDeliveryPort deliveryPort) {
     try {
       return deliveryPort
           .deliver(playerId, claim.items())
-          .handle(
-              (delivered, failure) -> {
-                if (failure != null || !Boolean.TRUE.equals(delivered)) {
-                  repository.returnToPending(claim.id());
-                  return ClaimDeliveryResult.retained();
+          .handle((delivered, failure) -> failure == null && Boolean.TRUE.equals(delivered))
+          .thenCompose(
+              delivered -> {
+                if (!delivered) {
+                  return repository
+                      .returnToPendingAsync(claim.id())
+                      .thenApply(
+                          restored -> {
+                            if (!restored) {
+                              throw new IllegalStateException(
+                                  "Reward claim could not be returned to pending: " + claim.id());
+                            }
+                            return ClaimDeliveryResult.retained();
+                          });
                 }
-                if (!repository.markDelivered(claim.id())) {
-                  throw new IllegalStateException(
-                      "Reward claim acknowledgement was lost: " + claim.id());
-                }
-                return ClaimDeliveryResult.delivered();
+                return repository
+                    .markDeliveredAsync(claim.id())
+                    .thenApply(
+                        acknowledged -> {
+                          if (!acknowledged) {
+                            throw new IllegalStateException(
+                                "Reward claim acknowledgement was lost: " + claim.id());
+                          }
+                          return ClaimDeliveryResult.delivered();
+                        });
               });
     } catch (RuntimeException exception) {
-      repository.returnToPending(claim.id());
-      return CompletableFuture.completedFuture(ClaimDeliveryResult.retained());
+      return repository
+          .returnToPendingAsync(claim.id())
+          .thenApply(
+              restored -> {
+                if (!restored) {
+                  throw new IllegalStateException(
+                      "Reward claim could not be returned to pending: " + claim.id());
+                }
+                return ClaimDeliveryResult.retained();
+              });
     }
   }
 
@@ -95,5 +148,11 @@ public final class RewardMailboxService {
       NOT_AVAILABLE,
       BUSY
     }
+  }
+
+  /** Explicitly records the result of investigating a crash-ambiguous inventory operation. */
+  public enum ReconciliationDecision {
+    MARK_DELIVERED,
+    RETURN_TO_PENDING
   }
 }

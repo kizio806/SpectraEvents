@@ -8,7 +8,6 @@ import io.github.kizio806.spectraevents.application.model.animation.registry.Ani
 import io.github.kizio806.spectraevents.application.model.animation.runtime.ActiveAnimationRegistry;
 import io.github.kizio806.spectraevents.application.model.animation.runtime.AnimationRuntimeService;
 import io.github.kizio806.spectraevents.application.model.compiler.ModelCompiler;
-import io.github.kizio806.spectraevents.application.model.loader.ModelLoader;
 import io.github.kizio806.spectraevents.application.model.registry.ModelDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeService;
 import io.github.kizio806.spectraevents.application.port.LifecycleReporter;
@@ -44,7 +43,6 @@ public final class SpectraEventsApplication {
 
   private final ModelDefinitionRegistry modelDefinitionRegistry;
   private final ModelCompiler modelCompiler;
-  private final ModelLoader modelLoader;
   private final ModelRuntimeService modelRuntimeService;
 
   private final AnimationDefinitionRegistry animationDefinitionRegistry;
@@ -82,9 +80,6 @@ public final class SpectraEventsApplication {
     this.modelCompiler = new ModelCompiler();
     this.animationDefinitionRegistry = new AnimationDefinitionRegistry();
     this.activeAnimationRegistry = new ActiveAnimationRegistry();
-    this.modelLoader =
-        new ModelLoader(modelCompiler, modelDefinitionRegistry, animationDefinitionRegistry);
-
     if (modelRendererPort != null) {
       this.modelRuntimeService =
           new ModelRuntimeService(modelDefinitionRegistry, modelRendererPort);
@@ -190,10 +185,6 @@ public final class SpectraEventsApplication {
 
   public ModelCompiler modelCompiler() {
     return modelCompiler;
-  }
-
-  public ModelLoader modelLoader() {
-    return modelLoader;
   }
 
   public ModelRuntimeService modelRuntimeService() {

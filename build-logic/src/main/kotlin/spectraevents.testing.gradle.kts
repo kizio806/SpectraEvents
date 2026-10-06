@@ -44,6 +44,8 @@ tasks.named<Test>("test") {
 }
 
 val integrationTestSourceSet = sourceSets.create("integrationTest")
+integrationTestSourceSet.compileClasspath += sourceSets.main.get().output
+integrationTestSourceSet.runtimeClasspath += sourceSets.main.get().output
 
 configurations[integrationTestSourceSet.implementationConfigurationName].extendsFrom(
     configurations.testImplementation.get(),

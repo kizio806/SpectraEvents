@@ -1,6 +1,7 @@
 package io.github.kizio806.spectraevents.application.execution;
 
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
+import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
 import io.github.kizio806.spectraevents.application.port.RewardClaimRepository;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import io.github.kizio806.spectraevents.core.event.execution.TransitionRule;
@@ -24,14 +25,17 @@ class InternalActionExecutor {
   private final EventInstanceRepository repository;
   private final List<IntegrationActionResolver> actionResolvers;
   private final EventExecutionEngine engine;
+  private final PlatformActionPort platformActionPort;
 
   InternalActionExecutor(
       EventInstanceRepository repository,
       List<IntegrationActionResolver> actionResolvers,
-      EventExecutionEngine engine) {
+      EventExecutionEngine engine,
+      PlatformActionPort platformActionPort) {
     this.repository = repository;
     this.actionResolvers = actionResolvers;
     this.engine = engine;
+    this.platformActionPort = platformActionPort;
   }
 
   CompletableFuture<Boolean> executeInternalAction(
@@ -70,15 +74,14 @@ class InternalActionExecutor {
           context != null && context.actor() != null ? context.actor().toString() : "unknown";
       boolean claimed = state.tryClaim(claimantId);
       if (claimed) {
-        repository.saveState(state);
+        return repository.saveStateDurablyAsync(state).thenApply(ignored -> true);
       }
-      return CompletableFuture.completedFuture(claimed);
+      return CompletableFuture.completedFuture(false);
     }
 
     if (action instanceof CoreActions.InitializeSharedLootAction initializeLoot) {
       state.initializeSharedLoot(initializeLoot.items());
-      repository.saveStateDurably(state);
-      return CompletableFuture.completedFuture(true);
+      return repository.saveStateDurablyAsync(state).thenApply(ignored -> true);
     }
 
     if (action instanceof CoreActions.InitializeGroundLootAction initializeLoot) {
@@ -88,8 +91,7 @@ class InternalActionExecutor {
               .map(entry -> new CoreActions.LootStack(entry.material(), entry.amount()))
               .toList();
       state.initializeSharedLoot(rolled);
-      repository.saveStateDurably(state);
-      return CompletableFuture.completedFuture(true);
+      return repository.saveStateDurablyAsync(state).thenApply(ignored -> true);
     }
 
     if (action instanceof CoreActions.CreateParticipantRewardClaimsAction rewards) {
@@ -104,22 +106,35 @@ class InternalActionExecutor {
       if (snapshot.isEmpty()) {
         return CompletableFuture.completedFuture(true);
       }
+      List<CompletableFuture<Boolean>> deliveries = new java.util.ArrayList<>();
       for (java.util.UUID participant : state.participants()) {
         java.util.UUID claimId =
             java.util.UUID.nameUUIDFromBytes(
                 (instance.id() + ":participant-rewards:" + participant)
                     .getBytes(StandardCharsets.UTF_8));
-        claimRepository.savePendingDurably(
-            new RewardClaim(
-                claimId,
-                instance.id(),
-                participant,
-                snapshot,
-                io.github.kizio806.spectraevents.core.gameplay.reward.RewardClaimStatus.PENDING,
-                java.time.Instant.now(),
-                null));
+        deliveries.add(
+            claimRepository
+                .savePendingDurablyAsync(
+                    new RewardClaim(
+                        claimId,
+                        instance.id(),
+                        participant,
+                        snapshot,
+                        io.github.kizio806.spectraevents.core.gameplay.reward.RewardClaimStatus
+                            .PENDING,
+                        java.time.Instant.now(),
+                        null))
+                .thenCompose(
+                    ignored -> platformActionPort.deliverRewardOrDrop(participant, snapshot))
+                .thenCompose(
+                    delivered ->
+                        Boolean.TRUE.equals(delivered)
+                            ? claimRepository.markDeliveredAsync(claimId)
+                            : CompletableFuture.completedFuture(false))
+                .handle((ignored, failure) -> true));
       }
-      return CompletableFuture.completedFuture(true);
+      return CompletableFuture.allOf(deliveries.toArray(CompletableFuture[]::new))
+          .thenApply(ignored -> true);
     }
 
     if (action instanceof CoreActions.ApplyDamageAction applyDamage) {

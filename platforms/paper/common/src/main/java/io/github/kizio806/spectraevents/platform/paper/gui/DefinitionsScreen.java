@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.paper.gui;
 
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.registry.RegisteredEventDefinition;
 import java.util.HashMap;
@@ -14,7 +15,7 @@ import org.bukkit.inventory.Inventory;
 public final class DefinitionsScreen {
 
   public static Inventory createInventory(
-      EventDefinitionRegistry definitionRegistry, int requestedPage) {
+      EventDefinitionRegistry definitionRegistry, LocaleCatalog locales, int requestedPage) {
     List<RegisteredEventDefinition> definitions = List.copyOf(definitionRegistry.getAll());
     int page = EventGuiPagination.pageFor(requestedPage, definitions.size());
     List<RegisteredEventDefinition> pageItems = EventGuiPagination.itemsOnPage(definitions, page);
@@ -33,7 +34,7 @@ public final class DefinitionsScreen {
             String.valueOf(page),
             slotPayloads,
             54,
-            Component.text("Event Definitions", NamedTextColor.GREEN));
+            GuiText.component(locales, "admin.gui.definitions.title", NamedTextColor.GREEN));
 
     int renderSlot = 0;
     for (RegisteredEventDefinition registered : pageItems) {
@@ -43,24 +44,35 @@ public final class DefinitionsScreen {
               Material.PAPER,
               Component.text(registered.definition().id().value(), NamedTextColor.GREEN),
               List.of(
-                  Component.text("Source: " + registered.sourceFile(), NamedTextColor.GRAY),
-                  Component.text(
-                      "Initial Phase: " + registered.definition().initialPhase().value(),
-                      NamedTextColor.GRAY),
-                  Component.text("\u00bb Click to view details", NamedTextColor.YELLOW))));
+                  GuiText.component(
+                      locales,
+                      "admin.gui.definitions.source",
+                      NamedTextColor.GRAY,
+                      Map.of("source", registered.sourceFile())),
+                  GuiText.component(
+                      locales,
+                      "admin.gui.definitions.initial-phase",
+                      NamedTextColor.GRAY,
+                      Map.of("phase", registered.definition().initialPhase().value())),
+                  GuiText.component(
+                      locales, "admin.gui.definitions.details", NamedTextColor.YELLOW))));
     }
 
     inv.setItem(
         49,
         MainScreen.createGuiItem(
-            Material.BARRIER, Component.text("Back to Main Menu", NamedTextColor.RED), List.of()));
+            Material.BARRIER,
+            GuiText.component(locales, "common.back-main", NamedTextColor.RED),
+            List.of()));
     inv.setItem(
         53,
         MainScreen.createGuiItem(
             Material.CLOCK,
-            Component.text("Refresh", NamedTextColor.AQUA),
-            List.of(Component.text("Reload registered definitions", NamedTextColor.GRAY))));
-    EventGuiPagination.addControls(inv, page, definitions.size());
+            GuiText.component(locales, "common.refresh", NamedTextColor.AQUA),
+            List.of(
+                GuiText.component(
+                    locales, "admin.gui.definitions.refresh-lore", NamedTextColor.GRAY))));
+    EventGuiPagination.addControls(inv, page, definitions.size(), locales);
     return inv;
   }
 }

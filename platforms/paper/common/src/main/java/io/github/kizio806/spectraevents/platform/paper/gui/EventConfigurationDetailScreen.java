@@ -1,6 +1,9 @@
 package io.github.kizio806.spectraevents.platform.paper.gui;
 
+import io.github.kizio806.spectraevents.application.config.DurationText;
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
+import io.github.kizio806.spectraevents.application.config.spec.EventParameterType;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,7 +23,8 @@ public final class EventConfigurationDetailScreen {
   public static Inventory createInventory(
       String definitionId,
       EventDefinitionRegistry definitions,
-      PaperEventSettingsStore settingsStore) {
+      PaperEventSettingsStore settingsStore,
+      LocaleCatalog locales) {
     var definition = definitions.findById(definitionId).orElseThrow();
     Map<String, Object> settings = settingsStore.overridesFor(definitionId);
     Map<Integer, String> payloads = new LinkedHashMap<>();
@@ -40,45 +44,67 @@ public final class EventConfigurationDetailScreen {
             definitionId,
             payloads,
             54,
-            Component.text("Configure: " + definitionId, NamedTextColor.YELLOW));
+            Component.text(
+                locales.message("admin.configuration.configure", Map.of("event", definitionId)),
+                NamedTextColor.YELLOW));
 
     for (Map.Entry<Integer, String> entry : payloads.entrySet()) {
       String parameter = entry.getValue();
       var declaration = definition.sourceSpec().parameters().get(parameter);
       Object value = settings.getOrDefault(parameter, declaration.defaultValue());
+      String displayedValue =
+          declaration.type() == EventParameterType.DURATION
+              ? DurationText.format(DurationText.parse(value))
+              : String.valueOf(value);
+      String range =
+          declaration.type() == EventParameterType.DURATION
+              ? DurationText.format(java.time.Duration.ofSeconds(declaration.minimum().longValue()))
+                  + ".."
+                  + DurationText.format(
+                      java.time.Duration.ofSeconds(declaration.maximum().longValue()))
+                  + " step "
+                  + DurationText.format(
+                      java.time.Duration.ofSeconds(declaration.step().longValue()))
+              : declaration.minimum()
+                  + ".."
+                  + declaration.maximum()
+                  + " step "
+                  + declaration.step();
       inventory.setItem(
           entry.getKey(),
           MainScreen.createGuiItem(
               Material.COMPARATOR,
               Component.text(parameter, NamedTextColor.GOLD),
               List.of(
-                  Component.text("Current: " + value, NamedTextColor.YELLOW),
                   Component.text(
-                      "Range: "
-                          + declaration.minimum()
-                          + ".."
-                          + declaration.maximum()
-                          + " step "
-                          + declaration.step(),
+                      locales.message(
+                          "admin.configuration.current", Map.of("value", displayedValue)),
+                      NamedTextColor.YELLOW),
+                  Component.text(
+                      locales.message("admin.configuration.range", Map.of("range", range)),
                       NamedTextColor.GRAY),
-                  Component.text("Left click: increase", NamedTextColor.GREEN),
-                  Component.text("Right click: decrease", NamedTextColor.RED),
                   Component.text(
-                      "For an exact value use /spectraevents event config",
+                      locales.message("admin.configuration.increase"), NamedTextColor.GREEN),
+                  Component.text(
+                      locales.message("admin.configuration.decrease"), NamedTextColor.RED),
+                  Component.text(
+                      locales.message("admin.configuration.exact-command"),
                       NamedTextColor.DARK_GRAY))));
     }
     inventory.setItem(
         SLOT_BACK,
         MainScreen.createGuiItem(
             Material.BARRIER,
-            Component.text("Back to Configuration", NamedTextColor.RED),
+            Component.text(locales.message("admin.configuration.back"), NamedTextColor.RED),
             List.of()));
     inventory.setItem(
         SLOT_REFRESH,
         MainScreen.createGuiItem(
             Material.CLOCK,
-            Component.text("Refresh", NamedTextColor.AQUA),
-            List.of(Component.text("Reload saved overrides", NamedTextColor.GRAY))));
+            Component.text(locales.message("common.refresh"), NamedTextColor.AQUA),
+            List.of(
+                Component.text(
+                    locales.message("admin.configuration.refresh"), NamedTextColor.GRAY))));
     return inventory;
   }
 }

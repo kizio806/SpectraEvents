@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Real-server SpectraEvents lifecycle, cleanup, and restart recovery gate."""
+"""Real-server fresh-install, bundled-template, lifecycle, and recovery gate."""
 
 from __future__ import annotations
 
@@ -401,42 +401,56 @@ phases:
     )
 
 
-def run_workflow(server_jar: pathlib.Path, artifact: pathlib.Path, work: pathlib.Path) -> None:
+def resource_pack_profile(version: str) -> str:
+    if version.startswith("26.1"):
+        return "26_1"
+    if version.startswith("26.2"):
+        return "26_2"
+    if version.startswith("26.3"):
+        return "26_3"
+    raise RuntimeError(f"Unsupported Minecraft version for resource-pack smoke test: {version}")
+
+
+def run_workflow(
+    server_jar: pathlib.Path, artifact: pathlib.Path, work: pathlib.Path, minecraft_version: str
+) -> None:
     if work.exists():
         shutil.rmtree(work)
     (work / "plugins").mkdir(parents=True)
     shutil.copy2(artifact, work / "plugins" / artifact.name)
     (work / "eula.txt").write_text("eula=true\n", encoding="utf-8")
     plugin_directory = work / "plugins" / "SpectraEvents"
-    write_asset_smoke_fixture(plugin_directory)
 
     first = ServerSession(work, server_jar)
     try:
         wait_ready(first)
-        generated_pack = plugin_directory / "cache" / "resource-pack" / "spectraevents-profile_26_1.zip"
+        template_archive = plugin_directory / "templates" / "metin.spectra.zip"
+        if not template_archive.is_file() or template_archive.stat().st_size == 0:
+            raise RuntimeError("Fresh install did not expose the bundled Metin template")
+        first.command("spectraevents template list")
+        first.wait_for(r"Bundled templates: metin", timeout=20)
+        first.command("spectraevents template install metin")
+        first.wait_for(r"Template metin is installed and validated\.", timeout=45)
+        if not (plugin_directory / "events" / "metin.yml").is_file():
+            raise RuntimeError("Template command did not install events/metin.yml")
+        if not (plugin_directory / "assets" / "source" / "metin_stone.bbmodel").is_file():
+            raise RuntimeError("Template command did not install Metin's model source")
+        first.command("spectraevents validate")
+        first.wait_for(
+            r"(?:Validation complete: all 1 files are valid\.|Definitions validated=1 failed=0)",
+            timeout=30,
+        )
+        generated_pack = (
+            plugin_directory
+            / "cache"
+            / "resource-pack"
+            / f"spectraevents-profile_{resource_pack_profile(minecraft_version)}.zip"
+        )
         if not generated_pack.is_file() or generated_pack.stat().st_size == 0:
-            raise RuntimeError("Asset smoke fixture did not produce the expected resource-pack ZIP")
-        asset_instance = start_event(first, "asset_smoke")
+            raise RuntimeError("Metin installation did not produce the expected resource-pack ZIP")
+        recoverable = start_event(first, "metin")
         time.sleep(1)
-        assert_running_with_model(inspect(first, asset_instance), "asset import, spawn, and animation")
-        first.command(f"spectraevents event cancel {asset_instance}")
-        first.wait_for(rf"(?:Stopped|Cancelled) event instance {asset_instance}", timeout=20)
-        assert_cancelled(inspect(first, asset_instance), "asset cleanup")
-        for reference_event in ("meteor", "metin", "pinata", "boss_portal"):
-            start_and_cancel_reference_event(first, reference_event)
-        disposable = start_event(first)
-        time.sleep(1)
-        assert_running(inspect(first, disposable), "initial start")
-        first.command(f"spectraevents event trigger {disposable} timer_elapsed")
-        first.wait_for(r"Trigger timer_elapsed handled=true", timeout=20)
-        time.sleep(1)
-        assert_running(inspect(first, disposable), "post-transition")
-        first.command(f"spectraevents event cancel {disposable}")
-        first.wait_for(rf"(?:Stopped|Cancelled) event instance {disposable}", timeout=20)
-        assert_cancelled(inspect(first, disposable), "airdrop cleanup")
-        recoverable = start_event(first)
-        time.sleep(1)
-        assert_running(inspect(first, recoverable), "pre-restart")
+        assert_running_with_model(inspect(first, recoverable), "Metin model start")
     finally:
         first.stop()
     first.assert_no_plugin_errors()
@@ -445,7 +459,7 @@ def run_workflow(server_jar: pathlib.Path, artifact: pathlib.Path, work: pathlib
     try:
         wait_ready(second)
         time.sleep(2)
-        assert_running(inspect(second, recoverable), "post-restart recovery")
+        assert_running_with_model(inspect(second, recoverable), "Metin post-restart recovery")
         second.command(f"spectraevents event cancel {recoverable}")
         second.wait_for(rf"(?:Stopped|Cancelled) event instance {recoverable}", timeout=20)
         assert_cancelled(inspect(second, recoverable), "recovered cleanup")
@@ -474,7 +488,7 @@ def main() -> int:
         else acquire_server(args.server, resolved_version, cache)
     )
     work = args.work_dir or ROOT / "build" / "runtime-workflow" / f"{args.server}-{args.version}"
-    run_workflow(server_jar, artifact, work)
+    run_workflow(server_jar, artifact, work, args.version)
     print(
         "RUNTIME WORKFLOW PASS: "
         f"{args.server} {args.version} (upstream {resolved_version}) / {artifact.name}"

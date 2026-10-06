@@ -7,7 +7,7 @@ SpectraEvents provides a production-grade, data-driven 3D model engine supportin
 The architecture strictly enforces separation of concerns across module boundaries:
 
 ```text
-YAML Authoring (`plugins/SpectraEvents/models/*.yml`)
+Blockbench Source (`plugins/SpectraEvents/assets/source/*.bbmodel|*.spectra.zip`)
   ↓
 ModelSpec / DTOs (`spectraevents-application`)
   ↓
@@ -52,7 +52,7 @@ ModelRendererPort [Port] (`spectraevents-application`)
 ## Transform & Quaternion Mathematics
 
 ### 1. Authoring vs Canonical Representation
-- **Authoring**: Yaml specs specify rotation using degrees in intrinsic Z-X-Y Euler angles (`[pitch, yaw, roll]`).
+- **Authoring**: Blockbench specifies rotation using degrees in intrinsic Z-X-Y Euler angles (`[pitch, yaw, roll]`).
 - **Canonical**: `ModelCompiler` converts Euler angles into a normalized `Quaternion` $(x, y, z, w)$. All runtime hierarchy compositions operate on quaternions.
 
 ### 2. Pivot Math

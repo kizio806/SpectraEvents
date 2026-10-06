@@ -3,7 +3,7 @@ package io.github.kizio806.spectraevents.platform.paper;
 import io.papermc.paper.ServerBuildInfo;
 import net.kyori.adventure.key.Key;
 
-/** Refuses a Folia runtime outside the real-server-verified compatibility band. */
+/** Refuses Folia releases that are outside this distribution's verified compatibility band. */
 final class FoliaCompatibilityGuard {
   private static final Key FOLIA_BRAND = Key.key("papermc", "folia");
 

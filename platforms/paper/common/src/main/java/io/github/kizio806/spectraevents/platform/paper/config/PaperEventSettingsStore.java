@@ -1,16 +1,14 @@
 package io.github.kizio806.spectraevents.platform.paper.config;
 
+import io.github.kizio806.spectraevents.application.config.DataDirectoryLayout;
 import io.github.kizio806.spectraevents.application.execution.EventLocation;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -19,25 +17,53 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/** Durable Paper-owned scalar overrides and named event locations. */
+/**
+ * Persists global settings, named locations and GUI overrides in separate operator-facing files.
+ */
 public final class PaperEventSettingsStore {
-  private final File file;
-  private final YamlConfiguration yaml;
+  private final Path configFile;
+  private final Path locationsFile;
+  private final Path overridesDirectory;
+  private final YamlConfiguration config;
+  private final YamlConfiguration locations;
 
   public PaperEventSettingsStore(JavaPlugin plugin) {
-    Objects.requireNonNull(plugin, "plugin");
-    archiveLegacySettingsFile(plugin.getDataFolder().toPath());
-    this.file = new File(plugin.getDataFolder(), "config.yml");
-    this.yaml = YamlConfiguration.loadConfiguration(file);
-    initializeSchema();
+    this(Objects.requireNonNull(plugin, "plugin").getDataFolder().toPath());
   }
 
-  /** Returns only explicitly saved overrides; YAML owns all defaults. */
+  PaperEventSettingsStore(Path dataDirectory) {
+    try {
+      DataDirectoryLayout layout = DataDirectoryLayout.prepare(dataDirectory);
+      this.configFile = layout.configFile();
+      this.locationsFile = layout.locationsFile();
+      this.overridesDirectory = layout.eventOverridesDirectory();
+      this.config = YamlConfiguration.loadConfiguration(configFile.toFile());
+      this.locations = YamlConfiguration.loadConfiguration(locationsFile.toFile());
+      initializeGlobalConfiguration();
+    } catch (IOException exception) {
+      throw new IllegalStateException("Could not prepare SpectraEvents settings.", exception);
+    }
+  }
+
+  public String locale() {
+    return config.getString("locale", "en-US");
+  }
+
+  /** Returns only explicit overrides; the event definition owns the default values. */
   public Map<String, Object> overridesFor(String definitionId) {
     validateDefinitionId(definitionId);
-    Map<String, Object> settings = new LinkedHashMap<>();
-    copySection("overrides." + definitionId, settings);
-    return Map.copyOf(settings);
+    ConfigurationSection parameters =
+        overrideConfiguration(definitionId).getConfigurationSection("parameters");
+    if (parameters == null) {
+      return Map.of();
+    }
+    Map<String, Object> result = new LinkedHashMap<>();
+    for (String key : parameters.getKeys(false)) {
+      if (!parameters.isConfigurationSection(key)) {
+        result.put(key, parameters.get(key));
+      }
+    }
+    return Map.copyOf(result);
   }
 
   public void setParameter(String definitionId, String parameter, String value) {
@@ -46,60 +72,111 @@ public final class PaperEventSettingsStore {
     if (value == null || value.isBlank()) {
       throw new IllegalArgumentException("Value is required.");
     }
-    yaml.set("overrides." + definitionId + "." + normalizedParameter, value.trim());
-    save();
+    YamlConfiguration override = overrideConfiguration(definitionId);
+    configureOverrideHeader(override, definitionId);
+    override.set("schema-version", 1);
+    override.set("parameters." + normalizedParameter, value.trim());
+    save(override, overrideFile(definitionId));
   }
 
   public void removeParameter(String definitionId, String parameter) {
     validateDefinitionId(definitionId);
-    yaml.set("overrides." + definitionId + "." + normalizeParameter(parameter), null);
-    save();
+    YamlConfiguration override = overrideConfiguration(definitionId);
+    configureOverrideHeader(override, definitionId);
+    override.set("parameters." + normalizeParameter(parameter), null);
+    save(override, overrideFile(definitionId));
   }
 
   public void saveLocation(String name, EventLocation location) {
     String normalizedName = normalizeLocationName(name);
-    yaml.set("locations." + normalizedName, location.serialize());
-    save();
+    locations.set("schema-version", 1);
+    locations.set("locations." + normalizedName, location.serialize());
+    save(locations, locationsFile);
   }
 
   public Optional<EventLocation> location(String name) {
-    return EventLocation.deserialize(yaml.getString("locations." + normalizeLocationName(name)));
+    return EventLocation.deserialize(
+        locations.getString("locations." + normalizeLocationName(name)));
   }
 
   public Map<String, EventLocation> locations() {
-    ConfigurationSection section = yaml.getConfigurationSection("locations");
+    ConfigurationSection section = locations.getConfigurationSection("locations");
     if (section == null) {
       return Map.of();
     }
-    Map<String, EventLocation> locations = new LinkedHashMap<>();
+    Map<String, EventLocation> result = new LinkedHashMap<>();
     for (String key : section.getKeys(false)) {
-      EventLocation.deserialize(section.getString(key))
-          .ifPresent(location -> locations.put(key, location));
+      EventLocation.deserialize(section.getString(key)).ifPresent(value -> result.put(key, value));
     }
-    return Map.copyOf(locations);
+    return Map.copyOf(result);
   }
 
   public boolean removeLocation(String name) {
     String normalizedName = normalizeLocationName(name);
     String path = "locations." + normalizedName;
-    if (!yaml.contains(path)) {
+    if (!locations.contains(path)) {
       return false;
     }
-    yaml.set(path, null);
-    save();
+    locations.set(path, null);
+    save(locations, locationsFile);
     return true;
   }
 
-  private void copySection(String path, Map<String, Object> target) {
-    ConfigurationSection section = yaml.getConfigurationSection(path);
-    if (section == null) {
-      return;
+  private void initializeGlobalConfiguration() {
+    boolean changed = false;
+    if (!config.isInt("schema-version") || config.getInt("schema-version") < 2) {
+      config.set("schema-version", 2);
+      changed = true;
     }
-    for (String key : section.getKeys(false)) {
-      if (section.isConfigurationSection(key)) {
-        continue;
+    if (config.getString("locale") == null || config.getString("locale").isBlank()) {
+      config.set("locale", "en-US");
+      changed = true;
+    }
+    if (changed) {
+      save(config, configFile);
+    }
+  }
+
+  private YamlConfiguration overrideConfiguration(String definitionId) {
+    return YamlConfiguration.loadConfiguration(overrideFile(definitionId).toFile());
+  }
+
+  private Path overrideFile(String definitionId) {
+    return overridesDirectory.resolve(definitionId + ".yml");
+  }
+
+  private void configureOverrideHeader(YamlConfiguration override, String definitionId) {
+    override
+        .options()
+        .setHeader(
+            List.of(
+                "=============================================================================",
+                "SpectraEvents — Admin Override: " + definitionId,
+                "=============================================================================",
+                "This file contains only values changed through the admin panel or command.",
+                "The full event definition remains in ../" + definitionId + ".yml.",
+                "Delete one parameter to return to its YAML default; do not add event phases here."));
+  }
+
+  private void save(YamlConfiguration yaml, Path target) {
+    try {
+      Files.createDirectories(target.getParent());
+      Path temporary =
+          Files.createTempFile(target.getParent(), target.getFileName().toString(), ".tmp");
+      try {
+        yaml.save(temporary.toFile());
+        moveAtomically(temporary, target);
+      } finally {
+        Files.deleteIfExists(temporary);
       }
-      target.put(key, section.get(key));
+    } catch (IOException exception) {
+      throw new IllegalStateException("Could not save SpectraEvents configuration.", exception);
+    }
+  }
+
+  private void validateDefinitionId(String definitionId) {
+    if (definitionId == null || !definitionId.matches("[a-z0-9_-]{1,64}")) {
+      throw new IllegalArgumentException("Event ID is invalid.");
     }
   }
 
@@ -120,60 +197,7 @@ public final class PaperEventSettingsStore {
     return normalized;
   }
 
-  private void validateDefinitionId(String definitionId) {
-    if (definitionId == null || !definitionId.matches("[a-z0-9_-]{1,64}")) {
-      throw new IllegalArgumentException("Event ID is invalid.");
-    }
-  }
-
-  private void save() {
-    try {
-      Path target = file.toPath();
-      Files.createDirectories(target.getParent());
-      Path temporary = Files.createTempFile(target.getParent(), "config", ".yml.tmp");
-      try {
-        yaml.save(temporary.toFile());
-        moveAtomically(temporary, target);
-      } finally {
-        Files.deleteIfExists(temporary);
-      }
-    } catch (IOException exception) {
-      throw new IllegalStateException("Could not save SpectraEvents configuration.", exception);
-    }
-  }
-
-  private void initializeSchema() {
-    if (yaml.contains("schema-version")) {
-      return;
-    }
-    yaml.set("schema-version", 1);
-    if (!yaml.isConfigurationSection("overrides")) {
-      yaml.createSection("overrides");
-    }
-    if (!yaml.isConfigurationSection("locations")) {
-      yaml.createSection("locations");
-    }
-    save();
-  }
-
-  private void archiveLegacySettingsFile(Path dataDirectory) {
-    Path legacy = dataDirectory.resolve("event-settings.yml");
-    if (!Files.isRegularFile(legacy)) {
-      return;
-    }
-    try {
-      String timestamp =
-          ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
-      Path backup =
-          dataDirectory.resolve("backups").resolve(timestamp).resolve("event-settings.yml");
-      Files.createDirectories(backup.getParent());
-      moveAtomically(legacy, backup);
-    } catch (IOException exception) {
-      throw new IllegalStateException("Could not preserve legacy event-settings.yml", exception);
-    }
-  }
-
-  private void moveAtomically(Path source, Path target) throws IOException {
+  private static void moveAtomically(Path source, Path target) throws IOException {
     try {
       Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);
     } catch (AtomicMoveNotSupportedException exception) {

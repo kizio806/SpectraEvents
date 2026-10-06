@@ -35,6 +35,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -54,18 +55,18 @@ import javax.imageio.stream.ImageInputStream;
 
 /** Imports a validated Blockbench project or signed Spectra bundle into the asset model. */
 public final class BlockbenchProjectReader implements AssetImportPort {
-  private static final long MAX_ARCHIVE_BYTES = 5_000_000L;
+  private static final long MAX_ARCHIVE_BYTES = 25_000_000L;
   private static final int MAX_ARCHIVE_ENTRIES = 18;
-  private static final int MAX_ENTRY_BYTES = 2_000_000;
-  private static final int MAX_TOTAL_UNCOMPRESSED_BYTES = 8_000_000;
+  private static final int MAX_ENTRY_BYTES = 24_000_000;
+  private static final int MAX_TOTAL_UNCOMPRESSED_BYTES = 32_000_000;
   private static final int MAX_JSON_DEPTH = 64;
   private static final int MAX_TEXTURES = 16;
   private static final int MAX_NODES = 128;
   private static final int MAX_CUBES = 512;
   private static final int MAX_ANIMATIONS = 32;
   private static final int MAX_KEYFRAMES = 2_000;
-  private static final int MAX_TEXTURE_DIMENSION = 1024;
-  private static final long MAX_TEXTURE_PIXELS = 1_048_576L;
+  private static final int MAX_TEXTURE_DIMENSION = 4096;
+  private static final long MAX_TEXTURE_PIXELS = 16_777_216L;
   private static final String MANIFEST_FILE = "manifest.json";
   private static final String MODEL_FILE = "model.bbmodel";
   private static final Set<String> SUPPORTED_MODEL_FORMATS = Set.of("free", "java_block");
@@ -85,7 +86,7 @@ public final class BlockbenchProjectReader implements AssetImportPort {
     if (fileName.endsWith(".bbmodel")) {
       if (Files.size(sourceFile) > MAX_ENTRY_BYTES) {
         throw new IllegalArgumentException(
-            "Blockbench project exceeds size limit of 2000000 bytes");
+            "Blockbench project exceeds size limit of " + MAX_ENTRY_BYTES + " bytes");
       }
       String modelId = fileName.substring(0, fileName.length() - ".bbmodel".length());
       if (!MODEL_ID.matcher(modelId).matches()) {
@@ -99,7 +100,7 @@ public final class BlockbenchProjectReader implements AssetImportPort {
     }
     if (Files.size(sourceFile) > MAX_ARCHIVE_BYTES) {
       throw new IllegalArgumentException(
-          "Asset bundle exceeds compressed size limit of 5000000 bytes");
+          "Asset bundle exceeds compressed size limit of " + MAX_ARCHIVE_BYTES + " bytes");
     }
 
     Map<String, byte[]> entries = readArchive(sourceFile);
@@ -145,7 +146,9 @@ public final class BlockbenchProjectReader implements AssetImportPort {
         totalBytes += bytes.length;
         if (totalBytes > MAX_TOTAL_UNCOMPRESSED_BYTES) {
           throw new IllegalArgumentException(
-              "Asset bundle exceeds expanded size limit of 8000000 bytes");
+              "Asset bundle exceeds expanded size limit of "
+                  + MAX_TOTAL_UNCOMPRESSED_BYTES
+                  + " bytes");
         }
         entries.put(name, bytes);
       }
@@ -249,13 +252,17 @@ public final class BlockbenchProjectReader implements AssetImportPort {
     Map<String, SpectraAssetTexture> textures =
         parseTextures(requiredArray(root, "textures", MODEL_FILE), bundleTextures);
     Map<String, SpectraAssetGeometry> elements =
-        parseElements(requiredArray(root, "elements", MODEL_FILE), textures.keySet());
-    List<SpectraAssetNode> nodes =
-        parseOutliner(requiredArray(root, "outliner", MODEL_FILE), elements);
+        parseElements(
+            requiredArray(root, "elements", MODEL_FILE),
+            textures.keySet(),
+            List.copyOf(textures.keySet()));
+    ParsedOutliner outliner = parseOutliner(requiredArray(root, "outliner", MODEL_FILE), elements);
+    List<SpectraAssetNode> nodes = outliner.nodes();
     if (nodes.isEmpty()) {
       throw new IllegalArgumentException("Blockbench project must contain at least one root group");
     }
-    Map<String, SpectraAssetAnimation> animations = parseAnimations(root, nodeIds(nodes));
+    Map<String, SpectraAssetAnimation> animations =
+        parseAnimations(root, outliner.nodeIdsByBlockbenchUuid());
     return new SpectraAssetDocument(1, modelId, textures, nodes, animations);
   }
 
@@ -292,11 +299,11 @@ public final class BlockbenchProjectReader implements AssetImportPort {
             "Blockbench project contains duplicate texture id: " + textureId);
       }
     }
-    return Map.copyOf(textures);
+    return Collections.unmodifiableMap(new LinkedHashMap<>(textures));
   }
 
   private Map<String, SpectraAssetGeometry> parseElements(
-      JsonArray elementArray, Set<String> textureIds) {
+      JsonArray elementArray, Set<String> textureIds, List<String> textureIdsByIndex) {
     if (elementArray.size() > MAX_CUBES) {
       throw new IllegalArgumentException("Blockbench project contains more than 512 cubes");
     }
@@ -304,20 +311,40 @@ public final class BlockbenchProjectReader implements AssetImportPort {
     for (JsonElement elementValue : elementArray) {
       JsonObject element = requireObject(elementValue, "elements[]");
       String id = requiredString(element, "uuid", "elements[]");
+      if (!"cube".equals(optionalString(element, "type", "cube"))) {
+        throw new IllegalArgumentException(
+            "elements."
+                + id
+                + " uses unsupported Blockbench mesh geometry; export cuboid elements for the "
+                + "Minecraft resource-pack generator");
+      }
       Vector3 from = requiredVector(element, "from", "elements." + id);
       Vector3 to = requiredVector(element, "to", "elements." + id);
       Vector3 origin = optionalVector(element, "origin", Vector3.ZERO, "elements." + id);
       EulerRotation rotation =
           toEuler(optionalVector(element, "rotation", Vector3.ZERO, "elements." + id));
       float inflate = optionalFiniteFloat(element, "inflate", 0.0f, "elements." + id);
-      if (from.x() >= to.x() || from.y() >= to.y() || from.z() >= to.z()) {
-        throw new IllegalArgumentException(
-            "Cube " + id + " must have from coordinates smaller than to coordinates");
+      if (Float.compare(from.x(), to.x()) == 0
+          || Float.compare(from.y(), to.y()) == 0
+          || Float.compare(from.z(), to.z()) == 0) {
+        throw new IllegalArgumentException("Cube " + id + " must have non-zero size on every axis");
       }
+      Vector3 normalizedFrom =
+          new Vector3(
+              Math.min(from.x(), to.x()), Math.min(from.y(), to.y()), Math.min(from.z(), to.z()));
+      Vector3 normalizedTo =
+          new Vector3(
+              Math.max(from.x(), to.x()), Math.max(from.y(), to.y()), Math.max(from.z(), to.z()));
       Map<String, SpectraAssetFace> faces =
-          parseFaces(requiredObject(element, "faces", "elements." + id), textureIds, id);
+          parseFaces(
+              requiredObject(element, "faces", "elements." + id),
+              textureIds,
+              textureIdsByIndex,
+              id);
       if (elements.putIfAbsent(
-              id, new SpectraAssetGeometry(from, to, origin, rotation, inflate, faces))
+              id,
+              new SpectraAssetGeometry(
+                  normalizedFrom, normalizedTo, origin, rotation, inflate, faces))
           != null) {
         throw new IllegalArgumentException(
             "Blockbench project contains duplicate cube uuid: " + id);
@@ -330,7 +357,10 @@ public final class BlockbenchProjectReader implements AssetImportPort {
   }
 
   private Map<String, SpectraAssetFace> parseFaces(
-      JsonObject faceObject, Set<String> textureIds, String elementId) {
+      JsonObject faceObject,
+      Set<String> textureIds,
+      List<String> textureIdsByIndex,
+      String elementId) {
     Map<String, SpectraAssetFace> faces = new LinkedHashMap<>();
     for (Map.Entry<String, JsonElement> faceEntry : faceObject.entrySet()) {
       if (!FACE_NAMES.contains(faceEntry.getKey())) {
@@ -339,8 +369,9 @@ public final class BlockbenchProjectReader implements AssetImportPort {
       }
       JsonObject face = requireObject(faceEntry.getValue(), "elements." + elementId + ".faces");
       List<Double> uv = requiredUv(face, "elements." + elementId + ".faces." + faceEntry.getKey());
-      String textureRef = requiredString(face, "texture", "elements." + elementId + ".faces");
-      String textureId = textureRef.startsWith("#") ? textureRef.substring(1) : textureRef;
+      String textureRef = faceTextureReference(face, elementId);
+      String textureId =
+          resolveTextureId(textureRef, face.get("texture"), textureIdsByIndex, elementId);
       if (!textureIds.contains(textureId)) {
         throw new IllegalArgumentException(
             "Cube " + elementId + " references unknown texture " + textureRef);
@@ -358,26 +389,76 @@ public final class BlockbenchProjectReader implements AssetImportPort {
     return Map.copyOf(faces);
   }
 
-  private List<SpectraAssetNode> parseOutliner(
+  private static String faceTextureReference(JsonObject face, String elementId) {
+    JsonElement texture = face.get("texture");
+    if (texture == null || !texture.isJsonPrimitive()) {
+      throw new IllegalArgumentException(
+          "elements." + elementId + ".faces.texture must be a texture ID or index");
+    }
+    if (texture.getAsJsonPrimitive().isString()) {
+      String textureReference = texture.getAsString();
+      if (textureReference.isBlank()) {
+        throw new IllegalArgumentException(
+            "elements." + elementId + ".faces.texture must not be blank");
+      }
+      return textureReference;
+    }
+    if (texture.getAsJsonPrimitive().isNumber()) {
+      return texture.getAsString();
+    }
+    throw new IllegalArgumentException(
+        "elements." + elementId + ".faces.texture must be a texture ID or index");
+  }
+
+  private static String resolveTextureId(
+      String textureReference,
+      JsonElement textureValue,
+      List<String> textureIdsByIndex,
+      String elementId) {
+    if (textureValue.getAsJsonPrimitive().isString()) {
+      return textureReference.startsWith("#") ? textureReference.substring(1) : textureReference;
+    }
+    try {
+      int textureIndex = Integer.parseInt(textureReference);
+      if (textureIndex < 0 || textureIndex >= textureIdsByIndex.size()) {
+        throw new IllegalArgumentException(
+            "Cube " + elementId + " references unknown texture index " + textureReference);
+      }
+      return textureIdsByIndex.get(textureIndex);
+    } catch (NumberFormatException exception) {
+      throw new IllegalArgumentException(
+          "Cube " + elementId + " references invalid texture index " + textureReference, exception);
+    }
+  }
+
+  private ParsedOutliner parseOutliner(
       JsonArray outliner, Map<String, SpectraAssetGeometry> elements) {
     List<SpectraAssetNode> nodes = new ArrayList<>();
     Set<String> nodeIds = new HashSet<>();
+    Map<String, String> nodeIdsByBlockbenchUuid = new HashMap<>();
     Set<String> referencedElements = new HashSet<>();
     for (JsonElement value : outliner) {
       nodes.add(
-          parseNode(requireObject(value, "outliner[]"), elements, nodeIds, referencedElements, 1));
+          parseNode(
+              requireObject(value, "outliner[]"),
+              elements,
+              nodeIds,
+              nodeIdsByBlockbenchUuid,
+              referencedElements,
+              1));
     }
     if (!referencedElements.equals(elements.keySet())) {
       throw new IllegalArgumentException(
           "Every Blockbench cube must belong to exactly one outliner group");
     }
-    return List.copyOf(nodes);
+    return new ParsedOutliner(List.copyOf(nodes), Map.copyOf(nodeIdsByBlockbenchUuid));
   }
 
   private SpectraAssetNode parseNode(
       JsonObject group,
       Map<String, SpectraAssetGeometry> elements,
       Set<String> nodeIds,
+      Map<String, String> nodeIdsByBlockbenchUuid,
       Set<String> referencedElements,
       int depth) {
     if (depth > 32) {
@@ -386,14 +467,12 @@ public final class BlockbenchProjectReader implements AssetImportPort {
     if (nodeIds.size() >= MAX_NODES) {
       throw new IllegalArgumentException("Blockbench project contains more than 128 groups");
     }
-    String nodeId = requiredString(group, "uuid", "outliner group");
-    if (!MODEL_ID.matcher(nodeId).matches()) {
-      throw new IllegalArgumentException("Blockbench group uuid must match " + MODEL_ID.pattern());
-    }
-    requiredString(group, "name", "outliner group");
-    if (!nodeIds.add(nodeId)) {
+    String blockbenchUuid = requiredString(group, "uuid", "outliner group");
+    String nodeId = normalizeNodeId(blockbenchUuid);
+    if (!nodeIds.add(nodeId)
+        || nodeIdsByBlockbenchUuid.putIfAbsent(blockbenchUuid, nodeId) != null) {
       throw new IllegalArgumentException(
-          "Blockbench project contains duplicate group uuid: " + nodeId);
+          "Blockbench project contains duplicate or conflicting group uuid: " + blockbenchUuid);
     }
     Vector3 pivot = optionalVector(group, "origin", Vector3.ZERO, "outliner." + nodeId);
     EulerRotation rotation =
@@ -412,7 +491,13 @@ public final class BlockbenchProjectReader implements AssetImportPort {
         cubes.add(cube);
       } else if (child.isJsonObject()) {
         childNodes.add(
-            parseNode(child.getAsJsonObject(), elements, nodeIds, referencedElements, depth + 1));
+            parseNode(
+                child.getAsJsonObject(),
+                elements,
+                nodeIds,
+                nodeIdsByBlockbenchUuid,
+                referencedElements,
+                depth + 1));
       } else {
         throw new IllegalArgumentException(
             "Outliner children must be group objects or cube UUID strings");
@@ -422,7 +507,8 @@ public final class BlockbenchProjectReader implements AssetImportPort {
         nodeId, pivot, Vector3.ZERO, rotation, Vector3.ONE, cubes, childNodes);
   }
 
-  private Map<String, SpectraAssetAnimation> parseAnimations(JsonObject root, Set<String> nodeIds) {
+  private Map<String, SpectraAssetAnimation> parseAnimations(
+      JsonObject root, Map<String, String> nodeIdsByBlockbenchUuid) {
     JsonArray animationArray =
         root.has("animations") ? requiredArray(root, "animations", MODEL_FILE) : new JsonArray();
     if (animationArray.size() > MAX_ANIMATIONS) {
@@ -447,10 +533,11 @@ public final class BlockbenchProjectReader implements AssetImportPort {
               ? requiredObject(animation, "animators", "animations." + name)
               : new JsonObject();
       for (Map.Entry<String, JsonElement> animatorEntry : animators.entrySet()) {
-        String nodeId = animatorEntry.getKey();
-        if (!nodeIds.contains(nodeId)) {
+        String blockbenchUuid = animatorEntry.getKey();
+        String nodeId = nodeIdsByBlockbenchUuid.get(blockbenchUuid);
+        if (nodeId == null) {
           throw new IllegalArgumentException(
-              "Animation " + name + " targets unknown group " + nodeId);
+              "Animation " + name + " targets unknown group " + blockbenchUuid);
         }
         JsonObject animator =
             requireObject(animatorEntry.getValue(), "animations." + name + ".animators");
@@ -521,17 +608,13 @@ public final class BlockbenchProjectReader implements AssetImportPort {
     scales.values().forEach(keyframes -> keyframes.sort(null));
   }
 
-  private static Set<String> nodeIds(List<SpectraAssetNode> nodes) {
-    Set<String> ids = new HashSet<>();
-    for (SpectraAssetNode node : nodes) {
-      collectNodeIds(node, ids);
+  private static String normalizeNodeId(String blockbenchUuid) {
+    String nodeId = blockbenchUuid.replace("-", "");
+    if (!MODEL_ID.matcher(nodeId).matches()) {
+      throw new IllegalArgumentException(
+          "Blockbench group uuid must normalize to " + MODEL_ID.pattern());
     }
-    return Set.copyOf(ids);
-  }
-
-  private static void collectNodeIds(SpectraAssetNode node, Set<String> ids) {
-    ids.add(node.nodeId());
-    node.children().forEach(child -> collectNodeIds(child, ids));
+    return nodeId;
   }
 
   private static void validateSafeEntryName(String name) {
@@ -553,7 +636,8 @@ public final class BlockbenchProjectReader implements AssetImportPort {
     int read;
     while ((read = input.read(buffer)) != -1) {
       if (output.size() > MAX_ENTRY_BYTES - read) {
-        throw new IllegalArgumentException("Asset bundle entry exceeds 2000000 bytes: " + name);
+        throw new IllegalArgumentException(
+            "Asset bundle entry exceeds " + MAX_ENTRY_BYTES + " bytes: " + name);
       }
       output.write(buffer, 0, read);
     }
@@ -586,7 +670,7 @@ public final class BlockbenchProjectReader implements AssetImportPort {
             || height > MAX_TEXTURE_DIMENSION
             || (long) width * height > MAX_TEXTURE_PIXELS) {
           throw new IllegalArgumentException(
-              "Texture dimensions exceed 1024x1024 limit: " + textureName);
+              "Texture dimensions exceed 4096x4096 limit: " + textureName);
         }
         if ("png".equalsIgnoreCase(reader.getFormatName())) {
           return data;
@@ -853,6 +937,7 @@ public final class BlockbenchProjectReader implements AssetImportPort {
     return switch (value.toLowerCase(Locale.ROOT)) {
       case "linear" -> Easing.LINEAR;
       case "step" -> Easing.STEP;
+      case "catmullrom" -> Easing.EASE_IN_OUT_CUBIC;
       default ->
           throw new IllegalArgumentException("Unsupported Blockbench interpolation: " + value);
     };
@@ -865,6 +950,9 @@ public final class BlockbenchProjectReader implements AssetImportPort {
     }
     return bytes;
   }
+
+  private record ParsedOutliner(
+      List<SpectraAssetNode> nodes, Map<String, String> nodeIdsByBlockbenchUuid) {}
 
   private record BundleManifest(
       String modelId, Set<String> texturePaths, Map<String, String> checksums) {}

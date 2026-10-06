@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.paper.update;
 
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.update.UpdateInfo;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
 import java.util.Set;
@@ -15,10 +16,12 @@ import org.bukkit.event.player.PlayerJoinEvent;
 /** Listens for admin player joins to notify about available plugin updates. */
 public final class UpdateNotificationListener implements Listener {
   private final UpdateService updateService;
+  private final LocaleCatalog locales;
   private final Set<UUID> notifiedPlayers = ConcurrentHashMap.newKeySet();
 
-  public UpdateNotificationListener(UpdateService updateService) {
+  public UpdateNotificationListener(UpdateService updateService, LocaleCatalog locales) {
     this.updateService = updateService;
+    this.locales = locales;
   }
 
   @EventHandler
@@ -38,12 +41,15 @@ public final class UpdateNotificationListener implements Listener {
     if (info.updateAvailable()) {
       notifiedPlayers.add(player.getUniqueId());
       player.sendMessage(
-          Component.text("[SpectraEvents] ", NamedTextColor.DARK_PURPLE)
-              .append(Component.text("A new version is available: ", NamedTextColor.YELLOW))
+          Component.text(locales.message("messages.prefix"), NamedTextColor.DARK_PURPLE)
+              .append(
+                  Component.text(
+                      locales.message("messages.update-available"), NamedTextColor.YELLOW))
               .append(
                   Component.text(
                       info.currentVersion() + " -> " + info.latestVersion(), NamedTextColor.GREEN))
-              .append(Component.text(". Run /spectraevents update info", NamedTextColor.GRAY)));
+              .append(
+                  Component.text(locales.message("messages.update-command"), NamedTextColor.GRAY)));
     }
   }
 }
