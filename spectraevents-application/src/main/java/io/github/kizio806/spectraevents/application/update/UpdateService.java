@@ -14,7 +14,7 @@ public final class UpdateService {
   public UpdateService(String currentVersion, UpdatePort updatePort) {
     this.currentVersion = Objects.requireNonNull(currentVersion, "currentVersion");
     this.updatePort = Objects.requireNonNull(updatePort, "updatePort");
-    this.cachedInfo = new AtomicReference<>(UpdateInfo.upToDate(currentVersion));
+    this.cachedInfo = new AtomicReference<>(UpdateInfo.notChecked(currentVersion));
   }
 
   public CompletableFuture<UpdateInfo> checkNow(String channel) {

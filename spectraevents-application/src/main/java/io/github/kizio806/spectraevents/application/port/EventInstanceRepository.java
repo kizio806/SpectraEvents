@@ -4,6 +4,7 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 /** Application-owned storage boundary for runtime event instances. */
 public interface EventInstanceRepository {
@@ -36,6 +37,20 @@ public interface EventInstanceRepository {
   }
 
   /**
+   * Persists state durably without blocking a platform-owned thread. The returned future completes
+   * only after the write has committed; callers must wait for it before an irreversible action.
+   */
+  default CompletableFuture<Void> saveStateDurablyAsync(
+      io.github.kizio806.spectraevents.application.execution.EventRuntimeState state) {
+    try {
+      saveStateDurably(state);
+      return CompletableFuture.completedFuture(null);
+    } catch (RuntimeException exception) {
+      return CompletableFuture.failedFuture(exception);
+    }
+  }
+
+  /**
    * Stores a newly-created instance and its initial runtime state as one durable unit when the
    * backing store supports transactions.
    */
@@ -44,6 +59,18 @@ public interface EventInstanceRepository {
       io.github.kizio806.spectraevents.application.execution.EventRuntimeState state) {
     save(eventInstance);
     saveStateDurably(state);
+  }
+
+  /** Stores a new instance and its initial state without blocking a platform-owned thread. */
+  default CompletableFuture<Void> saveWithStateDurablyAsync(
+      EventInstance eventInstance,
+      io.github.kizio806.spectraevents.application.execution.EventRuntimeState state) {
+    try {
+      saveWithStateDurably(eventInstance, state);
+      return CompletableFuture.completedFuture(null);
+    } catch (RuntimeException exception) {
+      return CompletableFuture.failedFuture(exception);
+    }
   }
 
   /** Finds the runtime state by identity, if previously saved. */

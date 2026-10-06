@@ -7,7 +7,7 @@ This directory contains the core product specification for SpectraEvents, a gene
 - [Vision](vision.md): The overarching product goals, the problems it solves, and its non-goals.
 - [Scope](scope.md): What is included in V1 and what is explicitly deferred or out of scope.
 - [Terminology](terminology.md): A glossary of standardized concepts (e.g., Event Definition vs. Event Instance) to prevent ambiguity.
-- [Feature Matrix](feature-matrix.md): A comparison of reference events used to identify common engine primitives.
+- [Feature Matrix](feature-matrix.md): The current platform capability contract and shipped presets.
 - [Engine Primitives Analysis](engine-primitives-analysis.md): Derivation of generic systems required across events.
 - [Admin Workflow](admin-workflow.md): The expected end-to-end experience for server administrators.
 - [Commands](commands.md): The designed predictable command tree structure.

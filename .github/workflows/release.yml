@@ -84,6 +84,11 @@ jobs:
       - name: Execute complete quality gate and build exactly two distributions
         run: ./gradlew --no-daemon --stacktrace clean check build
 
+      - name: Require explicit resource-pack client delivery evidence
+        run: >-
+          python3 scripts/release/verify_resource_pack_client_evidence.py
+          --evidence config/release/resource-pack-client-evidence.json
+
       - name: Scan locked dependencies for known vulnerabilities
         uses: google/osv-scanner-action/osv-scanner-action@8dc09193bb540e09b23da07ad7e30bd33bf87018 # v2.3.8
         with:
@@ -96,11 +101,15 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${{ steps.metadata.outputs.version }}"
-          mkdir release-artifacts
+          mkdir -p release-artifacts/resource-packs
           cp "distributions/paper/build/libs/SpectraEvents-${VERSION}-paper.jar" release-artifacts/
           cp "distributions/spigot/build/libs/SpectraEvents-${VERSION}-spigot.jar" release-artifacts/
+          ./gradlew --no-daemon :adapters:assets-blockbench:buildReleaseResourcePacks \
+            -PreleaseResourcePackOutputDir="$GITHUB_WORKSPACE/release-artifacts/resource-packs" \
+            --console=plain
           test "$(find release-artifacts -maxdepth 1 -name 'SpectraEvents-*.jar' | wc -l)" -eq 2
-          (cd release-artifacts && sha256sum SpectraEvents-*.jar > SHA256SUMS.txt)
+          test "$(find release-artifacts/resource-packs -maxdepth 1 -name 'spectraevents-profile_*.zip' | wc -l)" -eq 3
+          (cd release-artifacts && find . -type f \( -name 'SpectraEvents-*.jar' -o -name 'spectraevents-profile_*.zip' \) -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt)
           (cd release-artifacts && sha256sum -c SHA256SUMS.txt)
 
       - name: Upload verified release inputs
@@ -164,7 +173,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Refuse publication while a required runtime row is unavailable
-        run: python3 scripts/release/verify_release_gate.py
+        run: >-
+          python3 scripts/release/verify_release_gate.py
+          --runtime-matrix-status "${{ needs.runtime-matrix.result }}"
 
   publish:
     name: Release / Publish
@@ -189,14 +200,30 @@ jobs:
           {
             echo "# SpectraEvents v${VERSION}"
             echo
-            echo "Two platform-specific artifacts; do not mix them:"
+            echo "## Beta release metadata"
+            echo
+            echo "- Channel: beta"
+            echo "- Java: 25"
+            echo "- Environment: dedicated server"
+            echo
+            echo "## Server compatibility"
             echo
             echo "- Paper/Purpur for Minecraft 26.1-26.3: SpectraEvents-${VERSION}-paper.jar"
             echo "- Folia for Minecraft 26.1-26.2: SpectraEvents-${VERSION}-paper.jar"
-            echo "- Folia for Minecraft 26.3 is refused at startup until a real-server workflow passes."
             echo "- Spigot/CraftBukkit 26.1-26.3: SpectraEvents-${VERSION}-spigot.jar"
             echo
+            echo "Folia 26.3 is explicitly refused at startup; install a newer SpectraEvents version when support returns."
+            echo
+            echo "## Resource packs"
+            echo
+            echo "Three version-specific client packs are published to the separate SpectraEvents Assets project: 26.1, 26.2 and 26.3."
+            echo "Use the ZIP matching the running Minecraft release line; do not substitute one profile for another."
+            echo
+            echo "## Verification"
+            echo
             echo "All declared real-server lifecycle, cleanup, and restart-recovery jobs passed before publication."
+            echo
+            echo "## Changes"
             echo
             if [[ -f CHANGELOG.md ]]; then
               awk -v version="$VERSION" '$0 ~ "^## \\[" version "\\]" {show=1; next} /^## \\[/ {show=0} show' CHANGELOG.md
@@ -205,58 +232,117 @@ jobs:
             fi
           } > release-notes.md
 
-      - name: Publish Paper family version to Modrinth
-        id: modrinth_paper
-        continue-on-error: true
+      - name: Require both configured Modrinth projects
+        shell: bash
+        env:
+          PLUGIN_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
+          RESOURCE_PACK_PROJECT_ID: ${{ secrets.MODRINTH_RESOURCE_PACK_PROJECT_ID || vars.MODRINTH_RESOURCE_PACK_PROJECT_ID }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$PLUGIN_PROJECT_ID" || { echo "::error::Set MODRINTH_PROJECT_ID before release."; exit 1; }
+          test -n "$RESOURCE_PACK_PROJECT_ID" || { echo "::error::Set MODRINTH_RESOURCE_PACK_PROJECT_ID before release."; exit 1; }
+          test -n "$MODRINTH_TOKEN" || { echo "::error::Set MODRINTH_TOKEN before release."; exit 1; }
+
+      - name: Publish Modrinth resource pack for Minecraft 26.1
+        id: modrinth_pack_26_1
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_RESOURCE_PACK_PROJECT_ID || vars.MODRINTH_RESOURCE_PACK_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          name: SpectraEvents Assets ${{ needs.build.outputs.version }} — Minecraft 26.1
+          version: ${{ needs.build.outputs.version }}+26.1
+          version-type: ${{ needs.build.outputs.modrinth_type }}
+          game-versions: 26.1
+          game-version-filter: releases
+          loaders: minecraft
+          environment: client
+          modrinth-featured: false
+          files: release-artifacts/resource-packs/spectraevents-profile_26_1.zip
+          changelog-file: release-notes.md
+
+      - name: Publish Modrinth resource pack for Minecraft 26.2
+        id: modrinth_pack_26_2
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_RESOURCE_PACK_PROJECT_ID || vars.MODRINTH_RESOURCE_PACK_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          name: SpectraEvents Assets ${{ needs.build.outputs.version }} — Minecraft 26.2
+          version: ${{ needs.build.outputs.version }}+26.2
+          version-type: ${{ needs.build.outputs.modrinth_type }}
+          game-versions: 26.2
+          game-version-filter: releases
+          loaders: minecraft
+          environment: client
+          modrinth-featured: false
+          files: release-artifacts/resource-packs/spectraevents-profile_26_2.zip
+          changelog-file: release-notes.md
+
+      - name: Publish Modrinth resource pack for Minecraft 26.3
+        id: modrinth_pack_26_3
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_RESOURCE_PACK_PROJECT_ID || vars.MODRINTH_RESOURCE_PACK_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          name: SpectraEvents Assets ${{ needs.build.outputs.version }} — Minecraft 26.3
+          version: ${{ needs.build.outputs.version }}+26.3
+          version-type: ${{ needs.build.outputs.modrinth_type }}
+          game-versions: 26.3
+          game-version-filter: releases
+          loaders: minecraft
+          environment: client
+          modrinth-featured: false
+          files: release-artifacts/resource-packs/spectraevents-profile_26_3.zip
+          changelog-file: release-notes.md
+
+      - name: Publish Paper, Purpur, Spigot and CraftBukkit distributions to Modrinth
+        id: modrinth_main
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          name: SpectraEvents ${{ needs.build.outputs.version }} — Paper family
-          version: ${{ needs.build.outputs.version }}-paper
+          name: SpectraEvents ${{ needs.build.outputs.version }} — Paper/Purpur and Spigot/CraftBukkit
+          version: ${{ needs.build.outputs.version }}
           version-type: ${{ needs.build.outputs.modrinth_type }}
           game-versions: |
             26.1
             26.2
             26.3
+          game-version-filter: releases
           loaders: |
             paper
             purpur
-          java: 25
-          environment: server
-          files: release-artifacts/SpectraEvents-*-paper.jar
-          changelog-file: release-notes.md
-
-      - name: Publish Spigot family version to Modrinth
-        id: modrinth_spigot
-        continue-on-error: true
-        uses: Kir-Antipov/mc-publish@v3.3
-        with:
-          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
-          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          name: SpectraEvents ${{ needs.build.outputs.version }} — Spigot/Bukkit
-          version: ${{ needs.build.outputs.version }}-spigot
-          version-type: ${{ needs.build.outputs.modrinth_type }}
-          game-versions: |
-            26.1
-            26.2
-            26.3
-          loaders: |
             spigot
             bukkit
           java: 25
           environment: server
-          files: release-artifacts/SpectraEvents-*-spigot.jar
+          modrinth-featured: false
+          files: |
+            release-artifacts/SpectraEvents-*-paper.jar
+            release-artifacts/SpectraEvents-*-spigot.jar
           changelog-file: release-notes.md
 
-      - name: Refuse a partial release
-        if: steps.modrinth_paper.outcome != 'success' || steps.modrinth_spigot.outcome != 'success'
-        shell: bash
-        run: |
-          echo "::error::Modrinth publication is partial or failed. Paper=${{ steps.modrinth_paper.outcome }}, Spigot=${{ steps.modrinth_spigot.outcome }}. GitHub Release was not created; inspect Modrinth and reconcile manually."
-          exit 1
+      - name: Publish the Folia 26.1-26.2 distribution to Modrinth
+        id: modrinth_folia
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          name: SpectraEvents ${{ needs.build.outputs.version }} — Folia 26.1-26.2
+          version: ${{ needs.build.outputs.version }}+folia
+          version-type: ${{ needs.build.outputs.modrinth_type }}
+          game-versions: |
+            26.1
+            26.2
+          game-version-filter: releases
+          loaders: folia
+          java: 25
+          environment: server
+          modrinth-featured: false
+          files: release-artifacts/SpectraEvents-*-paper.jar
+          changelog-file: release-notes.md
 
-      - name: Create GitHub Release after both Modrinth versions exist
+      - name: Create GitHub Release after all Modrinth versions exist
         id: github_release
         uses: softprops/action-gh-release@v3
         with:
@@ -269,6 +355,36 @@ jobs:
           prerelease: ${{ needs.build.outputs.prerelease }}
           make_latest: ${{ needs.build.outputs.prerelease == 'false' }}
 
+      - name: Remove newly published public versions if this release fails
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          VERSION_IDS: |
+            ${{ steps.modrinth_pack_26_1.outputs.modrinth-version }}
+            ${{ steps.modrinth_pack_26_2.outputs.modrinth-version }}
+            ${{ steps.modrinth_pack_26_3.outputs.modrinth-version }}
+            ${{ steps.modrinth_main.outputs.modrinth-version }}
+            ${{ steps.modrinth_folia.outputs.modrinth-version }}
+          GITHUB_RELEASE_OUTCOME: ${{ steps.github_release.outcome }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_RELEASE_OUTCOME" == "failure" ]] && gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release delete "$GITHUB_REF_NAME" --yes
+          fi
+          while IFS= read -r version_id; do
+            test -z "$version_id" && continue
+            status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+              --request DELETE \
+              --header "Authorization: $MODRINTH_TOKEN" \
+              "https://api.modrinth.com/v2/version/$version_id")"
+            test "$status" = 204 || test "$status" = 404 || {
+              echo "::error::Could not clean up Modrinth version $version_id (HTTP $status)."
+              exit 1
+            }
+          done <<< "$VERSION_IDS"
+
       - name: Release summary
         if: always()
         shell: bash
@@ -277,7 +393,8 @@ jobs:
             echo "# SpectraEvents Release"
             echo "- Version: ${{ needs.build.outputs.version }}"
             echo "- Runtime matrix: passed"
-            echo "- Modrinth Paper: ${{ steps.modrinth_paper.outcome }}"
-            echo "- Modrinth Spigot: ${{ steps.modrinth_spigot.outcome }}"
+            echo "- Modrinth resource packs (26.1/26.2/26.3): ${{ steps.modrinth_pack_26_1.outcome }}/${{ steps.modrinth_pack_26_2.outcome }}/${{ steps.modrinth_pack_26_3.outcome }}"
+            echo "- Modrinth main distribution: ${{ steps.modrinth_main.outcome }}"
+            echo "- Modrinth Folia distribution (26.1/26.2): ${{ steps.modrinth_folia.outcome }}"
             echo "- GitHub Release: ${{ steps.github_release.outcome }}"
           } >> "$GITHUB_STEP_SUMMARY"

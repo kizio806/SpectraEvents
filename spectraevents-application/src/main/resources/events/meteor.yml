@@ -1,6 +1,25 @@
-# Reference large-raid encounter. YAML owns waves and loot; only bounded scalar values are GUI-editable.
+# =============================================================================
+# SpectraEvents — Event Definition: Meteor
+# =============================================================================
+# A large raid against a falling Meteor core. Players unlock successive assault
+# phases by damaging the core and defeating its configured guardian waves.
+#
+# YAML owns behavior, rewards, models and messages. Only the bounded parameters
+# below are exposed to the admin panel; their min, max and step values are enforced.
+#
+# FIELD GUIDE: every `parameters` child is a guarded operator input; duration bounds are seconds.
+# `${parameter}` is substituted while loading the definition, so it can safely drive health, damage,
+# timers, zone radius and deadline. `initialize_health` creates the tracked core HP. Combat damage
+# is limited by maximum and cooldown; each health floor holds the core until its guardian wave is
+# cleared. `i18n:` action text is resolved from the server-selected locale at display time.
+# `initialize_ground_loot` prepares public loot; `release_ground_loot` drops it at the event site.
+# =============================================================================
+
+# Stable machine identifier used in commands, schedules and overrides.
 id: meteor
+# Event definition schema accepted by the compiler.
 schema-version: "1"
+# First state entered when the event starts.
 initial-phase: announced
 
 parameters:
@@ -81,15 +100,16 @@ encounter:
 
 phases:
   announced:
+    # Initialize the core once, publish the warning HUD, then wait for the configurable warning.
     on-enter:
       - type: initialize_health
         max: ${maximum-health}
       - type: show_bossbar
-        title: "<red><bold>METEOR INCOMING</bold> <gray>| warning active | %location%"
+        title: "i18n:event.meteor.announced-bossbar"
         color: RED
         style: NOTCHED_10
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <red>A Meteor will strike at %location%. Prepare for impact.</red>"
+        message: "i18n:event.meteor.announced-message"
     transitions:
       - trigger:
           type: timer_elapsed
@@ -97,6 +117,7 @@ phases:
         target: falling
 
   falling:
+    # Spawn and animate the model above the event anchor before the impact sequence.
     on-enter:
       - type: spawn_model
         model: meteor_core
@@ -104,9 +125,9 @@ phases:
       - type: play_animation
         animation: fall
       - type: update_bossbar
-        title: "<red><bold>METEOR FALLING</bold> <gray>| impact imminent | %location%"
+        title: "i18n:event.meteor.falling-bossbar"
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <red>The Meteor is descending at %location%.</red>"
+        message: "i18n:event.meteor.falling-message"
     transitions:
       - trigger:
           type: timer_elapsed
@@ -114,6 +135,7 @@ phases:
         target: impact_lock
 
   impact_lock:
+    # The impact is visible but invulnerable during its configured cooling period.
     on-enter:
       - type: move_model
         target: ground
@@ -129,9 +151,9 @@ phases:
       - type: set_locked
         duration: ${impact-lock-duration}
       - type: update_bossbar
-        title: "<gold><bold>METEOR IMPACT</bold> <gray>| core cooling | %location%"
+        title: "i18n:event.meteor.impact-bossbar"
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <yellow>The Meteor has struck. Its core is still unstable.</yellow>"
+        message: "i18n:event.meteor.impact-message"
     transitions:
       - trigger:
           type: timer_elapsed
@@ -139,15 +161,16 @@ phases:
         target: assault_one
 
   assault_one:
+    # Damage can lower health only to 75%; crossing that floor starts the first guardian gate.
     on-enter:
       - type: set_locked
         duration: 0s
       - type: play_animation
         animation: impact
       - type: update_bossbar
-        title: "<gold><bold>METEOR</bold> <gray>| Assault I | %health%/%max_health% HP | %location%"
+        title: "i18n:event.meteor.assault-one-bossbar"
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <green>The Meteor core is vulnerable.</green>"
+        message: "i18n:event.meteor.assault-one-message"
     transitions:
       - trigger:
           type: combat_damage
@@ -164,6 +187,7 @@ phases:
         target: fracture_guard
 
   fracture_guard:
+    # Players must clear this named wave before its timeout, otherwise the event fails.
     on-enter:
       - type: set_locked
         duration: ${first-gate-timeout}
@@ -171,16 +195,16 @@ phases:
         particle: minecraft:lava
         count: 80
       - type: update_bossbar
-        title: "<yellow><bold>METEOR FRACTURE</bold> <gray>| clear the guardians | %location%"
+        title: "i18n:event.meteor.fracture-bossbar"
       - type: spawn_wave
         wave-id: fracture_guard
         mobs:
           - entity_type: minecraft:magma_cube
-            name: "<red>Meteor Fragment</red>"
+            name: "i18n:event.meteor.fragment-name"
             amount: 12
             radius: 18
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <yellow>Fracture: clear the Meteor fragments.</yellow>"
+        message: "i18n:event.meteor.fracture-message"
     transitions:
       - trigger:
           type: wave_cleared
@@ -192,13 +216,14 @@ phases:
         target: failed
 
   assault_two:
+    # Second damage segment stops at the 50% floor.
     on-enter:
       - type: set_locked
         duration: 0s
       - type: play_animation
         animation: impact
       - type: update_bossbar
-        title: "<gold><bold>METEOR</bold> <gray>| Assault II | %health%/%max_health% HP | %location%"
+        title: "i18n:event.meteor.assault-two-bossbar"
     transitions:
       - trigger:
           type: combat_damage
@@ -215,6 +240,7 @@ phases:
         target: eruption_guard
 
   eruption_guard:
+    # Mixed guardian wave for the second gate.
     on-enter:
       - type: set_locked
         duration: ${second-gate-timeout}
@@ -222,20 +248,20 @@ phases:
         particle: minecraft:flame
         count: 110
       - type: update_bossbar
-        title: "<gold><bold>METEOR ERUPTION</bold> <gray>| contain the eruption | %location%"
+        title: "i18n:event.meteor.eruption-bossbar"
       - type: spawn_wave
         wave-id: eruption_guard
         mobs:
           - entity_type: minecraft:blaze
-            name: "<gold>Infernal Meteor Blaze</gold>"
+            name: "i18n:event.meteor.infernal-blaze-name"
             amount: 8
             radius: 20
           - entity_type: minecraft:magma_cube
-            name: "<red>Molten Fragment</red>"
+            name: "i18n:event.meteor.molten-fragment-name"
             amount: 10
             radius: 20
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <gold>Eruption: contain the blazing guardians.</gold>"
+        message: "i18n:event.meteor.eruption-message"
     transitions:
       - trigger:
           type: wave_cleared
@@ -247,13 +273,14 @@ phases:
         target: failed
 
   assault_three:
+    # Third damage segment stops at the 25% floor.
     on-enter:
       - type: set_locked
         duration: 0s
       - type: play_animation
         animation: impact
       - type: update_bossbar
-        title: "<red><bold>METEOR</bold> <gray>| Assault III | %health%/%max_health% HP | %location%"
+        title: "i18n:event.meteor.assault-three-bossbar"
     transitions:
       - trigger:
           type: combat_damage
@@ -270,6 +297,7 @@ phases:
         target: cataclysm
 
   cataclysm:
+    # Final guardian gate blocks all core damage until the named wave is cleared.
     on-enter:
       - type: set_locked
         duration: ${final-gate-timeout}
@@ -277,24 +305,24 @@ phases:
         particle: minecraft:explosion_emitter
         count: 18
       - type: update_bossbar
-        title: "<dark_red><bold>METEOR CATACLYSM</bold> <gray>| defeat the Warden | %location%"
+        title: "i18n:event.meteor.cataclysm-bossbar"
       - type: spawn_wave
         wave-id: cataclysm_guard
         mobs:
           - entity_type: minecraft:ravager
-            name: "<dark_red><bold>Meteor Warden</bold></dark_red>"
+            name: "i18n:event.meteor.warden-name"
             amount: 1
             radius: 4
           - entity_type: minecraft:wither_skeleton
-            name: "<dark_red>Meteor Guard</dark_red>"
+            name: "i18n:event.meteor.guard-name"
             amount: 12
             radius: 24
           - entity_type: minecraft:blaze
-            name: "<gold>Cataclysm Blaze</gold>"
+            name: "i18n:event.meteor.cataclysm-blaze-name"
             amount: 8
             radius: 24
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <dark_red>Cataclysm: defeat the Meteor Warden and its guards.</dark_red>"
+        message: "i18n:event.meteor.cataclysm-message"
     transitions:
       - trigger:
           type: wave_cleared
@@ -306,13 +334,14 @@ phases:
         target: failed
 
   final_core:
+    # The exposed core accepts damage down to zero and ends in victory.
     on-enter:
       - type: set_locked
         duration: 0s
       - type: update_bossbar
-        title: "<light_purple><bold>METEOR FINAL CORE</bold> <gray>| %health%/%max_health% HP | %location%"
+        title: "i18n:event.meteor.final-core-bossbar"
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <light_purple>The final Meteor core is exposed.</light_purple>"
+        message: "i18n:event.meteor.final-core-message"
     transitions:
       - trigger:
           type: combat_damage
@@ -328,6 +357,7 @@ phases:
         target: victory
 
   victory:
+    # Successful end: public ground loot is released before the model and HUD are removed.
     on-enter:
       - type: play_animation
         animation: collapse
@@ -355,12 +385,13 @@ phases:
       - type: release_ground_loot
         radius: 4.0
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <green>The Meteor was destroyed. Public loot has fallen at %location%.</green>"
+        message: "i18n:event.meteor.victory-message"
       - type: remove_bossbar
       - type: remove_model
       - type: complete_event
 
   failed:
+    # Failed end: play the explosion only; never create or release loot.
     on-enter:
       - type: play_sound
         sound: minecraft:entity.generic.explode
@@ -370,7 +401,7 @@ phases:
         particle: minecraft:explosion_emitter
         count: 24
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <dark_red>The Meteor became unstable and exploded. No loot was recovered.</dark_red>"
+        message: "i18n:event.meteor.failed-message"
       - type: remove_bossbar
       - type: remove_model
       - type: fail_event

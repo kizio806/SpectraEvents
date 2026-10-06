@@ -14,6 +14,7 @@ class ModrinthResourcePackSourceTest {
 
   private static class StubClient extends ModrinthApiClient {
     private final String fixture;
+    private String requestedGameVersion;
 
     StubClient(String fixture) {
       super("1.0");
@@ -23,6 +24,7 @@ class ModrinthResourcePackSourceTest {
     @Override
     public CompletableFuture<String> getProjectVersions(
         String projectId, String loader, String gameVersion) {
+      requestedGameVersion = gameVersion;
       if ("26.3".equals(gameVersion) && "[]".equals(fixture)) {
         return CompletableFuture.completedFuture("[]");
       }
@@ -64,6 +66,7 @@ class ModrinthResourcePackSourceTest {
     Assertions.assertEquals("https://cdn.modrinth.com/data/xyz/versions/v1/pack.zip", desc.url());
     Assertions.assertEquals("a".repeat(40), desc.sha1());
     Assertions.assertEquals("d".repeat(128), desc.sha512());
+    Assertions.assertEquals("26.1", mockClient.requestedGameVersion);
   }
 
   @Test
@@ -107,6 +110,20 @@ class ModrinthResourcePackSourceTest {
 
     Assertions.assertEquals("approved", descriptor.id());
     Assertions.assertEquals("https://cdn.modrinth.com/approved.zip", descriptor.url());
+    Assertions.assertEquals("different-release-name", descriptor.version());
+  }
+
+  @Test
+  void rejectsAProfileThatDoesNotMatchTheRunningServer() {
+    ModrinthResourcePackSource source =
+        new ModrinthResourcePackSource(new StubClient("[]"), "xyz", TEST_MINECRAFT_VERSION);
+
+    ExecutionException exception =
+        Assertions.assertThrows(
+            ExecutionException.class,
+            () -> source.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_2).get());
+
+    Assertions.assertTrue(exception.getCause().getMessage().contains("does not match"));
   }
 
   @Test

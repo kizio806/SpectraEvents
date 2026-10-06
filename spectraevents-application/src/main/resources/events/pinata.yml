@@ -1,3 +1,19 @@
+# =============================================================================
+# SpectraEvents — Event Definition: Piñata
+# =============================================================================
+# A short social event: players right-click the model to fill the hit progress
+# bar. Reaching the goal grants participant rewards; timeout fails the event.
+#
+# All player-facing Piñata text uses i18n: keys from locales/<locale>.yml.
+# Durations use ms, s, m or h; min, max and step for duration parameters are seconds.
+#
+# FIELD GUIDE: `announcement-duration`, `goal-hits` and `active-duration` are the only admin GUI
+# values. `initialize_hit_counter` makes `hits` progress available to the boss bar. Every
+# interaction increments exactly one hit; the 75% threshold changes only presentation to frenzy.
+# `create_participant_reward_claims` delivers each earned item directly to a player's inventory,
+# dropping it at that player's location if full. `i18n:` always points at locales/<selected>.yml.
+# =============================================================================
+
 id: pinata
 schema-version: "1"
 initial-phase: announced
@@ -36,11 +52,11 @@ phases:
   announced:
     on-enter:
       - type: show_bossbar
-        title: "<light_purple><bold>PIÑATA</bold> <gray>| manifesting in 60s | %location%"
+        title: "i18n:event.pinata.countdown"
         color: PINK
         style: PROGRESS
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <light_purple>Piñata announced at %location%.</light_purple>"
+        message: "i18n:event.pinata.announced"
     transitions:
       - trigger:
           type: timer_elapsed
@@ -55,11 +71,11 @@ phases:
         model: pinata
         height-offset: 4
       - type: play_animation
-        animation: sway
+        animation: idle
         loop: LOOP
       - type: show_title
-        title: "<light_purple><bold>PIÑATA EVENT"
-        subtitle: "<yellow>Right-click to hit it!"
+        title: "i18n:event.pinata.started-title"
+        subtitle: "i18n:event.pinata.started-subtitle"
     transitions:
       - trigger:
           type: timer_elapsed
@@ -69,7 +85,8 @@ phases:
   active:
     on-enter:
       - type: update_bossbar
-        title: "<light_purple><bold>PIÑATA</bold> <yellow>%hits%/%max_hits%</yellow> <gray>| %location%"
+        title: "i18n:event.pinata.hits"
+        progress: hits
     transitions:
       - trigger:
           type: interaction
@@ -79,9 +96,10 @@ phases:
             loop: ONCE
           - type: increment_hits
           - type: update_bossbar
-            title: "<light_purple><bold>PIÑATA</bold> <yellow>%hits%/%max_hits%</yellow> <gray>| %location%"
+            title: "i18n:event.pinata.hits"
+            progress: hits
           - type: send_message
-            message: "<green>+1 hit: <yellow>%hits%/%max_hits%</yellow></green>"
+            message: "i18n:event.pinata.hit-confirmation"
       - trigger:
           type: hits_percent_threshold_crossed
           percent: 75
@@ -101,9 +119,10 @@ phases:
         particle: minecraft:firework
         count: 80
       - type: update_bossbar
-        title: "<gold><bold>PIÑATA FRENZY</bold> <yellow>%hits%/%max_hits%</yellow> <gray>| %location%"
+        title: "i18n:event.pinata.frenzy"
+        progress: hits
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <yellow>Piñata frenzy at 75%!</yellow>"
+        message: "i18n:event.pinata.frenzy-announced"
     transitions:
       - trigger:
           type: interaction
@@ -113,7 +132,8 @@ phases:
             loop: ONCE
           - type: increment_hits
           - type: update_bossbar
-            title: "<gold><bold>PIÑATA FRENZY</bold> <yellow>%hits%/%max_hits%</yellow> <gray>| %location%"
+            title: "i18n:event.pinata.frenzy"
+            progress: hits
       - trigger:
           type: hits_reached
         target: victory
@@ -126,7 +146,7 @@ phases:
   victory:
     on-enter:
       - type: play_animation
-        animation: break
+        animation: destroy
         loop: ONCE
       - type: create_participant_reward_claims
         items:
@@ -137,7 +157,7 @@ phases:
             amount: 1
             chance: 70
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <light_purple>Piñata broken. Rewards are in /se rewards.</light_purple>"
+        message: "i18n:event.pinata.completed"
       - type: remove_bossbar
       - type: remove_model
       - type: complete_event

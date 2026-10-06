@@ -28,7 +28,11 @@ class VerifyReleaseGateTest(unittest.TestCase):
         )
 
     def test_allows_release_when_no_blockers_exist(self) -> None:
-        result = self.run_gate(self.write_config({"schemaVersion": 1, "blockers": []}))
+        result = self.run_gate(
+            self.write_config({"schemaVersion": 1, "blockers": []}),
+            "--runtime-matrix-status",
+            "success",
+        )
 
         self.assertEqual(0, result.returncode)
         self.assertIn("RELEASE GATE PASS", result.stdout)
@@ -49,15 +53,48 @@ class VerifyReleaseGateTest(unittest.TestCase):
             ],
         }
 
-        blocked = self.run_gate(self.write_config(config))
-        notice = self.run_gate(self.write_config(config), "--allow-blocked")
+        blocked = self.run_gate(
+            self.write_config(config), "--runtime-matrix-status", "success"
+        )
+        notice = self.run_gate(
+            self.write_config(config),
+            "--runtime-matrix-status",
+            "success",
+            "--allow-blocked",
+        )
 
         self.assertEqual(1, blocked.returncode)
         self.assertIn("RELEASE GATE BLOCKED", blocked.stdout)
         self.assertEqual(0, notice.returncode)
 
+    def test_refuses_to_pass_without_or_after_a_failed_runtime_matrix(self) -> None:
+        path = self.write_config({"schemaVersion": 1, "blockers": []})
+
+        missing = self.run_gate(path)
+        failed = self.run_gate(path, "--runtime-matrix-status", "failure")
+
+        self.assertEqual(2, missing.returncode)
+        self.assertIn("runtime-matrix-status", missing.stderr)
+        self.assertEqual(1, failed.returncode)
+        self.assertIn("RELEASE GATE BLOCKED", failed.stdout)
+
+    def test_default_configuration_allows_the_declared_runtime_matrix(self) -> None:
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), "--runtime-matrix-status", "success"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(0, result.returncode)
+        self.assertIn("RELEASE GATE PASS", result.stdout)
+
     def test_rejects_invalid_or_duplicate_blockers(self) -> None:
-        result = self.run_gate(self.write_config({"schemaVersion": 1, "blockers": [{"server": "x"}]}))
+        result = self.run_gate(
+            self.write_config({"schemaVersion": 1, "blockers": [{"server": "x"}]}),
+            "--runtime-matrix-status",
+            "success",
+        )
 
         self.assertEqual(2, result.returncode)
         self.assertIn("RELEASE GATE INVALID", result.stderr)

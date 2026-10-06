@@ -16,7 +16,7 @@ destroy a corrupted, self-healing crystal monolith while fending off waves of mo
 
 ## Visual Model
 
-The `metin_stone` model ([`models/metin.yml`](../authoring/models.md)) is built from 14 parts:
+The `metin_stone` model ([`assets/source/metin_stone.bbmodel`](../authoring/models.md)) is imported from Blockbench:
 
 | Group | Parts | Description |
 |---|---|---|
@@ -37,7 +37,7 @@ The `metin_stone` model ([`models/metin.yml`](../authoring/models.md)) is built 
 
 | Concern | Contract |
 |---|---|
-| Visual asset | `models/metin.yml` — 14-part model |
+| Visual asset | `assets/source/metin_stone.bbmodel` — imported model |
 | Health | `initialize_health` with 1000 HP |
 | Damage Feedback | `interaction` triggers damage and updates the bossbar |
 | Mob Waves | `health_threshold_crossed` at 75%, 50%, and 25% HP spawns protecting mobs |

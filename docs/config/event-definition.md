@@ -67,8 +67,8 @@ conditions, and actions. When an instance ends, its snapshot is released.
 
 | Area | v1 contract |
 | :--- | :--- |
-| Model | `spawn_model`, `move_model`, `remove_model`; model YAML is loaded from `plugins/SpectraEvents/models/*.yml`. |
-| Animations | Named animations live inside model YAML and are started with `play_animation` after `spawn_model`; playback is stopped before cleanup. |
+| Model | `spawn_model`, `move_model`, `remove_model`; Blockbench `.bbmodel` and `.spectra.zip` sources are loaded from `plugins/SpectraEvents/assets/source/`. |
+| Animations | Named Blockbench animations are started with `play_animation` after `spawn_model`; playback is stopped before cleanup. |
 | Phases | `phases` is a map. A phase may contain `on-enter` and `transitions`. |
 | Triggers | A transition has `trigger.type`; supported runtime triggers include `manual`, `timer_elapsed`, `interaction`, `health_depleted`, `health_threshold_crossed`, `hits_reached`, and `entity_death`. |
 | Conditions | A transition may contain a list of conditions. Core v1 evaluates `is_locked` and `not_locked`; integrations may register additional resolvers. |

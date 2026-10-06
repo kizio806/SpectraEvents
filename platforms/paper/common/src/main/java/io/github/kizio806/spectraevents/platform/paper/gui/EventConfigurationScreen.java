@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.paper.gui;
 
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.registry.RegisteredEventDefinition;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
@@ -18,6 +19,7 @@ public final class EventConfigurationScreen {
   public static Inventory createInventory(
       EventDefinitionRegistry definitionRegistry,
       PaperEventSettingsStore settingsStore,
+      LocaleCatalog locales,
       int requestedPage) {
     List<RegisteredEventDefinition> definitions = List.copyOf(definitionRegistry.getAll());
     int page = EventGuiPagination.pageFor(requestedPage, definitions.size());
@@ -34,7 +36,7 @@ public final class EventConfigurationScreen {
             String.valueOf(page),
             payloads,
             54,
-            Component.text("Event Configuration", NamedTextColor.YELLOW));
+            Component.text(locales.message("admin.configuration.title"), NamedTextColor.YELLOW));
 
     int renderSlot = 0;
     for (RegisteredEventDefinition registered : pageItems) {
@@ -47,27 +49,37 @@ public final class EventConfigurationScreen {
               Component.text(id, NamedTextColor.GOLD),
               List.of(
                   Component.text(
-                      "YAML parameters: " + registered.sourceSpec().parameters().size(),
+                      locales.message(
+                          "admin.configuration.yaml-parameters",
+                          Map.of("count", registered.sourceSpec().parameters().size())),
                       NamedTextColor.YELLOW),
                   Component.text(
-                      values.isEmpty() ? "No saved overrides" : values.toString(),
+                      values.isEmpty()
+                          ? locales.message("admin.configuration.no-overrides")
+                          : locales.message(
+                              "admin.configuration.overrides", Map.of("values", values)),
                       NamedTextColor.GRAY),
-                  Component.text("Click to edit declared scalar overrides", NamedTextColor.GREEN),
+                  Component.text(locales.message("admin.configuration.edit"), NamedTextColor.GREEN),
                   Component.text(
-                      "Exact values are also available by command", NamedTextColor.DARK_GRAY))));
+                      locales.message("admin.configuration.exact-command"),
+                      NamedTextColor.DARK_GRAY))));
     }
 
     inventory.setItem(
         49,
         MainScreen.createGuiItem(
-            Material.BARRIER, Component.text("Back to Main Menu", NamedTextColor.RED), List.of()));
+            Material.BARRIER,
+            Component.text(locales.message("common.back-main"), NamedTextColor.RED),
+            List.of()));
     inventory.setItem(
         53,
         MainScreen.createGuiItem(
             Material.CLOCK,
-            Component.text("Refresh", NamedTextColor.AQUA),
-            List.of(Component.text("Reload saved overrides", NamedTextColor.GRAY))));
-    EventGuiPagination.addControls(inventory, page, definitions.size());
+            Component.text(locales.message("common.refresh"), NamedTextColor.AQUA),
+            List.of(
+                Component.text(
+                    locales.message("admin.configuration.refresh"), NamedTextColor.GRAY))));
+    EventGuiPagination.addControls(inventory, page, definitions.size(), locales);
     return inventory;
   }
 }

@@ -77,6 +77,17 @@ public final class InMemoryEventInstanceRepository
   }
 
   @Override
+  public java.util.concurrent.CompletableFuture<List<RewardClaim>> findByStatusAsync(
+      RewardClaimStatus status) {
+    Objects.requireNonNull(status, "status");
+    return java.util.concurrent.CompletableFuture.completedFuture(
+        rewardClaims.values().stream()
+            .filter(claim -> claim.status() == status)
+            .sorted(java.util.Comparator.comparing(RewardClaim::createdAt))
+            .toList());
+  }
+
+  @Override
   public boolean beginDelivery(java.util.UUID claimId) {
     java.util.concurrent.atomic.AtomicBoolean claimed =
         new java.util.concurrent.atomic.AtomicBoolean();
@@ -100,20 +111,27 @@ public final class InMemoryEventInstanceRepository
   }
 
   @Override
-  public void returnToPending(java.util.UUID claimId) {
+  public boolean returnToPending(java.util.UUID claimId) {
+    java.util.concurrent.atomic.AtomicBoolean returned =
+        new java.util.concurrent.atomic.AtomicBoolean();
     rewardClaims.computeIfPresent(
         Objects.requireNonNull(claimId, "claimId"),
         (ignored, claim) ->
-            claim.status() == RewardClaimStatus.DELIVERING
-                ? new RewardClaim(
-                    claim.id(),
-                    claim.instanceId(),
-                    claim.playerId(),
-                    claim.items(),
-                    RewardClaimStatus.PENDING,
-                    claim.createdAt(),
-                    null)
-                : claim);
+            claim.status() == RewardClaimStatus.DELIVERING ? pendingClaim(claim, returned) : claim);
+    return returned.get();
+  }
+
+  private static RewardClaim pendingClaim(
+      RewardClaim claim, java.util.concurrent.atomic.AtomicBoolean returned) {
+    returned.set(true);
+    return new RewardClaim(
+        claim.id(),
+        claim.instanceId(),
+        claim.playerId(),
+        claim.items(),
+        RewardClaimStatus.PENDING,
+        claim.createdAt(),
+        null);
   }
 
   @Override

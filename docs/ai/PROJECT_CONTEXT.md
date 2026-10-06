@@ -5,8 +5,8 @@
 SpectraEvents is a modular, data-driven 3D event engine for modern Paper-family and Spigot-family
 Minecraft servers.
 
-- Supported families: Paper/Purpur/Folia and Spigot/CraftBukkit
-- Current compatibility band: Minecraft 26.1, 26.2, and 26.3
+- Supported families: Paper/Purpur (26.1–26.3), Folia (26.1–26.2), and Spigot/CraftBukkit
+- Current compatibility band: Minecraft 26.1, 26.2, and 26.3; Folia 26.3 is explicitly refused
 - Platform runtime: Java 25
 - Platform-neutral baseline: Java 21
 
@@ -32,8 +32,9 @@ Seasonal Event, Pirate Treasure, and UFO. Most behavior should be composed from 
 primitives rather than implemented as isolated event-specific systems.
 
 M2 and M3 are complete: the signed Generic Model import, local resource-pack generation, and opt-in
-administrator-hosted delivery were confirmed by the operator in a real-client workflow; the five
-reference events remain ordinary YAML and asset definitions with no event-specific coordinators. M4
-production compatibility is complete: Paper/Purpur, Spigot/CraftBukkit 26.1–26.3 and Folia 26.1–26.2
-have real-server coverage. The current milestone is M5: admin GUI expansion and documentation
-cleanup. No public addon API exists and none is planned without a demonstrated use case.
+administrator-hosted delivery contract are implemented; the five reference events remain ordinary
+YAML and asset definitions with no event-specific coordinators. M4 production compatibility targets
+the declared loader/version rows. Folia 26.3 is outside this beta's declared compatibility band and
+is refused with an upgrade message; real-client delivery acceptance remains required for every hosted
+pack. The current milestone is M5: admin GUI expansion and documentation cleanup. No public addon API
+exists and none is planned without a demonstrated use case.

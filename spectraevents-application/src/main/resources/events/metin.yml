@@ -1,6 +1,24 @@
-# Reference large-raid encounter. One Metin model persists through every phase.
+# =============================================================================
+# SpectraEvents — Event Definition: Metin
+# =============================================================================
+# A persistent Metin stone raid. One model remains through every phase while
+# damage thresholds spawn configured guard waves and unlock the final defense.
+#
+# This definition intentionally has no GUI-editable scalar parameters. Edit its
+# YAML deliberately, validate it, then reload definitions before starting it.
+#
+# FIELD GUIDE: `initialize_health` owns the persistent target HP; `set_locked` controls whether
+# interaction damage is accepted. A `health_threshold_crossed` trigger runs once when crossing the
+# stated absolute HP value. Each `spawn_wave` uses a stable wave-id consumed by `wave_cleared`.
+# `i18n:` names, messages and HUD titles resolve for the selected server locale at runtime. The
+# podium pools are ranked reward delivery: inventory first, otherwise the item drops at the winner.
+# =============================================================================
+
+# Stable machine identifier used in commands, schedules and overrides.
 id: metin
+# Event definition schema accepted by the compiler.
 schema-version: "1"
+# First state entered when the event starts.
 initial-phase: manifestation
 
 encounter:
@@ -10,6 +28,7 @@ encounter:
 
 phases:
   manifestation:
+    # Create the stone, lock it for the arrival sequence, and announce its location.
     on-enter:
       - type: initialize_health
         max: 1000
@@ -20,15 +39,19 @@ phases:
         height-offset: 0
       - type: play_animation
         animation: idle
+      - type: play_sound
+        sound: minecraft:block.end_portal.spawn
+        volume: 1.0
+        pitch: 0.8
       - type: spawn_particles
         particle: minecraft:portal
         count: 80
       - type: show_bossbar
-        title: "<dark_purple><bold>METIN</bold> <gray>| %phase% | %health%/%max_health% HP | %location%"
+        title: "i18n:event.metin.manifestation-bossbar"
         color: PURPLE
         style: NOTCHED_10
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <dark_purple>Metin manifested at %location%.</dark_purple>"
+        message: "i18n:event.metin.manifestation-message"
     transitions:
       - trigger:
           type: timer_elapsed
@@ -36,23 +59,30 @@ phases:
         target: dominance
 
   dominance:
+    # Normal damage phase; the 750 HP threshold begins the first defensive wave.
     on-enter:
       - type: set_locked
         duration: 0s
       - type: play_animation
         animation: idle
       - type: update_bossbar
-        title: "<dark_purple><bold>METIN</bold> <gray>| Dominance | %health%/%max_health% HP | %location%"
+        title: "i18n:event.metin.dominance-bossbar"
         color: PURPLE
         style: NOTCHED_10
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <light_purple>Metin is vulnerable.</light_purple>"
+        message: "i18n:event.metin.dominance-message"
     transitions:
       - trigger:
           type: interaction
         conditions:
           - type: not_locked
         actions:
+          - type: play_animation
+            animation: hit
+          - type: play_sound
+            sound: minecraft:block.amethyst_block.hit
+            volume: 1.0
+            pitch: 0.9
           - type: apply_damage
             amount: 10
       - trigger:
@@ -61,6 +91,7 @@ phases:
         target: fracture
 
   fracture:
+    # The event waits up to 90 seconds for the named guard wave, then continues either way.
     on-enter:
       - type: set_locked
         duration: 90s
@@ -70,18 +101,18 @@ phases:
         particle: minecraft:crimson_spore
         count: 120
       - type: update_bossbar
-        title: "<gold><bold>METIN FRACTURE</bold> <gray>| clear the wave | %location%"
+        title: "i18n:event.metin.fracture-bossbar"
         color: YELLOW
         style: NOTCHED_10
       - type: spawn_wave
         wave-id: fracture_guard
         mobs:
           - entity_type: minecraft:zombie
-            name: "<dark_purple>Metin Fracture Guard</dark_purple>"
+            name: "i18n:event.metin.fracture-guard-name"
             amount: 12
             radius: 18
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <yellow>Metin fractured: clear its guards.</yellow>"
+        message: "i18n:event.metin.fracture-message"
     transitions:
       - trigger:
           type: wave_cleared
@@ -93,6 +124,7 @@ phases:
         target: desperation
 
   desperation:
+    # At 500 HP a temporary archer wave locks damage; at 250 HP the final assault starts.
     on-enter:
       - type: set_locked
         duration: 0s
@@ -102,17 +134,23 @@ phases:
         particle: minecraft:reverse_portal
         count: 160
       - type: update_bossbar
-        title: "<red><bold>METIN DESPERATION</bold> <gray>| %health%/%max_health% HP | %location%"
+        title: "i18n:event.metin.desperation-bossbar"
         color: RED
         style: NOTCHED_12
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <red>Metin has entered desperation.</red>"
+        message: "i18n:event.metin.desperation-message"
     transitions:
       - trigger:
           type: interaction
         conditions:
           - type: not_locked
         actions:
+          - type: play_animation
+            animation: hit
+          - type: play_sound
+            sound: minecraft:block.amethyst_block.hit
+            volume: 1.0
+            pitch: 0.9
           - type: apply_damage
             amount: 10
       - trigger:
@@ -125,7 +163,7 @@ phases:
             wave-id: desperation_guard
             mobs:
               - entity_type: minecraft:skeleton
-                name: "<red>Metin Desperation Archer</red>"
+                name: "i18n:event.metin.desperation-archer-name"
                 amount: 16
                 radius: 22
       - trigger:
@@ -142,6 +180,7 @@ phases:
         target: final_assault
 
   final_assault:
+    # The defender wave must die before five minutes. Timeout fails the event without rewards.
     on-enter:
       - type: set_locked
         duration: 5m
@@ -151,22 +190,22 @@ phases:
         particle: minecraft:explosion_emitter
         count: 12
       - type: update_bossbar
-        title: "<dark_red><bold>FINAL ASSAULT</bold> <gray>| defeat the Defender and its wave | %location%"
+        title: "i18n:event.metin.final-assault-bossbar"
         color: PINK
         style: PROGRESS
       - type: spawn_wave
         wave-id: final_assault
         mobs:
           - entity_type: minecraft:wither_skeleton
-            name: "<dark_red><bold>Metin Defender</bold></dark_red>"
+            name: "i18n:event.metin.defender-name"
             amount: 1
             radius: 3
           - entity_type: minecraft:vindicator
-            name: "<red>Metin Final Guard</red>"
+            name: "i18n:event.metin.final-guard-name"
             amount: 18
             radius: 24
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <dark_red>Final assault: defeat the Metin Defender.</dark_red>"
+        message: "i18n:event.metin.final-assault-message"
     transitions:
       - trigger:
           type: wave_cleared
@@ -179,9 +218,14 @@ phases:
           - type: fail_event
 
   victory:
+    # Terminal success cleans visual state only after all direct podium delivery was attempted.
     on-enter:
       - type: play_animation
         animation: destroy
+      - type: play_sound
+        sound: minecraft:ui.toast.challenge_complete
+        volume: 1.0
+        pitch: 1.0
       - type: spawn_particles
         particle: minecraft:explosion_emitter
         count: 18
@@ -210,7 +254,7 @@ phases:
                 amount: 12
                 chance: 100
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <green>Metin defeated. Podium rewards are being delivered.</green>"
+        message: "i18n:event.metin.victory-message"
       - type: remove_bossbar
       - type: remove_model
       - type: complete_event

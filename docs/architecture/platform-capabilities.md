@@ -25,7 +25,9 @@ Because the engine is platform-neutral, its features dynamically adjust based on
 ## Implementation Details
 
 ### Paper Family (Paper, Purpur, Folia)
-Fully supports all capabilities. Folia utilizes Region Scheduling to maintain safety. Purpur utilizes the Paper artifact directly without any modifications.
+Paper and Purpur support all declared 26.1–26.3 capabilities. Folia 26.1–26.2 uses region scheduling
+to maintain safety; Folia 26.3 and newer are refused before initialization until their exact runtime
+workflow has passed. Purpur uses the Paper artifact directly without modifications.
 
 ### Bukkit Family (Spigot, CraftBukkit)
 Spigot fully supports basic Bukkit abstractions. Adventure requires shading/platform integration since Spigot doesn't bundle it natively. Display Entities exist in Spigot 1.19.4+ but may lack some asynchronous API conveniences present in Paper, requiring manual task scheduling.

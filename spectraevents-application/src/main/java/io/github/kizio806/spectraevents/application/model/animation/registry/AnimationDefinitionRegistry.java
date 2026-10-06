@@ -45,6 +45,16 @@ public class AnimationDefinitionRegistry {
     return animations.values();
   }
 
+  /** Returns every registered animation for one model, in deterministic display order. */
+  public java.util.List<CompiledAnimation> forModel(ModelId modelId) {
+    Objects.requireNonNull(modelId, "modelId cannot be null");
+    return animations.entrySet().stream()
+        .filter(entry -> entry.getKey().modelId().equals(modelId))
+        .map(Map.Entry::getValue)
+        .sorted(java.util.Comparator.comparing(animation -> animation.definition().id().value()))
+        .toList();
+  }
+
   public int count() {
     return animations.size();
   }

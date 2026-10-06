@@ -62,6 +62,26 @@ class ResourcePackDeliveryCoordinatorTest {
     Assertions.assertEquals(64, settings.sourceConfigId().length());
   }
 
+  @Test
+  void enabledModrinthSettingsSelectTheMatchingReleaseAutomatically() {
+    ResourcePackDeliverySettings settings =
+        new ResourcePackDeliverySettings(true, true, "", "", "prompt", "resource-pack-project", "");
+
+    Assertions.assertEquals("resource-pack-project", settings.modrinthProjectId());
+    Assertions.assertTrue(settings.modrinthVersionId().isBlank());
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ResourcePackDeliverySettings(
+                true,
+                true,
+                "https://example.com/pack.zip",
+                "a".repeat(40),
+                "prompt",
+                "resource-pack-project",
+                ""));
+  }
+
   private static ResourcePackDescriptor descriptor() {
     return new ResourcePackDescriptor(
         "local",

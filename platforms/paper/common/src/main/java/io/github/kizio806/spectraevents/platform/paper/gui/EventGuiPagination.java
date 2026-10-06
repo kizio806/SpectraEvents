@@ -1,7 +1,7 @@
 package io.github.kizio806.spectraevents.platform.paper.gui;
 
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import java.util.List;
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
@@ -30,26 +30,33 @@ final class EventGuiPagination {
     return items.subList(start, Math.min(start + ITEMS_PER_PAGE, items.size()));
   }
 
-  static void addControls(Inventory inventory, int page, int itemCount) {
+  static void addControls(Inventory inventory, int page, int itemCount, LocaleCatalog locales) {
     int lastPage = lastPageFor(itemCount);
     if (page > 0) {
       inventory.setItem(
           SLOT_PREVIOUS,
           MainScreen.createGuiItem(
               Material.ARROW,
-              Component.text("Previous page", NamedTextColor.YELLOW),
+              GuiText.component(locales, "admin.gui.pagination.previous", NamedTextColor.YELLOW),
               List.of(
-                  Component.text("Page " + page + " of " + (lastPage + 1), NamedTextColor.GRAY))));
+                  GuiText.component(
+                      locales,
+                      "admin.gui.pagination.progress",
+                      NamedTextColor.GRAY,
+                      java.util.Map.of("current", page, "total", lastPage + 1)))));
     }
     if (page < lastPage) {
       inventory.setItem(
           SLOT_NEXT,
           MainScreen.createGuiItem(
               Material.ARROW,
-              Component.text("Next page", NamedTextColor.YELLOW),
+              GuiText.component(locales, "admin.gui.pagination.next", NamedTextColor.YELLOW),
               List.of(
-                  Component.text(
-                      "Page " + (page + 2) + " of " + (lastPage + 1), NamedTextColor.GRAY))));
+                  GuiText.component(
+                      locales,
+                      "admin.gui.pagination.progress",
+                      NamedTextColor.GRAY,
+                      java.util.Map.of("current", page + 2, "total", lastPage + 1)))));
     }
   }
 }

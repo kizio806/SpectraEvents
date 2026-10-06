@@ -11,14 +11,14 @@ or CraftBukkit.
 | `spectraevents-core` | Domain model and invariants | 21 | Forbidden |
 | `spectraevents-application` | Use cases and ports | 21 | Forbidden |
 | `adapters/*` | Platform-neutral infrastructure | 21 | Forbidden |
-| `platforms/paper/common` | Paper/Purpur/Folia adapter and bootstrap | 25 | Compile only |
+| `platforms/paper/common` | Paper/Purpur adapter and guarded Folia bootstrap | 25 | Compile only |
 | `platforms/spigot/common` | Spigot/CraftBukkit adapter and bootstrap | 25 | Forbidden |
 | `distributions/paper` | Shaded Paper-family plugin | 25 | Server-provided |
 | `distributions/spigot` | Shaded Spigot-family plugin | 25 | Forbidden |
 
-Both platform families compile against the oldest supported `26.1` API. Paper/Purpur and
-Spigot/CraftBukkit claims are gated by real-server workflows for `26.1`, `26.2`, and `26.3`; Folia
-is gated separately for `26.1` and `26.2` and fails closed on unverified newer versions.
+Both platform families compile against the oldest supported `26.1` API. Paper, Purpur, Spigot and
+CraftBukkit are gated by real-server workflows for `26.1`, `26.2`, and `26.3`; Folia is gated for
+`26.1` and `26.2`. Folia 26.3 and newer fail closed before initialization.
 
 The public addon API is intentionally absent in beta; see ADR 0005.
 

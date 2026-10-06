@@ -4,500 +4,93 @@
 [![CodeQL](https://github.com/kizio806/SpectraEvents/actions/workflows/codeql.yml/badge.svg)](https://github.com/kizio806/SpectraEvents/actions/workflows/codeql.yml)
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-blue.svg)](https://opensource.org/licenses/MPL-2.0)
 
-**SpectraEvents Beta Foundation (v0.1.0-beta.2)**
+SpectraEvents is a data-driven event engine for modern Minecraft servers. Administrators compose
+YAML definitions from phases, triggers, conditions and actions; the engine owns instance lifecycle,
+recovery, assets and reward-mailbox persistence.
 
-SpectraEvents is a data-driven event engine for modern Minecraft servers. YAML definitions compose phases, triggers, conditions and actions; the bundled Meteor, Airdrop, Metin, Piñata and Boss Portal definitions exercise the same generic runtime. The beta includes SQLite-backed lifecycle recovery, native Display/Interaction entities, operator diagnostics, and separate Paper-family and Spigot-family distributions.
+## Status
 
-> **One engine. Any event.**
+This is pre-release software (`0.1.1-beta.1`). Configuration and command contracts may still change
+within the beta line. A successful local build is not a release claim: publication requires every
+declared real-server matrix row to pass. Folia is supported on Minecraft 26.1 and 26.2 only; Folia
+26.3 is refused at startup and instructs the operator to install a newer SpectraEvents release.
 
----
+Reward claims are committed before an external inventory mutation. This prevents automatic duplicate
+delivery, but a process failure between those two operations can leave a claim in `DELIVERING`.
+An administrator must explicitly reconcile that state with the rewards command; the engine never
+silently reissues it.
 
-## Project Status
+## Distributions
 
-> **Public Beta (v0.1.0-beta.2)**
+| File | Use on | Minecraft range |
+| --- | --- | --- |
+| `SpectraEvents-<version>-paper.jar` | Paper, Purpur | 26.1–26.3 |
+| `SpectraEvents-<version>-paper.jar` | Folia | 26.1–26.2 |
+| `SpectraEvents-<version>-spigot.jar` | Spigot, CraftBukkit | 26.1–26.3 |
 
-SpectraEvents is currently in public beta (`v0.1.0-beta.2`).
+Use Java 25. Install exactly one matching JAR in `plugins/`. The Paper-family artifact provides the
+Paper/Folia scheduling and GUI features; do not substitute it for the Spigot artifact or vice versa.
+See the [platform feature matrix](docs/product/feature-matrix.md) for deliberate differences.
 
-APIs, configuration formats, and internal architecture are pre-release and subject to SemVer beta refinement.
+## First installation
 
-Reward claims are durably accepted before delivery and are at-most-once in-process and across a committed restart. A process or host crash between claim commit and the external Minecraft inventory mutation can leave an accepted-but-undelivered reward; `/event doctor` exposes claims for operator reconciliation. The project does not claim impossible exactly-once delivery of an external side effect.
+1. Start the server once with the matching artifact.
+2. SpectraEvents creates `config.yml`, its SQLite database, `events/`, `events/presets/`, locales and
+   `assets/source/` below `plugins/SpectraEvents/`.
+3. Copy a reference definition from `events/presets/` into `events/` and give it a unique `id` if you
+   are making a variant. Presets are not automatically activated.
+4. Run `/spectraevents definition validate`, fix every `file:path` diagnostic, then run
+   `/spectraevents definition reload`.
+5. Run `/spectraevents doctor` and start the loaded definition with
+   `/spectraevents event start <id>`.
 
-## Platform Support & Multi-Platform Release Matrix
+The shipped reference definitions are Meteor, Airdrop, Metin, Piñata and Boss Portal. They are
+examples of the generic engine, not separate hard-coded subsystems.
 
-| Artifact | Target Platform | Compatible Minecraft Versions | Loaders | Status |
-| --- | --- | --- | --- | --- |
-| `SpectraEvents-<version>-paper.jar` | Paper, Purpur | `26.1`, `26.2`, `26.3` | `paper`, `purpur` | Local runtime workflow passed |
-| `SpectraEvents-<version>-paper.jar` | Folia | `26.1`, `26.2` | `folia` | Local runtime workflow passed; an upstream Folia server build for Minecraft 26.3 is not published |
-| `SpectraEvents-<version>-spigot.jar` | Spigot, CraftBukkit | `26.1`, `26.2`, `26.3` | `spigot`, `bukkit` | Local runtime workflow passed |
+Release CI builds three resource-pack ZIPs and publishes them to a separate Modrinth resource-pack
+project. Player delivery is disabled until an administrator configures that project ID and real-client
+acceptance evidence exists; the server then selects the matching pack automatically. See
+[resource-pack configuration](docs/config/resource-pack.md).
 
-Download the Paper JAR for Paper, Purpur or Folia. Download the Spigot JAR for Spigot/CraftBukkit.
+## Operator workflow
 
-**Do not install the Paper JAR on Spigot. Do not install the Spigot JAR on Paper, Purpur or Folia if you need Paper/Folia behavior.**
+| Need | Command or file |
+| --- | --- |
+| List / validate / reload definitions | `/spectraevents definition list\|validate\|reload` |
+| Start, inspect or stop an event | `/spectraevents event start\|inspect\|stop` |
+| Check health and diagnostics | `/spectraevents status`, `/spectraevents doctor` |
+| Reload schedules | Edit `schedules.yml`, then `/spectraevents schedule reload` |
+| Inspect or claim rewards | `/spectraevents rewards list\|claim <id>` |
+| Resolve interrupted reward delivery | `/spectraevents rewards reconcile list`, then explicit `mark-delivered` or `return-pending` |
 
-Every published release must pass its declared runtime workflow. The Paper/Purpur release entry covers
-Minecraft 26.1–26.3; the compatibility table keeps Folia explicitly limited to 26.1–26.2. If Folia
-for Minecraft 26.3 is started, SpectraEvents logs the unsupported combination and disables itself
-before loading configuration or changing event data. A source checkout or untagged build is not
-described as fully release verified merely because it compiles.
+Schedules use an explicit timezone and may carry scalar `parameters` overrides. A schedule override
+applies only to that scheduled instance. Paper's saved GUI override is a separate manual-start feature;
+it is not a cross-platform global override layer.
 
-Folia does not implement Bukkit scoreboard creation. A scoreboard action therefore logs a clear `unsupported` warning and the event continues without a sidebar; use bossbars for UI shared across Paper, Purpur, and Folia.
+More detail:
 
----
+- [Installation](docs/guides/installation.md)
+- [Local visual model test](docs/guides/local-model-test.md)
+- [Create your first event](docs/guides/create-your-first-event.md)
+- [Administrator workflow](docs/product/admin-workflow.md)
+- [Commands](docs/product/commands.md) and [permissions](docs/product/permissions.md)
+- [Schedules](docs/config/schedules.md)
+- [Blockbench authoring](docs/authoring/blockbench.md) and [asset pipeline](docs/authoring/asset-pipeline.md)
 
-## Vision
+## Development
 
-Traditional Minecraft event plugins usually implement one specific mechanic.
+Platform-neutral modules target Java 21; platform modules compile against Java 25. Dependency flow is
+strictly `platform -> application -> core`; Minecraft APIs stay inside platform adapters.
 
-SpectraEvents takes a different approach.
-
-An event is composed from reusable systems:
-
-```text
-EventDefinition
-       ↓
- EventInstance
-       ↓
-     Phase
-       ↓
-Trigger / Condition
-       ↓
-     Action
+```bash
+./gradlew spotlessApply
+./gradlew clean check build
 ```
 
-This allows completely different events to use the same runtime.
-
-Examples:
-
-```text
-☄ Meteor
-🎁 Airdrop
-🪨 Metin
-🪅 Piñata
-💎 Crystal
-🏦 Vault
-🐉 Dragon Egg
-🛸 UFO
-🏴‍☠️ Pirate Treasure
-👹 Boss Portal
-🎃 Halloween Event
-🎄 Christmas Event
-```
-
-The event type should be configuration and assets — not another hardcoded Java implementation.
-
----
-
-## Planned Features
-
-### Event Engine
-
-* Data-driven event definitions
-* Multiple simultaneous event instances
-* Configurable phases
-* Phase transitions
-* Triggers and conditions
-* Reusable actions
-* Reusable event components
-* Event lifecycle management
-* Automatic cleanup
-* Crash and restart recovery
-
-### 3D Models & Assets
-
-The runtime renders server-authored YAML models with native Display and Interaction entities. It also
-imports one signed Blockbench Generic Model bundle format, registers its model and named animations
-for ordinary event actions, and builds a deterministic local resource-pack ZIP. Optional player
-delivery accepts only an administrator-hosted HTTPS ZIP with an explicit SHA-1; Modrinth publishing is
-disabled.
-
-The importer, ZIP structure, real-client rendering, and opt-in delivery workflow have been verified
-for M2. See the [Blockbench Authoring Guide](docs/authoring/blockbench.md) and
-[Asset Pipeline](docs/authoring/asset-pipeline.md) for the supported contract and delivery boundary.
-
-### Planned Features
-
-#### 3D Models
-
-* Native Minecraft Display Entities
-* `ItemDisplay`
-* `BlockDisplay`
-* Multipart models
-* `Interaction` entities for hitboxes
-* Custom model transforms
-* Position, rotation and scale control
-* Per-part interactions
-* Distance-based visibility and optimization
-
-### Animation Engine
-
-* Timeline-based animations
-* Keyframes
-* Translation
-* Rotation
-* Scaling
-* Multiple animation tracks
-* Easing functions
-* Client-side display interpolation where possible
-* Animation events and callbacks
-
-Example:
-
-```text
-METEOR
-
-Spawn
-  ↓
-Fall
-  ↓
-Rotate
-  ↓
-Impact
-  ↓
-Explosion
-  ↓
-Locked
-  ↓
-Active
-  ↓
-Destroyed
-```
-
-### Event Components
-
-Planned reusable components include:
-
-```text
-ModelComponent
-HealthComponent
-TimerComponent
-InteractionComponent
-BossBarComponent
-HologramComponent
-LeaderboardComponent
-LootComponent
-AreaComponent
-SpawnComponent
-MobWaveComponent
-ParticleComponent
-SoundComponent
-```
-
-Components are intended to be reusable across completely different event definitions.
-
-### Interactions
-
-Events may react to:
-
-* Player interaction
-* Player attacks
-* Projectiles
-* Timers
-* Health changes
-* Hit counters
-* Mob kills
-* Cleared waves
-* Entering or leaving event areas
-* Delivered items
-* Animation completion
-
-### Rewards
-
-Planned reward system:
-
-* Vanilla items
-* Custom items
-* Commands
-* Experience
-* Currency
-* Weighted loot tables
-* Personal loot
-* World drops
-* Top-player rewards
-* Participation rewards
-* Random participant rewards
-* Last-hit rewards
-
-### Leaderboards
-
-Events may track statistics such as:
-
-* Damage dealt
-* Hits
-* Kills
-* Items collected
-* Time spent inside an objective
-* Interactions
-* Custom metrics
-
-### Event Areas
-
-Optional event regions may control mechanics such as:
-
-* PvP
-* Building
-* Block breaking
-* Flight
-* Elytra
-* Teleportation
-* Commands
-* Ender pearls
-
-Advanced region support may be provided through integrations such as WorldGuard.
-
----
-
-## Architecture
-
-SpectraEvents is designed around a modular architecture with strict separation between the event domain and the Minecraft platform.
-
-```text
-┌─────────────────────────────────────┐
-│              Paper                  │
-│ Commands / Listeners / Rendering    │
-└─────────────────┬───────────────────┘
-                  │
-┌─────────────────▼───────────────────┐
-│          Application Layer          │
-│ Event / Reward / Animation Services │
-└─────────────────┬───────────────────┘
-                  │
-┌─────────────────▼───────────────────┐
-│             Domain Core             │
-│ Events / Phases / Actions / Triggers│
-└─────────────────┬───────────────────┘
-                  │
-                 Ports
-                  │
-       ┌──────────┼──────────┐
-       │          │          │
-       ▼          ▼          ▼
-     Paper     Storage   Integrations
-```
-
-The core module should not depend directly on Bukkit or Paper.
-
-Minecraft-specific behavior belongs in platform adapters.
-
----
-
-## Planned Modules
-
-```text
-spectraevents/
-│
-├── spectraevents-core/
-├── spectraevents-paper/
-├── spectraevents-storage/
-├── spectraevents-pack/
-│
-├── spectraevents-integrations/
-│   └── (Planned integrations)
-│
-├── spectraevents-testkit/
-│
-└── spectraevents-plugin/
-```
-
-The distributed server plugin will still be provided as a normal `.jar`.
-
----
-
-## Example Event
-
-A minimal definition accepted by the current strict schema looks like:
-
-```yaml
-schema-version: "1"
-id: example
-initial-phase: waiting
-phases:
-  waiting:
-    on-enter:
-      - type: broadcast_message
-        message: "<yellow>Event started.</yellow>"
-    transitions:
-      - trigger:
-          type: timer_elapsed
-          duration: 5s
-        target: active
-  active:
-    transitions:
-      - trigger:
-          type: manual
-        target: completed
-  completed:
-    on-enter:
-      - type: complete_event
-```
-
----
-
-## Technology
-
-SpectraEvents is planned around the modern Paper ecosystem.
-
-Core technologies include:
-
-* Java
-* Gradle
-* Paper
-* Adventure
-* MiniMessage
-* Brigadier
-* Persistent Data Container
-* Display Entities
-* SQLite
-* PostgreSQL support for larger networks
-* Blockbench for model creation
-* Minecraft resource packs
-
-The architecture is also intended to remain compatible with region-based scheduling models such as Folia.
-
----
-
-## Resource Packs
-
-SpectraEvents will support native custom event assets.
-
-The planned pipeline is:
-
-```text
-Blockbench
-    ↓
-Minecraft model assets
-    ↓
-SpectraEvents resource pack
-    ↓
-ItemDisplay / BlockDisplay
-    ↓
-Animation Engine
-```
-
-The core plugin should not require Oraxen, Nexo, ItemsAdder or ModelEngine.
-
-Integrations with third-party asset systems may be provided as optional adapters.
-
----
-
-## Persistence
-
-Active event state is intended to survive server restarts.
-
-Persistent state may include:
-
-* Active event instances
-* Current phase
-* Remaining timers
-* Event health
-* Event location
-* Participant statistics
-* Reward claims
-* Cooldowns
-* Event history
-
-SQLite is planned as the default zero-configuration storage provider.
-
-Network installations may use an external database such as PostgreSQL.
-
----
-
-## Performance Principles
-
-SpectraEvents is intended for real production servers.
-
-The project will prioritize:
-
-* Event-driven execution
-* No unnecessary global tick loops
-* Client-side Display Entity interpolation
-* Controlled particle budgets
-* Distance-based rendering
-* Batched persistence
-* Asynchronous database operations
-* Region-aware scheduling
-* Efficient participant tracking
-* Strict entity cleanup
-* Minimal work while events are idle
-
----
-
-## Initial Milestone
-
-The first vertical slice will implement one complete event:
-
-### Meteor Event
-
-```text
-Spawn
- ↓
-3D model
- ↓
-Falling animation
- ↓
-Impact animation
- ↓
-Particles + sound
- ↓
-Locked phase
- ↓
-Countdown
- ↓
-Active phase
- ↓
-Health system
- ↓
-Damage leaderboard
- ↓
-Destruction animation
- ↓
-Loot
- ↓
-Cleanup
-```
-
-Once this event works correctly, its mechanics will be extracted into reusable engine components.
-
-The goal is not to build a special `MeteorEvent`.
-
-The goal is to prove that a meteor can be built entirely from SpectraEvents primitives.
-
----
-
-## Non-Goals
-
-SpectraEvents is not intended to become:
-
-* A replacement for Minecraft itself
-* A complete custom mob engine
-* A full skeletal animation engine
-* A WorldGuard replacement
-* A generic database framework
-* A hard dependency on one custom-item plugin
-
-The project should remain focused on one problem:
-
-**building sophisticated Minecraft server events from reusable components.**
-
----
-
-## Contributing
-
-SpectraEvents is currently in early development.
-
-Contribution guidelines will be added once the core architecture and coding standards are established.
-
-Before the first public development release, major architectural changes should be discussed before implementation.
-
----
+The complete contributor contract is in [CONTRIBUTING.md](CONTRIBUTING.md). The project deliberately
+does not expose a public addon API without a demonstrated addon use case, and it does not currently
+offer a PostgreSQL storage contract.
 
 ## License
 
-SpectraEvents is licensed under the **Mozilla Public License 2.0**.
-
-See `LICENSE` for details.
-
----
-
-## Authors & Maintainers
-
-* **kizio806** (Author & Lead Maintainer)
+SpectraEvents is licensed under [MPL-2.0](LICENSE).

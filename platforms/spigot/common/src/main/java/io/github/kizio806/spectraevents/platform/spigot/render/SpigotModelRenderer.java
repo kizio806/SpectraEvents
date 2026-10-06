@@ -424,10 +424,10 @@ public class SpigotModelRenderer implements ModelRendererPort {
     if (generatedAsset != null) {
       ItemStack generatedItem = new ItemStack(Material.PAPER);
       org.bukkit.inventory.meta.ItemMeta itemMeta = generatedItem.getItemMeta();
-      org.bukkit.inventory.meta.components.CustomModelDataComponent customModelData =
-          itemMeta.getCustomModelDataComponent();
-      customModelData.setFloats(List.of((float) generatedAsset.customModelData()));
-      itemMeta.setCustomModelDataComponent(customModelData);
+      itemMeta.setItemModel(
+          new org.bukkit.NamespacedKey(
+              GeneratedAssetItem.NAMESPACE,
+              generatedAsset.modelId() + "/" + generatedAsset.nodeId()));
       generatedItem.setItemMeta(itemMeta);
       return generatedItem;
     }

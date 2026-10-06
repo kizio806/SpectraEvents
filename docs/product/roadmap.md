@@ -27,9 +27,9 @@ This roadmap is aligned with [`PROJECT_MASTER_PLAN.md`](../../PROJECT_MASTER_PLA
 - [x] Create eight safe local checkpoints for the mixed worktree without staging unrelated user changes or pushing them.
 - [x] Re-run the available Paper, Purpur, Folia, Spigot, and CraftBukkit rows of the real-server matrix after the current change set was assigned to release checkpoints.
 
-The current full build is green, but publication remains separate from compilation. The Folia
-compatibility band deliberately ends at Minecraft 26.2; a Folia 26.3 startup is refused until its
-upstream server exists and passes the real-server workflow.
+The current full build is green, but publication remains separate from compilation. Folia 26.3 is
+outside the declared beta band and is refused before initialization. It can be added only after an
+official runtime exists and passes the real-server workflow.
 
 ## M1 — authoring contract for custom events
 
@@ -42,41 +42,44 @@ authoring guide, `play_animation` workflow, and running-instance snapshots are c
 
 **Goal:** `Blockbench → import → validated asset → resource-pack ZIP → event` works with real files and a real client.
 
-**Status: complete.** The implementation and its real-client/delivery acceptance were confirmed by
-the operator; exact client and server versions were not recorded.
+**Status: implementation complete; delivery acceptance pending.** The importer, deterministic ZIP,
+and opt-in delivery contract are implemented, but every hosted pack and target profile still needs
+recorded real-client acceptance before release.
 
 - [x] Define and test the signed Generic Model bundle, safe importer, bounded hostile-input handling,
   deterministic ZIP, model/animation registration, and opt-in HTTPS/SHA-1 delivery contract.
-- [x] Operator-confirm the generated pack's custom item mapping, model assembly, pivots, hierarchy,
-  and animation in a real client.
-- [x] Operator-confirm real-player delivery after M2 implementation.
-- [x] Keep Modrinth publishing disabled until the local ZIP and delivery workflow is verified.
+- [ ] Record client confirmation of the generated pack's custom item mapping, model assembly,
+  pivots, hierarchy, and animation for each target profile.
+- [ ] Record real-player delivery for the actual hosted descriptor.
+- [x] Keep default delivery disabled until a local ZIP and delivery workflow is verified.
 
 ## M3 — reference events as product examples
 
 **Goal:** built-in events are ordinary definitions using the same capabilities available to administrators.
 
-**Status: complete.** M2 acceptance was confirmed by the operator; M3 added the shared durable hit
-counter, Piñata, and Boss Portal without adding any event-specific coordinator.
+**Status: implementation complete; release acceptance remains pending.** M3 added the shared durable
+hit counter, Piñata and Boss Portal without adding an event-specific coordinator. Reference presets
+remain inactive until copied into the active definitions directory.
 
-- [x] Bring Meteor, Airdrop, and Metin through the complete M1/M2 acceptance workflow.
+- [x] Provide Meteor, Airdrop and Metin reference definitions through the M1/M2 authoring workflow.
 - [x] Add Piñata as a hit-counter/interactions reference.
 - [x] Add Boss Portal as a timed model, boss-spawn, and entity-death reference.
 - [x] Keep event-specific Java coordinators out of the design; the only missing behavior was first
   added as the shared `HitCounter` primitive.
-- [x] Give every official event assets, YAML, documentation, focused tests, cleanup, and shared
+- [x] Give every reference event assets, YAML, documentation, focused tests, cleanup and shared
   recovery verification.
+- [ ] Record real-client resource-pack acceptance for each enabled target profile and hosted pack.
 
 ## M4 — production compatibility and release
 
 **Goal:** server operators know exactly which artifact and version combination is supported.
 
-**Status: complete.** The published matrix is Paper/Purpur and Spigot/CraftBukkit for Minecraft
-26.1–26.3, plus Folia for 26.1–26.2. All 14 declared real-server rows passed; representative Paper
-26.1/26.3, Folia 26.2, and Spigot 26.3 were rerun after the M4 workflow changes. Folia 26.3 is
-fail-closed at plugin startup until an upstream server exists and the row passes. Release eligibility,
-both artifacts/checksums, recovery procedures, `/spectraevents doctor`/inspect guidance, and manual reward
-reconciliation are documented and executable.
+**Status: CI-enforced.** The declared matrix is Paper/Purpur and Spigot/CraftBukkit for Minecraft
+26.1–26.3, plus Folia 26.1–26.2. Each release must execute every declared real-server row; a local
+source checkout is not certified by historic matrix results. Folia 26.3 is refused until its exact
+runtime can be tested. Release eligibility, both artifacts/checksums, recovery procedures,
+`/spectraevents doctor`/inspect guidance, and manual reward reconciliation are documented and
+executable.
 
 ## M5 — extensibility and GUI
 

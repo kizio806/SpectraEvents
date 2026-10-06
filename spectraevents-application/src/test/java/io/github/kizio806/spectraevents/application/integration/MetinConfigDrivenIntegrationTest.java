@@ -69,6 +69,7 @@ class MetinConfigDrivenIntegrationTest {
     assertTrue(state.health().isPresent());
     assertEquals(1000, state.health().get().current());
     assertTrue(actionPort.containsAction("spawn_model"));
+    assertTrue(actionPort.containsAction("play_sound"));
 
     // 2. Protected manifestation -> dominance.
     boolean handled1 =
@@ -89,6 +90,7 @@ class MetinConfigDrivenIntegrationTest {
     }
     EventInstance afterFracture = repository.findById(instance.id()).orElseThrow();
     assertEquals(new PhaseId("fracture"), afterFracture.currentPhase().orElseThrow());
+    assertTrue(actionPort.containsAction("play_animation"));
     assertTrue(actionPort.containsAction("spawn_particles"));
     assertTrue(
         engine.evaluateTrigger(
@@ -121,6 +123,7 @@ class MetinConfigDrivenIntegrationTest {
 
     EventInstance afterVictory = repository.findById(instance.id()).orElseThrow();
     assertEquals(EventLifecycleState.COMPLETED, afterVictory.state());
+    assertTrue(actionPort.containsAction("award_podium"));
     assertTrue(actionPort.containsAction("remove_model"));
   }
 

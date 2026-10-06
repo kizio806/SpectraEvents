@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.paper.gui;
 
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.registry.RegisteredEventDefinition;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
@@ -41,7 +42,7 @@ public final class DefinitionDetailScreen {
    * @return the populated inventory, or {@code null} when the definition is not found
    */
   public static Inventory createInventory(
-      String definitionId, EventDefinitionRegistry definitionRegistry) {
+      String definitionId, EventDefinitionRegistry definitionRegistry, LocaleCatalog locales) {
     RegisteredEventDefinition registered = definitionRegistry.findById(definitionId).orElse(null);
     if (registered == null) {
       return null;
@@ -55,7 +56,11 @@ public final class DefinitionDetailScreen {
             definitionId,
             /* slotPayloads= */ java.util.Map.of(),
             54,
-            Component.text("Definition: " + definitionId, NamedTextColor.DARK_GREEN));
+            GuiText.component(
+                locales,
+                "admin.gui.definition-detail.title",
+                NamedTextColor.DARK_GREEN,
+                java.util.Map.of("definition", definitionId)));
 
     // Render one item per phase (up to 36 items in the first four rows)
     int slot = 0;
@@ -66,16 +71,26 @@ public final class DefinitionDetailScreen {
 
       List<Component> lore = new ArrayList<>();
       lore.add(
-          Component.text(
-              "On-enter actions: " + phase.onEnterActions().size(), NamedTextColor.GRAY));
-      lore.add(Component.text("Transition rules: " + phase.rules().size(), NamedTextColor.GRAY));
+          GuiText.component(
+              locales,
+              "admin.gui.definition-detail.on-enter-actions",
+              NamedTextColor.GRAY,
+              java.util.Map.of("count", phase.onEnterActions().size())));
+      lore.add(
+          GuiText.component(
+              locales,
+              "admin.gui.definition-detail.transitions",
+              NamedTextColor.GRAY,
+              java.util.Map.of("count", phase.rules().size())));
 
       boolean isInitial = phaseId.equals(definition.initialPhase());
       Material phaseMat = isInitial ? Material.LIME_WOOL : Material.LIGHT_GRAY_WOOL;
       Component phaseName =
           isInitial
               ? Component.text(phaseId.value(), NamedTextColor.GREEN, TextDecoration.BOLD)
-                  .append(Component.text(" (initial)", NamedTextColor.YELLOW))
+                  .append(
+                      GuiText.component(
+                          locales, "admin.gui.definition-detail.initial", NamedTextColor.YELLOW))
               : Component.text(phaseId.value(), NamedTextColor.WHITE);
 
       inv.setItem(slot++, MainScreen.createGuiItem(phaseMat, phaseName, lore));
@@ -85,17 +100,20 @@ public final class DefinitionDetailScreen {
         SLOT_BACK,
         MainScreen.createGuiItem(
             Material.ARROW,
-            Component.text("Back to Definitions", NamedTextColor.YELLOW),
+            GuiText.component(locales, "admin.gui.definition-detail.back", NamedTextColor.YELLOW),
             List.of()));
 
     inv.setItem(
         SLOT_START,
         MainScreen.createGuiItem(
             Material.NETHER_STAR,
-            Component.text("Start Event", NamedTextColor.GREEN, TextDecoration.BOLD),
+            GuiText.title(locales, "admin.gui.definition-detail.start", NamedTextColor.GREEN),
             List.of(
-                Component.text(
-                    "Starts '" + definitionId + "' at your location.", NamedTextColor.GRAY))));
+                GuiText.component(
+                    locales,
+                    "admin.gui.definition-detail.start-lore",
+                    NamedTextColor.GRAY,
+                    java.util.Map.of("definition", definitionId)))));
 
     return inv;
   }

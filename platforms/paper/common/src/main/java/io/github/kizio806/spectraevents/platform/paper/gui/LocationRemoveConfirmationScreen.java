@@ -1,7 +1,7 @@
 package io.github.kizio806.spectraevents.platform.paper.gui;
 
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import java.util.List;
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
@@ -13,26 +13,34 @@ public final class LocationRemoveConfirmationScreen {
 
   private LocationRemoveConfirmationScreen() {}
 
-  public static Inventory createInventory(String locationName) {
+  public static Inventory createInventory(String locationName, LocaleCatalog locales) {
     Inventory inventory =
         AdminGuiHolder.createInventory(
             AdminGuiController.MenuType.LOCATION_REMOVE_CONFIRMATION,
             locationName,
             java.util.Map.of(),
             45,
-            Component.text("Remove Location", NamedTextColor.RED));
+            GuiText.component(locales, "admin.gui.remove-location.title", NamedTextColor.RED));
     inventory.setItem(
         SLOT_CONFIRM,
         MainScreen.createGuiItem(
             Material.LIME_CONCRETE,
-            Component.text("Remove " + locationName, NamedTextColor.GREEN),
-            List.of(Component.text("This cannot be undone", NamedTextColor.GRAY))));
+            GuiText.component(
+                locales,
+                "admin.gui.remove-location.confirm",
+                NamedTextColor.GREEN,
+                java.util.Map.of("location", locationName)),
+            List.of(
+                GuiText.component(
+                    locales, "admin.gui.remove-location.confirm-lore", NamedTextColor.GRAY))));
     inventory.setItem(
         SLOT_ABORT,
         MainScreen.createGuiItem(
             Material.RED_CONCRETE,
-            Component.text("Keep Location", NamedTextColor.RED),
-            List.of(Component.text("Return without deleting", NamedTextColor.GRAY))));
+            GuiText.component(locales, "admin.gui.remove-location.abort", NamedTextColor.RED),
+            List.of(
+                GuiText.component(
+                    locales, "admin.gui.remove-location.abort-lore", NamedTextColor.GRAY))));
     return inventory;
   }
 }

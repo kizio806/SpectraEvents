@@ -12,8 +12,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.zip.ZipFile;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -42,19 +40,18 @@ class ResourcePackBuilderTest {
 
     try (ZipFile zip = new ZipFile(result.zipPath().toFile())) {
       Assertions.assertNotNull(zip.getEntry("pack.mcmeta"));
-      Assertions.assertNotNull(zip.getEntry("assets/minecraft/items/paper.json"));
+      Assertions.assertNull(zip.getEntry("assets/minecraft/items/paper.json"));
       Assertions.assertNotNull(
           zip.getEntry("assets/spectraevents/textures/item/meteor/texture_0.png"));
       Assertions.assertNotNull(zip.getEntry("assets/spectraevents/models/item/meteor/root.json"));
+      Assertions.assertNotNull(zip.getEntry("assets/spectraevents/items/meteor/root.json"));
       Assertions.assertNotNull(zip.getEntry("assets/spectraevents/spectraevents-manifest.json"));
       Assertions.assertTrue(read(zip, "pack.mcmeta").contains("[88,0]"));
       Assertions.assertTrue(
-          read(zip, "assets/minecraft/items/paper.json").contains("custom_model_data"));
-      Assertions.assertTrue(
-          read(zip, "assets/minecraft/items/paper.json")
-              .contains(Integer.toString(result.customModelData().get("meteor/root"))));
-      Assertions.assertTrue(
           read(zip, "assets/spectraevents/models/item/meteor/root.json").contains("elements"));
+      Assertions.assertTrue(
+          read(zip, "assets/spectraevents/items/meteor/root.json")
+              .contains("spectraevents:item/meteor/root"));
       Assertions.assertTrue(
           read(zip, "assets/spectraevents/spectraevents-manifest.json").contains("meteor/root"));
     }
@@ -76,20 +73,19 @@ class ResourcePackBuilderTest {
   }
 
   @Test
-  void ordersRangeDispatchThresholdsAscending() throws Exception {
+  void writesIndependentNativeItemDefinitionsForEachGeneratedModelPart() throws Exception {
     ResourcePackBuildResult result =
         new ResourcePackBuilder(tempDirectory)
             .build(
                 List.of(document("meteor"), document("nebula")), AssetTargetProfile.PROFILE_26_2);
 
     try (ZipFile zip = new ZipFile(result.zipPath().toFile())) {
-      String mapping = read(zip, "assets/minecraft/items/paper.json");
-      Matcher thresholds = Pattern.compile("\\\"threshold\\\":(\\d+)").matcher(mapping);
-      Assertions.assertTrue(thresholds.find());
-      int first = Integer.parseInt(thresholds.group(1));
-      Assertions.assertTrue(thresholds.find());
-      int second = Integer.parseInt(thresholds.group(1));
-      Assertions.assertTrue(first < second);
+      Assertions.assertTrue(
+          read(zip, "assets/spectraevents/items/meteor/root.json")
+              .contains("spectraevents:item/meteor/root"));
+      Assertions.assertTrue(
+          read(zip, "assets/spectraevents/items/nebula/root.json")
+              .contains("spectraevents:item/nebula/root"));
     }
   }
 

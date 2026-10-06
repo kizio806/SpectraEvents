@@ -9,24 +9,25 @@ Use exactly one artifact per server:
 
 | Server family | Artifact | Verified band |
 | --- | --- | --- |
-| Paper, Purpur, Folia | `SpectraEvents-<version>-paper.jar` | Minecraft 26.1–26.3; Folia is verified only for 26.1 and 26.2 while its Minecraft 26.3 server build is unavailable |
+| Paper, Purpur | `SpectraEvents-<version>-paper.jar` | Minecraft 26.1–26.3 |
+| Folia | `SpectraEvents-<version>-paper.jar` | Minecraft 26.1–26.2; Folia 26.3 is refused before initialization |
 | Spigot, CraftBukkit | `SpectraEvents-<version>-spigot.jar` | 26.1–26.3 |
 
 `config/release/release-blockers.json` is an executable publication gate. The release workflow runs
 `scripts/release/verify_release_gate.py` after the required runtime matrix and refuses publication
-while a required row is blocked. Folia for Minecraft 26.3 is not a required row: no upstream server
-build exists and the plugin refuses to enable there with an explicit console message. `26.3` is a
-Minecraft compatibility target, not a Folia release number.
+while a declared row is blocked. Folia 26.3 is deliberately not declared for this beta: the plugin
+refuses it before initialization, leaves event data untouched, and directs the operator to a newer
+release when support is restored.
 
-When an upstream Folia build for Minecraft 26.3 appears, first add it as a required release row and
-to the blocker file. Remove that blocker only after the new server has passed the same lifecycle,
-cleanup, and restart-recovery workflow as every other declared row.
+When an upstream Folia build for Minecraft 26.3 is available, add its runtime row and support only
+after it has passed the same lifecycle, cleanup and restart-recovery workflow as every other declared
+row.
 
 ## Before an upgrade
 
 1. Stop the server cleanly. Do **not** copy a live SQLite database with its WAL files in flight.
 2. Copy the whole `plugins/SpectraEvents/` directory to timestamped offline storage. At minimum this
-   preserves `spectraevents.db`, `events/`, `models/`, `assets/`, `resource-pack.yml`, and generated
+   preserves `data/spectraevents.db`, `events/`, `assets/`, `resource-pack.yml`, and generated
    pack evidence.
 3. Record the installed JAR name and SHA-256. For a candidate artifact, compare it with the release
    `SHA256SUMS.txt` using `sha256sum -c SHA256SUMS.txt`.
@@ -56,7 +57,7 @@ event-owned Display, Interaction, and boss entities. Use these signals:
 | Signal | Healthy result | Operator response when unhealthy |
 | --- | --- | --- |
 | Startup log | `READY platform=...` and a reconciliation summary | Preserve the log, stop the server, back up the data directory, then investigate the first error |
-| `/spectraevents doctor` | Definitions loaded; active instances and reconciliation are visible | Run `/spectraevents definition validate`; resolve missing models/configuration before retrying |
+| `/spectraevents doctor` | Definitions loaded; active instances and reconciliation are visible | Run `/spectraevents definition validate`; resolve missing assets/configuration before retrying |
 | `/spectraevents event inspect <id>` | Running state has runtime state, expected tasks/resources, and an optional recorded claimant | For terminal events, non-zero tasks/resources require log collection and a controlled restart; do not delete entities manually first |
 | Cancellation | `CANCELLED`, `runtimeState=false`, `tasks=0`, `resources=0` | Treat residual resources as a recovery incident and retain logs/database backup |
 

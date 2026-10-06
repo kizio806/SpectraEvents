@@ -59,3 +59,6 @@ phases:
 
 Validate your event with `/spectraevents definition validate` and test it with
 `/spectraevents event start my_event`!
+
+For a distributable, installable template rather than a loose event file, see
+[Spectra Bundle v1](spectra-bundles.md).

@@ -39,7 +39,8 @@ public final class EventExecutionEngine {
     this.context =
         new EngineContext(
             repository, definitionRegistry, scheduler, platformActionPort, stateStore);
-    this.internalActionExecutor = new InternalActionExecutor(repository, actionResolvers, this);
+    this.internalActionExecutor =
+        new InternalActionExecutor(repository, actionResolvers, this, platformActionPort);
     this.triggerEvaluator = new EventTriggerEvaluator(conditionResolvers);
 
     this.lifecycleManager = new EventLifecycleManager(this.context);
@@ -75,6 +76,21 @@ public final class EventExecutionEngine {
 
   public EventInstance startEvent(EventDefinition definition, Object platformLocationReference) {
     return lifecycleManager.startEvent(definition, platformLocationReference);
+  }
+
+  /** Starts a definition without waiting for durable persistence on the caller's thread. */
+  public java.util.concurrent.CompletableFuture<EventInstance> startEventAsync(
+      String definitionId, Object platformLocationReference) {
+    return lifecycleManager.startEventAsync(
+        lifecycleManager.getDefinition(definitionId), platformLocationReference);
+  }
+
+  /**
+   * Starts a compiled definition without waiting for durable persistence on the caller's thread.
+   */
+  public java.util.concurrent.CompletableFuture<EventInstance> startEventAsync(
+      EventDefinition definition, Object platformLocationReference) {
+    return lifecycleManager.startEventAsync(definition, platformLocationReference);
   }
 
   public boolean evaluateTrigger(EventInstanceId instanceId, TriggerDefinition trigger) {

@@ -56,17 +56,16 @@ final class ActionExecutionCoordinator {
                 REWARD_ACTION_TYPES.contains(action.type().toLowerCase(java.util.Locale.ROOT)));
   }
 
-  public boolean acceptRewardClaim(
+  public CompletableFuture<Boolean> acceptRewardClaim(
       EventRuntimeState state, TriggerDefinition trigger, ExecutionContext execContext) {
     String claimantId =
         execContext != null && execContext.actor() != null
             ? execContext.actor().toString()
             : "system:" + trigger.type().toLowerCase(java.util.Locale.ROOT);
     if (state.isClaimed() || !state.tryClaim(claimantId)) {
-      return false;
+      return CompletableFuture.completedFuture(false);
     }
-    context.repository().saveStateDurably(state);
-    return true;
+    return context.repository().saveStateDurablyAsync(state).thenApply(ignored -> true);
   }
 
   public void observeActionCompletion(

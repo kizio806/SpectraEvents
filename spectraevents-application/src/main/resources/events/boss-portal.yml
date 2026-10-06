@@ -1,8 +1,29 @@
+# =============================================================================
+# SpectraEvents — Event Definition: Boss Portal
+# =============================================================================
+# A multi-stage public raid: the portal gathers energy, defense waves appear,
+# then the Portal Overlord must be defeated before its enraged finale.
+#
+# Edit bounded values in parameters through the admin panel. Keep phases, actions,
+# model references and reward rules in this definition so the encounter stays clear.
+#
+# FIELD GUIDE: `on-enter` runs once per phase. A transition with `target` moves the state machine;
+# a transition with only `actions` keeps the phase. `i18n:` values are locale keys, not literals.
+# `spawn_wave.mobs` declares entity type, localized display name, amount and spawn radius. The
+# wave-id is the stable token consumed by the matching `wave_cleared` trigger. Participant claims
+# deliver each eligible player's items to their inventory or drop them at that player's position;
+# `award_podium` does the same for the ranked contributors. No reward is stored in a server vault.
+# =============================================================================
+
+# Stable machine identifier used in commands, schedules and overrides.
 id: boss_portal
+# Event definition schema accepted by the compiler.
 schema-version: "1"
+# First state entered when the event starts.
 initial-phase: gathering
 
 encounter:
+  # The encounter reserves this radius and ends if its overall deadline expires.
   zone-radius: 128
   deadline: 25m
   minimum-contribution: 1
@@ -11,6 +32,7 @@ limits:
   max-active-per-world: 1
 
 parameters:
+  # The only GUI-editable Boss Portal value. min, max and step are seconds.
   gathering-duration:
     type: duration
     default: 5m
@@ -21,6 +43,7 @@ parameters:
 
 phases:
   gathering:
+    # Open the visual portal and give players a visible preparation phase.
     on-enter:
       - type: spawn_model
         model: boss_portal
@@ -28,11 +51,11 @@ phases:
         animation: opening
         loop: ONCE
       - type: show_bossbar
-        title: "<dark_purple><bold>BOSS PORTAL</bold> <gray>| gathering | %location%"
+        title: "i18n:event.boss-portal.gathering-bossbar"
         color: PURPLE
         style: PROGRESS
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <dark_purple>Boss Portal gathering at %location%.</dark_purple>"
+        message: "i18n:event.boss-portal.gathering-message"
     transitions:
       - trigger:
           type: timer_elapsed
@@ -40,17 +63,18 @@ phases:
         target: first-wave
 
   first-wave:
+    # The first exact wave-id must match the next wave_cleared trigger.
     on-enter:
       - type: play_animation
         animation: active
         loop: LOOP
       - type: update_bossbar
-        title: "<dark_purple><bold>BOSS PORTAL</bold> <gray>| first defense wave | %location%"
+        title: "i18n:event.boss-portal.first-wave-bossbar"
       - type: spawn_wave
         wave-id: portal-vanguard
         mobs:
           - entity_type: minecraft:enderman
-            name: "<dark_purple>Portal Vanguard</dark_purple>"
+            name: "i18n:event.boss-portal.portal-vanguard"
             amount: 12
             radius: 20
     transitions:
@@ -60,18 +84,19 @@ phases:
         target: second-wave
 
   second-wave:
+    # A harder mixed wave gates the boss spawn.
     on-enter:
       - type: update_bossbar
-        title: "<dark_purple><bold>BOSS PORTAL</bold> <gray>| second defense wave | %location%"
+        title: "i18n:event.boss-portal.second-wave-bossbar"
       - type: spawn_wave
         wave-id: portal-wardens
         mobs:
           - entity_type: minecraft:evoker
-            name: "<dark_purple>Portal Warden</dark_purple>"
+            name: "i18n:event.boss-portal.portal-warden"
             amount: 4
             radius: 16
           - entity_type: minecraft:vindicator
-            name: "<red>Rift Guard</red>"
+            name: "i18n:event.boss-portal.rift-guard"
             amount: 16
             radius: 24
     transitions:
@@ -81,15 +106,16 @@ phases:
         target: boss
 
   boss:
+    # The boss may be defeated normally; the ten-minute timer instead starts enrage.
     on-enter:
       - type: spawn_boss
         entity_type: minecraft:wither_skeleton
-        name: "<dark_red><bold>PORTAL OVERLORD</bold></dark_red>"
+        name: "i18n:event.boss-portal.overlord-name"
         offset-x: 0
         offset-y: 0
         offset-z: 2
       - type: update_bossbar
-        title: "<dark_red><bold>PORTAL OVERLORD</bold> <gray>| defeat before enrage | %location%"
+        title: "i18n:event.boss-portal.boss-bossbar"
     transitions:
       - trigger:
           type: entity_death
@@ -100,14 +126,15 @@ phases:
         target: enrage
 
   enrage:
+    # Enrage gives a final ten minutes. Expiry fails the event rather than granting rewards.
     on-enter:
       - type: spawn_particles
         particle: minecraft:dragon_breath
         count: 120
       - type: update_bossbar
-        title: "<red><bold>PORTAL OVERLORD ENRAGED</bold> <gray>| finish the raid | %location%"
+        title: "i18n:event.boss-portal.enrage-bossbar"
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <red>The Portal Overlord is enraged.</red>"
+        message: "i18n:event.boss-portal.enrage-message"
     transitions:
       - trigger:
           type: entity_death
@@ -119,6 +146,7 @@ phases:
           - type: fail_event
 
   victory:
+    # Terminal success: create player claims, award podium, announce, then clean every visual.
     on-enter:
       - type: create_participant_reward_claims
         items:
@@ -143,7 +171,7 @@ phases:
                 amount: 1
                 chance: 100
       - type: broadcast_message
-        message: "<gold>[SpectraEvents]</gold> <green>Boss Portal conquered. Personal rewards are in /se rewards.</green>"
+        message: "i18n:event.boss-portal.victory-message"
       - type: remove_bossbar
       - type: remove_model
       - type: complete_event

@@ -10,6 +10,8 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleTransit
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.locks.ReentrantLock;
 
 final class EventLifecycleManager {
@@ -43,6 +45,23 @@ final class EventLifecycleManager {
   }
 
   public EventInstance startEvent(EventDefinition definition, Object platformLocationReference) {
+    try {
+      return startEventAsync(definition, platformLocationReference).join();
+    } catch (CompletionException exception) {
+      Throwable cause = exception.getCause();
+      if (cause instanceof RuntimeException runtimeException) {
+        throw runtimeException;
+      }
+      throw new IllegalStateException("Could not start event", cause);
+    }
+  }
+
+  /**
+   * Starts an event after its instance and initial state have committed. Platform adapters must use
+   * this asynchronous form so a SQLite flush cannot stall a server or region thread.
+   */
+  public CompletableFuture<EventInstance> startEventAsync(
+      EventDefinition definition, Object platformLocationReference) {
     Objects.requireNonNull(definition, "definition");
     long runningInstances =
         context.repository().findAll().stream()
@@ -65,23 +84,36 @@ final class EventLifecycleManager {
       state.setPlatformLocation(platformLocationReference);
     }
     reserveEncounterZone(definition, id, platformLocationReference, state);
-    context.repository().saveWithStateDurably(running, state);
-
-    scheduleEncounterDeadline(definition, id);
-    if (definition.encounterSettings().reservesZone()) {
-      context.checkpointService().start(id);
-    }
-
-    try {
-      if (phaseController != null) {
-        phaseController.executePhaseEntry(
-            running, definition, definition.initialPhase(), ExecutionContext.EMPTY);
-      }
-    } catch (RuntimeException exception) {
-      failEvent(running.id(), exception);
-      throw exception;
-    }
-    return running;
+    return context
+        .repository()
+        .saveWithStateDurablyAsync(running, state)
+        .thenApply(
+            ignored -> {
+              scheduleEncounterDeadline(definition, id);
+              if (definition.encounterSettings().reservesZone()) {
+                context.checkpointService().start(id);
+              }
+              try {
+                if (phaseController != null) {
+                  phaseController.executePhaseEntry(
+                      running, definition, definition.initialPhase(), ExecutionContext.EMPTY);
+                }
+              } catch (RuntimeException exception) {
+                failEvent(running.id(), exception);
+                throw exception;
+              }
+              return running;
+            })
+        .whenComplete(
+            (started, failure) -> {
+              if (failure != null) {
+                context.observedActionCompletions().remove(id);
+                context.stateStore().remove(id);
+                context.definitionSnapshots().remove(id);
+                context.zoneRegistry().release(id);
+                context.repository().remove(id);
+              }
+            });
   }
 
   public EventInstance cancelEvent(EventInstanceId instanceId) {

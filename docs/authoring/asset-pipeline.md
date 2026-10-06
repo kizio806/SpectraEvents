@@ -8,12 +8,13 @@ Place only these files directly in the plugin source directory:
 ```text
 plugins/SpectraEvents/
 ├── assets/source/
+│   ├── meteor.bbmodel
 │   └── meteor.spectra.zip
-└── generated/resource-pack/
+└── cache/resource-pack/
     └── spectraevents-profile_26_1.zip
 ```
 
-The server imports all source bundles during startup. On Paper, an administrator can also run
+The server imports all `.bbmodel` and `.spectra.zip` source files during startup. On Paper, an administrator can also run
 `/spectraevents assets build` to scan, validate, register and build again, or `/spectraevents assets import
 <file.spectra.zip>` to import one top-level source file and rebuild the ZIP immediately. The source
 bundle and the previous generated ZIP are never deleted by `/spectraevents assets clean`; that command only
@@ -40,6 +41,9 @@ The importer preserves cubes, texture UVs, pivots, group hierarchy and named pos
 animations. Every top-level and nested Blockbench group becomes a normal model part. The bundle model
 ID is therefore usable in event YAML, and the animation names are usable with `play_animation`.
 
+Blockbench cubes mirrored by reversed `from`/`to` bounds are normalized to the same physical bounds,
+because vanilla item-model JSON requires the lower coordinate first. Zero-size cubes are rejected.
+
 ```yaml
 on-enter:
   - type: spawn_model
@@ -52,12 +56,13 @@ on-enter:
 
 ## Safety limits
 
-The current schema intentionally has small, predictable limits: a 5 MB compressed archive; at most
-18 ZIP entries, 8 MB expanded data and 2 MB per entry; 16 textures; 512 cubes; 128 groups with
-32 levels of nesting; 32 animations; 2,000 keyframes; JSON depth 64; and 1024×1024 / 1,048,576-pixel
-textures. Textures must be embedded PNG or JPEG data when exporting. JPEG inputs are transcoded to
-PNG before the resource pack is generated. These limits are part of the input contract, not
-recommendations.
+The current schema intentionally has bounded, predictable limits: a 25 MB compressed archive; at
+most 18 ZIP entries, 32 MB expanded data and 24 MB per entry; 16 textures; 512 cubes; 128 groups
+with 32 levels of nesting; 32 animations; 2,000 keyframes; JSON depth 64; and 4096×4096 /
+16,777,216-pixel textures. The larger byte limit is necessary because a valid 4096×4096 embedded
+image is Base64-encoded inside a `.bbmodel`; decoded pixel dimensions remain strictly bounded.
+Textures must be embedded PNG or JPEG data when exporting. JPEG inputs are transcoded to PNG before
+the resource pack is generated. These limits are part of the input contract, not recommendations.
 
 ## Generated resource pack
 
@@ -66,13 +71,14 @@ modern `minecraft:custom_model_data` range-dispatch mapping for paper items, and
 `spectraevents-manifest.json` containing generated-file SHA-256 values. The builder also returns
 archive SHA-1 and SHA-256 values; SHA-1 is the value Minecraft needs for player delivery.
 
-The pack is generated, structurally tested, and M2 was confirmed by the operator in a real-client
-workflow. Record new target-profile validation whenever a Minecraft resource-pack format changes;
-client acceptance for one profile does not automatically prove a future profile.
+The pack is generated and structurally tested. Record target-profile validation whenever a Minecraft
+resource-pack format changes; client acceptance for one profile does not automatically prove a
+future profile.
 
 ## Delivery boundary
 
-SpectraEvents never publishes a pack or exposes the local generated ZIP automatically. If an operator
-chooses to deliver one, they must host that exact ZIP at an administrator-controlled HTTPS `.zip` URL
-and configure `plugins/SpectraEvents/resource-pack.yml`. See
-[resource-pack configuration](../config/resource-pack.md). Modrinth publishing remains disabled.
+Release CI builds the same sources into one ZIP per supported Minecraft release line and publishes
+them to the configured separate Modrinth resource-pack project. It does not publish from a running
+server. Once an operator sets the project ID in `plugins/SpectraEvents/resource-pack.yml`, the server
+automatically selects the Modrinth version matching both its plugin version and resource-pack profile.
+Manual HTTPS hosting remains available. See [resource-pack configuration](../config/resource-pack.md).

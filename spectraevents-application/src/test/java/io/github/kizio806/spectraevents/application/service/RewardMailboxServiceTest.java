@@ -31,7 +31,7 @@ class RewardMailboxServiceTest {
             .join();
 
     assertEquals(RewardMailboxService.ClaimDeliveryResult.Status.RETAINED, result.status());
-    assertEquals(List.of(claim), service.pendingClaims(playerId));
+    assertEquals(List.of(claim), service.pendingClaims(playerId).join());
   }
 
   @Test
@@ -53,6 +53,30 @@ class RewardMailboxServiceTest {
             .join();
 
     assertEquals(RewardMailboxService.ClaimDeliveryResult.Status.DELIVERED, result.status());
-    assertEquals(List.of(), service.pendingClaims(playerId));
+    assertEquals(List.of(), service.pendingClaims(playerId).join());
+  }
+
+  @Test
+  void exposesAndResolvesCrashAmbiguousDeliveriesOnlyAfterAnExplicitDecision() {
+    InMemoryEventInstanceRepository repository = new InMemoryEventInstanceRepository();
+    RewardMailboxService service = new RewardMailboxService(repository);
+    UUID playerId = UUID.randomUUID();
+    RewardClaim claim =
+        RewardClaim.pending(
+            new EventInstanceId(UUID.randomUUID()), playerId, List.of(new RewardItem("gold", 2)));
+    repository.savePendingDurably(claim);
+    assertEquals(true, repository.beginDelivery(claim.id()));
+
+    assertEquals(
+        List.of(claim.id()),
+        service.deliveringClaims().join().stream().map(RewardClaim::id).toList());
+    assertEquals(
+        true,
+        service
+            .reconcile(claim.id(), RewardMailboxService.ReconciliationDecision.RETURN_TO_PENDING)
+            .join());
+    assertEquals(
+        List.of(claim.id()),
+        service.pendingClaims(playerId).join().stream().map(RewardClaim::id).toList());
   }
 }

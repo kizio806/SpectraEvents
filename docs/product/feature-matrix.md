@@ -1,39 +1,45 @@
 # Feature Matrix
 
-This matrix compares several target reference events to identify common mechanical needs. It is an analytical tool to discover shared primitives, not a rigid promise of implementation.
+## Platform support contract
 
-| Feature / Mechanic | Meteor | Airdrop | Metin | Pinata | Vault | Boss Portal |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **3D Model** | Yes | Yes | Yes | Yes | Yes | Yes |
-| **Multipart Model** | Yes | Yes | No | Yes | Yes | Yes |
-| **Timer** | Yes | Yes | Yes | Yes | Yes | Yes |
-| **Health** | Yes | No | Yes | No | No | No |
-| **Hit Counter** | No | No | No | Yes | No | No |
-| **Interaction (Click)** | Yes | Yes | No | Yes | Yes | Yes |
-| **Leaderboard** | Yes | No | Yes | Yes | No | Yes |
-| **Loot / Rewards** | Yes | Yes | Yes | Yes | Yes | Yes |
-| **Reward Ranking** | Yes | No | Yes | No | No | Yes |
-| **Mob Waves** | No | No | Yes | No | No | Yes |
-| **Event Area** | Yes | Yes | Yes | Yes | Yes | Yes |
-| **PvP Controls** | Yes | Yes | Yes | Yes | Yes | Yes |
-| **Bossbar** | Yes | Yes | Yes | Yes | Yes | Yes |
-| **Hologram** | Yes | Yes | Yes | Yes | Yes | Yes |
-| **Animations** | Yes | Yes | No | Yes | Yes | Yes |
-| **Particles** | Yes | Yes | Yes | Yes | Yes | Yes |
-| **Sounds** | Yes | Yes | Yes | Yes | Yes | Yes |
-| **Spawn Strategy** | Random | Random | Fixed | Random | Fixed | Fixed |
-| **Location Announcement** | Yes | Yes | Yes | Yes | Yes | Yes |
-| **Restart Recovery** | Yes | Yes | Yes | Yes | Yes | Yes |
+`Yes` is part of the supported operator contract for that distribution. Folia is supported only on
+Minecraft 26.1–26.2; Folia 26.3 is refused before initialization. `Paper only` means that the
+Spigot command reports the feature as unavailable; it is not silently emulated. Both artifacts load
+the same active YAML definitions and bundled Blockbench assets.
 
-## Common Engine Primitives Identified
+| Capability | Paper / Purpur / Folia artifact | Spigot / CraftBukkit artifact |
+| --- | :---: | :---: |
+| Definitions, lifecycle, persistence and restart recovery | Yes | Yes |
+| Blockbench asset import, models and animations | Yes | Yes |
+| Local resource-pack build and configured player delivery | Yes | Yes |
+| Event, definition, reward, schedule, status and doctor commands | Yes | Yes |
+| Reward-delivery reconciliation commands | Yes | Yes |
+| `event start … location …` and named locations | Yes | No; executor or spawn location |
+| Asset import/build and model-inspection commands | Yes | No; startup imports assets |
+| Inventory administrator GUI and saved GUI overrides | Yes | Paper only |
+| Integration and update commands | Yes | Paper only |
+| Brigadier suggestions and Adventure-rich messages | Yes | No; Bukkit command UX |
 
-From the matrix above, it is clear that almost all events rely on a core set of shared primitives. Rather than building bespoke logic for each event, the engine MUST implement:
+Paper, Purpur, Spigot and CraftBukkit support 26.1–26.3. Folia supports 26.1–26.2 only. New Folia
+versions are declared only after their exact real-server workflow passes.
 
-1. **Timer**: Used across Meteor, Airdrop, Vault, and Boss Portal for locking phases and expirations.
-2. **Health**: Used by Meteor and Metin for tracking damage.
-3. **Hit Counter**: Used by Pinata for discrete interactions.
-4. **Interaction**: Used across almost all events.
-5. **Leaderboard**: Used for tracking participation in damage (Meteor, Metin) and hits (Pinata).
-6. **Loot**: A universal requirement.
-7. **Event Area**: Spatial presence and rule enforcement.
-8. **Mob Waves**: Specifically needed for Metin and Boss Portal.
+Folia does not implement Bukkit scoreboard creation. A scoreboard action is reported as unsupported
+and the event continues without a sidebar; use bossbars for UI that must span Paper, Purpur and Folia.
+
+## Shipped reference presets
+
+Presets are extracted to `events/presets/` and are inactive until copied into `events/`. They are
+working configurations that exercise reusable engine primitives; they do not create an event-specific
+Java subsystem.
+
+| Preset | Core behaviors illustrated |
+| --- | --- |
+| Meteor | model, falling animation, timer phases, health, loot and cleanup |
+| Airdrop | timed unlock, interaction, rewards and UI |
+| Metin | health damage, threshold transitions, mob waves and boss phase |
+| Piñata | interaction-driven progress, rewards and presentation |
+| Boss Portal | phased portal encounter, mobs, timers and cleanup |
+
+The runtime also supports generic lifecycle, timer, interaction, model, sound, particles, reward,
+area and UI actions as documented by the event-definition and authoring guides. A table entry is not a
+promise that every preset uses every action.

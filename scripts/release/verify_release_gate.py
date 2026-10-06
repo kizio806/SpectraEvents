@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refuse publication while a required runtime row is explicitly blocked."""
+"""Refuse publication without a successful real-server runtime matrix."""
 
 from __future__ import annotations
 
@@ -57,6 +57,11 @@ def main() -> int:
         action="store_true",
         help="Validate and report blockers without failing; intended only for non-release CI.",
     )
+    parser.add_argument(
+        "--runtime-matrix-status",
+        choices={"success", "failure", "cancelled", "skipped"},
+        help="Result of the required real-server matrix; release eligibility must provide it.",
+    )
     args = parser.parse_args()
 
     try:
@@ -65,8 +70,22 @@ def main() -> int:
         print(f"RELEASE GATE INVALID: {error}", file=sys.stderr)
         return 2
 
+    if args.runtime_matrix_status is None:
+        print(
+            "RELEASE GATE INVALID: --runtime-matrix-status is required; "
+            "a source-only check is not release evidence.",
+            file=sys.stderr,
+        )
+        return 2
+    if args.runtime_matrix_status != "success":
+        print(
+            "RELEASE GATE BLOCKED: required real-server runtime matrix result is "
+            f"{args.runtime_matrix_status}.",
+        )
+        return 0 if args.allow_blocked else 1
+
     if not blockers:
-        print("RELEASE GATE PASS: no required runtime rows are blocked.")
+        print("RELEASE GATE PASS: runtime matrix succeeded and no required runtime rows are blocked.")
         return 0
 
     print("RELEASE GATE BLOCKED: publication is forbidden until every row below is verified.")

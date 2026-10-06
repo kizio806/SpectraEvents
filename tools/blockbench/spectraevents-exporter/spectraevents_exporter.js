@@ -23,10 +23,10 @@
   });
 
   async function exportSpectraBundle() {
-    if (!Format || Format.id !== 'free') {
+    if (!Format || (Format.id !== 'free' && Format.id !== 'java_block')) {
       Blockbench.showMessageBox({
         title: 'SpectraEvents export',
-        message: 'SpectraEvents supports only Blockbench Generic Model projects. Create or convert the project before exporting.'
+        message: 'SpectraEvents supports only Blockbench Generic Model or Java Block projects. Use cuboid elements; mesh geometry cannot be exported to the Minecraft resource-pack generator.'
       });
       return;
     }
@@ -45,7 +45,13 @@
       }
 
       model.meta = model.meta || {};
-      model.meta.model_format = 'free';
+      model.meta.model_format = Format.id;
+
+      if (Array.isArray(model.elements) && model.elements.some(function (element) {
+        return element && element.type && element.type !== 'cube';
+      })) {
+        throw new Error('Mesh geometry is not supported. Convert every visible element to a cuboid before exporting.');
+      }
 
       model.textures.forEach(function (texture, index) {
         if (!texture || typeof texture.source !== 'string' || !texture.source.startsWith('data:image/png;base64,')) {

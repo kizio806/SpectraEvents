@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
@@ -23,30 +24,7 @@ public final class SpigotEventTaskScheduler implements EventTaskScheduler {
   @Override
   public void schedule(EventInstanceId eventId, Duration delay, Runnable task) {
     long ticks = Math.max(1L, delay.toMillis() / 50L);
-
-    BukkitTask bukkitTask =
-        Bukkit.getScheduler()
-            .runTaskLater(
-                plugin,
-                () -> {
-                  task.run();
-                  List<BukkitTask> eventTasks = tasks.get(eventId);
-                  if (eventTasks != null) {
-                    // We can't easily remove 'this' task since we're inside the lambda and
-                    // bukkitTask is effectively final,
-                    // but we can clean up periodically or let cancelAll handle it.
-                    // Actually, let's keep it simple. It's safe to keep completed tasks in the list
-                    // until cancelAll.
-                  }
-                },
-                ticks);
-
-    tasks.computeIfAbsent(eventId, k -> new CopyOnWriteArrayList<>()).add(bukkitTask);
-  }
-
-  @Override
-  public void scheduleGlobal(Duration delay, Runnable task) {
-    long ticks = Math.max(1L, delay.toMillis() / 50L);
+    AtomicReference<BukkitTask> taskReference = new AtomicReference<>();
     BukkitTask bukkitTask =
         Bukkit.getScheduler()
             .runTaskLater(
@@ -55,10 +33,41 @@ public final class SpigotEventTaskScheduler implements EventTaskScheduler {
                   try {
                     task.run();
                   } finally {
-                    globalTasks.removeIf(BukkitTask::isCancelled);
+                    BukkitTask completedTask = taskReference.get();
+                    List<BukkitTask> eventTasks = tasks.get(eventId);
+                    if (completedTask != null && eventTasks != null) {
+                      eventTasks.remove(completedTask);
+                      if (eventTasks.isEmpty()) {
+                        tasks.remove(eventId, eventTasks);
+                      }
+                    }
                   }
                 },
                 ticks);
+    taskReference.set(bukkitTask);
+    tasks.computeIfAbsent(eventId, k -> new CopyOnWriteArrayList<>()).add(bukkitTask);
+  }
+
+  @Override
+  public void scheduleGlobal(Duration delay, Runnable task) {
+    long ticks = Math.max(1L, delay.toMillis() / 50L);
+    AtomicReference<BukkitTask> taskReference = new AtomicReference<>();
+    BukkitTask bukkitTask =
+        Bukkit.getScheduler()
+            .runTaskLater(
+                plugin,
+                () -> {
+                  try {
+                    task.run();
+                  } finally {
+                    BukkitTask completedTask = taskReference.get();
+                    if (completedTask != null) {
+                      globalTasks.remove(completedTask);
+                    }
+                  }
+                },
+                ticks);
+    taskReference.set(bukkitTask);
     globalTasks.add(bukkitTask);
   }
 

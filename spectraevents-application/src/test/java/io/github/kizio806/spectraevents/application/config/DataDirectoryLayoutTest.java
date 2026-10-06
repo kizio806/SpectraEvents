@@ -21,7 +21,7 @@ class DataDirectoryLayoutTest {
     DataDirectoryLayout layout = DataDirectoryLayout.prepare(root);
 
     assertTrue(Files.isDirectory(layout.eventsDirectory()));
-    assertTrue(Files.isDirectory(layout.modelsDirectory()));
+    assertTrue(Files.isDirectory(layout.eventOverridesDirectory()));
     assertTrue(Files.isDirectory(layout.lootDirectory()));
     assertTrue(Files.isDirectory(layout.localesDirectory()));
     assertTrue(Files.isDirectory(layout.resourcePackCacheDirectory()));
@@ -31,7 +31,9 @@ class DataDirectoryLayoutTest {
       Path backup = backups.findFirst().orElseThrow();
       assertEquals("legacy-db", Files.readString(backup.resolve("spectraevents.db")));
     }
-    assertTrue(Files.readString(layout.configFile()).contains("schema-version: 1"));
+    assertTrue(Files.readString(layout.configFile()).contains("schema-version: 2"));
+    assertTrue(Files.readString(layout.configFile()).contains("locale: en-US"));
     assertTrue(Files.readString(layout.schedulesFile()).contains("schema-version: 1"));
+    assertTrue(Files.readString(layout.locationsFile()).contains("locations: {}"));
   }
 }

@@ -10,3 +10,16 @@ dependencies {
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(21))
 }
+
+tasks
+    .matching {
+        it.name in
+            setOf(
+                "generateExternalPluginSpecBuilders",
+                "generatePrecompiledScriptPluginAccessors",
+                "extractPrecompiledScriptPluginPlugins",
+                "generateScriptPluginAdapters",
+            )
+    }.configureEach {
+        mustRunAfter(tasks.named("clean"))
+    }

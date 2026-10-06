@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-/** Explicit administrator-owned delivery settings for a verified externally hosted local ZIP. */
+/** Administrator-owned settings for verified manual or Modrinth-hosted resource-pack delivery. */
 public record ResourcePackDeliverySettings(
     boolean enabled,
     boolean required,
@@ -38,9 +38,9 @@ public record ResourcePackDeliverySettings(
           throw new IllegalArgumentException(
               "Enabled resource-pack delivery requires a 40-character SHA-1 for manual URLs");
         }
-      } else if (modrinthVersionId.isBlank()) {
+      } else if (!url.isBlank() || !sha1.isBlank()) {
         throw new IllegalArgumentException(
-            "Enabled Modrinth resource-pack delivery requires a pinned modrinthVersionId");
+            "Enabled Modrinth resource-pack delivery cannot also define manual url or sha1");
       }
     }
   }

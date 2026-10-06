@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.paper.gui;
 
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.execution.EventExecutionEngine;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import java.time.Duration;
@@ -18,62 +19,92 @@ public final class EventInstanceDetailScreen {
 
   private EventInstanceDetailScreen() {}
 
-  public static Inventory createInventory(EventInstance instance, EventExecutionEngine engine) {
+  public static Inventory createInventory(
+      EventInstance instance, EventExecutionEngine engine, LocaleCatalog locales) {
     Inventory inventory =
         AdminGuiHolder.createInventory(
             AdminGuiController.MenuType.EVENT_INSTANCE_DETAIL,
             instance.id().toString(),
             java.util.Map.of(),
             54,
-            Component.text("Event: " + instance.definitionId().value(), NamedTextColor.GOLD));
+            GuiText.component(
+                locales,
+                "admin.gui.instance.title",
+                NamedTextColor.GOLD,
+                java.util.Map.of("event", instance.definitionId().value())));
 
     List<Component> details = new ArrayList<>();
-    details.add(Component.text("ID: " + instance.id(), NamedTextColor.GRAY));
-    details.add(Component.text("State: " + instance.state(), NamedTextColor.GRAY));
     details.add(
-        Component.text(
-            "Phase: " + instance.currentPhase().map(phase -> phase.value()).orElse("none"),
-            NamedTextColor.YELLOW));
+        GuiText.component(
+            locales,
+            "admin.gui.instance.id",
+            NamedTextColor.GRAY,
+            java.util.Map.of("id", instance.id())));
+    details.add(
+        GuiText.component(
+            locales,
+            "admin.gui.instance.state",
+            NamedTextColor.GRAY,
+            java.util.Map.of("state", instance.state())));
+    details.add(
+        GuiText.component(
+            locales,
+            "admin.gui.instance.phase",
+            NamedTextColor.YELLOW,
+            java.util.Map.of(
+                "phase", instance.currentPhase().map(phase -> phase.value()).orElse("none"))));
     engine
         .status(instance.id())
         .ifPresent(
             status -> {
               if (status.maxHealth() > 0) {
                 details.add(
-                    Component.text(
-                        "Health: " + status.currentHealth() + "/" + status.maxHealth(),
-                        NamedTextColor.RED));
+                    GuiText.component(
+                        locales,
+                        "admin.gui.instance.health",
+                        NamedTextColor.RED,
+                        java.util.Map.of(
+                            "current", status.currentHealth(), "maximum", status.maxHealth())));
               }
               if (status.maxHits() > 0) {
                 details.add(
-                    Component.text(
-                        "Hits: " + status.currentHits() + "/" + status.maxHits(),
-                        NamedTextColor.LIGHT_PURPLE));
+                    GuiText.component(
+                        locales,
+                        "admin.gui.instance.hits",
+                        NamedTextColor.LIGHT_PURPLE,
+                        java.util.Map.of(
+                            "current", status.currentHits(), "maximum", status.maxHits())));
               }
               if (status.location() != null) {
                 var location = status.location();
                 details.add(
-                    Component.text(
-                        "Location: "
-                            + location.world()
-                            + " "
-                            + Math.round(location.x())
-                            + ", "
-                            + Math.round(location.y())
-                            + ", "
-                            + Math.round(location.z()),
-                        NamedTextColor.AQUA));
+                    GuiText.component(
+                        locales,
+                        "admin.gui.instance.location",
+                        NamedTextColor.AQUA,
+                        java.util.Map.of(
+                            "location",
+                            location.world()
+                                + " "
+                                + Math.round(location.x())
+                                + ", "
+                                + Math.round(location.y())
+                                + ", "
+                                + Math.round(location.z()))));
               }
               if (status.timerDeadlineMillis() > 0) {
                 long remaining =
                     Math.max(0L, status.timerDeadlineMillis() - System.currentTimeMillis());
                 details.add(
-                    Component.text(
-                        "Time remaining: " + Duration.ofMillis(remaining).toSeconds() + "s",
-                        NamedTextColor.GREEN));
+                    GuiText.component(
+                        locales,
+                        "admin.gui.instance.remaining",
+                        NamedTextColor.GREEN,
+                        java.util.Map.of("seconds", Duration.ofMillis(remaining).toSeconds())));
               }
               if (status.locked()) {
-                details.add(Component.text("Interaction: locked", NamedTextColor.GOLD));
+                details.add(
+                    GuiText.component(locales, "admin.gui.instance.locked", NamedTextColor.GOLD));
               }
             });
 
@@ -86,19 +117,25 @@ public final class EventInstanceDetailScreen {
     inventory.setItem(
         SLOT_BACK,
         MainScreen.createGuiItem(
-            Material.ARROW, Component.text("Back to Events", NamedTextColor.YELLOW), List.of()));
+            Material.ARROW,
+            GuiText.component(locales, "admin.gui.instance.back", NamedTextColor.YELLOW),
+            List.of()));
     inventory.setItem(
         SLOT_CANCEL,
         MainScreen.createGuiItem(
             Material.REDSTONE,
-            Component.text("Cancel Event", NamedTextColor.RED),
-            List.of(Component.text("Requires confirmation", NamedTextColor.GRAY))));
+            GuiText.component(locales, "admin.gui.instance.cancel", NamedTextColor.RED),
+            List.of(
+                GuiText.component(
+                    locales, "admin.gui.instance.cancel-lore", NamedTextColor.GRAY))));
     inventory.setItem(
         SLOT_REFRESH,
         MainScreen.createGuiItem(
             Material.CLOCK,
-            Component.text("Refresh", NamedTextColor.AQUA),
-            List.of(Component.text("Reload current state", NamedTextColor.GRAY))));
+            GuiText.component(locales, "common.refresh", NamedTextColor.AQUA),
+            List.of(
+                GuiText.component(
+                    locales, "admin.gui.instance.refresh-lore", NamedTextColor.GRAY))));
     return inventory;
   }
 }

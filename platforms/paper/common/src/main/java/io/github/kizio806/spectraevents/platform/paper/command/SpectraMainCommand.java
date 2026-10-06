@@ -4,6 +4,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
@@ -13,15 +14,16 @@ import io.github.kizio806.spectraevents.platform.paper.action.PaperActionAdapter
 import io.github.kizio806.spectraevents.platform.paper.config.PaperDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
 import io.github.kizio806.spectraevents.platform.paper.gui.AdminGuiController;
+import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.io.IOException;
 import java.nio.file.Path;
-import net.kyori.adventure.text.Component;
+import java.util.Map;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 /** Main production command tree for /spectraevents in Paper platform family. */
 public final class SpectraMainCommand {
@@ -33,6 +35,7 @@ public final class SpectraMainCommand {
   private final ModelCommandHandler modelCommandHandler;
   private final AssetCommandHandler assetCommandHandler;
   private final LocationCommandHandler locationCommandHandler;
+  private final TemplateCommandHandler templateCommandHandler;
   private final EventDefinitionRegistry definitionRegistry;
   private final EventInstanceRepository instanceRepository;
   private final AdminGuiController guiController;
@@ -41,8 +44,11 @@ public final class SpectraMainCommand {
   private final PaperActionAdapter actionAdapter;
   private final Path schedulesFile;
   private final SpectraEventsApplication application;
+  private final CommandText messages;
+  private final RegionTaskScheduler regionScheduler;
 
   public SpectraMainCommand(
+      Plugin plugin,
       EventOrchestrationService orchestrationService,
       EventDefinitionRegistry definitionRegistry,
       EventInstanceRepository instanceRepository,
@@ -53,29 +59,44 @@ public final class SpectraMainCommand {
       SpectraEventsApplication application,
       PaperEventSettingsStore settingsStore,
       PaperActionAdapter actionAdapter,
-      Path schedulesFile) {
+      RegionTaskScheduler regionScheduler,
+      Path schedulesFile,
+      LocaleCatalog locales) {
+    this.messages = new CommandText(locales);
     this.eventCommandHandler =
         new EventCommandHandler(
-            orchestrationService, instanceRepository, definitionRegistry, settingsStore);
+            orchestrationService,
+            instanceRepository,
+            definitionRegistry,
+            settingsStore,
+            regionScheduler,
+            locales);
     this.definitionCommandHandler =
-        new DefinitionCommandHandler(definitionRegistry, configBootstrap);
-    this.updateCommandHandler = new UpdateCommandHandler(updateService);
+        new DefinitionCommandHandler(
+            definitionRegistry, configBootstrap, application, plugin, integrationRegistry, locales);
+    this.updateCommandHandler = new UpdateCommandHandler(updateService, regionScheduler, locales);
     this.diagnosticsCommandHandler =
         new DiagnosticsCommandHandler(
             definitionRegistry,
             instanceRepository,
             configBootstrap,
             integrationRegistry,
-            application);
-    this.integrationCommandHandler = new IntegrationCommandHandler(integrationRegistry);
-    this.modelCommandHandler = new ModelCommandHandler(application.modelDefinitionRegistry());
-    this.assetCommandHandler = new AssetCommandHandler(application.assetPipelineService());
-    this.locationCommandHandler = new LocationCommandHandler(settingsStore);
+            application,
+            locales);
+    this.integrationCommandHandler = new IntegrationCommandHandler(integrationRegistry, locales);
+    this.modelCommandHandler =
+        new ModelCommandHandler(application.modelDefinitionRegistry(), locales);
+    this.assetCommandHandler =
+        new AssetCommandHandler(regionScheduler, application.assetPipelineService(), locales);
+    this.locationCommandHandler = new LocationCommandHandler(settingsStore, locales);
+    this.templateCommandHandler =
+        new TemplateCommandHandler(plugin, application, configBootstrap, regionScheduler);
     this.definitionRegistry = definitionRegistry;
     this.instanceRepository = instanceRepository;
     this.guiController = guiController;
     this.rewardMailboxService = application.rewardMailboxService();
     this.actionAdapter = actionAdapter;
+    this.regionScheduler = regionScheduler;
     this.schedulesFile = schedulesFile;
     this.application = application;
   }
@@ -93,12 +114,14 @@ public final class SpectraMainCommand {
         .then(integrationCommandHandler.build())
         .then(modelCommandHandler.build())
         .then(assetCommandHandler.build())
+        .then(templateCommandHandler.build())
         .then(locationCommandHandler.build())
         .then(
             Commands.literal("admin")
                 .requires(s -> hasPerm(s, "spectraevents.gui"))
                 .executes(this::openGui))
         .then(eventCommandHandler.build())
+        .then(definitionCommandHandler.buildRootValidationCommand())
         .then(buildScheduleCommand())
         .then(buildRewardsCommand())
         .then(definitionCommandHandler.build())
@@ -117,18 +140,19 @@ public final class SpectraMainCommand {
     CommandSender sender = context.getSource().getSender();
     var service = requireScheduleService();
     sender.sendMessage(
-        Component.text("Schedules: " + service.schedules().size(), NamedTextColor.AQUA));
+        messages.component(
+            "command.spigot.schedules-title",
+            NamedTextColor.AQUA,
+            Map.of("count", service.schedules().size())));
     for (var schedule : service.schedules()) {
       sender.sendMessage(
-          Component.text(
-              " - "
-                  + schedule.id()
-                  + " -> "
-                  + schedule.definitionId()
-                  + " ("
-                  + schedule.zoneId()
-                  + ")",
-              NamedTextColor.GRAY));
+          messages.component(
+              "command.spigot.schedule-entry",
+              NamedTextColor.GRAY,
+              Map.of(
+                  "id", schedule.id(),
+                  "definition", schedule.definitionId(),
+                  "zone", schedule.zoneId())));
     }
     return 1;
   }
@@ -142,24 +166,26 @@ public final class SpectraMainCommand {
               .load(schedulesFile);
       requireScheduleService().replace(result.schedules());
       sender.sendMessage(
-          Component.text(
-              "Schedules loaded="
-                  + result.schedules().size()
-                  + " failed="
-                  + result.failures().size(),
-              result.failures().isEmpty() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+          messages.component(
+              "command.spigot.schedules-reloaded",
+              result.failures().isEmpty() ? NamedTextColor.GREEN : NamedTextColor.YELLOW,
+              Map.of("loaded", result.schedules().size(), "failed", result.failures().size())));
       result
           .failures()
           .forEach(
               failure ->
                   sender.sendMessage(
-                      Component.text(
-                          " - " + failure.path() + ": " + failure.message(), NamedTextColor.RED)));
+                      messages.component(
+                          "command.spigot.diagnostic-entry",
+                          NamedTextColor.RED,
+                          Map.of("path", failure.path(), "message", failure.message()))));
       return 1;
     } catch (IOException exception) {
       sender.sendMessage(
-          Component.text(
-              "Could not read schedules.yml: " + exception.getMessage(), NamedTextColor.RED));
+          messages.component(
+              "command.paper.schedules-read-failed",
+              NamedTextColor.RED,
+              Map.of("reason", exception.getMessage())));
       return 0;
     }
   }
@@ -174,31 +200,81 @@ public final class SpectraMainCommand {
 
   private LiteralArgumentBuilder<CommandSourceStack> buildRewardsCommand() {
     return Commands.literal("rewards")
-        .requires(source -> hasPerm(source, "spectraevents.rewards.claim"))
-        .executes(this::listRewards)
-        .then(Commands.literal("list").executes(this::listRewards))
+        .then(
+            Commands.literal("list")
+                .requires(source -> hasPerm(source, "spectraevents.rewards.claim"))
+                .executes(this::listRewards))
         .then(
             Commands.literal("claim")
+                .requires(source -> hasPerm(source, "spectraevents.rewards.claim"))
                 .then(
                     Commands.argument("claim-id", StringArgumentType.word())
-                        .executes(this::claimReward)));
+                        .executes(this::claimReward)))
+        .then(
+            Commands.literal("reconcile")
+                .requires(source -> hasPerm(source, "spectraevents.rewards.reconcile"))
+                .then(Commands.literal("list").executes(this::listDeliveringClaims))
+                .then(
+                    Commands.literal("mark-delivered")
+                        .then(
+                            Commands.argument("claim-id", StringArgumentType.word())
+                                .executes(
+                                    context ->
+                                        reconcileClaim(
+                                            context,
+                                            io.github.kizio806.spectraevents.application.service
+                                                .RewardMailboxService.ReconciliationDecision
+                                                .MARK_DELIVERED))))
+                .then(
+                    Commands.literal("return-pending")
+                        .then(
+                            Commands.argument("claim-id", StringArgumentType.word())
+                                .executes(
+                                    context ->
+                                        reconcileClaim(
+                                            context,
+                                            io.github.kizio806.spectraevents.application.service
+                                                .RewardMailboxService.ReconciliationDecision
+                                                .RETURN_TO_PENDING)))));
   }
 
+  @SuppressWarnings(
+      "FutureReturnValueIgnored") // Completion is returned to the player's owning region.
   private int listRewards(CommandContext<CommandSourceStack> context) {
     CommandSender sender = context.getSource().getSender();
     if (!(sender instanceof Player player)) {
       sender.sendMessage(
-          Component.text("Rewards are available to in-game players only.", NamedTextColor.RED));
+          messages.component("command.paper.rewards-player-only", NamedTextColor.RED));
       return 0;
     }
-    var claims = rewardMailboxService.pendingClaims(player.getUniqueId());
-    sender.sendMessage(Component.text("Pending rewards: " + claims.size(), NamedTextColor.AQUA));
-    for (var claim : claims) {
-      sender.sendMessage(
-          Component.text(
-              " - " + claim.id() + " (" + claim.items().size() + " item entries)",
-              NamedTextColor.GRAY));
-    }
+    rewardMailboxService
+        .pendingClaims(player.getUniqueId())
+        .whenComplete(
+            (claims, failure) ->
+                regionScheduler.executeFor(
+                    player,
+                    () -> {
+                      if (failure != null) {
+                        player.sendMessage(
+                            messages.component(
+                                "command.spigot.failed",
+                                NamedTextColor.RED,
+                                Map.of("reason", messageFor(failure))));
+                        return;
+                      }
+                      player.sendMessage(
+                          messages.component(
+                              "command.spigot.rewards-title",
+                              NamedTextColor.AQUA,
+                              Map.of("count", claims.size())));
+                      for (var claim : claims) {
+                        player.sendMessage(
+                            messages.component(
+                                "command.spigot.reward-entry",
+                                NamedTextColor.GRAY,
+                                Map.of("id", claim.id(), "count", claim.items().size())));
+                      }
+                    }));
     return 1;
   }
 
@@ -207,14 +283,14 @@ public final class SpectraMainCommand {
     CommandSender sender = context.getSource().getSender();
     if (!(sender instanceof Player player)) {
       sender.sendMessage(
-          Component.text("Rewards are available to in-game players only.", NamedTextColor.RED));
+          messages.component("command.paper.rewards-player-only", NamedTextColor.RED));
       return 0;
     }
     java.util.UUID claimId;
     try {
       claimId = java.util.UUID.fromString(StringArgumentType.getString(context, "claim-id"));
     } catch (IllegalArgumentException exception) {
-      sender.sendMessage(Component.text("Invalid reward claim ID.", NamedTextColor.RED));
+      sender.sendMessage(messages.component("command.paper.invalid-reward-id", NamedTextColor.RED));
       return 0;
     }
     rewardMailboxService
@@ -222,25 +298,126 @@ public final class SpectraMainCommand {
             player.getUniqueId(),
             claimId,
             (ignored, items) -> actionAdapter.deliverRewardItems(player, items))
-        .thenAccept(
-            result -> {
-              NamedTextColor color =
-                  result.status()
-                          == io.github.kizio806.spectraevents.application.service
-                              .RewardMailboxService.ClaimDeliveryResult.Status.DELIVERED
-                      ? NamedTextColor.GREEN
-                      : NamedTextColor.YELLOW;
-              String message =
-                  switch (result.status()) {
-                    case DELIVERED -> "Reward delivered.";
-                    case RETAINED ->
-                        "Reward is retained. Make space in your inventory and try again.";
-                    case BUSY -> "That reward is already being delivered.";
-                    case NOT_AVAILABLE -> "That reward is not available.";
-                  };
-              player.sendMessage(Component.text(message, color));
-            });
+        .whenComplete(
+            (result, failure) ->
+                regionScheduler.executeFor(
+                    player,
+                    () -> {
+                      if (failure != null) {
+                        player.sendMessage(
+                            messages.component(
+                                "command.spigot.failed",
+                                NamedTextColor.RED,
+                                Map.of("reason", messageFor(failure))));
+                        return;
+                      }
+                      NamedTextColor color =
+                          result.status()
+                                  == io.github.kizio806.spectraevents.application.service
+                                      .RewardMailboxService.ClaimDeliveryResult.Status.DELIVERED
+                              ? NamedTextColor.GREEN
+                              : NamedTextColor.YELLOW;
+                      String key =
+                          switch (result.status()) {
+                            case DELIVERED -> "messages.reward-delivered";
+                            case RETAINED -> "messages.reward-retained";
+                            case BUSY -> "command.spigot.reward-busy";
+                            case NOT_AVAILABLE -> "command.spigot.reward-unavailable";
+                          };
+                      player.sendMessage(messages.component(key, color));
+                    }));
     return 1;
+  }
+
+  @SuppressWarnings(
+      "FutureReturnValueIgnored") // Completion is returned to the command sender on its region.
+  private int listDeliveringClaims(CommandContext<CommandSourceStack> context) {
+    CommandSender sender = context.getSource().getSender();
+    rewardMailboxService
+        .deliveringClaims()
+        .whenComplete(
+            (claims, failure) ->
+                sendRewardReconciliationResult(
+                    sender,
+                    claims,
+                    failure,
+                    "command.rewards.reconcile-title",
+                    "command.rewards.reconcile-entry"));
+    return 1;
+  }
+
+  @SuppressWarnings(
+      "FutureReturnValueIgnored") // Completion is returned to the command sender on its region.
+  private int reconcileClaim(
+      CommandContext<CommandSourceStack> context,
+      io.github.kizio806.spectraevents.application.service.RewardMailboxService
+              .ReconciliationDecision
+          decision) {
+    CommandSender sender = context.getSource().getSender();
+    java.util.UUID claimId;
+    try {
+      claimId = java.util.UUID.fromString(StringArgumentType.getString(context, "claim-id"));
+    } catch (IllegalArgumentException exception) {
+      sender.sendMessage(messages.component("command.paper.invalid-reward-id", NamedTextColor.RED));
+      return 0;
+    }
+    rewardMailboxService
+        .reconcile(claimId, decision)
+        .whenComplete(
+            (resolved, failure) ->
+                regionScheduler.executeGlobal(
+                    () -> {
+                      if (failure != null) {
+                        sender.sendMessage(
+                            messages.component(
+                                "command.spigot.failed",
+                                NamedTextColor.RED,
+                                Map.of("reason", messageFor(failure))));
+                        return;
+                      }
+                      sender.sendMessage(
+                          messages.component(
+                              resolved
+                                  ? "command.rewards.reconcile-resolved"
+                                  : "command.rewards.reconcile-not-found",
+                              resolved ? NamedTextColor.GREEN : NamedTextColor.YELLOW,
+                              Map.of("id", claimId, "decision", decision.name())));
+                    }));
+    return 1;
+  }
+
+  private void sendRewardReconciliationResult(
+      CommandSender sender,
+      java.util.List<io.github.kizio806.spectraevents.core.gameplay.reward.RewardClaim> claims,
+      Throwable failure,
+      String titleKey,
+      String entryKey) {
+    regionScheduler.executeGlobal(
+        () -> {
+          if (failure != null) {
+            sender.sendMessage(
+                messages.component(
+                    "command.spigot.failed",
+                    NamedTextColor.RED,
+                    Map.of("reason", messageFor(failure))));
+            return;
+          }
+          sender.sendMessage(
+              messages.component(titleKey, NamedTextColor.GOLD, Map.of("count", claims.size())));
+          for (var claim : claims) {
+            sender.sendMessage(
+                messages.component(
+                    entryKey,
+                    NamedTextColor.YELLOW,
+                    Map.of(
+                        "id",
+                        claim.id(),
+                        "player",
+                        claim.playerId(),
+                        "count",
+                        claim.items().size())));
+          }
+        });
   }
 
   private boolean hasPerm(CommandSourceStack source, String perm) {
@@ -250,54 +427,45 @@ public final class SpectraMainCommand {
         || sender.isOp();
   }
 
+  private String messageFor(Throwable failure) {
+    Throwable cause = failure.getCause() == null ? failure : failure.getCause();
+    return cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage();
+  }
+
   private int help(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
-    sender.sendMessage(
-        Component.text("SpectraEvents", NamedTextColor.DARK_PURPLE, TextDecoration.BOLD));
-
-    sender.sendMessage(Component.text("\n[General]", NamedTextColor.AQUA));
-    sender.sendMessage(
-        Component.text(" /spectraevents help - Show available commands", NamedTextColor.GRAY));
-    sender.sendMessage(
-        Component.text(" /spectraevents status - View server event status", NamedTextColor.GRAY));
-    sender.sendMessage(
-        Component.text(
-            " /spectraevents event <list|start|stop|cancel> - Manage events", NamedTextColor.GRAY));
-
-    sender.sendMessage(Component.text("\n[Models]", NamedTextColor.AQUA));
-    sender.sendMessage(
-        Component.text(
-            " /spectraevents model <list|info> - Inspect registered models", NamedTextColor.GRAY));
-
-    sender.sendMessage(Component.text("\n[Assets]", NamedTextColor.AQUA));
-    sender.sendMessage(
-        Component.text(
-            " /spectraevents assets <list|info|import|validate|build> - Manage assets",
-            NamedTextColor.GRAY));
-
-    sender.sendMessage(Component.text("\n[Administration]", NamedTextColor.AQUA));
-    sender.sendMessage(
-        Component.text(" /spectraevents admin - Open the admin panel", NamedTextColor.GRAY));
-    sender.sendMessage(
-        Component.text(
-            " /spectraevents definition <list|reload|validate> - Manage definitions",
-            NamedTextColor.GRAY));
-    sender.sendMessage(
-        Component.text(
-            " /spectraevents location <set|list|remove> - Manage locations", NamedTextColor.GRAY));
-    sender.sendMessage(
-        Component.text(" /spectraevents doctor - Run diagnostics", NamedTextColor.GRAY));
-    sender.sendMessage(
-        Component.text(
-            " /spectraevents update <check|info> - Check for updates", NamedTextColor.GRAY));
+    for (String key :
+        java.util.List.of(
+            "command.paper.help-title",
+            "command.paper.help-general",
+            "command.paper.help-command",
+            "command.paper.help-status",
+            "command.paper.help-events",
+            "command.paper.help-models",
+            "command.paper.help-model-command",
+            "command.paper.help-assets",
+            "command.paper.help-asset-command",
+            "command.paper.help-administration",
+            "command.paper.help-admin-command",
+            "command.paper.help-definition-command",
+            "command.paper.help-location-command",
+            "command.paper.help-doctor-command",
+            "command.paper.help-update-command")) {
+      sender.sendMessage(
+          messages.component(
+              key,
+              key.endsWith("title")
+                  ? NamedTextColor.DARK_PURPLE
+                  : key.startsWith("command.paper.help-") && !key.contains("command")
+                      ? NamedTextColor.AQUA
+                      : NamedTextColor.GRAY));
+    }
     return 1;
   }
 
   private int version(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
-    sender.sendMessage(
-        Component.text(
-            "SpectraEvents 1.0.0-SNAPSHOT (Beta Foundation)", NamedTextColor.DARK_PURPLE));
+    sender.sendMessage(messages.component("command.paper.version", NamedTextColor.DARK_PURPLE));
     return 1;
   }
 
@@ -306,10 +474,10 @@ public final class SpectraMainCommand {
     int activeCount = instanceRepository.findAll().size();
     int defCount = definitionRegistry.getAll().size();
     sender.sendMessage(
-        Component.text("[SpectraEvents Status] ", NamedTextColor.DARK_PURPLE)
-            .append(Component.text("Active Events: " + activeCount, NamedTextColor.GREEN))
-            .append(
-                Component.text(" | Registered Definitions: " + defCount, NamedTextColor.YELLOW)));
+        messages.component(
+            "command.paper.status",
+            NamedTextColor.GREEN,
+            Map.of("events", activeCount, "definitions", defCount)));
     return 1;
   }
 
@@ -318,8 +486,7 @@ public final class SpectraMainCommand {
     if (sender instanceof Player player) {
       guiController.openMainMenu(player);
     } else {
-      sender.sendMessage(
-          Component.text("GUI can only be opened by in-game players.", NamedTextColor.RED));
+      sender.sendMessage(messages.component("command.paper.gui-player-only", NamedTextColor.RED));
     }
     return 1;
   }

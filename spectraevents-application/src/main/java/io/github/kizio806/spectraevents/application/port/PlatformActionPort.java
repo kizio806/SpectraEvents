@@ -5,6 +5,9 @@ import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
+import io.github.kizio806.spectraevents.core.gameplay.reward.RewardItem;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 
@@ -47,6 +50,17 @@ public interface PlatformActionPort {
 
   /** Refreshes a compact global event HUD snapshot. Called at most once per second per event. */
   default void refreshHud(EventInstance instance, EventRuntimeState state) {}
+
+  /**
+   * Delivers an event reward to an online player, dropping the complete reward snapshot at the
+   * player's location when it cannot fit in their inventory.
+   *
+   * <p>A {@code false} result means the player was unavailable, so the application retains the
+   * durable mailbox claim for a later delivery.
+   */
+  default CompletableFuture<Boolean> deliverRewardOrDrop(UUID playerId, List<RewardItem> items) {
+    return CompletableFuture.completedFuture(false);
+  }
 
   /** Registers the engine callback used when an asynchronously scheduled platform action fails. */
   default void setFatalActionHandler(BiConsumer<EventInstanceId, Throwable> handler) {}

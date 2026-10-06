@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.paper.action;
 
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.execution.EventZone;
@@ -17,6 +18,7 @@ import io.github.kizio806.spectraevents.core.gameplay.contribution.ContributionR
 import io.github.kizio806.spectraevents.core.gameplay.reward.RewardItem;
 import io.github.kizio806.spectraevents.core.visual.model.ModelId;
 import io.github.kizio806.spectraevents.platform.paper.bossbar.EventBossBarManager;
+import io.github.kizio806.spectraevents.platform.paper.common.EventDisplayPlaceholders;
 import io.github.kizio806.spectraevents.platform.paper.integration.MiniPlaceholdersIntegration;
 import io.github.kizio806.spectraevents.platform.paper.integration.item.CustomItemProvider;
 import io.github.kizio806.spectraevents.platform.paper.integration.item.ItemsAdderItemProvider;
@@ -66,6 +68,7 @@ public final class PaperActionAdapter extends AbstractPlatformActionAdapter {
 
   private final RegionTaskScheduler regionScheduler;
   private final PaperResourceCleaner cleaner;
+  private final LocaleCatalog locales;
   private final EventBossBarManager bossBarManager;
   private final EventScoreboardManager scoreboardManager;
   private final List<CustomItemProvider> itemProviders = new ArrayList<>();
@@ -77,11 +80,13 @@ public final class PaperActionAdapter extends AbstractPlatformActionAdapter {
           LOGGER.severe(
               "Asynchronous action failed for " + instanceId + ": " + throwable.getMessage());
 
-  public PaperActionAdapter(RegionTaskScheduler regionScheduler, PaperResourceCleaner cleaner) {
+  public PaperActionAdapter(
+      RegionTaskScheduler regionScheduler, PaperResourceCleaner cleaner, LocaleCatalog locales) {
     this.regionScheduler = Objects.requireNonNull(regionScheduler, "regionScheduler");
     this.cleaner = Objects.requireNonNull(cleaner, "cleaner");
-    this.bossBarManager = new EventBossBarManager(regionScheduler);
-    this.scoreboardManager = new EventScoreboardManager(regionScheduler);
+    this.locales = Objects.requireNonNull(locales, "locales");
+    this.bossBarManager = new EventBossBarManager(regionScheduler, locales);
+    this.scoreboardManager = new EventScoreboardManager(regionScheduler, locales);
 
     itemProviders.add(new NexoItemProvider());
     itemProviders.add(new OraxenItemProvider());
@@ -105,12 +110,7 @@ public final class PaperActionAdapter extends AbstractPlatformActionAdapter {
     this.modelAnimationActionService = modelAnimationActionService;
   }
 
-  /**
-   * Delivers a mailbox snapshot on the player's owning region only when the full snapshot fits.
-   *
-   * <p>This method deliberately has no event-instance side effects: a mailbox delivery is owned by
-   * the durable reward-claim transaction, not by a currently running encounter.
-   */
+  /** Delivers a complete reward snapshot on the player's owning region. */
   public CompletableFuture<Boolean> deliverRewardItems(Player player, List<RewardItem> items) {
     Objects.requireNonNull(player, "player");
     List<RewardItem> snapshot = List.copyOf(Objects.requireNonNull(items, "items"));
@@ -131,7 +131,10 @@ public final class PaperActionAdapter extends AbstractPlatformActionAdapter {
               List<ItemStack> stacks = mailboxItemStacks(snapshot);
               Inventory inventory = player.getInventory();
               if (!canContainAll(inventory, stacks)) {
-                future.complete(false);
+                for (ItemStack stack : stacks) {
+                  player.getWorld().dropItem(player.getLocation(), stack);
+                }
+                future.complete(true);
                 return;
               }
               Map<Integer, ItemStack> leftovers =
@@ -151,6 +154,14 @@ public final class PaperActionAdapter extends AbstractPlatformActionAdapter {
       future.complete(false);
     }
     return future;
+  }
+
+  @Override
+  public CompletableFuture<Boolean> deliverRewardOrDrop(UUID playerId, List<RewardItem> items) {
+    Player player = Bukkit.getPlayer(Objects.requireNonNull(playerId, "playerId"));
+    return player == null
+        ? CompletableFuture.completedFuture(false)
+        : deliverRewardItems(player, items);
   }
 
   @Override
@@ -209,6 +220,13 @@ public final class PaperActionAdapter extends AbstractPlatformActionAdapter {
     return null;
   }
 
+  private Component renderTemplate(
+      String template, EventInstance instance, EventRuntimeState state) {
+    return MiniPlaceholdersIntegration.getMiniMessage()
+        .deserialize(
+            EventDisplayPlaceholders.resolve(locales.resolveTemplate(template), instance, state));
+  }
+
   @Override
   protected CompletableFuture<Boolean> handleOpenSharedLoot(
       EventInstance instance,
@@ -223,7 +241,9 @@ public final class PaperActionAdapter extends AbstractPlatformActionAdapter {
         () -> {
           Inventory inventory =
               Bukkit.createInventory(
-                  new PaperSharedLootHolder(instance.id()), 27, Component.text(action.title()));
+                  new PaperSharedLootHolder(instance.id()),
+                  27,
+                  renderTemplate(action.title(), instance, state));
           state
               .sharedLootSnapshot()
               .forEach(
@@ -447,7 +467,7 @@ public final class PaperActionAdapter extends AbstractPlatformActionAdapter {
     if (context == null || !(context.actor() instanceof CommandSender sender))
       throw new FatalActionException("send_message requires a command-sender context");
     if (!action.message().isEmpty()) {
-      var component = MiniPlaceholdersIntegration.getMiniMessage().deserialize(action.message());
+      var component = renderTemplate(action.message(), instance, state);
       if (sender instanceof Player player) {
         return executeFor(instance.id(), player, () -> player.sendMessage(component));
       } else {
@@ -467,8 +487,7 @@ public final class PaperActionAdapter extends AbstractPlatformActionAdapter {
       return executeGlobal(
           instance.id(),
           () -> {
-            var component =
-                MiniPlaceholdersIntegration.getMiniMessage().deserialize(action.message());
+            var component = renderTemplate(action.message(), instance, state);
             for (Player p : Bukkit.getOnlinePlayers()) p.sendMessage(component);
             Bukkit.getConsoleSender().sendMessage(component);
           });
@@ -489,8 +508,8 @@ public final class PaperActionAdapter extends AbstractPlatformActionAdapter {
 
     Title rendered =
         Title.title(
-            MiniPlaceholdersIntegration.getMiniMessage().deserialize(action.title()),
-            MiniPlaceholdersIntegration.getMiniMessage().deserialize(action.subtitle()),
+            renderTemplate(action.title(), instance, state),
+            renderTemplate(action.subtitle(), instance, state),
             Title.Times.times(
                 Duration.ofMillis(action.fadeIn() * 50L),
                 Duration.ofMillis(action.stay() * 50L),
@@ -519,8 +538,7 @@ public final class PaperActionAdapter extends AbstractPlatformActionAdapter {
           World world = spawnLoc.getWorld();
           if (world == null) return;
           Entity entity = world.spawnEntity(spawnLoc, entityType);
-          entity.customName(
-              MiniPlaceholdersIntegration.getMiniMessage().deserialize(action.name()));
+          entity.customName(renderTemplate(action.name(), instance, state));
           entity.setCustomNameVisible(true);
           entity
               .getPersistentDataContainer()
@@ -673,7 +691,9 @@ public final class PaperActionAdapter extends AbstractPlatformActionAdapter {
           regionScheduler.executeGlobal(
               () ->
                   Bukkit.broadcast(
-                      Component.text("[SpectraEvents] Metin podium: " + podiumLabel(podium))));
+                      Component.text(
+                          locales.message(
+                              "messages.metin-podium", Map.of("podium", podiumLabel(podium))))));
           List<CompletableFuture<Boolean>> deliveries = new ArrayList<>();
           for (int place = 0; place < podium.size(); place++) {
             Player winner = Bukkit.getPlayer(podium.get(place));
@@ -753,8 +773,7 @@ public final class PaperActionAdapter extends AbstractPlatformActionAdapter {
               double offsetZ = (rng.nextDouble() - 0.5) * mob.radius() * 2;
               Location spawnLoc = baseLoc.clone().add(offsetX, 0, offsetZ);
               Entity entity = world.spawnEntity(spawnLoc, type);
-              entity.customName(
-                  MiniPlaceholdersIntegration.getMiniMessage().deserialize(mob.name()));
+              entity.customName(renderTemplate(mob.name(), instance, state));
               entity.setCustomNameVisible(true);
               entity
                   .getPersistentDataContainer()

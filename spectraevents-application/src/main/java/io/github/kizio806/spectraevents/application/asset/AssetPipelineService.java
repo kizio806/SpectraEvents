@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
 public final class AssetPipelineService {
@@ -52,7 +53,7 @@ public final class AssetPipelineService {
     this.modelRegistrar = modelRegistrar;
   }
 
-  public void buildAssets() {
+  public synchronized void buildAssets() {
     LOGGER.fine("Starting Asset Pipeline build...");
     if (!Files.exists(sourceDirectory)) {
       LOGGER.fine("Source directory does not exist: " + sourceDirectory);
@@ -69,9 +70,7 @@ public final class AssetPipelineService {
             .forEach(
                 path -> {
                   try {
-                    if (importSource(path)) {
-                      resourcePackDirty = true;
-                    }
+                    importSource(path);
 
                   } catch (Exception e) {
                     LOGGER.severe("Failed to compile asset source " + path + ": " + e.getMessage());
@@ -90,7 +89,12 @@ public final class AssetPipelineService {
     }
   }
 
-  public void importFile(String filename) {
+  /** Runs filesystem parsing and resource-pack generation away from a platform scheduler thread. */
+  public CompletableFuture<Void> buildAssetsAsync() {
+    return CompletableFuture.runAsync(this::buildAssets);
+  }
+
+  public synchronized void importFile(String filename) {
     Objects.requireNonNull(filename, "filename");
     Path path = sourceDirectory.resolve(filename).toAbsolutePath().normalize();
     if (!path.startsWith(sourceDirectory)
@@ -109,6 +113,11 @@ public final class AssetPipelineService {
     } catch (Exception e) {
       throw new RuntimeException("Import failed: " + e.getMessage(), e);
     }
+  }
+
+  /** Imports one validated source asynchronously while preserving pipeline cache serialization. */
+  public CompletableFuture<Void> importFileAsync(String filename) {
+    return CompletableFuture.runAsync(() -> importFile(filename));
   }
 
   private boolean importSource(Path source) throws Exception {
@@ -134,7 +143,7 @@ public final class AssetPipelineService {
     return filename.endsWith(SPECTRA_BUNDLE_EXTENSION) || filename.endsWith(BLOCKBENCH_EXTENSION);
   }
 
-  public boolean validateModel(String modelId) {
+  public synchronized boolean validateModel(String modelId) {
     if (!compiledDocuments.containsKey(modelId)) return false;
     SpectraAssetDocument doc = compiledDocuments.get(modelId);
     // Simple validation rule checks
@@ -142,15 +151,15 @@ public final class AssetPipelineService {
     return true;
   }
 
-  public Collection<String> listModels() {
+  public synchronized Collection<String> listModels() {
     return List.copyOf(compiledDocuments.keySet());
   }
 
-  public SpectraAssetDocument getModelInfo(String modelId) {
+  public synchronized SpectraAssetDocument getModelInfo(String modelId) {
     return compiledDocuments.get(modelId);
   }
 
-  public void clean() {
+  public synchronized void clean() {
     sourceCache.clear();
     compiledDocuments.clear();
     resourcePackDirty = false;

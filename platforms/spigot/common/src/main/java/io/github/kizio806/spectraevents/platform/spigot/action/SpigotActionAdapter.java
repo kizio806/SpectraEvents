@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.spigot.action;
 
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.execution.EventZone;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -68,18 +70,21 @@ public final class SpigotActionAdapter extends AbstractPlatformActionAdapter imp
 
   private final Plugin plugin;
   private final BukkitAudiences adventure;
+  private final LocaleCatalog locales;
 
   private final Map<EventInstanceId, List<UUID>> ownedEntities = new ConcurrentHashMap<>();
   private final Map<EventInstanceId, BossBar> bossBars = new ConcurrentHashMap<>();
   private final Map<EventInstanceId, String> bossBarTemplates = new ConcurrentHashMap<>();
+  private final Map<EventInstanceId, String> bossBarProgressModes = new ConcurrentHashMap<>();
   private final Map<EventInstanceId, Scoreboard> scoreboards = new ConcurrentHashMap<>();
 
   private ModelRuntimeService modelRuntimeService = null;
   private ModelAnimationActionService modelAnimationActionService = null;
 
-  public SpigotActionAdapter(Plugin plugin, BukkitAudiences adventure) {
-    this.plugin = plugin;
-    this.adventure = adventure;
+  public SpigotActionAdapter(Plugin plugin, BukkitAudiences adventure, LocaleCatalog locales) {
+    this.plugin = Objects.requireNonNull(plugin, "plugin");
+    this.adventure = Objects.requireNonNull(adventure, "adventure");
+    this.locales = Objects.requireNonNull(locales, "locales");
   }
 
   public void setModelRuntimeService(ModelRuntimeService modelRuntimeService) {
@@ -105,13 +110,24 @@ public final class SpigotActionAdapter extends AbstractPlatformActionAdapter imp
           List<ItemStack> stacks = mailboxItemStacks(snapshot);
           Inventory inventory = player.getInventory();
           if (!canContainAll(inventory, stacks)) {
-            throw new IllegalStateException("Player inventory cannot contain the reward claim");
+            for (ItemStack stack : stacks) {
+              player.getWorld().dropItem(player.getLocation(), stack);
+            }
+            return;
           }
           Map<Integer, ItemStack> leftovers = inventory.addItem(stacks.toArray(ItemStack[]::new));
           if (!leftovers.isEmpty()) {
             throw new IllegalStateException("Player inventory changed during reward delivery");
           }
         });
+  }
+
+  @Override
+  public CompletableFuture<Boolean> deliverRewardOrDrop(UUID playerId, List<RewardItem> items) {
+    Player player = Bukkit.getPlayer(Objects.requireNonNull(playerId, "playerId"));
+    return player == null
+        ? CompletableFuture.completedFuture(false)
+        : deliverRewardItems(player, items);
   }
 
   @Override
@@ -123,7 +139,10 @@ public final class SpigotActionAdapter extends AbstractPlatformActionAdapter imp
     if (!(context.actor() instanceof Player player))
       return CompletableFuture.completedFuture(false);
     Inventory inventory =
-        Bukkit.createInventory(new SpigotSharedLootHolder(instance.id()), 27, action.title());
+        Bukkit.createInventory(
+            new SpigotSharedLootHolder(instance.id()),
+            27,
+            resolveDisplayTemplate(action.title(), instance, state).replaceAll("<[^>]*>", ""));
     state
         .sharedLootSnapshot()
         .forEach(
@@ -234,7 +253,13 @@ public final class SpigotActionAdapter extends AbstractPlatformActionAdapter imp
             bar.setTitle(
                 renderHudTitle(
                     bossBarTemplates.getOrDefault(instance.id(), bar.getTitle()), instance, state));
-            bar.setProgress(Math.max(0.0, Math.min(1.0, calculateProgress(state, "health"))));
+            bar.setProgress(
+                Math.max(
+                    0.0,
+                    Math.min(
+                        1.0,
+                        calculateProgress(
+                            state, bossBarProgressModes.getOrDefault(instance.id(), "1.0")))));
           }
         });
   }
@@ -420,7 +445,9 @@ public final class SpigotActionAdapter extends AbstractPlatformActionAdapter imp
     if (context == null || !(context.actor() instanceof CommandSender sender))
       throw new FatalActionException("send_message requires a command-sender context");
     if (!action.message().isEmpty()) {
-      var component = MiniMessage.miniMessage().deserialize(action.message());
+      var component =
+          MiniMessage.miniMessage()
+              .deserialize(resolveDisplayTemplate(action.message(), instance, state));
       return executeSync(() -> adventure.sender(sender).sendMessage(component));
     }
     return CompletableFuture.completedFuture(true);
@@ -435,7 +462,9 @@ public final class SpigotActionAdapter extends AbstractPlatformActionAdapter imp
     if (!action.message().isEmpty()) {
       return executeSync(
           () -> {
-            var component = MiniMessage.miniMessage().deserialize(action.message());
+            var component =
+                MiniMessage.miniMessage()
+                    .deserialize(resolveDisplayTemplate(action.message(), instance, state));
             adventure.all().sendMessage(component);
           });
     }
@@ -455,8 +484,10 @@ public final class SpigotActionAdapter extends AbstractPlatformActionAdapter imp
 
     Title rendered =
         Title.title(
-            MiniMessage.miniMessage().deserialize(action.title()),
-            MiniMessage.miniMessage().deserialize(action.subtitle()),
+            MiniMessage.miniMessage()
+                .deserialize(resolveDisplayTemplate(action.title(), instance, state)),
+            MiniMessage.miniMessage()
+                .deserialize(resolveDisplayTemplate(action.subtitle(), instance, state)),
             Title.Times.times(
                 Duration.ofMillis(action.fadeIn() * 50L),
                 Duration.ofMillis(action.stay() * 50L),
@@ -485,7 +516,8 @@ public final class SpigotActionAdapter extends AbstractPlatformActionAdapter imp
           // Basic Custom Name for Spigot
           entity.setCustomNameVisible(true);
           entity.setCustomName(
-              action.name().replaceAll("<[^>]*>", "")); // Strip mini-message tags for legacy Spigot
+              resolveDisplayTemplate(action.name(), instance, state)
+                  .replaceAll("<[^>]*>", "")); // Strip mini-message tags for legacy Spigot
 
           entity
               .getPersistentDataContainer()
@@ -628,7 +660,10 @@ public final class SpigotActionAdapter extends AbstractPlatformActionAdapter imp
                   state.contributionThresholdMillis());
           adventure
               .all()
-              .sendMessage(Component.text("[SpectraEvents] Metin podium: " + podiumLabel(podium)));
+              .sendMessage(
+                  Component.text(
+                      locales.message(
+                          "messages.metin-podium", Map.of("podium", podiumLabel(podium)))));
           for (int place = 0; place < podium.size(); place++) {
             Player winner = Bukkit.getPlayer(podium.get(place));
             if (winner != null) {
@@ -702,7 +737,8 @@ public final class SpigotActionAdapter extends AbstractPlatformActionAdapter imp
               Location spawnLoc = baseLoc.clone().add(offsetX, 0, offsetZ);
               Entity entity = world.spawnEntity(spawnLoc, type);
               entity.setCustomNameVisible(true);
-              entity.setCustomName(mob.name().replaceAll("<[^>]*>", ""));
+              entity.setCustomName(
+                  resolveDisplayTemplate(mob.name(), instance, state).replaceAll("<[^>]*>", ""));
               entity
                   .getPersistentDataContainer()
                   .set(
@@ -764,6 +800,7 @@ public final class SpigotActionAdapter extends AbstractPlatformActionAdapter imp
           }
           bossBars.put(instance.id(), bar);
           bossBarTemplates.put(instance.id(), action.title());
+          bossBarProgressModes.put(instance.id(), action.progress());
         });
   }
 
@@ -778,6 +815,7 @@ public final class SpigotActionAdapter extends AbstractPlatformActionAdapter imp
           BossBar bar = bossBars.get(instance.id());
           if (bar != null) {
             bossBarTemplates.put(instance.id(), action.title());
+            bossBarProgressModes.put(instance.id(), action.progress());
             bar.setTitle(renderHudTitle(action.title(), instance, state));
             bar.setProgress(
                 Math.max(0.0, Math.min(1.0, calculateProgress(state, action.progress()))));
@@ -796,6 +834,7 @@ public final class SpigotActionAdapter extends AbstractPlatformActionAdapter imp
           BossBar bar = bossBars.remove(instance.id());
           if (bar != null) bar.removeAll();
           bossBarTemplates.remove(instance.id());
+          bossBarProgressModes.remove(instance.id());
         });
   }
 
@@ -813,14 +852,16 @@ public final class SpigotActionAdapter extends AbstractPlatformActionAdapter imp
               board.registerNewObjective(
                   "event_" + instance.id().toString().substring(0, 8),
                   "dummy",
-                  action.title().replaceAll("<[^>]*>", ""));
+                  resolveDisplayTemplate(action.title(), instance, state)
+                      .replaceAll("<[^>]*>", ""));
           obj.setDisplaySlot(DisplaySlot.SIDEBAR);
 
           List<String> lines = action.lines();
           for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
             int score = lines.size() - i;
-            obj.getScore(line.replaceAll("<[^>]*>", "")).setScore(score);
+            obj.getScore(resolveDisplayTemplate(line, instance, state).replaceAll("<[^>]*>", ""))
+                .setScore(score);
           }
 
           scoreboards.put(instance.id(), board);
@@ -944,8 +985,19 @@ public final class SpigotActionAdapter extends AbstractPlatformActionAdapter imp
 
   @SuppressWarnings("EmptyCatch")
   private String renderHudTitle(String template, EventInstance instance, EventRuntimeState state) {
+    return resolveDisplayTemplate(template, instance, state).replaceAll("<[^>]*>", "");
+  }
+
+  private String resolveDisplayTemplate(
+      String template, EventInstance instance, EventRuntimeState state) {
+    template = locales.resolveTemplate(template);
     int maximum = Math.max(1, state.maxHealth());
     int percent = (int) (((double) state.currentHealth() / maximum) * 100.0d);
+    int hits = state.hitCounter() != null ? state.hitCounter().current() : 0;
+    int maxHits = state.hitCounter() != null ? state.hitCounter().maximum() : 0;
+    long deadline = state.timerDeadlineMillis();
+    long remainingSeconds =
+        deadline == 0L ? 0L : Math.max(0L, (deadline - System.currentTimeMillis()) / 1_000L);
     String location =
         state
             .platformLocation()
@@ -965,10 +1017,12 @@ public final class SpigotActionAdapter extends AbstractPlatformActionAdapter imp
         .replace("%health%", String.valueOf(state.currentHealth()))
         .replace("%max_health%", String.valueOf(maximum))
         .replace("%health_percent%", String.valueOf(percent))
+        .replace("%hits%", String.valueOf(hits))
+        .replace("%max_hits%", String.valueOf(maxHits))
+        .replace("%time_remaining%", String.valueOf(remainingSeconds))
         .replace("%phase%", instance.currentPhase().map(phase -> phase.value()).orElse("active"))
         .replace("%location%", location)
-        .replace("%event%", instance.definitionId().value())
-        .replaceAll("<[^>]*>", "");
+        .replace("%event%", instance.definitionId().value());
   }
 
   private double calculateProgress(EventRuntimeState state, String progressStr) {

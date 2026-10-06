@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.paper.bossbar;
 
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.platform.paper.common.EventDisplayPlaceholders;
@@ -24,19 +25,23 @@ public final class EventBossBarManager implements Listener {
   private static final class BossBarHolder {
     final BossBar bossBar;
     String titleTemplate;
+    String progressMode;
 
-    BossBarHolder(BossBar bossBar, String titleTemplate) {
+    BossBarHolder(BossBar bossBar, String titleTemplate, String progressMode) {
       this.bossBar = bossBar;
       this.titleTemplate = titleTemplate;
+      this.progressMode = progressMode;
     }
   }
 
   private final Map<UUID, BossBarHolder> activeBossBars = new ConcurrentHashMap<>();
   private final RegionTaskScheduler scheduler;
+  private final LocaleCatalog locales;
   private volatile boolean shuttingDown;
 
-  public EventBossBarManager(RegionTaskScheduler scheduler) {
+  public EventBossBarManager(RegionTaskScheduler scheduler, LocaleCatalog locales) {
     this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
+    this.locales = Objects.requireNonNull(locales, "locales");
   }
 
   public void showBossBar(
@@ -49,15 +54,17 @@ public final class EventBossBarManager implements Listener {
         && activeBossBars.size() >= MAX_VISIBLE_EVENT_BOSS_BARS) {
       return;
     }
-    String titleTemplate = getString(params, "title", "<gold>Event Active");
+    String titleTemplate =
+        getString(params, "title", locales.message("messages.default-bossbar-title"));
     BossBar.Color color = parseColor(getString(params, "color", "PURPLE"));
     BossBar.Overlay overlay = parseOverlay(getString(params, "style", "PROGRESS"));
+    String progressMode = getString(params, "progress", "1.0");
 
     float progress = calculateProgress(state, params);
     Component titleComponent = renderTitle(titleTemplate, instance, state);
 
     BossBar bossBar = BossBar.bossBar(titleComponent, progress, color, overlay);
-    BossBarHolder holder = new BossBarHolder(bossBar, titleTemplate);
+    BossBarHolder holder = new BossBarHolder(bossBar, titleTemplate, progressMode);
     activeBossBars.put(instanceId, holder);
 
     for (Player player : Bukkit.getOnlinePlayers()) {
@@ -80,6 +87,9 @@ public final class EventBossBarManager implements Listener {
     if (params.containsKey("title")) {
       holder.titleTemplate = getString(params, "title", holder.titleTemplate);
     }
+    if (params.containsKey("progress")) {
+      holder.progressMode = getString(params, "progress", holder.progressMode);
+    }
     if (params.containsKey("color")) {
       holder.bossBar.color(parseColor(getString(params, "color", "PURPLE")));
     }
@@ -100,7 +110,7 @@ public final class EventBossBarManager implements Listener {
     if (holder == null) {
       return;
     }
-    holder.bossBar.progress(calculateProgress(state, Map.of()));
+    holder.bossBar.progress(calculateProgress(state, Map.of("progress", holder.progressMode)));
     holder.bossBar.name(renderTitle(holder.titleTemplate, instance, state));
   }
 
@@ -143,7 +153,8 @@ public final class EventBossBarManager implements Listener {
 
   private Component renderTitle(String template, EventInstance instance, EventRuntimeState state) {
     return MiniPlaceholdersIntegration.getMiniMessage()
-        .deserialize(EventDisplayPlaceholders.resolve(template, instance, state));
+        .deserialize(
+            EventDisplayPlaceholders.resolve(locales.resolveTemplate(template), instance, state));
   }
 
   private float calculateProgress(EventRuntimeState state, Map<String, Object> params) {

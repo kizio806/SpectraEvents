@@ -49,7 +49,7 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts/release -p 'test_*.py'
           python3 -m unittest discover -s scripts/runtime-smoke -p 'test_*.py'
-          python3 scripts/release/verify_release_gate.py
+          python3 scripts/release/verify_release_gate.py --runtime-matrix-status failure --allow-blocked
 
   core-tests:
     name: CI / Core Tests
