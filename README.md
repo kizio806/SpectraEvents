@@ -10,7 +10,7 @@ recovery, assets and reward-mailbox persistence.
 
 ## Status
 
-This is pre-release software (`0.1.1-beta.1`). Configuration and command contracts may still change
+This is pre-release software (`0.1.1-beta.2`). Configuration and command contracts may still change
 within the beta line. A successful local build is not a release claim: publication requires every
 declared real-server matrix row to pass. Folia is supported on Minecraft 26.1 and 26.2 only; Folia
 26.3 is refused at startup and instructs the operator to install a newer SpectraEvents release.

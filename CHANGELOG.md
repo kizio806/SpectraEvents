@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1-beta.2] - 2026-10-08
+
+### Added
+- **Public beta release pipeline**: a signed release tag builds, verifies and publishes the Paper,
+  Spigot and Folia-compatible distributions together with one version-specific resource pack for
+  each supported Minecraft release line.
+- **Official asset positioning**: the three generated resource-pack ZIPs are published first to the
+  separate SpectraEvents Assets Modrinth project, allowing the project and its client assets to be
+  reviewed independently while the plugin remains explicitly marked as beta software.
+
+### Changed
+- **Release metadata**: GitHub Release notes and Modrinth metadata now describe the supported
+  server families, Java 25 requirement, Folia 26.3 refusal, and the exact matching resource-pack
+  profile for Minecraft 26.1, 26.2 and 26.3.
+
 ## [0.1.1-beta.1] - 2026-10-04
 
 ### Added
