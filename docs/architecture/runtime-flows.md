@@ -15,48 +15,20 @@ Command / Trigger (e.g. Timer Expired)
   → Platform Side Effect (e.g. PaperModelRenderer updates model)
 ```
 
-## 2. Dev Meteor (Vertical Slice)
+## 2. Configured event execution
 
-The current implementation uses a vertical slice approach to validate the engine architecture on a real server.
-
-```text
-Admin Command `/event dev meteor start`
-  → DevMeteorCoordinator (Platform)
-      → OrchestrationService.startDevMeteor (Application)
-          → Creates EventInstance with MeteorFixture (Core)
-      → PaperModelRenderer spawns Model (Magma block + Blackstone) at Y+20
-      → PaperEventTaskScheduler schedules Impact phase
-  ...
-Timer Expired (Platform)
-  → DevMeteorCoordinator next(impact)
-      → OrchestrationService.transitionPhase
-      → PaperModelRenderer teleports Model to ground
-      → Spawns explosion particles & sounds
-  ...
-Player Left-Clicks Hitbox (Interaction)
-  → PlatformInteractionRouter intercepts Bukkit event
-      → Resolves EventInstanceId via PDC
-      → Delegates to DevMeteorCoordinator
-          → Decrements Health primitive
-          → If depleted, transitions to destroyed phase.
-```
-
-## 3. Future Airdrop Event
-
-The following demonstrates how a future Airdrop event will reuse the exact same proven primitives, without copying Meteor's coordinator logic.
+Every bundled event uses the same definition-driven execution path. There are no event-specific
+coordinators or developer-only commands.
 
 ```text
-Scheduled Event Start (Trigger)
-  → OrchestrationService starts Airdrop Event (Application)
-      → Creates EventInstance based on YAML Airdrop Definition (Core)
-  → PaperModelRenderer spawns Parachute and Crate model (Platform)
-      → startTransformAnimation executes descent
+Admin command `/spectraevents event start <definition>`
+  → EventExecutionEngine starts a compiled definition snapshot
+  → Paper action adapter spawns the model, HUD and scheduled actions
+  → State is persisted for recovery
   ...
-Player Right-Clicks Crate (Interaction)
+Player interaction or timer trigger
   → PlatformInteractionRouter intercepts Bukkit event
       → Resolves EventInstanceId via PDC
-      → Delegates to Action Engine (Future Component)
-          → Validates Claim Condition
-          → Distributes Loot Reward
-          → Transitions Event to Cleanup phase
+      → EventExecutionEngine evaluates the configured transition
+      → Paper action adapter updates the model, HUD, rewards and cleanup
 ```

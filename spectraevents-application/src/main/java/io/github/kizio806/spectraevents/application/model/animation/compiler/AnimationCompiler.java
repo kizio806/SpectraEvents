@@ -38,6 +38,7 @@ import java.util.Set;
  * Validates and compiles animation DTO specs into immutable, pre-calculated CompiledAnimation
  * instances.
  */
+@SuppressWarnings("StringConcatToTextBlock")
 public class AnimationCompiler {
 
   public static final long MAX_ANIMATION_DURATION_NANOS = 3600L * 1_000_000_000L; // 1 hour
@@ -134,7 +135,7 @@ public class AnimationCompiler {
                   "tracks." + targetStr + ".translation",
                   diagnostics);
           rawTrackMap.put(target, kfs);
-          compiledTracks.add(compileTranslationTrack(target, kfs, durationTime));
+          compiledTracks.add(compileTranslationTrack(target, kfs));
         }
 
         // Rotation Track
@@ -146,7 +147,7 @@ public class AnimationCompiler {
                   "tracks." + targetStr + ".rotation",
                   diagnostics);
           rawTrackMap.put(target, kfs);
-          compiledTracks.add(compileRotationTrack(target, kfs, durationTime));
+          compiledTracks.add(compileRotationTrack(target, kfs));
         }
 
         // Scale Track
@@ -158,7 +159,7 @@ public class AnimationCompiler {
                   "tracks." + targetStr + ".scale",
                   diagnostics);
           rawTrackMap.put(target, kfs);
-          compiledTracks.add(compileScaleTrack(target, kfs, durationTime));
+          compiledTracks.add(compileScaleTrack(target, kfs));
         }
       }
     }
@@ -443,7 +444,7 @@ public class AnimationCompiler {
   }
 
   private CompiledTrack compileTranslationTrack(
-      AnimationTarget target, List<Vector3Keyframe> keyframes, AnimationTime totalDuration) {
+      AnimationTarget target, List<Vector3Keyframe> keyframes) {
     List<CompiledSegment> segments = new ArrayList<>();
     if (keyframes.isEmpty()) {
       return new CompiledTrack(target, AnimationTrackType.TRANSLATION, segments);
@@ -491,7 +492,7 @@ public class AnimationCompiler {
   }
 
   private CompiledTrack compileRotationTrack(
-      AnimationTarget target, List<RotationKeyframe> keyframes, AnimationTime totalDuration) {
+      AnimationTarget target, List<RotationKeyframe> keyframes) {
     List<CompiledSegment> segments = new ArrayList<>();
     if (keyframes.isEmpty()) {
       return new CompiledTrack(target, AnimationTrackType.ROTATION, segments);
@@ -557,8 +558,7 @@ public class AnimationCompiler {
     return new CompiledTrack(target, AnimationTrackType.ROTATION, segments);
   }
 
-  private CompiledTrack compileScaleTrack(
-      AnimationTarget target, List<ScaleKeyframe> keyframes, AnimationTime totalDuration) {
+  private CompiledTrack compileScaleTrack(AnimationTarget target, List<ScaleKeyframe> keyframes) {
     List<CompiledSegment> segments = new ArrayList<>();
     if (keyframes.isEmpty()) {
       return new CompiledTrack(target, AnimationTrackType.SCALE, segments);
@@ -617,7 +617,10 @@ public class AnimationCompiler {
     } catch (IllegalArgumentException e) {
       diagnostics.add(
           new ValidationDiagnostic(
-              Severity.ERROR, "UNKNOWN_EASING", path, "Unknown easing function: " + easingStr));
+              Severity.ERROR,
+              "UNKNOWN_EASING",
+              path,
+              String.format("Unknown easing function: %s", easingStr)));
       return Easing.LINEAR;
     }
   }
@@ -635,7 +638,7 @@ public class AnimationCompiler {
               Severity.ERROR,
               "UNKNOWN_ROTATION_MODE",
               path,
-              "Unknown rotation mode '" + modeStr + "'. Expected SHORTEST, CONTINUOUS"));
+              String.format("Unknown rotation mode '%s'. Expected SHORTEST, CONTINUOUS", modeStr)));
       return RotationMode.SHORTEST;
     }
   }

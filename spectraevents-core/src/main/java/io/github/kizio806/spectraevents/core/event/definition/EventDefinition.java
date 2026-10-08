@@ -12,6 +12,7 @@ public final class EventDefinition {
   private final EventDefinitionId id;
   private final PhaseId initialPhase;
   private final Map<PhaseId, PhaseDefinition> phases;
+  private final EventEncounterSettings encounterSettings;
 
   /**
    * Creates and validates an event definition.
@@ -23,8 +24,18 @@ public final class EventDefinition {
    */
   public EventDefinition(
       EventDefinitionId id, PhaseId initialPhase, Map<PhaseId, PhaseDefinition> phases) {
+    this(id, initialPhase, phases, EventEncounterSettings.NONE);
+  }
+
+  /** Creates an event definition with optional large-encounter operating limits. */
+  public EventDefinition(
+      EventDefinitionId id,
+      PhaseId initialPhase,
+      Map<PhaseId, PhaseDefinition> phases,
+      EventEncounterSettings encounterSettings) {
     this.id = Objects.requireNonNull(id, "id");
     this.initialPhase = Objects.requireNonNull(initialPhase, "initialPhase");
+    this.encounterSettings = Objects.requireNonNull(encounterSettings, "encounterSettings");
     Objects.requireNonNull(phases, "phases");
 
     if (phases.isEmpty()) {
@@ -62,6 +73,10 @@ public final class EventDefinition {
 
   public PhaseId initialPhase() {
     return initialPhase;
+  }
+
+  public EventEncounterSettings encounterSettings() {
+    return encounterSettings;
   }
 
   public Optional<PhaseDefinition> phase(PhaseId phaseId) {

@@ -1,16 +1,18 @@
 package io.github.kizio806.spectraevents.application.integration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.github.kizio806.spectraevents.application.config.compiled.ConfiguredTriggerDefinition;
 import io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompiler;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.yaml.EventSpecYamlParser;
 import io.github.kizio806.spectraevents.application.execution.EventExecutionEngine;
+import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeStateStore;
+import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.application.port.EventTaskScheduler;
 import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
 import io.github.kizio806.spectraevents.application.repository.InMemoryEventInstanceRepository;
@@ -25,9 +27,12 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("StringConcatToTextBlock")
 class MeteorConfigDrivenIntegrationTest {
   private InMemoryEventInstanceRepository repository;
   private EventDefinitionRegistry registry;
@@ -52,58 +57,56 @@ class MeteorConfigDrivenIntegrationTest {
 
     EventSpecYamlParser parser = new EventSpecYamlParser();
     EventDefinitionCompiler compiler = new EventDefinitionCompiler();
-    EventDefinition meteorDefinition = compiler.compile(parser.parse(yamlContent, "meteor.yml"));
+    EventDefinition meteorDefinition =
+        compiler.compile(
+            parser.parse(yamlContent, "meteor.yml"),
+            Map.of("maximum-health", 10000, "maximum-hit-damage", 1000));
     registry.register(meteorDefinition, "meteor.yml");
   }
 
   @Test
   void testFullConfigDrivenMeteorLifecycle() {
     // 1. Start event
-    EventInstance instance = engine.startEvent("meteor", "location_ref");
+    EventInstance instance = engine.startEvent("meteor", location());
     assertEquals(EventLifecycleState.RUNNING, instance.state());
-    assertEquals(new PhaseId("falling"), instance.currentPhase().orElseThrow());
+    assertEquals(new PhaseId("announced"), instance.currentPhase().orElseThrow());
 
     EventRuntimeState state = stateStore.get(instance.id()).orElseThrow();
     assertTrue(state.health().isPresent());
-    assertEquals(500, state.health().get().current());
-    assertTrue(actionPort.containsAction("spawn_model"));
+    assertEquals(10000, state.health().get().current());
+    assertTrue(actionPort.containsAction("show_bossbar"));
 
-    // 2. Timer: falling -> impact
+    // Announced -> falling -> impact lock -> first vulnerable phase.
     boolean handled1 =
-        engine.evaluateTrigger(instance.id(), new ConfiguredTriggerDefinition("timer_elapsed"));
+        engine.evaluateTrigger(
+            instance.id(),
+            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
+                .TimerElapsedTrigger(java.time.Duration.ofSeconds(1)));
     assertTrue(handled1);
 
-    EventInstance afterFalling = repository.findById(instance.id()).orElseThrow();
-    assertEquals(new PhaseId("impact"), afterFalling.currentPhase().orElseThrow());
-    assertTrue(actionPort.containsAction("move_model"));
-    assertTrue(actionPort.containsAction("play_sound"));
-    assertTrue(actionPort.containsAction("spawn_particles"));
+    assertEquals(new PhaseId("falling"), phase(instance));
+    assertTrue(actionPort.containsAction("spawn_model"));
+    assertTrue(engine.evaluateTrigger(instance.id(), timer()));
+    assertEquals(new PhaseId("impact_lock"), phase(instance));
+    assertTrue(engine.evaluateTrigger(instance.id(), timer()));
+    assertEquals(new PhaseId("assault_one"), phase(instance));
 
-    // 3. Timer: impact -> locked
-    boolean handled2 =
-        engine.evaluateTrigger(instance.id(), new ConfiguredTriggerDefinition("timer_elapsed"));
-    assertTrue(handled2);
+    damageUntilGate(instance, 3);
+    assertEquals(new PhaseId("fracture_guard"), phase(instance));
+    assertTrue(engine.evaluateTrigger(instance.id(), waveCleared("fracture_guard")));
+    assertEquals(new PhaseId("assault_two"), phase(instance));
 
-    EventInstance afterImpact = repository.findById(instance.id()).orElseThrow();
-    assertEquals(new PhaseId("locked"), afterImpact.currentPhase().orElseThrow());
-    assertTrue(state.isLocked());
+    damageUntilGate(instance, 3);
+    assertEquals(new PhaseId("eruption_guard"), phase(instance));
+    assertTrue(engine.evaluateTrigger(instance.id(), waveCleared("eruption_guard")));
+    assertEquals(new PhaseId("assault_three"), phase(instance));
 
-    // 4. Timer: locked -> active
-    boolean handled3 =
-        engine.evaluateTrigger(instance.id(), new ConfiguredTriggerDefinition("timer_elapsed"));
-    assertTrue(handled3);
+    damageUntilGate(instance, 3);
+    assertEquals(new PhaseId("cataclysm"), phase(instance));
+    assertTrue(engine.evaluateTrigger(instance.id(), waveCleared("cataclysm_guard")));
+    assertEquals(new PhaseId("final_core"), phase(instance));
 
-    EventInstance afterLocked = repository.findById(instance.id()).orElseThrow();
-    assertEquals(new PhaseId("active"), afterLocked.currentPhase().orElseThrow());
-
-    // 5. Interactions damage health down to 0 (500 HP / 10 dmg per hit = 50 hits)
-    for (int i = 1; i <= 50; i++) {
-      boolean damageHandled =
-          engine.evaluateTrigger(instance.id(), new ConfiguredTriggerDefinition("interaction"));
-      assertTrue(damageHandled);
-    }
-
-    // 6. After 20 hits, health is 0, health_depleted fired -> destroyed -> complete_event
+    damageUntilGate(instance, 3);
     EventInstance finalInstance = repository.findById(instance.id()).orElseThrow();
     assertEquals(EventLifecycleState.COMPLETED, finalInstance.state());
     assertTrue(actionPort.containsAction("remove_model"));
@@ -111,7 +114,7 @@ class MeteorConfigDrivenIntegrationTest {
 
   @Test
   void testMeteorCancellationCleansUpResources() {
-    EventInstance instance = engine.startEvent("meteor", "location_ref");
+    EventInstance instance = engine.startEvent("meteor", location());
     assertEquals(EventLifecycleState.RUNNING, instance.state());
 
     EventInstance cancelled = engine.cancelEvent(instance.id());
@@ -119,6 +122,55 @@ class MeteorConfigDrivenIntegrationTest {
 
     assertTrue(stateStore.get(instance.id()).isEmpty());
     assertTrue(scheduler.cancelled);
+  }
+
+  @Test
+  void failsWithoutLootWhenAGatedWaveTimesOut() {
+    EventInstance instance = engine.startEvent("meteor", location());
+    assertTrue(engine.evaluateTrigger(instance.id(), timer()));
+    assertTrue(engine.evaluateTrigger(instance.id(), timer()));
+    assertTrue(engine.evaluateTrigger(instance.id(), timer()));
+    damageUntilGate(instance, 3);
+    assertEquals(new PhaseId("fracture_guard"), phase(instance));
+
+    assertTrue(engine.evaluateTrigger(instance.id(), timer()));
+
+    assertEquals(
+        EventLifecycleState.FAILED, repository.findById(instance.id()).orElseThrow().state());
+    assertFalse(actionPort.containsAction("release_ground_loot"));
+  }
+
+  private PhaseId phase(EventInstance instance) {
+    return repository.findById(instance.id()).orElseThrow().currentPhase().orElseThrow();
+  }
+
+  private io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
+          .TimerElapsedTrigger
+      timer() {
+    return new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
+        .TimerElapsedTrigger(Duration.ofSeconds(1));
+  }
+
+  private io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
+          .WaveClearedTrigger
+      waveCleared(String waveId) {
+    return new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
+        .WaveClearedTrigger(waveId);
+  }
+
+  private void damageUntilGate(EventInstance instance, int hits) {
+    for (int index = 0; index < hits; index++) {
+      assertTrue(
+          engine.evaluateTrigger(
+              instance.id(),
+              new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
+                  .CombatDamageTrigger(),
+              ExecutionContext.withCombatDamage(new Object(), UUID.randomUUID(), 5000.0d)));
+    }
+  }
+
+  private EventLocation location() {
+    return new EventLocation("world", 30.0d, 70.0d, -20.0d, 0.0f, 0.0f);
   }
 
   private static class FakeEventTaskScheduler implements EventTaskScheduler {
@@ -142,9 +194,10 @@ class MeteorConfigDrivenIntegrationTest {
     List<ActionDefinition> actions = new ArrayList<>();
 
     @Override
-    public void executeAction(
+    public java.util.concurrent.CompletableFuture<Boolean> executeAction(
         EventInstance instance, EventRuntimeState state, ActionDefinition action) {
       actions.add(action);
+      return java.util.concurrent.CompletableFuture.completedFuture(true);
     }
 
     boolean containsAction(String type) {

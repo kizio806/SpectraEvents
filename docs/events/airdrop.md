@@ -1,79 +1,33 @@
-# Airdrop Event Specification
+# Airdrop PvP event
 
-## Purpose
-A loot crate drops into the world, requiring players to control the area and interact with it to claim the prize.
+`airdrop.yml` is the public, durable supply-crate reference. It creates a time-bounded point of
+conflict; the plugin leaves PvP and team policy to the server's own rules and region system.
 
-## Player Experience
-A plane or crate descends slowly. Once it lands, players must secure the area and open the crate. It is a discrete interaction, not a combat boss.
+## Flow
 
-## Event Lifecycle
-Standard global lifecycle.
+| Phase | Behaviour | Exit |
+|---|---|---|
+| `announced` | Global warning and HUD before the landing. | Configured announcement timer (15 minutes by default). |
+| `falling` | The crate model descends to the reserved landing zone. | Landing sequence completes. |
+| `locked` | The physical crate is visible but cannot be opened. | Configured lock expires (five minutes by default). |
+| `open` | The pre-rolled public inventory can be opened; no item has been taken yet. | First atomic slot withdrawal, or the first-loot deadline. |
+| `looted` | Everyone may immediately take remaining slots. | The final slot is removed. |
+| `empty_display` | The empty crate remains as a visible objective. | Configured display timer expires (five minutes by default). |
+| `evacuated` | Nobody took an item before the deadline. | Terminal cleanup without rewards. |
 
-## Phases
+The first-loot window is 15 minutes by default. Airdrop's 45-minute encounter deadline covers
+the normal timeline and protects recovery from an indefinitely running definition.
 
-1. **FALLING**
-   - The crate descends with a parachute model.
-   - **Transitions**: Hits ground -> `LANDED`.
-2. **LANDED**
-   - The parachute model swaps to a landed crate model. Emits a smoke beacon.
-   - **Transitions**: Timer expires -> `LOCKED`.
-3. **LOCKED**
-   - A brief stabilization period.
-   - **Transitions**: Timer expires -> `OPEN`.
-4. **OPEN**
-   - The crate can be interacted with.
-   - **Transitions**: Player right-clicks -> `CLAIMED`.
-5. **CLAIMED**
-   - Loot is distributed.
-   - **Transitions**: Immediate -> `CLEANUP`.
-6. **CLEANUP**
-   - Removes models, transitions to `COMPLETED`.
+## Loot and recovery
 
-## Spawn
-- **Strategy**: Random Surface.
+The YAML pool is rolled exactly once before the crate opens. The resulting slot snapshot, its
+empty state and the first-loot state are persisted. Each slot withdrawal is atomic, so concurrent
+players can take different slots while only one can win a race for the same slot. Restart recovery
+restores the phase, countdown, zone and remaining slots without rerolling loot.
 
-## Visuals
-- Falling crate with a parachute model.
-- Smoke particle beacon indicating location.
-- Hologram indicating status.
+## Operator configuration
 
-## Interactions
-- Right-click to open. Requires `InteractionComponent`. No health involved.
-
-## Components
-- `ModelComponent`, `TimerComponent`, `InteractionComponent`.
-
-## Triggers
-- `ground-collision`, `timer-expired`, `player-interact`.
-
-## Conditions
-- Optional: Player must hold a specific "Airdrop Key" item to trigger the interaction.
-
-## Actions
-- `broadcast`, `give-reward`, `spawn-particles`.
-
-## Rewards
-- **Distribution**: First-come, first-served (the player who triggers `player-interact`).
-- Alternatively, drops physical items on the ground (`world-drop`).
-
-## Leaderboard
-- Not required for standard Airdrop.
-
-## Event Area
-- PvP enabled.
-
-## Persistence & Restart Recovery
-- Restores state and location upon reboot. Parachute visual re-syncs.
-
-## Chunk Behavior
-- Force-loaded.
-
-## Failure Cases
-- Lands in void (fails safe, cancels event).
-
-## Abuse / Anti-Dupe Considerations
-- Ensure rapid right-clicking by multiple players only triggers the `CLAIMED` phase once.
-
-## Required Engine Primitives
-- `InteractionComponent` (Right-click).
-- Single-claim resolution.
+Only the announcement, lock, first-loot and empty-display durations are GUI-editable scalar
+parameters. Loot, model, animations and messages remain YAML-owned. The Airdrop uses the shared
+zone contract (128-block radius by default) and counts toward the maximum of three large events
+per world.

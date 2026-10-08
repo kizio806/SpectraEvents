@@ -11,10 +11,11 @@ public final class PaperCapabilityQuery implements PlatformCapabilityQuery {
 
   @Override
   public io.github.kizio806.spectraevents.application.port.PlatformDescriptor platformDescriptor() {
+    String version = org.bukkit.Bukkit.getBukkitVersion();
+    int dashIndex = version.indexOf('-');
+    String shortVersion = dashIndex != -1 ? version.substring(0, dashIndex) : version;
+
     return new io.github.kizio806.spectraevents.application.port.PlatformDescriptor(
-        "Paper",
-        org.bukkit.Bukkit.getServer().getName(),
-        org.bukkit.Bukkit.getBukkitVersion().split("-")[0],
-        org.bukkit.Bukkit.getBukkitVersion());
+        "Paper", org.bukkit.Bukkit.getServer().getName(), shortVersion, version);
   }
 }

@@ -1,97 +1,123 @@
 package io.github.kizio806.spectraevents.application.asset;
 
-import java.nio.file.Files;
+import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetDocument;
+import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetFace;
+import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetGeometry;
+import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetNode;
+import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetTexture;
+import io.github.kizio806.spectraevents.core.visual.model.EulerRotation;
+import io.github.kizio806.spectraevents.core.visual.model.Vector3;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.zip.ZipFile;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-public class ResourcePackBuilderTest {
+class ResourcePackBuilderTest {
+  private static final byte[] TEXTURE =
+      java.util.Base64.getDecoder()
+          .decode(
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAF/gL+I0Yf9wAAAABJRU5ErkJggg==");
 
-  @TempDir Path tempDir;
+  @TempDir Path tempDirectory;
 
   @Test
-  void testBuildForProfile26_1() throws Exception {
-    ResourcePackBuilder builder = new ResourcePackBuilder(tempDir);
-    builder.build(Collections.emptyList(), AssetTargetProfile.PROFILE_26_1);
+  void buildsInspectableResourcePackWithModelsTexturesMappingsAndHashes() throws Exception {
+    ResourcePackBuildResult result =
+        new ResourcePackBuilder(tempDirectory)
+            .build(List.of(document("meteor")), AssetTargetProfile.PROFILE_26_2);
 
-    Path mcmeta =
-        Files.walk(tempDir).filter(p -> p.endsWith("pack.mcmeta")).findFirst().orElseThrow();
-    String content = Files.readString(mcmeta);
+    Assertions.assertTrue(java.nio.file.Files.isRegularFile(result.zipPath()));
+    Assertions.assertEquals(40, result.sha1().length());
+    Assertions.assertEquals(64, result.sha256().length());
+    Assertions.assertEquals(
+        GeneratedAssetItem.customModelData("meteor", "root"),
+        result.customModelData().get("meteor/root"));
 
-    org.yaml.snakeyaml.Yaml yaml = new org.yaml.snakeyaml.Yaml();
-    java.util.Map<String, Object> root = yaml.load(content);
-    java.util.Map<String, Object> pack = (java.util.Map<String, Object>) root.get("pack");
-    Assertions.assertEquals(84, pack.get("pack_format"));
-
-    java.util.Map<String, Object> formats =
-        (java.util.Map<String, Object>) pack.get("supported_formats");
-    java.util.List<Integer> minFormat = (java.util.List<Integer>) formats.get("min_format");
-    java.util.List<Integer> maxFormat = (java.util.List<Integer>) formats.get("max_format");
-
-    Assertions.assertEquals(2, minFormat.size());
-    Assertions.assertEquals(84, minFormat.get(0));
-    Assertions.assertEquals(0, minFormat.get(1));
-
-    Assertions.assertEquals(2, maxFormat.size());
-    Assertions.assertEquals(84, maxFormat.get(0));
-    Assertions.assertEquals(0, maxFormat.get(1));
+    try (ZipFile zip = new ZipFile(result.zipPath().toFile())) {
+      Assertions.assertNotNull(zip.getEntry("pack.mcmeta"));
+      Assertions.assertNull(zip.getEntry("assets/minecraft/items/paper.json"));
+      Assertions.assertNotNull(
+          zip.getEntry("assets/spectraevents/textures/item/meteor/texture_0.png"));
+      Assertions.assertNotNull(zip.getEntry("assets/spectraevents/models/item/meteor/root.json"));
+      Assertions.assertNotNull(zip.getEntry("assets/spectraevents/items/meteor/root.json"));
+      Assertions.assertNotNull(zip.getEntry("assets/spectraevents/spectraevents-manifest.json"));
+      Assertions.assertTrue(read(zip, "pack.mcmeta").contains("[88,0]"));
+      Assertions.assertTrue(
+          read(zip, "assets/spectraevents/models/item/meteor/root.json").contains("elements"));
+      Assertions.assertTrue(
+          read(zip, "assets/spectraevents/items/meteor/root.json")
+              .contains("spectraevents:item/meteor/root"));
+      Assertions.assertTrue(
+          read(zip, "assets/spectraevents/spectraevents-manifest.json").contains("meteor/root"));
+    }
   }
 
   @Test
-  void testBuildForProfile26_2() throws Exception {
-    ResourcePackBuilder builder = new ResourcePackBuilder(tempDir);
-    builder.build(Collections.emptyList(), AssetTargetProfile.PROFILE_26_2);
+  void rejectsDuplicateImportedModelIds() {
+    ResourcePackBuilder builder = new ResourcePackBuilder(tempDirectory);
 
-    Path mcmeta =
-        Files.walk(tempDir).filter(p -> p.endsWith("pack.mcmeta")).findFirst().orElseThrow();
-    String content = Files.readString(mcmeta);
+    IllegalArgumentException error =
+        Assertions.assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                builder.build(
+                    List.of(document("meteor"), document("meteor")),
+                    AssetTargetProfile.PROFILE_26_1));
 
-    org.yaml.snakeyaml.Yaml yaml = new org.yaml.snakeyaml.Yaml();
-    java.util.Map<String, Object> root = yaml.load(content);
-    java.util.Map<String, Object> pack = (java.util.Map<String, Object>) root.get("pack");
-    Assertions.assertEquals(88, pack.get("pack_format"));
-
-    java.util.Map<String, Object> formats =
-        (java.util.Map<String, Object>) pack.get("supported_formats");
-    java.util.List<Integer> minFormat = (java.util.List<Integer>) formats.get("min_format");
-    java.util.List<Integer> maxFormat = (java.util.List<Integer>) formats.get("max_format");
-
-    Assertions.assertEquals(2, minFormat.size());
-    Assertions.assertEquals(88, minFormat.get(0));
-    Assertions.assertEquals(0, minFormat.get(1));
-
-    Assertions.assertEquals(2, maxFormat.size());
-    Assertions.assertEquals(88, maxFormat.get(0));
-    Assertions.assertEquals(0, maxFormat.get(1));
+    Assertions.assertTrue(error.getMessage().contains("duplicate"));
   }
 
   @Test
-  void testBuildForProfile26_3() throws Exception {
-    ResourcePackBuilder builder = new ResourcePackBuilder(tempDir);
-    builder.build(Collections.emptyList(), AssetTargetProfile.PROFILE_26_3);
+  void writesIndependentNativeItemDefinitionsForEachGeneratedModelPart() throws Exception {
+    ResourcePackBuildResult result =
+        new ResourcePackBuilder(tempDirectory)
+            .build(
+                List.of(document("meteor"), document("nebula")), AssetTargetProfile.PROFILE_26_2);
 
-    Path mcmeta =
-        Files.walk(tempDir).filter(p -> p.endsWith("pack.mcmeta")).findFirst().orElseThrow();
-    String content = Files.readString(mcmeta);
+    try (ZipFile zip = new ZipFile(result.zipPath().toFile())) {
+      Assertions.assertTrue(
+          read(zip, "assets/spectraevents/items/meteor/root.json")
+              .contains("spectraevents:item/meteor/root"));
+      Assertions.assertTrue(
+          read(zip, "assets/spectraevents/items/nebula/root.json")
+              .contains("spectraevents:item/nebula/root"));
+    }
+  }
 
-    org.yaml.snakeyaml.Yaml yaml = new org.yaml.snakeyaml.Yaml();
-    java.util.Map<String, Object> root = yaml.load(content);
-    java.util.Map<String, Object> pack = (java.util.Map<String, Object>) root.get("pack");
-    Assertions.assertEquals(97, pack.get("pack_format"));
+  private static String read(ZipFile zip, String path) throws Exception {
+    try (InputStream input = zip.getInputStream(zip.getEntry(path))) {
+      return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+    }
+  }
 
-    java.util.Map<String, Object> formats =
-        (java.util.Map<String, Object>) pack.get("supported_formats");
-    java.util.List<Integer> minFormat = (java.util.List<Integer>) formats.get("min_format");
-    java.util.List<Integer> maxFormat = (java.util.List<Integer>) formats.get("max_format");
-
-    Assertions.assertEquals(2, minFormat.size());
-    Assertions.assertEquals(97, minFormat.get(0));
-    Assertions.assertEquals(1, minFormat.get(1));
-
-    Assertions.assertEquals(2, maxFormat.size());
-    Assertions.assertEquals(97, maxFormat.get(0));
-    Assertions.assertEquals(1, maxFormat.get(1));
+  private static SpectraAssetDocument document(String modelId) {
+    SpectraAssetGeometry cube =
+        new SpectraAssetGeometry(
+            new Vector3(0.0f, 0.0f, 0.0f),
+            new Vector3(16.0f, 16.0f, 16.0f),
+            new Vector3(8.0f, 8.0f, 8.0f),
+            EulerRotation.ZERO,
+            0.0,
+            Map.of("north", new SpectraAssetFace(List.of(0.0, 0.0, 16.0, 16.0), "texture", 0)));
+    SpectraAssetNode root =
+        new SpectraAssetNode(
+            "root",
+            Vector3.ZERO,
+            Vector3.ZERO,
+            EulerRotation.ZERO,
+            Vector3.ONE,
+            List.of(cube),
+            List.of());
+    return new SpectraAssetDocument(
+        1,
+        modelId,
+        Map.of("texture", new SpectraAssetTexture("texture.png", TEXTURE, null)),
+        List.of(root),
+        Map.of());
   }
 }

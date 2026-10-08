@@ -1,0 +1,16 @@
+{
+  "meta": {"format_version": "5.0", "model_format": "free"},
+  "name": "boss_portal",
+  "resolution": {"width": 16, "height": 16},
+  "textures": [{"id": "portal", "name": "boss_portal.png", "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAF/gL+I0Yf9wAAAABJRU5ErkJggg=="}],
+  "elements": [
+    {"uuid": "portal-left", "from": [-12, 0, 0], "to": [-4, 32, 8], "origin": [0, 16, 4], "faces": {"north": {"uv": [0, 0, 16, 16], "texture": "#portal"}, "east": {"uv": [0, 0, 16, 16], "texture": "#portal"}, "south": {"uv": [0, 0, 16, 16], "texture": "#portal"}, "west": {"uv": [0, 0, 16, 16], "texture": "#portal"}, "up": {"uv": [0, 0, 16, 16], "texture": "#portal"}, "down": {"uv": [0, 0, 16, 16], "texture": "#portal"}}},
+    {"uuid": "portal-right", "from": [4, 0, 0], "to": [12, 32, 8], "origin": [0, 16, 4], "faces": {"north": {"uv": [0, 0, 16, 16], "texture": "#portal"}, "east": {"uv": [0, 0, 16, 16], "texture": "#portal"}, "south": {"uv": [0, 0, 16, 16], "texture": "#portal"}, "west": {"uv": [0, 0, 16, 16], "texture": "#portal"}, "up": {"uv": [0, 0, 16, 16], "texture": "#portal"}, "down": {"uv": [0, 0, 16, 16], "texture": "#portal"}}},
+    {"uuid": "portal-top", "from": [-4, 24, 0], "to": [4, 32, 8], "origin": [0, 16, 4], "faces": {"north": {"uv": [0, 0, 16, 16], "texture": "#portal"}, "east": {"uv": [0, 0, 16, 16], "texture": "#portal"}, "south": {"uv": [0, 0, 16, 16], "texture": "#portal"}, "west": {"uv": [0, 0, 16, 16], "texture": "#portal"}, "up": {"uv": [0, 0, 16, 16], "texture": "#portal"}, "down": {"uv": [0, 0, 16, 16], "texture": "#portal"}}}
+  ],
+  "outliner": [{"uuid": "portal-root", "name": "Boss Portal", "origin": [0, 16, 4], "children": ["portal-left", "portal-right", "portal-top"]}],
+  "animations": [
+    {"name": "opening", "length": 1.0, "loop": "once", "animators": {"portal-root": {"keyframes": [{"channel": "scale", "time": 0.0, "interpolation": "linear", "data_points": [{"x": "0.01", "y": "0.01", "z": "0.01"}]}, {"channel": "scale", "time": 1.0, "interpolation": "linear", "data_points": [{"x": "1", "y": "1", "z": "1"}]}]}}},
+    {"name": "active", "length": 2.0, "loop": "loop", "animators": {"portal-root": {"keyframes": [{"channel": "rotation", "time": 0.0, "interpolation": "linear", "data_points": [{"x": "0", "y": "0", "z": "0"}]}, {"channel": "rotation", "time": 2.0, "interpolation": "linear", "data_points": [{"x": "0", "y": "360", "z": "0"}]}]}}}
+  ]
+}

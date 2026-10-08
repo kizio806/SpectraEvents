@@ -75,4 +75,132 @@ class EventSpecYamlParserTest {
         assertThrows(EventDefinitionCompilerException.class, () -> parser.parse(yaml, "f.yml"));
     assertTrue(ex.getDiagnostics().stream().anyMatch(d -> d.code().equals("SE-YAML-001")));
   }
+
+  @Test
+  void rejectsUnknownFieldsWithSourceAndPath() {
+    String yaml =
+        """
+        schema-version: 1
+        id: example
+        initial-phase: waiting
+        display: ignored-before-this-regression
+        phases:
+          waiting:
+            components: {}
+        """;
+
+    var ex =
+        assertThrows(
+            EventDefinitionCompilerException.class, () -> parser.parse(yaml, "events/example.yml"));
+
+    assertTrue(
+        ex.getDiagnostics().stream()
+            .anyMatch(
+                d ->
+                    d.code().equals("SE-YAML-010")
+                        && d.path().equals("events/example.yml:root.display")));
+    assertTrue(
+        ex.getDiagnostics().stream()
+            .anyMatch(
+                d ->
+                    d.code().equals("SE-YAML-010")
+                        && d.path().equals("events/example.yml:phases.waiting.components")));
+  }
+
+  @Test
+  void rejectsWrongCollectionTypesInsteadOfSilentlyDroppingThem() {
+    String yaml =
+        """
+        schema-version: 1
+        id: malformed
+        initial-phase: active
+        phases:
+          active:
+            transitions: not-a-list
+            on-enter: not-a-list
+        """;
+
+    var ex =
+        assertThrows(
+            EventDefinitionCompilerException.class,
+            () -> parser.parse(yaml, "events/malformed.yml"));
+
+    assertTrue(
+        ex.getDiagnostics().stream().anyMatch(d -> d.path().endsWith("phases.active.transitions")));
+    assertTrue(
+        ex.getDiagnostics().stream().anyMatch(d -> d.path().endsWith("phases.active.onEnter")));
+  }
+
+  @Test
+  void rejectsDuplicateYamlKeys() {
+    String yaml =
+        """
+        schema-version: 1
+        id: first
+        id: second
+        initial-phase: active
+        phases:
+          active: {}
+        """;
+
+    assertThrows(
+        EventDefinitionCompilerException.class,
+        () -> parser.parse(yaml, "events/duplicate-key.yml"));
+  }
+
+  @Test
+  void rejectsStructuredValuesForScalarFieldsWithSourcePath() {
+    String yaml =
+        """
+        schema-version: 1
+        id:
+          nested: value
+        initial-phase: active
+        phases:
+          active: {}
+        """;
+
+    var ex =
+        assertThrows(
+            EventDefinitionCompilerException.class,
+            () -> parser.parse(yaml, "events/invalid-type.yml"));
+
+    assertTrue(
+        ex.getDiagnostics().stream()
+            .anyMatch(
+                d ->
+                    d.code().equals("SE-YAML-011")
+                        && d.path().equals("events/invalid-type.yml:id")));
+  }
+
+  @Test
+  void rejectsNonMapParametersInsteadOfSilentlyDroppingThem() {
+    String yaml =
+        """
+        schema-version: 1
+        id: example
+        initial-phase: active
+        phases:
+          active:
+            transitions:
+              - trigger:
+                  type: manual
+                  parameters: invalid
+        """;
+
+    var ex =
+        assertThrows(
+            EventDefinitionCompilerException.class,
+            () -> parser.parse(yaml, "events/invalid-parameters.yml"));
+
+    assertTrue(
+        ex.getDiagnostics().stream()
+            .anyMatch(
+                d ->
+                    d.code().equals("SE-YAML-011")
+                        && d.path()
+                            .equals(
+                                "events/invalid-parameters.yml:"
+                                    + "phases.active.transitions[0].trigger.parameters")));
+  }
 }

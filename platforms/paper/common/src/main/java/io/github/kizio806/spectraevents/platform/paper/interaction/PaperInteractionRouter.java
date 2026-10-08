@@ -1,6 +1,8 @@
 package io.github.kizio806.spectraevents.platform.paper.interaction;
 
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.execution.EventExecutionEngine;
+import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
@@ -26,16 +28,16 @@ import org.bukkit.persistence.PersistentDataType;
 public final class PaperInteractionRouter implements Listener {
   private final EventOrchestrationService orchestrationService;
   private final EventExecutionEngine executionEngine;
+  private final LocaleCatalog locales;
   private final Map<String, EventInteractionDelegate> delegates = new ConcurrentHashMap<>();
 
   public PaperInteractionRouter(
-      EventOrchestrationService orchestrationService, EventExecutionEngine executionEngine) {
+      EventOrchestrationService orchestrationService,
+      EventExecutionEngine executionEngine,
+      LocaleCatalog locales) {
     this.orchestrationService = orchestrationService;
     this.executionEngine = executionEngine;
-  }
-
-  public PaperInteractionRouter(EventOrchestrationService orchestrationService) {
-    this(orchestrationService, null);
+    this.locales = locales;
   }
 
   /** Registers a delegate for a specific event definition ID (e.g., "meteor"). */
@@ -53,9 +55,34 @@ public final class PaperInteractionRouter implements Listener {
   @EventHandler(ignoreCancelled = true)
   public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
     if (event.getDamager() instanceof Player player) {
-      if (handleEntityEvent(player, event.getEntity())) {
+      if (handleCombatDamage(player, event.getEntity(), event.getFinalDamage())) {
         event.setCancelled(true);
       }
+    }
+  }
+
+  private boolean handleCombatDamage(Player player, Entity target, double finalDamage) {
+    if (executionEngine == null) {
+      return handleEntityEvent(player, target);
+    }
+    PersistentDataContainer pdc = target.getPersistentDataContainer();
+    String instanceIdStr = pdc.get(SpectraPdcKeys.INSTANCE_ID, PersistentDataType.STRING);
+    if (instanceIdStr == null) {
+      return false;
+    }
+    try {
+      EventInstanceId instanceId = new EventInstanceId(UUID.fromString(instanceIdStr));
+      orchestrationService.getEventInfo(instanceId.toString());
+      executionEngine.recordExternalContribution(instanceId, player.getUniqueId(), finalDamage);
+      boolean handled =
+          executionEngine.evaluateTrigger(
+              instanceId,
+              new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
+                  .CombatDamageTrigger(),
+              ExecutionContext.withCombatDamage(player, player.getUniqueId(), finalDamage));
+      return handled || handleEntityEvent(player, target);
+    } catch (IllegalArgumentException ignored) {
+      return true;
     }
   }
 
@@ -81,21 +108,22 @@ public final class PaperInteractionRouter implements Listener {
             executionEngine.evaluateTrigger(
                 instanceId,
                 new io.github.kizio806.spectraevents.application.config.compiled
-                    .ConfiguredTriggerDefinition("interaction"));
+                    .ConfiguredTriggerDefinition("interaction"),
+                ExecutionContext.withActor(player, player.getUniqueId()));
         if (handled) {
           executionEngine
               .stateStore()
               .get(instanceId)
               .ifPresent(
                   state -> {
-                    state.recordDamage(player.getUniqueId(), 1);
                     if (state.isLocked()) {
                       long remaining = state.lockedUntilMillis() - System.currentTimeMillis();
-                      player.sendMessage(
-                          Component.text(
-                                  String.format(
-                                      "Event is locked for another %.1fs.", remaining / 1000.0f))
-                              .color(NamedTextColor.RED));
+                      String seconds =
+                          String.format(java.util.Locale.ROOT, "%.1f", remaining / 1000.0f);
+                      String message =
+                          locales.message(
+                              "messages.interaction-locked", Map.of("seconds", seconds));
+                      player.sendMessage(Component.text(message, NamedTextColor.RED));
                     }
                   });
         }
@@ -105,7 +133,8 @@ public final class PaperInteractionRouter implements Listener {
     } catch (IllegalArgumentException e) {
       player.sendMessage(
           Component.text(
-              "Entity tied to unknown/invalid instance: " + instanceIdStr, NamedTextColor.RED));
+              locales.message("messages.interaction-invalid-instance", Map.of("id", instanceIdStr)),
+              NamedTextColor.RED));
       return true;
     }
   }

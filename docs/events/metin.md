@@ -1,80 +1,53 @@
 # Metin Event Specification
 
-## Purpose
-A stationary object that must be destroyed. As it takes damage and crosses specific health thresholds, it spawns defending mob waves. A final boss spawns before it can be destroyed.
+`metin.yml` is a bundled, executable reference for a combat-oriented raid where players must
+destroy a corrupted, self-healing crystal monolith while fending off waves of monster spawns.
 
-## Player Experience
-Players find a Metin stone and start attacking it. At 75%, 50%, and 25% health, waves of monsters spawn to defend it. At 5% health, the stone becomes invulnerable until a boss is defeated.
+## Gameplay Summary
 
-## Event Lifecycle
-Standard global lifecycle.
+| Phase | What happens | Transition |
+|---|---|---|
+| `manifestation` | Crystal manifests, locked for 30 seconds. | `timer_elapsed` (30s) |
+| `dominance` | Crystal is vulnerable (100–75% HP). | `health_threshold_crossed` (75%) |
+| `fracture` | Crystal becomes locked, spawns a wave of guards. | `wave_cleared` or `timer_elapsed` (90s) |
+| `desperation` | Crystal is vulnerable (75–25% HP), spawns guards at 50%. | `health_threshold_crossed` (25%) |
+| `final_assault` | Crystal becomes locked, spawns a Metin Defender boss. | `wave_cleared` |
+| `victory` | Boss defeated, crystal shatters, top-3 podium rewarded. | Terminal |
 
-## Phases
+## Visual Model
 
-1. **SPAWNING**
-   - The Metin stone appears with an introductory animation (e.g., rising from ground).
-   - **Transitions**: Animation finished -> `ACTIVE`.
-2. **ACTIVE**
-   - The stone takes damage.
-   - **Transitions**:
-     - Health drops below threshold (e.g., 5%) -> `ENRAGED`.
-     - Health reaches zero (if boss skipped) -> `DEFEATED`.
-3. **ENRAGED**
-   - The stone gains invulnerability (`Condition` blocks damage). A Boss mob is spawned.
-   - **Transitions**: Boss mob killed trigger -> `ACTIVE` (or `DEFEATED` directly).
-4. **DEFEATED**
-   - The stone crumbles. Rewards are distributed.
-   - **Transitions**: Immediate -> `CLEANUP`.
-5. **CLEANUP**
-   - Standard instance removal.
+The `metin_stone` model ([`assets/source/metin_stone.bbmodel`](../authoring/models.md)) is imported from Blockbench:
 
-## Spawn
-- **Strategy**: Fixed location or Random Region.
+| Group | Parts | Description |
+|---|---|---|
+| Core Structure | `base_rock`, `core_crystal` | The main obsidian base and inner glowing purpur pillar |
+| Spikes | `spike_n/s/e/w` | Sharp amethyst shards protruding outward |
+| Runes | `rune_ring_1/2/3` | Magical glowing glyphs orbiting the crystal |
+| Corruption | `void_cloud_1/2/3`, `tentacle_1/2` | Dark ethereal matter clinging to the rock |
 
-## Visuals
-- Stationary tall block structure (Model).
-- Particles emitted based on current health percentage (more smoke as health gets lower).
+## Animations
 
-## Interactions
-- Left-click/damage applies to the `HealthComponent`.
+| Animation | Loop | Trigger | Description |
+|---|---|---|---|
+| `idle` | LOOP | Phases `manifestation`, `dominance`, `fracture`, `desperation`, `final_assault` | Core throbs, runes orbit |
+| `hit` | ONCE | `interaction` (left-click) | Core flashes bright red, base shudders briefly |
+| `destroy` | ONCE | Phase `victory` on-enter | All spikes break off, core implodes, runes scatter and fade |
 
-## Components
-- `ModelComponent`, `HealthComponent`, `MobWaveComponent`, `LeaderboardComponent`.
+## Shared Contracts Used
 
-## Triggers
-- `health-threshold` (e.g., fires at 75%, 50%, 25%).
-- `mob-killed` (tracking the specific spawned boss).
-- `health-zero`.
+| Concern | Contract |
+|---|---|
+| Visual asset | `assets/source/metin_stone.bbmodel` — imported model |
+| Health | `initialize_health` with 1000 HP |
+| Damage Feedback | `interaction` triggers damage and updates the bossbar |
+| Mob Waves | `health_threshold_crossed` at 75%, 50%, and 25% HP spawns protecting mobs |
+| Ranking | `award_podium` directly drops loot for the top-3 damage contributors |
+| Recovery | Health and current state persist across server restarts |
 
-## Conditions
-- Invulnerability condition applied during the `ENRAGED` phase.
+## Operator Workflow
 
-## Actions
-- `spawn-mob` (for waves and boss).
-- `give-reward`.
-
-## Rewards
-- **Distribution**: Damage leaderboard ranking, plus a participation threshold (e.g., must have dealt at least 1% of total health to get rewards).
-
-## Leaderboard
-- Tracks cumulative damage.
-
-## Event Area
-- Keeps mobs tethered to the stone (prevents kiting the boss across the map).
-
-## Persistence & Restart Recovery
-- Retains current health and active phase. Mobs may need to be respawned or recovered if despawned by the server.
-
-## Chunk Behavior
-- Force-loaded while `ACTIVE`.
-
-## Failure Cases
-- Boss falls into the void -> fails safe by auto-transitioning back to `ACTIVE`.
-
-## Abuse / Anti-Dupe Considerations
-- Mobs spawned by the event should not drop vanilla loot or XP to prevent farming.
-
-## Required Engine Primitives
-- `HealthComponent`.
-- `health-threshold` triggers.
-- `MobWaveComponent` / generic entity tracking.
+1. Start the event: `/spectraevents event start metin`
+2. The crystal manifests and is locked for 30 seconds.
+3. The crystal enters `dominance` and players begin attacking it.
+4. Verify that when health reaches 75% and 25%, the crystal locks and waves of monsters (`spawn_wave`) spawn to defend it.
+5. Defeat the final Metin Defender boss to see the crystal shatter and drop its loot.

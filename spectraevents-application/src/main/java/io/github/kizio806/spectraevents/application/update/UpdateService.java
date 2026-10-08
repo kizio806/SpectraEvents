@@ -5,6 +5,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** Manages update checking and status tracking. */
+@SuppressWarnings("PMD.AvoidFieldNameMatchingMethodName")
 public final class UpdateService {
   private final String currentVersion;
   private final UpdatePort updatePort;
@@ -13,7 +14,7 @@ public final class UpdateService {
   public UpdateService(String currentVersion, UpdatePort updatePort) {
     this.currentVersion = Objects.requireNonNull(currentVersion, "currentVersion");
     this.updatePort = Objects.requireNonNull(updatePort, "updatePort");
-    this.cachedInfo = new AtomicReference<>(UpdateInfo.upToDate(currentVersion));
+    this.cachedInfo = new AtomicReference<>(UpdateInfo.notChecked(currentVersion));
   }
 
   public CompletableFuture<UpdateInfo> checkNow(String channel) {

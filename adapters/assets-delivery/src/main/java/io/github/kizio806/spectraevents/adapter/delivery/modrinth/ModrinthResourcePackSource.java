@@ -9,51 +9,70 @@ import io.github.kizio806.spectraevents.application.asset.delivery.ResourcePackD
 import io.github.kizio806.spectraevents.application.asset.delivery.ResourcePackSourcePort;
 import java.util.concurrent.CompletableFuture;
 
-public class ModrinthResourcePackSource implements ResourcePackSourcePort {
+public final class ModrinthResourcePackSource implements ResourcePackSourcePort {
 
   private final ModrinthApiClient apiClient;
   private final String projectId;
-  private final String gameVersion; // Resolved from server env, e.g. "26.3"
+  private final AssetTargetProfile serverProfile;
+  private final String versionId;
 
   public ModrinthResourcePackSource(
       ModrinthApiClient apiClient, String projectId, String gameVersion) {
+    this(apiClient, projectId, gameVersion, "");
+  }
+
+  /** Resolves the automatic release version, or an explicit configured rollback version ID. */
+  public ModrinthResourcePackSource(
+      ModrinthApiClient apiClient, String projectId, String gameVersion, String versionId) {
     if (projectId == null || projectId.isBlank() || projectId.startsWith("<")) {
       throw new IllegalArgumentException(
-          "Modrinth project-id is missing or unconfigured. Please specify a valid Modrinth Project ID (e.g. 'Rg1nw8IW') in resource-pack configuration.");
+          "Modrinth project-id is missing or unconfigured. Specify the real project ID in resource-pack configuration.");
     }
     this.apiClient = apiClient;
     this.projectId = projectId;
-    this.gameVersion = gameVersion;
+    this.serverProfile = AssetTargetProfile.forMinecraftVersion(gameVersion);
+    this.versionId = versionId == null ? "" : versionId.trim();
   }
 
   @Override
   public CompletableFuture<ResourcePackDescriptor> resolve(
       String pluginVersion, AssetTargetProfile profile) {
+    if (profile != serverProfile) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException(
+              "Server resource-pack profile "
+                  + serverProfile
+                  + " does not match requested profile "
+                  + profile));
+    }
+    String expectedVersion = profile.resourcePackVersion(pluginVersion);
     return apiClient
-        .getProjectVersions(projectId, "minecraft", gameVersion)
+        .getProjectVersions(projectId, "minecraft", profile.minecraftReleaseLine())
         .thenApply(
             jsonResponse -> {
               JsonArray versions = JsonParser.parseString(jsonResponse).getAsJsonArray();
 
-              String expectedVersion =
-                  pluginVersion + "+" + profile.name().replace("PROFILE_", "").replace("_", ".");
-
               JsonObject selectedVersion = null;
               for (JsonElement el : versions) {
                 JsonObject v = el.getAsJsonObject();
+                if (!versionId.isBlank() && versionId.equals(v.get("id").getAsString())) {
+                  selectedVersion = v;
+                  break;
+                }
                 String versionNumber = v.get("version_number").getAsString();
-                if (versionNumber.equals(expectedVersion)) {
+                if (versionId.isBlank() && versionNumber.equals(expectedVersion)) {
                   selectedVersion = v;
                   break;
                 }
               }
 
               if (selectedVersion == null) {
-                throw new RuntimeException(
-                    "Version "
-                        + expectedVersion
-                        + " not found on Modrinth for project "
-                        + projectId);
+                throw new java.util.concurrent.CompletionException(
+                    new IllegalStateException(
+                        "Version "
+                            + (versionId.isBlank() ? expectedVersion : versionId)
+                            + " not found on Modrinth for project "
+                            + projectId));
               }
 
               JsonArray files = selectedVersion.getAsJsonArray("files");
@@ -72,20 +91,23 @@ public class ModrinthResourcePackSource implements ResourcePackSourcePort {
               }
 
               if (primaryFile == null) {
-                throw new RuntimeException(
-                    "Could not unambiguously determine primary file for Modrinth version "
-                        + expectedVersion);
+                throw new java.util.concurrent.CompletionException(
+                    new IllegalStateException(
+                        "Could not unambiguously determine primary file for Modrinth version "
+                            + expectedVersion));
               }
 
               String url = primaryFile.get("url").getAsString();
               if (!url.startsWith("https://") || !url.endsWith(".zip")) {
-                throw new RuntimeException(
-                    "Modrinth file URL is invalid (must be HTTPS and .zip): " + url);
+                throw new java.util.concurrent.CompletionException(
+                    new IllegalStateException(
+                        "Modrinth file URL is invalid (must be HTTPS and .zip): " + url));
               }
 
               JsonObject hashes = primaryFile.getAsJsonObject("hashes");
               if (!hashes.has("sha1")) {
-                throw new RuntimeException("Modrinth file is missing sha1 hash");
+                throw new java.util.concurrent.CompletionException(
+                    new IllegalStateException("Modrinth file is missing sha1 hash"));
               }
 
               String sha1 = hashes.get("sha1").getAsString();
@@ -93,12 +115,13 @@ public class ModrinthResourcePackSource implements ResourcePackSourcePort {
               long size = primaryFile.get("size").getAsLong();
 
               if (size <= 0) {
-                throw new RuntimeException("Modrinth file size must be greater than 0");
+                throw new java.util.concurrent.CompletionException(
+                    new IllegalStateException("Modrinth file size must be greater than 0"));
               }
 
               return new ResourcePackDescriptor(
                   selectedVersion.get("id").getAsString(),
-                  expectedVersion,
+                  selectedVersion.get("version_number").getAsString(),
                   url,
                   sha1,
                   sha512,

@@ -17,6 +17,9 @@ public final class SpectraPdcKeys {
   public static final NamespacedKey MODEL_ID = MODEL_DEFINITION_ID;
   public static final NamespacedKey RESOURCE_ROLE =
       new NamespacedKey("spectraevents", "resource_role");
+  public static final NamespacedKey WAVE_ID = new NamespacedKey("spectraevents", "wave_id");
+  public static final NamespacedKey GROUND_LOOT_SLOT =
+      new NamespacedKey("spectraevents", "ground_loot_slot");
 
   public static NamespacedKey instanceId(Plugin plugin) {
     return EVENT_INSTANCE_ID;

@@ -9,10 +9,14 @@ import org.junit.jupiter.api.Test;
 
 class ModrinthResourcePackSourceTest {
 
+  private static final String TEST_MINECRAFT_VERSION = "26.1.1";
+  private static final String TEST_PLUGIN_VERSION = "1.0.0";
+
   private static class StubClient extends ModrinthApiClient {
     private final String fixture;
+    private String requestedGameVersion;
 
-    public StubClient(String fixture) {
+    StubClient(String fixture) {
       super("1.0");
       this.fixture = fixture;
     }
@@ -20,6 +24,7 @@ class ModrinthResourcePackSourceTest {
     @Override
     public CompletableFuture<String> getProjectVersions(
         String projectId, String loader, String gameVersion) {
+      requestedGameVersion = gameVersion;
       if ("26.3".equals(gameVersion) && "[]".equals(fixture)) {
         return CompletableFuture.completedFuture("[]");
       }
@@ -28,7 +33,8 @@ class ModrinthResourcePackSourceTest {
   }
 
   @Test
-  void testExactVersionSelected() throws Exception {
+  void testExactVersionSelected()
+      throws InterruptedException, java.util.concurrent.ExecutionException {
     String fixture =
         """
         [
@@ -41,8 +47,8 @@ class ModrinthResourcePackSourceTest {
                 "primary": true,
                 "size": 1024,
                 "hashes": {
-                  "sha1": "abc",
-                  "sha512": "def"
+                  "sha1": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "sha512": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
                 }
               }
             ]
@@ -51,13 +57,16 @@ class ModrinthResourcePackSourceTest {
         """;
     StubClient mockClient = new StubClient(fixture);
 
-    ModrinthResourcePackSource source = new ModrinthResourcePackSource(mockClient, "xyz", "26.1.1");
-    ResourcePackDescriptor desc = source.resolve("1.0.0", AssetTargetProfile.PROFILE_26_1).get();
+    ModrinthResourcePackSource source =
+        new ModrinthResourcePackSource(mockClient, "xyz", TEST_MINECRAFT_VERSION);
+    ResourcePackDescriptor desc =
+        source.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_1).get();
 
     Assertions.assertEquals("1.0.0+26.1", desc.version());
     Assertions.assertEquals("https://cdn.modrinth.com/data/xyz/versions/v1/pack.zip", desc.url());
-    Assertions.assertEquals("abc", desc.sha1());
-    Assertions.assertEquals("def", desc.sha512());
+    Assertions.assertEquals("a".repeat(40), desc.sha1());
+    Assertions.assertEquals("d".repeat(128), desc.sha512());
+    Assertions.assertEquals("26.1", mockClient.requestedGameVersion);
   }
 
   @Test
@@ -70,9 +79,51 @@ class ModrinthResourcePackSourceTest {
         Assertions.assertThrows(
             ExecutionException.class,
             () -> {
-              source.resolve("1.0.0", AssetTargetProfile.PROFILE_26_3).get();
+              source.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_3).get();
             });
     Assertions.assertTrue(ex.getCause().getMessage().contains("not found"));
+  }
+
+  @Test
+  void selectsThePinnedVersionIdInsteadOfTheReleaseVersionName() throws Exception {
+    String fixture =
+        """
+        [
+          {
+            "id": "unapproved",
+            "version_number": "1.0.0+26.1",
+            "files": [{"url": "https://cdn.modrinth.com/unapproved.zip", "primary": true, "size": 1, "hashes": {"sha1": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}]
+          },
+          {
+            "id": "approved",
+            "version_number": "different-release-name",
+            "files": [{"url": "https://cdn.modrinth.com/approved.zip", "primary": true, "size": 1, "hashes": {"sha1": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}]
+          }
+        ]
+        """;
+
+    ResourcePackDescriptor descriptor =
+        new ModrinthResourcePackSource(
+                new StubClient(fixture), "xyz", TEST_MINECRAFT_VERSION, "approved")
+            .resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_1)
+            .get();
+
+    Assertions.assertEquals("approved", descriptor.id());
+    Assertions.assertEquals("https://cdn.modrinth.com/approved.zip", descriptor.url());
+    Assertions.assertEquals("different-release-name", descriptor.version());
+  }
+
+  @Test
+  void rejectsAProfileThatDoesNotMatchTheRunningServer() {
+    ModrinthResourcePackSource source =
+        new ModrinthResourcePackSource(new StubClient("[]"), "xyz", TEST_MINECRAFT_VERSION);
+
+    ExecutionException exception =
+        Assertions.assertThrows(
+            ExecutionException.class,
+            () -> source.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_2).get());
+
+    Assertions.assertTrue(exception.getCause().getMessage().contains("does not match"));
   }
 
   @Test
@@ -89,7 +140,7 @@ class ModrinthResourcePackSourceTest {
                 "primary": true,
                 "size": 1024,
                 "hashes": {
-                  "sha1": "abc"
+                  "sha1": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                 }
               }
             ]
@@ -98,12 +149,13 @@ class ModrinthResourcePackSourceTest {
         """;
     StubClient mockClient = new StubClient(fixture);
 
-    ModrinthResourcePackSource source = new ModrinthResourcePackSource(mockClient, "xyz", "26.1.1");
+    ModrinthResourcePackSource source =
+        new ModrinthResourcePackSource(mockClient, "xyz", TEST_MINECRAFT_VERSION);
     ExecutionException ex =
         Assertions.assertThrows(
             ExecutionException.class,
             () -> {
-              source.resolve("1.0.0", AssetTargetProfile.PROFILE_26_1).get();
+              source.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_1).get();
             });
     Assertions.assertTrue(ex.getCause().getMessage().contains("invalid"));
   }

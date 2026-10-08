@@ -41,7 +41,7 @@ class AnimationRuntimeServiceTest {
 
   private AnimationDefinitionRegistry definitionRegistry;
   private ActiveAnimationRegistry activeRegistry;
-  private TestModelRenderer modelRenderer;
+  private MockModelRenderer modelRenderer;
   private TestScheduler scheduler;
   private AnimationRuntimeService service;
 
@@ -53,7 +53,7 @@ class AnimationRuntimeServiceTest {
   void setUp() {
     definitionRegistry = new AnimationDefinitionRegistry();
     activeRegistry = new ActiveAnimationRegistry();
-    modelRenderer = new TestModelRenderer();
+    modelRenderer = new MockModelRenderer();
     scheduler = new TestScheduler();
 
     service =
@@ -177,7 +177,7 @@ class AnimationRuntimeServiceTest {
       pendingTasks.add(task);
     }
 
-    public void runPending() {
+    void runPending() {
       List<Runnable> copy = new ArrayList<>(pendingTasks);
       pendingTasks.clear();
       for (Runnable task : copy) {
@@ -187,28 +187,18 @@ class AnimationRuntimeServiceTest {
   }
 
   private static class UpdateCall {
-    private final RenderedModelHandle handle;
-    private final ModelPartId partId;
-    private final ModelTransform transform;
     private final int interpolationDurationTicks;
 
-    public UpdateCall(
-        RenderedModelHandle handle,
-        ModelPartId partId,
-        ModelTransform transform,
-        int interpolationDurationTicks) {
-      this.handle = handle;
-      this.partId = partId;
-      this.transform = transform;
+    UpdateCall(int interpolationDurationTicks) {
       this.interpolationDurationTicks = interpolationDurationTicks;
     }
 
-    public int interpolationDurationTicks() {
+    int interpolationDurationTicks() {
       return interpolationDurationTicks;
     }
   }
 
-  private static class TestModelRenderer implements ModelRendererPort {
+  private static class MockModelRenderer implements ModelRendererPort {
     private final List<UpdateCall> updateCalls = new ArrayList<>();
 
     @Override
@@ -237,8 +227,7 @@ class AnimationRuntimeServiceTest {
         ModelPartId partId,
         ModelTransform newLocalTransform,
         int interpolationDurationTicks) {
-      updateCalls.add(
-          new UpdateCall(handle, partId, newLocalTransform, interpolationDurationTicks));
+      updateCalls.add(new UpdateCall(interpolationDurationTicks));
       return true;
     }
 

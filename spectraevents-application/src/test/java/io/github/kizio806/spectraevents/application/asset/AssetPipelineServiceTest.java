@@ -4,8 +4,6 @@ import io.github.kizio806.spectraevents.application.port.AssetImportPort;
 import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetDocument;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,42 +15,50 @@ public class AssetPipelineServiceTest {
 
   @TempDir Path tempDir;
 
+  private static final String TEST_MODEL = "test.spectra.zip";
+
   @BeforeEach
   void setUp() {
     AssetImportPort mockImport =
-        new AssetImportPort() {
-          @Override
-          public SpectraAssetDocument read(String content, String modelId) {
-            return new SpectraAssetDocument(
-                1, modelId, new HashMap<>(), new ArrayList<>(), new HashMap<>());
-          }
-        };
+        source ->
+            new SpectraAssetDocument(
+                1, "test", java.util.Map.of(), java.util.List.of(), java.util.Map.of());
     ResourcePackBuilder mockBuilder = new ResourcePackBuilder(tempDir.resolve("out"));
 
     service =
-        new AssetPipelineService(
-            mockImport, null, null, mockBuilder, tempDir, AssetTargetProfile.PROFILE_26_1);
+        new AssetPipelineService(mockImport, mockBuilder, tempDir, AssetTargetProfile.PROFILE_26_1);
   }
 
   @Test
   void testImportFileSuccess() throws Exception {
-    Path dummyFile = tempDir.resolve("test.bbmodel");
-    Files.writeString(dummyFile, "{}");
+    Path dummyFile = tempDir.resolve(TEST_MODEL);
+    Files.writeString(dummyFile, "bundle");
 
-    service.importFile("test.bbmodel");
+    service.importFile(TEST_MODEL);
 
     Assertions.assertTrue(service.listModels().contains("test"));
     Assertions.assertNotNull(service.getModelInfo("test"));
+    Assertions.assertTrue(
+        Files.isRegularFile(tempDir.resolve("out").resolve("spectraevents-profile_26_1.zip")));
   }
 
   @Test
   void testCleanRemovesCache() throws Exception {
-    Path dummyFile = tempDir.resolve("test.bbmodel");
-    Files.writeString(dummyFile, "{}");
+    Path dummyFile = tempDir.resolve(TEST_MODEL);
+    Files.writeString(dummyFile, "bundle");
 
-    service.importFile("test.bbmodel");
+    service.importFile(TEST_MODEL);
     service.clean();
 
     Assertions.assertTrue(service.listModels().isEmpty());
+  }
+
+  @Test
+  void importsFileAsynchronously() throws Exception {
+    Files.writeString(tempDir.resolve(TEST_MODEL), "bundle");
+
+    service.importFileAsync(TEST_MODEL).join();
+
+    Assertions.assertTrue(service.listModels().contains("test"));
   }
 }

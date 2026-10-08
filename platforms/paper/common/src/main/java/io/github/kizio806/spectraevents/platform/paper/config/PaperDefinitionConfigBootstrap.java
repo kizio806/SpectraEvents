@@ -5,24 +5,21 @@ import io.github.kizio806.spectraevents.application.config.loader.FileSystemDefi
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/** Discovers YAML event definitions on disk and loads them through the application pipeline. */
+/* Discovers YAML event definitions on disk and loads them through the application pipeline. */
 public final class PaperDefinitionConfigBootstrap {
   private static final Logger LOGGER =
       Logger.getLogger(PaperDefinitionConfigBootstrap.class.getName());
 
-  private final JavaPlugin plugin;
   private final FileSystemDefinitionLoader fileSystemLoader;
 
   public PaperDefinitionConfigBootstrap(
       JavaPlugin plugin,
       io.github.kizio806.spectraevents.application.config.loader.DefinitionLoader
           definitionLoader) {
-    this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.fileSystemLoader =
         new FileSystemDefinitionLoader(plugin.getDataFolder().toPath(), definitionLoader);
   }
@@ -31,12 +28,12 @@ public final class PaperDefinitionConfigBootstrap {
     return fileSystemLoader.eventsDirectory();
   }
 
-  /** Ensures the events directory exists and contains default configurations. */
+  /* Ensures the events directory exists and contains default configurations. */
   public void ensureDefaultConfiguration() throws IOException {
     fileSystemLoader.ensureDefaultConfiguration();
   }
 
-  /** Loads all YAML files from the events directory into the registry. */
+  /* Loads all YAML files from the events directory into the registry. */
   public DefinitionLoadResult loadFromDisk() throws IOException {
     return fileSystemLoader.loadFromDisk();
   }
@@ -46,9 +43,13 @@ public final class PaperDefinitionConfigBootstrap {
     return fileSystemLoader.reloadFromDisk();
   }
 
+  public DefinitionLoadResult validateFromDisk() throws IOException {
+    return fileSystemLoader.validateFromDisk();
+  }
+
   public void logLoadResult(DefinitionLoadResult result) {
     for (var loaded : result.loaded()) {
-      LOGGER.info(
+      LOGGER.fine(
           "Loaded event definition '"
               + loaded.definition().id().value()
               + "' from "

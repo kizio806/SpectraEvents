@@ -50,6 +50,11 @@ class HealthTest {
   @Test
   void shouldRejectNegativeDamage() {
     Health health = new Health(20, 20);
-    assertThrows(IllegalArgumentException.class, () -> health.damage(-5));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          Health damaged = health.damage(-5);
+          assertEquals(20, damaged.current());
+        });
   }
 }

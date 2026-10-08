@@ -1,15 +1,11 @@
 package io.github.kizio806.spectraevents.application.config.compiled;
 
 import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
-import java.util.Map;
 
-public record ConfiguredActionDefinition(String type, Map<String, Object> parameters)
-    implements ActionDefinition {
-  public ConfiguredActionDefinition(String type) {
-    this(type, Map.of());
-  }
-
+public record ConfiguredActionDefinition(String type) implements ActionDefinition {
   public ConfiguredActionDefinition {
-    parameters = parameters != null ? Map.copyOf(parameters) : Map.of();
+    if (type == null || type.isBlank()) {
+      throw new IllegalArgumentException("type must not be blank");
+    }
   }
 }

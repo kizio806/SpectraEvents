@@ -2,6 +2,7 @@ package io.github.kizio806.spectraevents.platform.paper.command;
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
@@ -12,9 +13,11 @@ import org.bukkit.command.CommandSender;
 /** Command handler for integrations list subcommand. */
 public final class IntegrationCommandHandler {
   private final IntegrationRegistry integrationRegistry;
+  private final CommandText messages;
 
-  public IntegrationCommandHandler(IntegrationRegistry integrationRegistry) {
+  public IntegrationCommandHandler(IntegrationRegistry integrationRegistry, LocaleCatalog locales) {
     this.integrationRegistry = integrationRegistry;
+    this.messages = new CommandText(locales);
   }
 
   public LiteralArgumentBuilder<CommandSourceStack> build() {
@@ -27,7 +30,10 @@ public final class IntegrationCommandHandler {
     CommandSender sender = ctx.getSource().getSender();
     var all = integrationRegistry.getAll();
     sender.sendMessage(
-        Component.text("Plugin Integrations (" + all.size() + "):", NamedTextColor.AQUA));
+        messages.component(
+            "command.integrations.title",
+            NamedTextColor.AQUA,
+            java.util.Map.of("count", all.size())));
     for (var entry : all.entrySet()) {
       var info = entry.getValue();
       NamedTextColor color =
@@ -37,9 +43,17 @@ public final class IntegrationCommandHandler {
             case MISSING -> NamedTextColor.GRAY;
           };
       sender.sendMessage(
-          Component.text(" - " + info.name() + ": ", NamedTextColor.WHITE)
+          messages
+              .component(
+                  "command.integrations.entry",
+                  NamedTextColor.WHITE,
+                  java.util.Map.of("name", info.name()))
               .append(Component.text(info.state().name(), color))
-              .append(Component.text(" (" + info.details() + ")", NamedTextColor.DARK_GRAY)));
+              .append(
+                  messages.component(
+                      "command.integrations.details",
+                      NamedTextColor.DARK_GRAY,
+                      java.util.Map.of("details", info.details()))));
     }
     return 1;
   }

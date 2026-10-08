@@ -1,112 +1,284 @@
+# =============================================================================
+# SpectraEvents — Event Definition: Airdrop
+# =============================================================================
+# A military-style supply crate descends from the sky on a parachute.
+# It lands, remains locked for a countdown, then exposes a durable public inventory.
+#
+# PHASES
+#   announced → falling → locked → open → looted → empty_display → completed
+#
+# Timings are YAML-owned. Only declared scalar values are editable through commands/GUI.
+#
+# FIELD-BY-FIELD AUTHORING GUIDE
+#   id              Stable event key. Do not change it after creating schedules or overrides.
+#   schema-version  Parser contract; keep "1" until the plugin documents a newer schema.
+#   initial-phase   Name of the first key under `phases`.
+#   parameters      Admin-editable, validated values. `duration` accepts ms/s/m/h; bounds and
+#                   step are seconds. GUI edits write only events/overrides/airdrop.yml.
+#   encounter       zone-radius limits eligible activity; deadline is the hard event timeout.
+#   phases          Named states. `on-enter` runs once on arrival; `transitions` reacts to a
+#                   trigger. `target` changes phase; transition `actions` run without changing it.
+#   type            Selects a documented engine action/trigger, never a free-form command.
+#   model            Resource/model identifier; it must exist in the configured model source.
+#   animation        Animation identifier declared by that model. LOOP repeats, ONCE does not.
+#   message/title    `i18n:` key resolved from the selected locale. Never paste player text here.
+#   ${parameter}    Value replaced at definition-load time from the bounded `parameters` map.
+#   %time_remaining% Runtime display placeholder, refreshed by the boss-bar manager each second.
+#   set_locked      Blocks interaction until the duration expires; it is not merely visual.
+#   initialize_shared_loot Creates one public, durable inventory; items are not personal rewards.
+#   open_shared_loot Opens that same inventory for the player who triggered interaction.
+#   remove_bossbar/remove_model/complete_event Terminal cleanup; keep all three in end states.
+# =============================================================================
+
+# Stable machine identifier. It is used by commands, schedules and override file names.
 id: airdrop
+# Event definition format understood by this plugin version.
 schema-version: "1"
-initial-phase: falling
+# The phase entered immediately after an administrator starts the event.
+initial-phase: announced
+
+# Bounded values exposed in the admin GUI. `min`, `max` and `step` are seconds for durations.
+parameters:
+  # Delay between the global announcement and spawning the falling crate.
+  announcement-delay:
+    type: duration
+    default: 15m
+    min: 60
+    max: 3600
+    step: 60
+    gui-editable: true
+  # Time for which players can see but cannot open the landed crate.
+  lock-duration:
+    type: duration
+    default: 5m
+    min: 30
+    max: 1800
+    step: 30
+    gui-editable: true
+  # Grace period in which the first item must be taken, otherwise the crate evacuates.
+  first-loot-window:
+    type: duration
+    default: 15m
+    min: 60
+    max: 3600
+    step: 60
+    gui-editable: true
+  # How long to show the empty crate before cleanup after all shared loot is taken.
+  empty-display-duration:
+    type: duration
+    default: 5m
+    min: 30
+    max: 1800
+    step: 30
+    gui-editable: true
+
+# Guardrails for the whole encounter, independent of individual phase timers.
+encounter:
+  zone-radius: 128
+  deadline: 45m
 
 phases:
-  falling:
+  # Announces the future landing and keeps a countdown in the shared boss bar.
+  announced:
+    # Global message and initial HUD. The following timer is the authoritative countdown.
     on-enter:
-      - type: spawn_model
-        model: dev_airdrop_model
-        height-offset: 15
-        animate: true
       - type: broadcast_message
-        message: "<gold><bold>[SpectraEvents]</bold> <yellow>A Supply Airdrop is descending from the sky!</yellow>"
+        message: "i18n:event.airdrop.announced-message"
+      - type: show_bossbar
+        title: "i18n:event.airdrop.announced-bossbar"
+        color: YELLOW
+        style: PROGRESS
     transitions:
+      # When the announcement timer expires, start rendering the falling crate.
+      - trigger:
+          type: timer_elapsed
+          duration: ${announcement-delay}
+        target: falling
+
+
+  # ---------------------------------------------------------------------------
+  # PHASE: falling
+  # The crate and parachute assembly descend. The "descent" animation moves
+  # the model slowly downward. A title and broadcast announce the event.
+  # After the short landing sequence the crate enters the locked phase.
+  # ---------------------------------------------------------------------------
+  falling:
+    # Render the descending assembly, then wait briefly so the landing is visible.
+    on-enter:
+      # height-offset: The crate spawns 15 blocks in the air so the descent
+      # animation is visible to players on the ground.
+      - type: spawn_model
+        model: airdrop_crate
+        height-offset: 15
+
+      - type: play_animation
+        model: airdrop_crate
+        animation: fall
+        loop: ONCE
+
+      - type: show_title
+        title: "i18n:event.airdrop.falling-title"
+        subtitle: "i18n:event.airdrop.falling-subtitle"
+
+      - type: broadcast_message
+        message: "i18n:event.airdrop.falling-message"
+
+    transitions:
+      # This fixed cinematic delay is intentionally not GUI-editable.
       - trigger:
           type: timer_elapsed
           duration: 3s
         target: locked
 
+  # ---------------------------------------------------------------------------
+  # PHASE: locked
+  # The crate is on the ground but sealed. Players see a countdown bossbar.
+  # If they try to interact early they receive a "locked" personal message.
+  # set_locked duration matches the declared operator parameter.
+  # ---------------------------------------------------------------------------
   locked:
+    # The crate is now at ground level. Gameplay remains locked until lock-duration ends.
     on-enter:
+      # land animation: parachute collapses, crate bounces on landing.
+      # move_model: lower the crate to ground level after the descent.
       - type: move_model
         target: ground
+
+      # set_locked: prevents the claim from being accepted until the duration
+      # has elapsed. Operator can adjust via lock-duration config setting.
       - type: set_locked
-        duration: 30s
+        duration: ${lock-duration}
+
       - type: play_sound
         sound: minecraft:block.wood.place
         volume: 1.0
-        pitch: 0.5
+        pitch: 0.5                 # Low pitch = heavy wooden thud
+
       - type: spawn_particles
         particle: minecraft:cloud
         count: 20
+
+      # The shared HUD manager refreshes the active phase and remaining time each second.
       - type: show_bossbar
-        title: "<yellow><bold>AIRDROP CRATE</bold> <gray>[Unlocking in 30s...]</gray>"
+        title: "i18n:event.airdrop.locked-bossbar"
         color: YELLOW
         style: PROGRESS
-      - type: show_scoreboard
-        title: "<yellow><bold>AIRDROP EVENT</bold>"
-        lines:
-          - "<yellow>Phase: <white>%phase%</white>"
-          - "<yellow>Status: <red>Locked (30s)</red>"
+
       - type: broadcast_message
-        message: "<gold><bold>[SpectraEvents]</bold> <yellow>Airdrop landed! Supply Crate unlocking in 30 seconds!</yellow>"
+        message: "i18n:event.airdrop.locked-message"
+
     transitions:
+      # Unlock timer — duration matches lock-duration operator override.
       - trigger:
+          # A player interaction while locked sends feedback but deliberately has no target phase.
           type: timer_elapsed
-          duration: 30s
+          duration: ${lock-duration}
         target: open
+
+      # Early interaction: deliver a "come back later" message only to the
+      # triggering player. No phase change — stays in "locked".
       - trigger:
           type: interaction
         actions:
           - type: send_message
-            message: "<red>The Supply Crate is locked! Please wait for the countdown timer.</red>"
+            message: "i18n:event.airdrop.locked-interaction"
 
+  # ---------------------------------------------------------------------------
+  # PHASE: open
+  # The crate unlocks as a public shared inventory. The first withdrawal is announced,
+  # but it does not reserve the remaining slots for that player.
+  # ---------------------------------------------------------------------------
   open:
+    # Public inventory is initialized once here; later interactions only reopen the same contents.
     on-enter:
+      - type: initialize_shared_loot
+        items:
+          - material: minecraft:diamond
+            amount: 5
+          - material: minecraft:golden_apple
+            amount: 4
+          - material: minecraft:netherite_upgrade_smithing_template
+            amount: 1
+          - material: minecraft:experience_bottle
+            amount: 16
+      # Play the lid-opening animation.
+      - type: play_animation
+        model: airdrop_crate
+        animation: open
+        loop: ONCE
+
       - type: play_sound
         sound: minecraft:block.chest.open
         volume: 1.0
         pitch: 1.0
+
       - type: spawn_particles
         particle: minecraft:happy_villager
         count: 20
+
       - type: update_bossbar
-        title: "<green><bold>AIRDROP CRATE UNLOCKED!</bold> <white>[Right-click to claim!]</white>"
-        color: GREEN
-        style: PROGRESS
-      - type: update_scoreboard
-        title: "<yellow><bold>AIRDROP EVENT</bold>"
-        lines:
-          - "<yellow>Phase: <green>Unlocked!</green>"
-          - "<yellow>Status: <green>Ready to Claim!</green>"
+        title: "i18n:event.airdrop.open-bossbar"
+
       - type: broadcast_message
-        message: "<gold><bold>[SpectraEvents]</bold> <green><bold>Supply Crate Unlocked!</bold> Right-click to claim rewards!</green>"
+        message: "i18n:event.airdrop.open-message"
+
+    transitions:
+      # First interaction opens shared loot. The first taken item advances to `looted`.
+      - trigger:
+          type: interaction
+        actions:
+          - type: open_shared_loot
+            title: "i18n:event.airdrop.loot-title"
+      - trigger:
+          type: timer_elapsed
+          duration: ${first-loot-window}
+        target: evacuated
+      - trigger:
+          type: loot_item_taken
+        target: looted
+
+  looted:
+    # This state keeps the public inventory open until every slot is empty.
+    on-enter:
+      - type: broadcast_message
+        message: "i18n:event.airdrop.looted-message"
     transitions:
       - trigger:
           type: interaction
         actions:
-          - type: try_claim
-          - type: give_item
-            material: minecraft:diamond
-            amount: 5
-          - type: drop_loot
-            radius: 2.0
-            items:
-              - material: minecraft:golden_apple
-                amount: 4
-                chance: 100
-              - material: minecraft:netherite_upgrade_smithing_template
-                amount: 1
-                chance: 50
-              - material: minecraft:experience_bottle
-                amount: 16
-                chance: 100
-          - type: send_message
-            message: "<green><bold>You claimed the Supply Airdrop Crate!</bold></green>"
-          - type: play_sound
-            sound: minecraft:entity.player.levelup
-            volume: 1.0
-            pitch: 1.0
-          - type: broadcast_message
-            message: "<gold><bold>[SpectraEvents]</bold> <green>The Supply Airdrop Crate has been claimed!</green>"
-        target: claimed
+          - type: open_shared_loot
+            title: "i18n:event.airdrop.loot-title"
+      - trigger:
+          type: loot_container_emptied
+        target: empty_display
 
-  claimed:
+  empty_display:
+    # Show an empty-state HUD before the visual is removed.
     on-enter:
+      - type: update_bossbar
+        title: "i18n:event.airdrop.empty-bossbar"
+    transitions:
+      - trigger:
+          type: timer_elapsed
+          duration: ${empty-display-duration}
+        target: completed
+
+  evacuated:
+    # No player claimed an item during the first-loot window: clean up without rewards.
+    on-enter:
+      - type: broadcast_message
+        message: "i18n:event.airdrop.evacuated-message"
       - type: remove_bossbar
-      - type: remove_scoreboard
       - type: remove_model
       - type: complete_event
 
-  completed: {}
+  # ---------------------------------------------------------------------------
+  # PHASE: completed
+  # Terminal state required by the schema. No actions necessary.
+  # ---------------------------------------------------------------------------
+  completed:
+    # Successful terminal state after all shared loot was taken and the display delay elapsed.
+    on-enter:
+      - type: remove_bossbar
+      - type: remove_model
+      - type: complete_event

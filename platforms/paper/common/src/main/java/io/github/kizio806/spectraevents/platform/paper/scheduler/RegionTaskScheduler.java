@@ -6,6 +6,8 @@ import org.bukkit.entity.Player;
 
 /** Port for dispatching tasks to region or entity-owned execution threads in Folia/Paper. */
 public interface RegionTaskScheduler {
+  void executeGlobal(Runnable task);
+
   void executeAt(Location location, Runnable task);
 
   void executeFor(Entity entity, Runnable task);

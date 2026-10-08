@@ -7,9 +7,4 @@ package io.github.kizio806.spectraevents.core.event.execution.trigger;
 public interface TriggerDefinition {
   /** Gets the string identifier of the trigger type (e.g. "timer_elapsed", "health_crossed") */
   String type();
-
-  /** Gets configuration parameters associated with this trigger definition. */
-  default java.util.Map<String, Object> parameters() {
-    return java.util.Map.of();
-  }
 }

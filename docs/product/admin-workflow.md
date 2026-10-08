@@ -5,41 +5,100 @@ This document describes the expected end-to-end experience for a server administ
 ## The Journey
 
 1. **Install Plugin**
-   - The administrator drops the `spectraevents.jar` into the `plugins/` folder and starts the server.
-   - The official SpectraEvents resource pack is handled automatically via Modrinth. No manual ZIP downloads or hosting is required.
+   - Install `SpectraEvents-<version>-paper.jar` on Paper/Purpur or Folia 26.1–26.2, or
+     `SpectraEvents-<version>-spigot.jar` on Spigot/CraftBukkit. Folia 26.3 is refused safely.
+   - Do not mix the two artifacts. The generated resource pack is local by default; player delivery is
+     opt-in and requires the explicit HTTPS/SHA-1 configuration.
 
-2. **Generate Defaults**
-   - On first boot, the engine generates an `events/` directory containing default reference configs (e.g., `meteor.yml`, `airdrop.yml`).
+2. **Install a Template or Choose a Preset**
+   - On first boot, the engine extracts authoring examples to `events/presets/` and the installable
+     `templates/metin.spectra.zip`. No event is silently activated and no loose model source is
+     copied into `assets/source/`.
+   - Run `/spectraevents template install metin` to atomically install the bundled Metin definition
+     and its declared model source. The command validates the bundle, builds its resource pack and
+     reloads the definition. For a custom event, copy a preset into `events/` and give it a unique
+     `id` before validation and reload.
 
-3. **Create Event Definition**
-   - The admin copies `meteor.yml` into `definitions/`, names it `my-custom-meteor.yml`, and modifies the values (changing the health, model, or loot).
+3. **Import Optional Blockbench Asset**
+   - Place a Generic Model `.bbmodel` (the canonical source) or `.spectra.zip` into
+     `assets/source/`; the server validates and builds it at startup. On Paper,
+     `/spectraevents assets build` can run the same process manually.
+   - Use the imported model ID and animation names in the regular YAML `spawn_model` and
+     `play_animation` actions. The generated ZIP must be hosted externally before it can be delivered
+     to players.
+
+4. **Create Event Definition**
+   - The admin copies `events/presets/meteor.yml` to `events/my-custom-meteor.yml` and gives it a unique `id` before editing health, model, or loot.
    - This configuration file serves as the **Primary Source of Truth**.
 
-4. **Validation**
-   - The admin runs `/event definition validate my-custom-meteor`.
-   - The engine parses the YAML and reports any semantic errors (e.g., missing referenced models, cyclical phases) as `ERROR`, `WARNING`, or `INFO`.
+5. **Validation**
+   - The admin runs `/spectraevents validate` (or `/spectraevents definition validate`).
+   - The engine parses YAML and checks duplicate IDs, referenced models and animations; an invalid
+     asset is rejected by the same build path before it can be used. Diagnostics are reported as
+     `ERROR`, `WARNING`, or `INFO` rather than a raw exception.
 
-5. **Preview / Test**
-   - The admin uses `/event model spawn <model-id>` to spawn the defined visual components locally and ensure they look correct.
+6. **Test Runtime**
+   - Start the definition at a controlled location and inspect its lifecycle with `/spectraevents event inspect <instance-id>`. Visual models and animations are owned by the event definition, not by ad-hoc player commands.
 
-6. **Reload Definition**
-   - The admin runs `/event definition reload my-custom-meteor` (or `/event reload`).
+7. **Reload Definition**
+   - The admin runs `/spectraevents definition reload`.
    - The engine compiles the YAML into an immutable `EventDefinition` in memory.
    - Any currently running `EventInstance` created from an older version of this definition retains its original configuration snapshot (or version reference) to prevent runtime corruption.
 
-7. **Manual Start**
-   - The admin executes `/event event start my-custom-meteor`.
+8. **Manual Start**
+   - The admin executes `/spectraevents event start my-custom-meteor`.
    - The engine selects a valid spawn location (based on the strategy) and creates a new `EventInstance`.
 
-8. **Runtime Inspection**
-   - The admin tracks the event using `/event event info <instance-id>` to see its current Phase, Location, and Health.
-   - They can teleport to the instance via `/event event teleport <instance-id>`.
+9. **Runtime Inspection**
+   - The admin tracks state, pending tasks and resource counts with `/spectraevents event inspect <instance-id>`.
 
-9. **Debug**
-   - If interactions aren't working, the admin runs `/event debug hitboxes <instance-id>` to visualize the physical interaction boundaries.
+10. **Debug**
+   - The admin runs `/spectraevents doctor` and `/spectraevents event inspect <instance-id>` before collecting logs.
 
-10. **Production Scheduling**
-    - The admin uses an external scheduler or a future SpectraEvents cron feature to run the event automatically.
+11. **Production Scheduling**
+    - The admin adds an entry to `schedules.yml`, including an explicit timezone, location and,
+      when needed, a scalar `parameters` mapping. `/spectraevents schedule reload` applies it;
+      missed occurrences are deliberately not replayed after a restart.
 
-## Future GUI
-While a GUI editor (inventory-based) may be added in a Post-V1 release, it will act strictly as a frontend to generate or modify the underlying YAML files. The configuration files remain the canonical source of truth.
+## Platform-specific administration
+
+The detailed GUI and named-location steps below apply to Paper/Purpur and supported Folia 26.1–26.2. Spigot/Bukkit server
+owners use the shared event, definition, reward, schedule, status, and doctor commands; custom
+assets are picked up during startup rather than through a manual asset command. See the
+[platform support contract](feature-matrix.md#platform-support-contract) before selecting an
+artifact.
+
+## Admin GUI — Paper family
+
+The Admin GUI is an in-game inventory panel opened with `/spectraevents admin` (requires
+`spectraevents.gui`). Event definitions remain in `events/<id>.yml`. GUI and command changes are
+stored as small, explicit overlays in `events/overrides/<id>.yml`; the panel never rewrites an
+operator's definition, comments, messages or phases. `config.yml` is only for global plugin settings
+such as the default locale.
+
+### Navigation overview
+
+- **Main Menu** — entry point. Tiles navigate to Dashboard, Active Events, Definitions,
+  Integrations, Updates, Configuration, and Locations.
+- **Dashboard** — shows active event count, loaded definitions, storage status, and enabled
+  integrations. The Refresh tile reloads the values.
+- **Active Events** — paginated list of running instances. Click an instance to open its detail
+  view where you can inspect state or open the cancel confirmation.
+- **Definitions** — paginated list of registered definitions. Click a definition to open its detail
+  view, which shows phases and offers a **Start** button that spawns the event at your current
+  position using saved scalar overrides.
+- **Configuration** — paginated list of definitions with saved operator overrides. Click a
+  definition to open its detail screen:
+  - There is no difficulty-profile selector. Each YAML-declared, GUI-editable scalar parameter
+    has an override tile; left-click increases and right-click decreases it within its declared
+    range and step. Duration values are rendered and stored in a compact human-readable unit
+    (`15m`, `90s`, `1h`). Changes persist to `events/overrides/<id>.yml`.
+  - For an exact value, use `/spectraevents event config <id> set <parameter> <value>`.
+    Use `/spectraevents definition reload` after changing a definition; an override is applied when
+    a new instance is started.
+- **Locations** — paginated list of named event locations. The **Save Current Position** tile
+  (slot 45) records your standing location. Click a saved location name to open the removal
+  confirmation. Named locations can be used with `/spectraevents event start <id> location <name>`.
+- **Integrations** — shows which optional integrations (LuckPerms, WorldGuard, Vault,
+  PlaceholderAPI, MiniPlaceholders, Nexo, Oraxen, ItemsAdder) are active.
+- **Updates** — shows the current version and any available update.

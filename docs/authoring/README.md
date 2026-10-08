@@ -31,7 +31,7 @@ phases:
       - type: broadcast_message
         message: "<gold>A special event has spawned!"
       - type: spawn_model
-        model: dev_cube
+        model: meteor_core
     transitions:
       - trigger:
           type: timer_elapsed
@@ -57,4 +57,8 @@ phases:
       - type: complete_event
 ```
 
-Validate your event with `/event definition validate` and test it with `/event event start my_event`!
+Validate your event with `/spectraevents definition validate` and test it with
+`/spectraevents event start my_event`!
+
+For a distributable, installable template rather than a loose event file, see
+[Spectra Bundle v1](spectra-bundles.md).

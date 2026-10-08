@@ -24,6 +24,7 @@ public class OraxenItemProvider implements CustomItemProvider {
         return item;
       }
     } catch (NoClassDefFoundError | Exception ignored) {
+      // Third-party plugin API unavailable or item not found — fall through and return null
     }
     return null;
   }

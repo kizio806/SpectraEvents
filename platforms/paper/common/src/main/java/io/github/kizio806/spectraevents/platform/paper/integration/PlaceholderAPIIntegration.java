@@ -1,33 +1,41 @@
 package io.github.kizio806.spectraevents.platform.paper.integration;
 
-import io.github.kizio806.spectraevents.application.execution.EventRuntimeStateStore;
+import io.github.kizio806.spectraevents.application.integration.IntegrationInitializationContext;
+import io.github.kizio806.spectraevents.application.integration.PlatformIntegrationModule;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import java.util.List;
+import java.util.Objects;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.OfflinePlayer;
 import org.jetbrains.annotations.NotNull;
 
-public class PlaceholderAPIIntegration {
+public class PlaceholderAPIIntegration implements PlatformIntegrationModule {
 
-  public PlaceholderAPIIntegration(
-      EventInstanceRepository repository, EventRuntimeStateStore stateStore) {
+  public PlaceholderAPIIntegration() {}
+
+  @Override
+  public String requiredPluginName() {
+    return "PlaceholderAPI";
+  }
+
+  @Override
+  public void initialize(IntegrationInitializationContext context) {
     try {
-      if (org.bukkit.Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-        new SpectraExpansion(repository, stateStore).register();
-      }
-    } catch (NoClassDefFoundError | Exception ignored) {
+      new SpectraExpansion(context.repository()).register();
+    } catch (NoClassDefFoundError | Exception exception) {
+      context
+          .logger()
+          .warning("Could not register PlaceholderAPI integration: " + exception.getMessage());
     }
   }
 
   private static class SpectraExpansion extends PlaceholderExpansion {
 
     private final EventInstanceRepository repository;
-    private final EventRuntimeStateStore stateStore;
 
-    public SpectraExpansion(EventInstanceRepository repository, EventRuntimeStateStore stateStore) {
+    private SpectraExpansion(EventInstanceRepository repository) {
       this.repository = repository;
-      this.stateStore = stateStore;
     }
 
     @Override
@@ -43,6 +51,16 @@ public class PlaceholderAPIIntegration {
     @Override
     public @NotNull String getVersion() {
       return "1.0.0";
+    }
+
+    /**
+     * PlaceholderAPI defines final equality from these three values but omits the matching hash
+     * code implementation.
+     */
+    @Override
+    @SuppressWarnings({"checkstyle:EqualsHashCode", "PMD.OverrideBothEqualsAndHashcode"})
+    public int hashCode() {
+      return Objects.hash(getIdentifier(), getAuthor(), getVersion());
     }
 
     @Override

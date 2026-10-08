@@ -1,66 +1,70 @@
 # Command Contract
 
-SpectraEvents uses a predictable, Brigadier-friendly command tree. The primary root command is `/event`.
+The public root commands are `/spectraevents` and `/se`. `/event` is not an alias. Commands use
+suggestions for registered definitions, saved locations and active instance IDs. A missing value
+returns a short message with a correct example instead of a stack trace or raw parser error.
 
-## Command Tree
+Unless marked **Paper only**, the commands below are available on both distribution families. See
+the [platform support contract](feature-matrix.md#platform-support-contract) for intentional
+differences.
 
-### General
-- `/event help`
-  - **Purpose**: Display available commands and basic usage.
-- `/event version`
-  - **Purpose**: Show the current plugin version and loaded engine modules.
-- `/event reload`
-  - **Purpose**: Reload all configurations, event definitions, and language files safely.
+## Everyday administration
 
-### Events (Instances)
-- `/event event list`
-  - **Purpose**: List all currently active Event Instances.
-- `/event event start <definition>`
-  - **Purpose**: Manually spawn a new instance of the specified definition.
-- `/event event stop <instance>`
-  - **Purpose**: Gracefully transition an instance to the `COMPLETED` state.
-- `/event event cancel <instance>`
-  - **Purpose**: Forcefully transition an instance to the `CANCELLED` state, bypassing standard completion logic.
-- `/event event info <instance>`
-  - **Purpose**: Display the current lifecycle status, phase, location, and key component states (e.g., health) of the instance.
-- `/event event teleport <instance>`
-  - **Purpose**: Teleport the executing player to the instance.
+- `/spectraevents help` — shows the useful command groups.
+- `/spectraevents status` — shows active instances and registered definitions.
+- `/spectraevents admin` — opens the Paper operator panel for a player. **Paper only.**
+- `/spectraevents doctor` — runs diagnostics.
+- `/spectraevents integrations` — shows integration status. **Paper only.**
+- `/spectraevents update check` — checks for an available plugin update. **Paper only.**
 
-### Definitions
-- `/event definition list`
-  - **Purpose**: List all loaded Event Definitions and their current versions.
-- `/event definition info <definition>`
-  - **Purpose**: Show metadata about a specific definition (validity, phases, triggers).
-- `/event definition validate <definition>`
-  - **Purpose**: Perform a strict validation check on the YAML configuration.
-- `/event definition reload <definition>`
-  - **Purpose**: Hot-reload a single event definition without affecting others.
-- `/event definition reload-all`
-  - **Purpose**: Reload all definitions.
+## Events and settings
 
-### Visuals
-- `/event model list`
-  - **Purpose**: List loaded models.
-- `/event model preview <model>`
-  - **Purpose**: Spawn a dummy model at the player's location for previewing.
-- `/event animation list`
-  - **Purpose**: List loaded animations.
-- `/event animation preview <animation>`
-  - **Purpose**: Play an animation on a currently previewed model.
+- `/spectraevents event list`
+- `/spectraevents event start <event-id>` — starts at the executor's position.
+- `/spectraevents event start <event-id> location <name>` — **Paper only.**
+- `/spectraevents event inspect <instance-id>`
+- `/spectraevents event cancel <instance-id>`
+- `/spectraevents event trigger <instance-id> <trigger>`
+- `/spectraevents event config <event-id> show` — **Paper only.**
+- `/spectraevents event config <event-id> set <yaml-declared-parameter> <value>` — **Paper only.**
 
-### Rewards
-- `/event reward test <table>`
-  - **Purpose**: Simulate a drop from a specified loot table and output the result to chat.
+There are no global difficulty profiles. Paper manual starts resolve YAML defaults followed by the
+saved Paper override (`events/overrides/<id>.yml`). A schedule can supply its own scalar
+`parameters` mapping, which is validated through the same event compiler. Spigot does not expose
+the Paper GUI override store.
 
-### Debug
-- `/event debug event <instance>`
-  - **Purpose**: Enable verbose logging for a specific instance in the console.
-- `/event debug hitboxes [instance]`
-  - **Purpose**: Toggle visual hitboxes (using glowing entities or particles) for interaction components.
-- `/event debug models [instance]`
-  - **Purpose**: Expose internal display entity structure.
-- `/event debug performance`
-  - **Purpose**: Output engine performance metrics (tick duration, active components).
+## Player rewards
 
-## Syntax and Extensibility
-All commands must fail gracefully. Missing arguments should provide Brigadier tab-completion. If an instance ID is required, tab-completion must list active IDs.
+- `/spectraevents rewards list`
+- `/spectraevents rewards claim <claim-id>`
+- `/spectraevents rewards reconcile list` — administrator-only list of crash-ambiguous claims.
+- `/spectraevents rewards reconcile mark-delivered <claim-id>` — records a verified delivery.
+- `/spectraevents rewards reconcile return-pending <claim-id>` — requeues only after an operator
+  has established that the external inventory mutation did not happen.
+
+Rewards are durable mailbox claims. An offline player or a full inventory retains the claim until a
+later successful delivery.
+
+## Locations — Paper only
+
+- `/spectraevents location set <name>` — player only; saves the current position.
+- `/spectraevents location list`
+- `/spectraevents location remove <name>`
+
+## Definitions and assets
+
+- `/spectraevents template list`
+- `/spectraevents template install metin` — atomically installs the bundled Metin bundle, builds
+  its declared assets, and reloads the definition. It never overwrites an active definition or
+  source asset.
+- `/spectraevents validate` — validates active YAML, duplicate IDs, and model/animation references
+  without replacing the live registry. `/spectraevents definition validate` is the equivalent
+  nested form.
+- `/spectraevents definition <list|reload|validate>`
+- `/spectraevents model <list|info>` — **Paper only.**
+- `/spectraevents assets <list|info|import|validate|build>` — **Paper only.** Spigot imports
+  bundled and administrator-provided assets at startup but does not expose manual asset commands.
+
+Asset and model commands are operator tools. They are intentionally kept out of the short help path
+used during normal event operation. Manual model spawning and animation playback are not public
+commands; event definitions own runtime visuals and animation lifecycle.

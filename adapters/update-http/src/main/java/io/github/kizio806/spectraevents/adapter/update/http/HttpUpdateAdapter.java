@@ -1,16 +1,14 @@
 package io.github.kizio806.spectraevents.adapter.update.http;
 
 import io.github.kizio806.spectraevents.application.update.SemVer;
+import io.github.kizio806.spectraevents.application.update.UpdateCheckStatus;
 import io.github.kizio806.spectraevents.application.update.UpdateInfo;
 import io.github.kizio806.spectraevents.application.update.UpdatePort;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
@@ -23,15 +21,14 @@ public final class HttpUpdateAdapter implements UpdatePort {
   private static final String DEFAULT_UPDATE_URL =
       "https://api.github.com/repos/kizio806/SpectraEvents/releases/latest";
 
-  private final Path updateDirectory;
   private final HttpClient httpClient;
 
   public HttpUpdateAdapter(Path updateDirectory) {
-    this.updateDirectory = Objects.requireNonNull(updateDirectory, "updateDirectory");
+    Objects.requireNonNull(updateDirectory, "updateDirectory");
     this.httpClient =
         HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
-            .followRedirects(HttpClient.Redirect.NORMAL)
+            .followRedirects(HttpClient.Redirect.NEVER)
             .build();
   }
 
@@ -50,7 +47,8 @@ public final class HttpUpdateAdapter implements UpdatePort {
 
             HttpResponse<String> response =
                 httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 200) {
+            final int statusOk = 200;
+            if (response.statusCode() == statusOk) {
               String body = response.body();
               String tag = extractJsonField(body, "tag_name");
               if (tag != null && !tag.isBlank()) {
@@ -62,54 +60,28 @@ public final class HttpUpdateAdapter implements UpdatePort {
                     available,
                     DEFAULT_UPDATE_URL,
                     "New version " + latest + " available.",
-                    Instant.now());
+                    Instant.now(),
+                    available ? UpdateCheckStatus.UPDATE_AVAILABLE : UpdateCheckStatus.UP_TO_DATE);
               }
             }
-          } catch (Exception e) {
+            return UpdateInfo.failed(
+                currentVersion, "Update endpoint returned no usable release metadata.");
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOGGER.fine("Update check interrupted: " + e.getMessage());
+            return UpdateInfo.failed(currentVersion, "Update check was interrupted.");
+          } catch (java.io.IOException e) {
             LOGGER.fine("Update check unreachable or failed: " + e.getMessage());
+            return UpdateInfo.failed(currentVersion, "Update endpoint could not be reached.");
           }
-          return UpdateInfo.upToDate(currentVersion);
         });
   }
 
   @Override
   public CompletableFuture<Boolean> downloadUpdate(String downloadUrl, String targetFileName) {
-    return CompletableFuture.supplyAsync(
-        () -> {
-          try {
-            Files.createDirectories(updateDirectory);
-
-            Path tempFile = updateDirectory.resolve(targetFileName + ".tmp");
-            Path targetFile = updateDirectory.resolve(targetFileName);
-
-            HttpRequest request =
-                HttpRequest.newBuilder()
-                    .uri(URI.create(downloadUrl))
-                    .header("User-Agent", "SpectraEvents-Plugin")
-                    .timeout(Duration.ofSeconds(15))
-                    .GET()
-                    .build();
-
-            HttpResponse<InputStream> response =
-                httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
-            if (response.statusCode() == 200) {
-              try (InputStream in = response.body()) {
-                Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
-              }
-              Files.move(
-                  tempFile,
-                  targetFile,
-                  StandardCopyOption.REPLACE_EXISTING,
-                  StandardCopyOption.ATOMIC_MOVE);
-              LOGGER.info(
-                  "Update downloaded to " + targetFile + ". It will be applied on next restart.");
-              return true;
-            }
-          } catch (Exception e) {
-            LOGGER.warning("Failed to download update: " + e.getMessage());
-          }
-          return false;
-        });
+    LOGGER.warning(
+        "Automatic update downloads are disabled until signed checksums and bounded, allowlisted redirects are implemented");
+    return CompletableFuture.completedFuture(false);
   }
 
   private String extractJsonField(String json, String field) {

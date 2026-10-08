@@ -27,7 +27,11 @@ tasks.withType<Test>().configureEach {
 }
 
 tasks.named<JacocoReport>("jacocoTestReport") {
-    dependsOn(tasks.named("test"))
+    dependsOn(tasks.named("test"), tasks.named("integrationTest"))
+    executionData.setFrom(
+        layout.buildDirectory.file("jacoco/test.exec"),
+        layout.buildDirectory.file("jacoco/integrationTest.exec"),
+    )
     reports {
         xml.required.set(true)
         html.required.set(true)
@@ -40,6 +44,8 @@ tasks.named<Test>("test") {
 }
 
 val integrationTestSourceSet = sourceSets.create("integrationTest")
+integrationTestSourceSet.compileClasspath += sourceSets.main.get().output
+integrationTestSourceSet.runtimeClasspath += sourceSets.main.get().output
 
 configurations[integrationTestSourceSet.implementationConfigurationName].extendsFrom(
     configurations.testImplementation.get(),

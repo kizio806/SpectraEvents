@@ -9,8 +9,13 @@ Each diagnostic contains:
 
 - `severity` — `ERROR`, `WARNING`, or `INFO`
 - `code` — stable identifier (for example `SE-YAML-003`)
-- `path` — logical location in the file (for example `phases.waiting.transitions[0].trigger`)
+- `path` — source file followed by the logical YAML location (for example
+  `events/my-event.yml:phases.waiting.transitions[0].trigger`)
 - `message` — human-readable explanation
+
+The loader applies the source prefix to parser, compiler, and registry diagnostics consistently.
+This means an operator can copy the path from `/spectraevents definition validate` and go directly to the
+invalid field. A failed file does not replace an already active valid definition during reload.
 
 ## Common YAML parser codes
 
@@ -25,6 +30,10 @@ Each diagnostic contains:
 | `SE-YAML-007` | Trigger missing `type` |
 | `SE-YAML-008` | Condition missing `type` |
 | `SE-YAML-009` | Action missing `type` |
+| `SE-YAML-010` | Unknown field at the current YAML object |
+| `SE-YAML-011` | Value has the wrong YAML type |
+| `SE-YAML-012` | List item has the wrong YAML type |
+| `SE-YAML-013` | Collection exceeds the bounded authoring limit |
 
 ## Compiler codes
 
@@ -49,4 +58,12 @@ Each diagnostic contains:
 `DefinitionLoader` skips files that fail parse, compile, or registration. Other files in the same
 batch still load successfully.
 
-Use `/event dev definition validate` on a running Paper server to reload and inspect diagnostics.
+Use `/spectraevents validate` (or `/spectraevents definition validate`) on a running Paper or Spigot
+server to inspect diagnostics without changing the active registry. In addition to YAML/schema and
+duplicate-ID checks, it resolves `spawn_model` and `play_animation` references against the imported
+asset registry. Unsupported Blockbench geometry is rejected when assets are built, including during
+`/spectraevents template install`. The command also reports resource-pack delivery readiness: a
+disabled delivery configuration is a warning, not a false claim that remote clients can render the
+custom model. Paper additionally reports the state of optional integrations. A configured HTTPS or
+Modrinth descriptor is still not real-client acceptance evidence. Use `/spectraevents definition
+reload` only after validation passes.

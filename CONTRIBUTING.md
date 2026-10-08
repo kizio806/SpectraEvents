@@ -5,7 +5,7 @@ Thank you for contributing to SpectraEvents! Please follow these guidelines when
 ## Development Environment
 
 - **JDK Version**: Java 25 required for Paper platform compilation (`platforms/paper/v26_2`). Platform-neutral modules (`core`, `application`, `api`) target Java 21.
-- **Build System**: Gradle 8+ with Kotlin DSL wrapper (`./gradlew`).
+- **Build System**: Use the repository's Gradle wrapper (`./gradlew`) and its pinned Gradle version.
 
 ## Architectural Invariants
 

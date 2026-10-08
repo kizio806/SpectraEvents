@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.spigot.render;
 
+import io.github.kizio806.spectraevents.application.asset.GeneratedAssetItem;
 import io.github.kizio806.spectraevents.application.model.runtime.DiscoveredModelEntity;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelAnchor;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeId;
@@ -109,6 +110,7 @@ public class SpigotModelRenderer implements ModelRendererPort {
                 entity -> {
                   entity.setInteractionWidth(interaction.width());
                   entity.setInteractionHeight(interaction.height());
+                  entity.setPersistent(false);
 
                   PersistentDataContainer pdc = entity.getPersistentDataContainer();
                   pdc.set(
@@ -182,6 +184,7 @@ public class SpigotModelRenderer implements ModelRendererPort {
               entity.setItemStack(itemStack);
               entity.setTransformationMatrix(matrix);
               entity.setItemDisplayTransform(toItemDisplayTransform(itemRef.transformMode()));
+              entity.setPersistent(false);
               applyRenderProperties(entity, part.renderProperties());
               tagPdc(
                   entity.getPersistentDataContainer(),
@@ -202,6 +205,7 @@ public class SpigotModelRenderer implements ModelRendererPort {
             entity -> {
               entity.setBlock(blockData);
               entity.setTransformationMatrix(matrix);
+              entity.setPersistent(false);
               applyRenderProperties(entity, part.renderProperties());
               tagPdc(
                   entity.getPersistentDataContainer(),
@@ -223,6 +227,7 @@ public class SpigotModelRenderer implements ModelRendererPort {
                 entity.setText(textRef.text());
               }
               entity.setTransformationMatrix(matrix);
+              entity.setPersistent(false);
               entity.setAlignment(toTextAlignment(textRef.alignment()));
               entity.setLineWidth(textRef.lineWidth());
               entity.setTextOpacity((byte) textRef.textOpacity());
@@ -258,6 +263,7 @@ public class SpigotModelRenderer implements ModelRendererPort {
         display.setGlowColorOverride(
             Color.fromRGB(Integer.parseInt(props.glowColor().replace("#", ""), 16)));
       } catch (Exception ignored) {
+        plugin.getLogger().warning("Failed to parse glow color: " + ignored.getMessage());
       }
     }
     if (props.interpolationDurationTicks() > 0) {
@@ -414,6 +420,17 @@ public class SpigotModelRenderer implements ModelRendererPort {
   }
 
   private ItemStack resolveItemStack(String itemRef) {
+    GeneratedAssetItem.ParsedReference generatedAsset = GeneratedAssetItem.parse(itemRef);
+    if (generatedAsset != null) {
+      ItemStack generatedItem = new ItemStack(Material.PAPER);
+      org.bukkit.inventory.meta.ItemMeta itemMeta = generatedItem.getItemMeta();
+      itemMeta.setItemModel(
+          new org.bukkit.NamespacedKey(
+              GeneratedAssetItem.NAMESPACE,
+              generatedAsset.modelId() + "/" + generatedAsset.nodeId()));
+      generatedItem.setItemMeta(itemMeta);
+      return generatedItem;
+    }
     Material mat = Material.matchMaterial(itemRef != null ? itemRef.replace("minecraft:", "") : "");
     if (mat == null) {
       mat = Material.MAGMA_BLOCK;
