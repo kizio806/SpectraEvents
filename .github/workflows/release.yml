@@ -197,40 +197,12 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${{ needs.build.outputs.version }}"
-          {
-            echo "# SpectraEvents v${VERSION}"
-            echo
-            echo "## Beta release metadata"
-            echo
-            echo "- Channel: beta"
-            echo "- Java: 25"
-            echo "- Environment: dedicated server"
-            echo
-            echo "## Server compatibility"
-            echo
-            echo "- Paper/Purpur for Minecraft 26.1-26.3: SpectraEvents-${VERSION}-paper.jar"
-            echo "- Folia for Minecraft 26.1-26.2: SpectraEvents-${VERSION}-paper.jar"
-            echo "- Spigot/CraftBukkit 26.1-26.3: SpectraEvents-${VERSION}-spigot.jar"
-            echo
-            echo "Folia 26.3 is explicitly refused at startup; install a newer SpectraEvents version when support returns."
-            echo
-            echo "## Resource packs"
-            echo
-            echo "Three version-specific client packs are published to the separate SpectraEvents Assets project: 26.1, 26.2 and 26.3."
-            echo "Use the ZIP matching the running Minecraft release line; do not substitute one profile for another."
-            echo
-            echo "## Verification"
-            echo
-            echo "All declared real-server lifecycle, cleanup, and restart-recovery jobs passed before publication."
-            echo
-            echo "## Changes"
-            echo
-            if [[ -f CHANGELOG.md ]]; then
-              awk -v version="$VERSION" '$0 ~ "^## \\[" version "\\]" {show=1; next} /^## \\[/ {show=0} show' CHANGELOG.md
-            else
-              git log -n 10 --oneline
-            fi
-          } > release-notes.md
+          NOTES="docs/releases/${VERSION}.md"
+          test -f "$NOTES" || {
+            echo "::error::Missing curated release notes: $NOTES"
+            exit 1
+          }
+          cp "$NOTES" release-notes.md
 
       - name: Require both configured Modrinth projects
         shell: bash

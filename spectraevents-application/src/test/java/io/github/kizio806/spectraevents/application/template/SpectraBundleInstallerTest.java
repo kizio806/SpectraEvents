@@ -62,7 +62,7 @@ class SpectraBundleInstallerTest {
         assertThrows(
             IllegalArgumentException.class,
             () ->
-                new SpectraBundleInstaller(dataDirectory, "0.1.1-beta.1")
+                new SpectraBundleInstaller(dataDirectory, "0.1.1-beta.2")
                     .install(rewriteMinimumVersion(copyBundledMetinArchive(), "9.0.0")));
 
     assertTrue(error.getMessage().contains("requires SpectraEvents 9.0.0"));
@@ -90,7 +90,7 @@ class SpectraBundleInstallerTest {
           contents =
               manifest
                   .replace(
-                      "minimum-spectraevents-version: 0.1.1-beta.1",
+                      "minimum-spectraevents-version: 0.1.1-beta.2",
                       "minimum-spectraevents-version: " + minimumVersion)
                   .getBytes(java.nio.charset.StandardCharsets.UTF_8);
         }

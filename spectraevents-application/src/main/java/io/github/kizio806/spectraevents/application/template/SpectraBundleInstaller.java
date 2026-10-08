@@ -29,7 +29,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /** Installs a self-contained, local Spectra Bundle v1 without overwriting server-owned content. */
 public final class SpectraBundleInstaller {
-  private static final String DEFAULT_SPECTRAEVENTS_VERSION = "0.1.1-beta.1";
+  private static final String DEFAULT_SPECTRAEVENTS_VERSION = "0.1.1-beta.2";
   private static final long MAX_ARCHIVE_BYTES = 25_000_000L;
   private static final long MAX_TOTAL_BYTES = 32_000_000L;
   private static final int MAX_ENTRIES = 64;

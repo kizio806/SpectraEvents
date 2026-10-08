@@ -12,8 +12,8 @@ This guide covers the Paper-family and Spigot-family distributions of **SpectraE
 ## Installation Steps
 
 1. **Download the Plugin JAR**:
-   Download `SpectraEvents-0.1.1-beta.1-paper.jar` for Paper, Purpur or Folia 26.1–26.2, or
-   `SpectraEvents-0.1.1-beta.1-spigot.jar` for Spigot/CraftBukkit. Folia 26.3 is refused before
+   Download `SpectraEvents-0.1.1-beta.2-paper.jar` for Paper, Purpur or Folia 26.1–26.2, or
+   `SpectraEvents-0.1.1-beta.2-spigot.jar` for Spigot/CraftBukkit. Folia 26.3 is refused before
    initialization and instructs the operator to install a newer SpectraEvents version.
 
 2. **Place in Server Plugins Folder**:

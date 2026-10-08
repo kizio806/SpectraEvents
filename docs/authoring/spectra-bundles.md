@@ -35,7 +35,7 @@ ambiguous. Arbitrary metadata and undeclared files are rejected rather than sile
 schema-version: 1
 id: metin
 version: 1.0.0
-minimum-spectraevents-version: 0.1.1-beta.1
+minimum-spectraevents-version: 0.1.1-beta.2
 event-definitions:
   - event.yml
 assets:
