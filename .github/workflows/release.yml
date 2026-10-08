@@ -268,14 +268,14 @@ jobs:
           files: release-artifacts/resource-packs/spectraevents-profile_26_3.zip
           changelog-file: release-notes.md
 
-      - name: Publish Paper, Purpur, Spigot and CraftBukkit distributions to Modrinth
-        id: modrinth_main
+      - name: Publish Paper and Purpur distribution to Modrinth
+        id: modrinth_paper
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          name: SpectraEvents ${{ needs.build.outputs.version }} — Paper/Purpur and Spigot/CraftBukkit
-          version: ${{ needs.build.outputs.version }}
+          name: SpectraEvents ${{ needs.build.outputs.version }} — Paper and Purpur
+          version: ${{ needs.build.outputs.version }}+paper
           version-type: ${{ needs.build.outputs.modrinth_type }}
           game-versions: |
             26.1
@@ -285,14 +285,33 @@ jobs:
           loaders: |
             paper
             purpur
+          java: 25
+          environment: server
+          modrinth-featured: false
+          files: release-artifacts/SpectraEvents-*-paper.jar
+          changelog-file: release-notes.md
+
+      - name: Publish Spigot and CraftBukkit distribution to Modrinth
+        id: modrinth_spigot
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          name: SpectraEvents ${{ needs.build.outputs.version }} — Spigot and CraftBukkit
+          version: ${{ needs.build.outputs.version }}+spigot
+          version-type: ${{ needs.build.outputs.modrinth_type }}
+          game-versions: |
+            26.1
+            26.2
+            26.3
+          game-version-filter: releases
+          loaders: |
             spigot
             bukkit
           java: 25
           environment: server
           modrinth-featured: false
-          files: |
-            release-artifacts/SpectraEvents-*-paper.jar
-            release-artifacts/SpectraEvents-*-spigot.jar
+          files: release-artifacts/SpectraEvents-*-spigot.jar
           changelog-file: release-notes.md
 
       - name: Publish the Folia 26.1-26.2 distribution to Modrinth
@@ -338,7 +357,8 @@ jobs:
             ${{ steps.modrinth_pack_26_1.outputs.modrinth-version }}
             ${{ steps.modrinth_pack_26_2.outputs.modrinth-version }}
             ${{ steps.modrinth_pack_26_3.outputs.modrinth-version }}
-            ${{ steps.modrinth_main.outputs.modrinth-version }}
+            ${{ steps.modrinth_paper.outputs.modrinth-version }}
+            ${{ steps.modrinth_spigot.outputs.modrinth-version }}
             ${{ steps.modrinth_folia.outputs.modrinth-version }}
           GITHUB_RELEASE_OUTCOME: ${{ steps.github_release.outcome }}
         run: |
@@ -367,7 +387,8 @@ jobs:
             echo "- Version: ${{ needs.build.outputs.version }}"
             echo "- Runtime matrix: passed"
             echo "- Modrinth resource packs (26.1/26.2/26.3): ${{ steps.modrinth_pack_26_1.outcome }}/${{ steps.modrinth_pack_26_2.outcome }}/${{ steps.modrinth_pack_26_3.outcome }}"
-            echo "- Modrinth main distribution: ${{ steps.modrinth_main.outcome }}"
+            echo "- Modrinth Paper/Purpur distribution: ${{ steps.modrinth_paper.outcome }}"
+            echo "- Modrinth Spigot/CraftBukkit distribution: ${{ steps.modrinth_spigot.outcome }}"
             echo "- Modrinth Folia distribution (26.1/26.2): ${{ steps.modrinth_folia.outcome }}"
             echo "- GitHub Release: ${{ steps.github_release.outcome }}"
           } >> "$GITHUB_STEP_SUMMARY"

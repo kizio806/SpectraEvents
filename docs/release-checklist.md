@@ -35,10 +35,14 @@ Use this checklist prior to creating a new official release tag and GitHub Relea
 - [ ] **Modrinth resource-pack project**: create the separate Resource Pack project and set
   `MODRINTH_RESOURCE_PACK_PROJECT_ID` as a repository secret or variable. `MODRINTH_TOKEN` needs
   version create and delete access so failed multi-artifact releases can be cleaned up.
+- [ ] **Modrinth plugin versions**: set `MODRINTH_PROJECT_ID`. Release CI must publish three
+  server versions: Paper/Purpur with only the Paper JAR, Spigot/CraftBukkit with only the Spigot
+  JAR, and Folia 26.1–26.2 with the Paper JAR. Do not combine both JARs in one Modrinth version.
 
-## Tagging & Release Execution (Manual Step - Not Automated)
+## Tagging & Release Execution
 
 - [ ] Commit version bump & changelog: `git commit -m "release: vX.Y.Z"`
-- [ ] Tag release: `git tag vX.Y.Z`
+- [ ] Create a signed annotated tag: `git tag -s vX.Y.Z -m "Release vX.Y.Z"`
 - [ ] Push tag to GitHub: `git push origin vX.Y.Z`
-- [ ] Create GitHub Release with attached distribution JAR and `.sha256` checksum file.
+- [ ] Confirm release CI created the GitHub prerelease only after every Modrinth version and the
+  full runtime matrix succeeded.
