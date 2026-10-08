@@ -4,6 +4,18 @@ plugins {
     id("spectraevents.java-library")
 }
 
+configurations.configureEach {
+    resolutionStrategy {
+        // Paper API brings these Maven libraries only for compilation, but their versions still
+        // must meet the project's vulnerability-policy patch floor.
+        force(
+            "org.apache.commons:commons-lang3:3.20.0",
+            "org.apache.logging.log4j:log4j-api:2.26.1",
+            "org.codehaus.plexus:plexus-utils:3.6.1",
+        )
+    }
+}
+
 dependencies {
     api(project(":spectraevents-application"))
     api(project(":adapters:storage-sqlite"))
