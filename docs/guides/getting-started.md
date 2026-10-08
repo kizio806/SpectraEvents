@@ -1,6 +1,8 @@
 # Getting Started with SpectraEvents
 
-Welcome to **SpectraEvents**, a data-driven 3D event engine for Paper servers!
+Welcome to **SpectraEvents**, a data-driven 3D event engine for modern Minecraft servers. See the
+[platform support contract](../product/feature-matrix.md#platform-support-contract) for deliberate
+Paper-family and Spigot-family differences.
 
 ## Key Concepts
 
@@ -14,19 +16,26 @@ Welcome to **SpectraEvents**, a data-driven 3D event engine for Paper servers!
 
 | Command | Permission | Description |
 | :--- | :--- | :--- |
-| `/event status` | `spectraevents.status` | Views runtime status & active stats |
-| `/event doctor` | `spectraevents.doctor` | Performs installation health checks |
-| `/event admin` | `spectraevents.gui` | Opens the interactive Admin GUI |
-| `/event definition list` | `spectraevents.definition.list` | Lists loaded YAML event definitions |
-| `/event definition validate` | `spectraevents.definition.validate` | Validates YAML event definitions |
-| `/event definition reload-all` | `spectraevents.definition.reload` | Reloads all definitions from disk |
-| `/event event start <id>` | `spectraevents.event.start` | Starts an event instance by definition ID |
-| `/event event list` | `spectraevents.event.list` | Lists all active running instances |
-| `/event event cancel <instance>` | `spectraevents.event.cancel` | Cancels a running instance |
-| `/event update check` | `spectraevents.update.check` | Checks for plugin updates |
+| `/spectraevents status` | `spectraevents.status` | Views runtime status & active stats |
+| `/spectraevents doctor` | `spectraevents.doctor` | Performs installation health checks |
+| `/spectraevents admin` | `spectraevents.gui` | Opens the interactive Admin GUI |
+| `/spectraevents definition list` | `spectraevents.definition.list` | Lists loaded YAML event definitions |
+| `/spectraevents definition validate` | `spectraevents.definition.validate` | Validates YAML event definitions |
+| `/spectraevents definition reload` | `spectraevents.definition.reload` | Reloads definitions from disk |
+| `/spectraevents event start <id>` | `spectraevents.event.start` | Starts an event instance by definition ID |
+| `/spectraevents event list` | `spectraevents.event.list` | Lists stored event instances |
+| `/spectraevents event cancel <instance>` | `spectraevents.event.cancel` | Cancels a running instance |
+| `/spectraevents update check` | `spectraevents.update.check` | Checks for plugin updates (Paper only) |
+| `/spectraevents rewards reconcile list` | `spectraevents.rewards.reconcile` | Lists crash-ambiguous reward deliveries for an explicit operator decision |
 
-## Default Included Events
+## Shipped presets
+
+The following YAML files are extracted to `plugins/SpectraEvents/events/presets/`. Copy a file into
+`plugins/SpectraEvents/events/`, validate it and reload definitions before it can run; a first start
+never silently activates an event.
 
 1. **Meteor** (`meteor`): A falling spatial meteor model that locks on landing and can be destroyed by player interaction.
 2. **Airdrop** (`airdrop`): A falling supply crate that locks, unlocks after a timer, and rewards the first player to claim it.
 3. **Metin** (`metin`): A boss stone with health thresholds that enrages at 60% health, spawns a defender boss at 25% health, and explodes on boss death.
+4. **Piñata** (`pinata`): An interaction-driven model where every accepted click counts equally toward a shared target.
+5. **Boss Portal** (`boss_portal`): A timed portal model that spawns a tracked guardian and completes when its death is routed back to the event.

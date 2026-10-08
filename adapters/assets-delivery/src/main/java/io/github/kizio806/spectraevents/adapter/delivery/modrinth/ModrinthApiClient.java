@@ -28,10 +28,19 @@ public class ModrinthApiClient {
       String projectId, String loader, String gameVersion) {
     return CompletableFuture.supplyAsync(
         () -> {
+          String encodedLoader =
+              java.net.URLEncoder.encode(
+                  "[\"" + loader + "\"]", java.nio.charset.StandardCharsets.UTF_8);
+          String encodedGameVersion =
+              java.net.URLEncoder.encode(
+                  "[\"" + gameVersion + "\"]", java.nio.charset.StandardCharsets.UTF_8);
           String url =
               String.format(
-                  "%s/project/%s/version?loaders=[\"%s\"]&game_versions=[\"%s\"]",
-                  API_BASE, projectId, loader, gameVersion);
+                  "%s/project/%s/version?loaders=%s&game_versions=%s",
+                  API_BASE,
+                  java.net.URLEncoder.encode(projectId, java.nio.charset.StandardCharsets.UTF_8),
+                  encodedLoader,
+                  encodedGameVersion);
 
           HttpRequest request =
               HttpRequest.newBuilder()
@@ -44,15 +53,21 @@ public class ModrinthApiClient {
           try {
             HttpResponse<String> response =
                 httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 200) {
+            final int statusOk = 200;
+            final int statusNotFound = 404;
+            if (response.statusCode() == statusOk) {
               return response.body();
-            } else if (response.statusCode() == 404) {
-              throw new RuntimeException("Modrinth project not found: " + projectId);
+            } else if (response.statusCode() == statusNotFound) {
+              throw new IllegalStateException("Modrinth project not found: " + projectId);
             } else {
-              throw new RuntimeException("Modrinth API returned status " + response.statusCode());
+              throw new IllegalStateException(
+                  "Modrinth API returned status " + response.statusCode());
             }
-          } catch (Exception e) {
-            throw new RuntimeException("Failed to contact Modrinth API", e);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while contacting Modrinth API", e);
+          } catch (java.io.IOException e) {
+            throw new IllegalStateException("Failed to contact Modrinth API", e);
           }
         });
   }

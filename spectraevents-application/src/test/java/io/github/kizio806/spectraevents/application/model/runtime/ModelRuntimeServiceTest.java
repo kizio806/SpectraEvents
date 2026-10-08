@@ -113,11 +113,11 @@ class ModelRuntimeServiceTest {
     private boolean rollbackPerformed = false;
     private final Map<ModelRuntimeId, RenderedModelHandle> rendered = new HashMap<>();
 
-    public void setShouldFailSpawn(boolean shouldFailSpawn) {
+    void setShouldFailSpawn(boolean shouldFailSpawn) {
       this.shouldFailSpawn = shouldFailSpawn;
     }
 
-    public boolean wasRollbackPerformed() {
+    boolean wasRollbackPerformed() {
       return rollbackPerformed;
     }
 

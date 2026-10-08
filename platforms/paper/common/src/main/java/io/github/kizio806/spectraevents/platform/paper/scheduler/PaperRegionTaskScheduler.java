@@ -15,6 +15,11 @@ public final class PaperRegionTaskScheduler implements RegionTaskScheduler {
   }
 
   @Override
+  public void executeGlobal(Runnable task) {
+    Bukkit.getGlobalRegionScheduler().execute(plugin, task);
+  }
+
+  @Override
   public void executeAt(Location location, Runnable task) {
     Bukkit.getRegionScheduler().execute(plugin, location, task);
   }

@@ -17,19 +17,19 @@ env:
   JAVA_VERSION: '25'
 
 jobs:
-  build-and-publish:
-    name: Build & Publish Release
+  build:
+    name: Release / Build and Verify
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
-
+    timeout-minutes: 25
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      prerelease: ${{ steps.metadata.outputs.prerelease }}
+      modrinth_type: ${{ steps.metadata.outputs.modrinth_type }}
     steps:
-      - name: Check out repository
+      - name: Check out complete history
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
-      - name: Validate Gradle Wrapper
-        uses: gradle/actions/wrapper-validation@v6
 
       - name: Set up Java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v6
@@ -39,202 +39,335 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
+        with:
+          validate-wrappers: true
 
-      - name: Read project metadata
+      - name: Read and validate release metadata
         id: metadata
+        shell: bash
         run: |
-          VERSION=$(grep '^spectraevents.version=' gradle.properties | cut -d'=' -f2 | tr -d ' \r\n')
-          GROUP=$(grep '^spectraevents.group=' gradle.properties | cut -d'=' -f2 | tr -d ' \r\n')
-          echo "GRADLE_VERSION=$VERSION" >> $GITHUB_ENV
-          echo "GRADLE_GROUP=$GROUP" >> $GITHUB_ENV
-          echo "Read version '$VERSION' and group '$GROUP' from gradle.properties."
-
-      - name: Validate tag version
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          TAG_NAME="${GITHUB_REF_NAME}"
-          if [[ "$TAG_NAME" != v* ]]; then
-            echo "::error::Tag name '$TAG_NAME' must start with 'v'!"
-            exit 1
+          set -euo pipefail
+          VERSION="$(sed -n 's/^spectraevents.version=//p' gradle.properties | tr -d ' \r\n')"
+          test -n "$VERSION"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            test "${GITHUB_REF_NAME}" = "v${VERSION}" || {
+              echo "::error::Tag ${GITHUB_REF_NAME} does not match project version ${VERSION}"
+              exit 1
+            }
+            test "$(git cat-file -t "${GITHUB_REF_NAME}")" = tag || {
+              echo "::error::Release tags must be annotated and signed, not lightweight"
+              exit 1
+            }
+            TAG_SHA="$(git rev-parse "refs/tags/${GITHUB_REF_NAME}")"
+            VERIFIED="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${TAG_SHA}" --jq '.verification.verified')"
+            test "$VERIFIED" = true || {
+              echo "::error::GitHub did not verify the signed tag ${GITHUB_REF_NAME}"
+              exit 1
+            }
           fi
-          TAG_VERSION="${TAG_NAME#v}"
-          if [ "$TAG_VERSION" != "$GRADLE_VERSION" ]; then
-            echo "::error::Tag version '$TAG_VERSION' does not match Gradle project version '$GRADLE_VERSION'!"
-            exit 1
-          fi
-          echo "Tag version '$TAG_VERSION' successfully validated against Gradle version '$GRADLE_VERSION'."
-
-      - name: Determine release type
-        run: |
-          if [[ "$GRADLE_VERSION" == *"-alpha"* ]]; then
-            echo "RELEASE_TYPE=alpha" >> $GITHUB_ENV
-            echo "MODRINTH_TYPE=alpha" >> $GITHUB_ENV
-            echo "IS_PRERELEASE=true" >> $GITHUB_ENV
-          elif [[ "$GRADLE_VERSION" == *"-beta"* ]] || [[ "$GRADLE_VERSION" == *"-rc"* ]]; then
-            echo "RELEASE_TYPE=beta" >> $GITHUB_ENV
-            echo "MODRINTH_TYPE=beta" >> $GITHUB_ENV
-            echo "IS_PRERELEASE=true" >> $GITHUB_ENV
+          if [[ "$VERSION" == *-alpha* ]]; then
+            TYPE=alpha
+            PRERELEASE=true
+          elif [[ "$VERSION" == *-beta* || "$VERSION" == *-rc* ]]; then
+            TYPE=beta
+            PRERELEASE=true
           else
-            echo "RELEASE_TYPE=release" >> $GITHUB_ENV
-            echo "MODRINTH_TYPE=release" >> $GITHUB_ENV
-            echo "IS_PRERELEASE=false" >> $GITHUB_ENV
+            TYPE=release
+            PRERELEASE=false
           fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "modrinth_type=$TYPE" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
-      - name: Execute full quality gate & build
+      - name: Execute complete quality gate and build exactly two distributions
         run: ./gradlew --no-daemon --stacktrace clean check build
 
-      - name: Discover and verify final distribution artifacts
-        id: artifacts
+      - name: Require explicit resource-pack client delivery evidence
+        run: >-
+          python3 scripts/release/verify_resource_pack_client_evidence.py
+          --evidence config/release/resource-pack-client-evidence.json
+
+      - name: Scan locked dependencies for known vulnerabilities
+        uses: google/osv-scanner-action/osv-scanner-action@8dc09193bb540e09b23da07ad7e30bd33bf87018 # v2.3.8
+        with:
+          scan-args: |-
+            --config=osv-scanner.toml
+            --recursive
+            .
+
+      - name: Stage and checksum artifacts
+        shell: bash
         run: |
-          for platform in paper spigot; do
-            LIBS_DIR="distributions/$platform/build/libs"
-            JARS=($(find "$LIBS_DIR" -name "SpectraEvents-*.jar" ! -name "*-sources.jar"))
-            if [ ${#JARS[@]} -eq 0 ]; then
-              echo "::error::No distribution JAR found for $platform in $LIBS_DIR!"
-              exit 1
-            fi
-            if [ ${#JARS[@]} -gt 1 ]; then
-              echo "::error::Multiple distribution JARs found for $platform: ${JARS[*]}"
-              exit 1
-            fi
-            JAR_PATH="${JARS[0]}"
-            echo "Verified distribution artifact for $platform: $JAR_PATH"
-          done
+          set -euo pipefail
+          VERSION="${{ steps.metadata.outputs.version }}"
+          mkdir -p release-artifacts/resource-packs
+          cp "distributions/paper/build/libs/SpectraEvents-${VERSION}-paper.jar" release-artifacts/
+          cp "distributions/spigot/build/libs/SpectraEvents-${VERSION}-spigot.jar" release-artifacts/
+          ./gradlew --no-daemon :adapters:assets-blockbench:buildReleaseResourcePacks \
+            -PreleaseResourcePackOutputDir="$GITHUB_WORKSPACE/release-artifacts/resource-packs" \
+            --console=plain
+          test "$(find release-artifacts -maxdepth 1 -name 'SpectraEvents-*.jar' | wc -l)" -eq 2
+          test "$(find release-artifacts/resource-packs -maxdepth 1 -name 'spectraevents-profile_*.zip' | wc -l)" -eq 3
+          (cd release-artifacts && find . -type f \( -name 'SpectraEvents-*.jar' -o -name 'spectraevents-profile_*.zip' \) -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt)
+          (cd release-artifacts && sha256sum -c SHA256SUMS.txt)
 
-      - name: Generate Release Notes
-        run: |
-          cat << EOF > release-notes.md
-          # SpectraEvents v${GRADLE_VERSION}
-
-          - **Minecraft Version Compatibility Band:** 26.1 – 26.3
-          - **Platforms:** Paper, Purpur, Folia, Spigot
-          - **Java Runtime Requirement:** 25
-
-          EOF
-
-          if [ "$IS_PRERELEASE" = "true" ]; then
-            echo "> **Notice:** This is a pre-release version for testing." >> release-notes.md
-            echo "" >> release-notes.md
-          fi
-
-          if [ -f CHANGELOG.md ]; then
-            CHANGELOG_SECTION=$(awk -v ver="${GRADLE_VERSION}" '
-              $0 ~ "^## \\[" ver "\\]" { flag=1; next }
-              $0 ~ "^## \\[" { flag=0 }
-              flag { print }
-            ' CHANGELOG.md)
-
-            if [ -n "$CHANGELOG_SECTION" ]; then
-              echo "$CHANGELOG_SECTION" >> release-notes.md
-            else
-              echo "### Changes" >> release-notes.md
-              git log -n 10 --oneline >> release-notes.md
-            fi
-          else
-            echo "### Changes" >> release-notes.md
-            git log -n 10 --oneline >> release-notes.md
-          fi
-
-      - name: Compute and verify SHA-256 checksums
-        run: |
-          mkdir -p release-artifacts
-          for platform in paper spigot; do
-            cp distributions/$platform/build/libs/SpectraEvents-*.jar release-artifacts/
-          done
-
-          cd release-artifacts
-          TOTAL_JARS=($(find . -name "SpectraEvents-*.jar" ! -name "*-sources.jar"))
-          if [ ${#TOTAL_JARS[@]} -ne 2 ]; then
-            echo "::error::Expected exactly 2 public distribution JARs, found ${#TOTAL_JARS[@]}!"
-            exit 1
-          fi
-          sha256sum SpectraEvents-*.jar > SHA256SUMS.txt
-          cat SHA256SUMS.txt
-          sha256sum -c SHA256SUMS.txt
-          cd ..
-
-      - name: Upload Release Artifacts to Actions
+      - name: Upload verified release inputs
         uses: actions/upload-artifact@v7
         with:
-          name: spectraevents-release-artifacts
-          path: |
-            release-artifacts/SpectraEvents-*.jar
-            release-artifacts/SHA256SUMS.txt
-            release-notes.md
+          name: release-inputs
+          path: release-artifacts/
+          if-no-files-found: error
 
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v3
+  runtime-matrix:
+    name: Release / Runtime (${{ matrix.server }} ${{ matrix.version }})
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { server: paper, family: paper, version: '26.1' }
+          - { server: paper, family: paper, version: '26.2' }
+          - { server: paper, family: paper, version: '26.3' }
+          - { server: purpur, family: paper, version: '26.1' }
+          - { server: purpur, family: paper, version: '26.2' }
+          - { server: purpur, family: paper, version: '26.3' }
+          - { server: folia, family: paper, version: '26.1' }
+          - { server: folia, family: paper, version: '26.2' }
+          - { server: spigot, family: spigot, version: '26.1' }
+          - { server: spigot, family: spigot, version: '26.2' }
+          - { server: spigot, family: spigot, version: '26.3' }
+          - { server: craftbukkit, family: spigot, version: '26.1' }
+          - { server: craftbukkit, family: spigot, version: '26.2' }
+          - { server: craftbukkit, family: spigot, version: '26.3' }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
-          tag_name: ${{ github.ref_name }}
-          name: SpectraEvents v${{ env.GRADLE_VERSION }}
-          body_path: release-notes.md
-          files: |
-            release-artifacts/SpectraEvents-*.jar
-            release-artifacts/SHA256SUMS.txt
-          prerelease: false
-          make_latest: true
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-inputs
+          path: release-artifacts
+      - name: Cache real server binary
+        uses: actions/cache@v6
+        with:
+          path: .gradle/runtime-server-cache
+          key: runtime-${{ matrix.server }}-${{ matrix.version }}-java25
+      - name: Exercise lifecycle, cleanup, and restart recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/runtime-smoke/runtime_workflow.py \
+            --server "${{ matrix.server }}" \
+            --version "${{ matrix.version }}" \
+            --artifact release-artifacts/SpectraEvents-*-${{ matrix.family }}.jar
 
-      - name: Publish Paper Family to Modrinth
-        if: startsWith(github.ref, 'refs/tags/')
+  release-eligibility:
+    name: Release / Required Runtime Availability
+    needs: [build, runtime-matrix]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Refuse publication while a required runtime row is unavailable
+        run: >-
+          python3 scripts/release/verify_release_gate.py
+          --runtime-matrix-status "${{ needs.runtime-matrix.result }}"
+
+  publish:
+    name: Release / Publish
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build, runtime-matrix, release-eligibility]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-inputs
+          path: release-artifacts
+
+      - name: Generate release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.build.outputs.version }}"
+          NOTES="docs/releases/${VERSION}.md"
+          test -f "$NOTES" || {
+            echo "::error::Missing curated release notes: $NOTES"
+            exit 1
+          }
+          cp "$NOTES" release-notes.md
+
+      - name: Require both configured Modrinth projects
+        shell: bash
+        env:
+          PLUGIN_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
+          RESOURCE_PACK_PROJECT_ID: ${{ secrets.MODRINTH_RESOURCE_PACK_PROJECT_ID || vars.MODRINTH_RESOURCE_PACK_PROJECT_ID }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$PLUGIN_PROJECT_ID" || { echo "::error::Set MODRINTH_PROJECT_ID before release."; exit 1; }
+          test -n "$RESOURCE_PACK_PROJECT_ID" || { echo "::error::Set MODRINTH_RESOURCE_PACK_PROJECT_ID before release."; exit 1; }
+          test -n "$MODRINTH_TOKEN" || { echo "::error::Set MODRINTH_TOKEN before release."; exit 1; }
+
+      - name: Publish Modrinth resource pack for Minecraft 26.1
+        id: modrinth_pack_26_1
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_RESOURCE_PACK_PROJECT_ID || vars.MODRINTH_RESOURCE_PACK_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          name: SpectraEvents Assets ${{ needs.build.outputs.version }} — Minecraft 26.1
+          version: ${{ needs.build.outputs.version }}+26.1
+          version-type: ${{ needs.build.outputs.modrinth_type }}
+          game-versions: 26.1
+          game-version-filter: releases
+          loaders: minecraft
+          environment: client
+          modrinth-featured: false
+          files: release-artifacts/resource-packs/spectraevents-profile_26_1.zip
+          changelog-file: release-notes.md
+
+      - name: Publish Modrinth resource pack for Minecraft 26.2
+        id: modrinth_pack_26_2
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_RESOURCE_PACK_PROJECT_ID || vars.MODRINTH_RESOURCE_PACK_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          name: SpectraEvents Assets ${{ needs.build.outputs.version }} — Minecraft 26.2
+          version: ${{ needs.build.outputs.version }}+26.2
+          version-type: ${{ needs.build.outputs.modrinth_type }}
+          game-versions: 26.2
+          game-version-filter: releases
+          loaders: minecraft
+          environment: client
+          modrinth-featured: false
+          files: release-artifacts/resource-packs/spectraevents-profile_26_2.zip
+          changelog-file: release-notes.md
+
+      - name: Publish Modrinth resource pack for Minecraft 26.3
+        id: modrinth_pack_26_3
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_RESOURCE_PACK_PROJECT_ID || vars.MODRINTH_RESOURCE_PACK_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          name: SpectraEvents Assets ${{ needs.build.outputs.version }} — Minecraft 26.3
+          version: ${{ needs.build.outputs.version }}+26.3
+          version-type: ${{ needs.build.outputs.modrinth_type }}
+          game-versions: 26.3
+          game-version-filter: releases
+          loaders: minecraft
+          environment: client
+          modrinth-featured: false
+          files: release-artifacts/resource-packs/spectraevents-profile_26_3.zip
+          changelog-file: release-notes.md
+
+      - name: Publish Paper, Purpur, Spigot and CraftBukkit distributions to Modrinth
+        id: modrinth_main
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          name: SpectraEvents ${{ env.GRADLE_VERSION }} — Paper Family
-          version: ${{ env.GRADLE_VERSION }}-paper
-          version-type: ${{ env.MODRINTH_TYPE }}
+          name: SpectraEvents ${{ needs.build.outputs.version }} — Paper/Purpur and Spigot/CraftBukkit
+          version: ${{ needs.build.outputs.version }}
+          version-type: ${{ needs.build.outputs.modrinth_type }}
           game-versions: |
-            26.1.1
-            26.1.2
+            26.1
             26.2
             26.3
+          game-version-filter: releases
           loaders: |
             paper
             purpur
-            folia
-          java: 25
-          environment: server
-          files: release-artifacts/SpectraEvents-*-paper.jar
-          changelog-file: release-notes.md
-
-      - name: Publish Spigot Family to Modrinth
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: Kir-Antipov/mc-publish@v3.3
-        with:
-          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
-          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          name: SpectraEvents ${{ env.GRADLE_VERSION }} — Spigot Family
-          version: ${{ env.GRADLE_VERSION }}-spigot
-          version-type: ${{ env.MODRINTH_TYPE }}
-          game-versions: |
-            26.1.1
-            26.1.2
-            26.2
-            26.3
-          loaders: |
             spigot
             bukkit
           java: 25
           environment: server
-          files: release-artifacts/SpectraEvents-*-spigot.jar
+          modrinth-featured: false
+          files: |
+            release-artifacts/SpectraEvents-*-paper.jar
+            release-artifacts/SpectraEvents-*-spigot.jar
           changelog-file: release-notes.md
 
-      - name: Generate Release Summary
-        if: always()
+      - name: Publish the Folia 26.1-26.2 distribution to Modrinth
+        id: modrinth_folia
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          name: SpectraEvents ${{ needs.build.outputs.version }} — Folia 26.1-26.2
+          version: ${{ needs.build.outputs.version }}+folia
+          version-type: ${{ needs.build.outputs.modrinth_type }}
+          game-versions: |
+            26.1
+            26.2
+          game-version-filter: releases
+          loaders: folia
+          java: 25
+          environment: server
+          modrinth-featured: false
+          files: release-artifacts/SpectraEvents-*-paper.jar
+          changelog-file: release-notes.md
+
+      - name: Create GitHub Release after all Modrinth versions exist
+        id: github_release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: SpectraEvents v${{ needs.build.outputs.version }}
+          body_path: release-notes.md
+          files: |
+            release-artifacts/SpectraEvents-*.jar
+            release-artifacts/SHA256SUMS.txt
+          prerelease: ${{ needs.build.outputs.prerelease }}
+          make_latest: ${{ needs.build.outputs.prerelease == 'false' }}
+
+      - name: Remove newly published public versions if this release fails
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          VERSION_IDS: |
+            ${{ steps.modrinth_pack_26_1.outputs.modrinth-version }}
+            ${{ steps.modrinth_pack_26_2.outputs.modrinth-version }}
+            ${{ steps.modrinth_pack_26_3.outputs.modrinth-version }}
+            ${{ steps.modrinth_main.outputs.modrinth-version }}
+            ${{ steps.modrinth_folia.outputs.modrinth-version }}
+          GITHUB_RELEASE_OUTCOME: ${{ steps.github_release.outcome }}
         run: |
-          echo "# SpectraEvents Release Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Version** | \`${{ env.GRADLE_VERSION }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Release Type** | \`${{ env.RELEASE_TYPE }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Target Minecraft** | \`26.2\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Platform** | \`Paper / Spigot\` |" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "| **GitHub Release** | Published |" >> $GITHUB_STEP_SUMMARY
-            echo "| **Modrinth** | Published |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| **GitHub Release** | Skipped (Not a tag build) |" >> $GITHUB_STEP_SUMMARY
-            echo "| **Modrinth** | Skipped (Not a tag build) |" >> $GITHUB_STEP_SUMMARY
+          set -euo pipefail
+          if [[ "$GITHUB_RELEASE_OUTCOME" == "failure" ]] && gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release delete "$GITHUB_REF_NAME" --yes
           fi
+          while IFS= read -r version_id; do
+            test -z "$version_id" && continue
+            status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+              --request DELETE \
+              --header "Authorization: $MODRINTH_TOKEN" \
+              "https://api.modrinth.com/v2/version/$version_id")"
+            test "$status" = 204 || test "$status" = 404 || {
+              echo "::error::Could not clean up Modrinth version $version_id (HTTP $status)."
+              exit 1
+            }
+          done <<< "$VERSION_IDS"
+
+      - name: Release summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# SpectraEvents Release"
+            echo "- Version: ${{ needs.build.outputs.version }}"
+            echo "- Runtime matrix: passed"
+            echo "- Modrinth resource packs (26.1/26.2/26.3): ${{ steps.modrinth_pack_26_1.outcome }}/${{ steps.modrinth_pack_26_2.outcome }}/${{ steps.modrinth_pack_26_3.outcome }}"
+            echo "- Modrinth main distribution: ${{ steps.modrinth_main.outcome }}"
+            echo "- Modrinth Folia distribution (26.1/26.2): ${{ steps.modrinth_folia.outcome }}"
+            echo "- GitHub Release: ${{ steps.github_release.outcome }}"
+          } >> "$GITHUB_STEP_SUMMARY"

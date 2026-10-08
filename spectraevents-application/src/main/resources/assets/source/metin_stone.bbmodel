@@ -1,0 +1,30 @@
+{
+  "meta": {"format_version": "5.0", "model_format": "free"},
+  "name": "metin_stone",
+  "resolution": {"width": 16, "height": 16},
+  "textures": [{"id": "stone", "name": "metin_stone.png", "source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAF/gL+I0Yf9wAAAABJRU5ErkJggg=="}],
+  "elements": [{
+    "uuid": "metin-core", "name": "Metin Core", "from": [1, 0, 1], "to": [15, 28, 15], "origin": [8, 14, 8],
+    "faces": {
+      "north": {"uv": [0, 0, 16, 16], "texture": "#stone"}, "east": {"uv": [0, 0, 16, 16], "texture": "#stone"},
+      "south": {"uv": [0, 0, 16, 16], "texture": "#stone"}, "west": {"uv": [0, 0, 16, 16], "texture": "#stone"},
+      "up": {"uv": [0, 0, 16, 16], "texture": "#stone"}, "down": {"uv": [0, 0, 16, 16], "texture": "#stone"}
+    }
+  }],
+  "outliner": [{"uuid": "metin-root", "name": "Metin Stone", "origin": [8, 14, 8], "children": ["metin-core"]}],
+  "animations": [
+    {"name": "idle", "length": 2.0, "loop": "loop", "animators": {"metin-root": {"keyframes": [
+      {"channel": "rotation", "time": 0.0, "interpolation": "linear", "data_points": [{"x": "0", "y": "0", "z": "0"}]},
+      {"channel": "rotation", "time": 2.0, "interpolation": "linear", "data_points": [{"x": "0", "y": "360", "z": "0"}]}
+    ]}}},
+    {"name": "hit", "length": 0.3, "loop": "once", "animators": {"metin-root": {"keyframes": [
+      {"channel": "rotation", "time": 0.0, "interpolation": "linear", "data_points": [{"x": "0", "y": "0", "z": "0"}]},
+      {"channel": "rotation", "time": 0.15, "interpolation": "step", "data_points": [{"x": "12", "y": "0", "z": "-12"}]},
+      {"channel": "rotation", "time": 0.3, "interpolation": "linear", "data_points": [{"x": "0", "y": "0", "z": "0"}]}
+    ]}}},
+    {"name": "destroy", "length": 0.8, "loop": "once", "animators": {"metin-root": {"keyframes": [
+      {"channel": "scale", "time": 0.0, "interpolation": "linear", "data_points": [{"x": "1", "y": "1", "z": "1"}]},
+      {"channel": "scale", "time": 0.8, "interpolation": "linear", "data_points": [{"x": "0.01", "y": "0.01", "z": "0.01"}]}
+    ]}}}
+  ]
+}

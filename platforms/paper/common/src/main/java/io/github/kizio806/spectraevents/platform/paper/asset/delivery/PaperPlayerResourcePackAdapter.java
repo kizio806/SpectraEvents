@@ -4,6 +4,7 @@ import io.github.kizio806.spectraevents.application.asset.AssetTargetProfile;
 import io.github.kizio806.spectraevents.application.asset.delivery.PlayerResourcePackService;
 import io.github.kizio806.spectraevents.application.asset.delivery.PlayerResourcePackState;
 import io.github.kizio806.spectraevents.application.asset.delivery.ResourcePackDescriptor;
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import java.util.Optional;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
@@ -20,16 +21,19 @@ public class PaperPlayerResourcePackAdapter implements Listener {
   private final String pluginVersion;
   private final AssetTargetProfile profile;
   private final String sourceConfigId;
+  private final LocaleCatalog locales;
 
   public PaperPlayerResourcePackAdapter(
       PlayerResourcePackService service,
       String pluginVersion,
       AssetTargetProfile profile,
-      String sourceConfigId) {
+      String sourceConfigId,
+      LocaleCatalog locales) {
     this.service = service;
     this.pluginVersion = pluginVersion;
     this.profile = profile;
     this.sourceConfigId = sourceConfigId;
+    this.locales = locales;
   }
 
   @EventHandler
@@ -63,6 +67,10 @@ public class PaperPlayerResourcePackAdapter implements Listener {
           default -> PlayerResourcePackState.FAILED;
         };
     service.updateState(event.getPlayer().getUniqueId(), state);
+    if (service.isRequired()
+        && (state == PlayerResourcePackState.DECLINED || state == PlayerResourcePackState.FAILED)) {
+      event.getPlayer().kick(Component.text(locales.message("messages.resource-pack-required")));
+    }
   }
 
   @EventHandler

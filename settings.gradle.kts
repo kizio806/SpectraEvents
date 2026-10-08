@@ -33,7 +33,6 @@ dependencyResolutionManagement {
 rootProject.name = "SpectraEvents"
 
 include(
-    "spectraevents-api",
     "spectraevents-core",
     "spectraevents-application",
     "adapters:storage-sqlite",

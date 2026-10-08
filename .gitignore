@@ -5,6 +5,7 @@ out/
 *.class
 hs_err_pid*
 replay_pid*
+gradle.lockfile
 
 # IntelliJ IDEA
 .idea/
@@ -48,5 +49,6 @@ generated-resource-packs/
 # Temporary files
 *.tmp
 *.log
+__pycache__/
 .cache/
 .kotlin/

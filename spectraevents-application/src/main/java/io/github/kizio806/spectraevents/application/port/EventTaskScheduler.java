@@ -19,6 +19,17 @@ public interface EventTaskScheduler {
   void schedule(EventInstanceId eventId, Duration delay, Runnable task);
 
   /**
+   * Schedules a platform task that is not owned by one event instance, such as an animation segment
+   * callback.
+   *
+   * @param delay the duration to delay before executing the task
+   * @param task the logic to execute
+   */
+  default void scheduleGlobal(Duration delay, Runnable task) {
+    throw new UnsupportedOperationException("Global task scheduling is not available");
+  }
+
+  /**
    * Cancels all pending tasks associated with a given event instance.
    *
    * @param eventId the event instance ID
@@ -27,4 +38,9 @@ public interface EventTaskScheduler {
 
   /** Cancels all pending tasks globally across all event instances. */
   void cancelAll();
+
+  /** Returns tracked pending tasks for diagnostics, or {@code -1} when unavailable. */
+  default int pendingTaskCount(EventInstanceId eventId) {
+    return -1;
+  }
 }

@@ -1,63 +1,74 @@
-# Resource Pack Configuration
+# Resource-Pack Configuration
 
-SpectraEvents allows you to manage how the resource pack is delivered to your players via the `resource-pack` section in `config.yml`.
-
-There are two primary source types: `modrinth` (for the official baseline pack) and `manual` (for custom server asset packs).
-
-## 1. Official Modrinth Source
-
-If you are using the official SpectraEvents content (e.g. built-in Meteor or Metin), use the `modrinth` source type. This fetches the correct resource pack directly from the Modrinth CDN.
+SpectraEvents builds a local ZIP in `plugins/SpectraEvents/cache/resource-pack/`. Release CI also
+builds three deterministic archives and publishes them to a separate Modrinth **resource-pack**
+project: one each for Minecraft 26.1, 26.2, and 26.3. Player delivery remains opt-in and disabled
+on a fresh server until real-client acceptance is recorded. On first start, each distribution
+creates `plugins/SpectraEvents/resource-pack.yml`:
 
 ```yaml
-resource-pack:
-  enabled: true
-  required: true
-
-  source:
-    type: modrinth
-    project-id: "Rg1nw8IW"
-
-  prompt: "<gold>This server uses SpectraEvents assets."
-  failurePolicy: "kick"
+# Recommended: use the resource-pack Modrinth project created for release CI.
+enabled: false
+required: false
+url: ""
+sha1: ""
+modrinthProjectId: ""
+# Empty selects <plugin-version>+<matching Minecraft release line> automatically.
+# Use a value only as an explicit reviewed rollback pin.
+modrinthVersionId: ""
+prompt: "<yellow>Server resources are required for SpectraEvents.</yellow>"
 ```
 
-- `project-id`: Must be the exact Modrinth Project ID (`Rg1nw8IW`). Note: `spectraevents-assets` is the human-readable project slug/URL identifier, not the canonical Project ID.
-- **Server Owners**: You do not need to download or host anything manually!
+## Recommended Modrinth delivery
 
-## 2. Custom Manual Source
+Create a separate Modrinth project whose project type is **Resource Pack**. Store its ID as either
+the repository secret or repository variable `MODRINTH_RESOURCE_PACK_PROJECT_ID`; release CI fails
+before publishing if it is absent. The existing `MODRINTH_TOKEN` must be allowed to create and
+delete versions, because a failed multi-artifact release removes the versions it created.
 
-If you have created your own 3D models or modified the resource pack, you cannot upload them to the official Modrinth project. You must host your resource pack on your own web server (e.g., Apache, NGINX, Amazon S3, Cloudflare R2).
+For each tagged plugin release, CI builds and publishes these versions to that project:
 
-```yaml
-resource-pack:
-  enabled: true
-  required: true
+| Running server | Generated ZIP | Modrinth version selected by default |
+| --- | --- | --- |
+| 26.1.x | `spectraevents-profile_26_1.zip` | `<plugin-version>+26.1` |
+| 26.2.x | `spectraevents-profile_26_2.zip` | `<plugin-version>+26.2` |
+| 26.3.x | `spectraevents-profile_26_3.zip` | `<plugin-version>+26.3` |
 
-  source:
-    type: manual
-    url: "https://example.com/my-custom-pack.zip"
-    sha1: "abc123def456..."
+Set `modrinthProjectId` to the real project ID, leave `modrinthVersionId` blank, set
+`enabled: true`, and restart. The plugin queries Modrinth using the exact release line and the
+`minecraft` resource-pack loader tag. It refuses a profile mismatch, missing version, non-HTTPS ZIP,
+missing SHA-1, or ambiguous primary file. A nonblank `modrinthVersionId` is an explicit rollback
+override and must still be tagged for the running release line on Modrinth.
 
-  prompt: "<gold>Please accept the custom SpectraEvents asset pack."
-  failurePolicy: "deny-assets"
-```
+## Manual delivery
 
-- `url`: A direct link to your `.zip` file.
-- `sha1`: The exact SHA-1 hash of the zip file. This is **required** by Minecraft to update the pack on the client.
+To use your own HTTPS host instead:
 
-## 3. Resource Pack Format Metadata
+1. Let startup build the pack from verified Blockbench `.bbmodel` or `.spectra.zip` sources in
+   `assets/source/`.
+2. Upload that exact ZIP to an administrator-controlled HTTPS URL ending in `.zip`.
+3. Compute the archive SHA-1 (40 hexadecimal characters) and put it in `sha1`.
+4. Set `enabled: true`; set `required: true` only when your event requires the client assets.
+5. Restart the server and confirm the log says that resource-pack delivery is ready.
 
-Minecraft resource pack formats are mapped strictly to supported target profiles using exact major/minor version arrays:
+In manual mode, leave both Modrinth fields empty. The configuration rejects HTTP, a URL with user
+information or a fragment, a non-`.zip` path, and an invalid SHA-1. It also rejects mixing a manual
+URL/SHA-1 with Modrinth. If resolution fails, no descriptor is placed in the cache and no player is
+asked to download a pack. After a successful resolve, every joining player receives the configured
+request; the adapter records accepted, declined, failed and loaded statuses. A reconnect creates a
+new request from the cached verified descriptor.
 
-- **Minecraft 26.1.x**: `min_format: [84, 0]`, `max_format: [84, 0]`
-- **Minecraft 26.2**: `min_format: [88, 0]`, `max_format: [88, 0]`
-- **Minecraft 26.3**: `min_format: [97, 1]`, `max_format: [97, 1]`
+The generated archive profile follows the running server: 26.1.x uses `[84, 0]`, 26.2 uses
+`[88, 0]`, and 26.3 uses `[97, 1]`. The operator must perform and record real-client acceptance
+after changing the target profile, hosted ZIP, or delivery configuration. The server runtime smoke
+test proves ZIP generation and server lifecycle only; it does not prove a Minecraft client loaded
+the pack.
 
-### Format Semantics
+Release CI reads `config/release/resource-pack-client-evidence.json`. Its committed `disabled`
+state is valid while player delivery remains disabled, even though CI publishes the archives to
+Modrinth. Before enabling player delivery, replace it with one `loaded` real-client record per
+hosted pack/profile, including the exact SHA-1, client version and test date; the release workflow
+rejects incomplete or failed evidence.
 
-Modern `pack.mcmeta` files use `[major, minor]` arrays for exact version representation. Do not simplify to integer values (such as `max_format: 97`) because an integer in `max_format` can cover an entire major version range rather than an exact release (such as `97.1` for Minecraft 26.3). The canonical builder, documentation, and tests strictly enforce structured major/minor array representation.
-
-## Additional Options
-- `required`: If `true`, the pack uses the native Minecraft 1.20+ mandatory prompt. If the player declines, they may be disconnected by the client.
-- `prompt`: The message displayed above the Accept/Decline buttons. Supports MiniMessage format.
-- `failurePolicy`: What SpectraEvents should do if the player fails to load the pack (e.g., `kick`, `ignore`, `deny-assets`).
+No Modrinth project ID is hard-coded in the JAR: that would point fresh installations at a project
+the administrator does not control. See [ADR 0008](../architecture/adr/0008-automated-modrinth-resource-pack-releases.md).

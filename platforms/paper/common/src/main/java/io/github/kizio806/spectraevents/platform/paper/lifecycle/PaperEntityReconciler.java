@@ -3,7 +3,6 @@ package io.github.kizio806.spectraevents.platform.paper.lifecycle;
 import io.github.kizio806.spectraevents.application.port.PlatformEntityReconcilerPort;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.platform.paper.metadata.SpectraPdcKeys;
-import io.github.kizio806.spectraevents.platform.paper.render.PaperModelRenderer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -16,11 +15,11 @@ import org.bukkit.plugin.Plugin;
 
 public class PaperEntityReconciler implements PlatformEntityReconcilerPort {
   private final Plugin plugin;
-  private final PaperModelRenderer renderer;
+  private final PaperResourceCleaner cleaner;
 
-  public PaperEntityReconciler(Plugin plugin, PaperModelRenderer renderer) {
+  public PaperEntityReconciler(Plugin plugin, PaperResourceCleaner cleaner) {
     this.plugin = plugin;
-    this.renderer = renderer;
+    this.cleaner = cleaner;
   }
 
   @Override
@@ -69,6 +68,18 @@ public class PaperEntityReconciler implements PlatformEntityReconcilerPort {
 
   @Override
   public void restoreInstance(EventInstanceId instanceId, List<DiscoveredEntity> entities) {
-    // Platform entities are reconnected via entity reconciliation scan
+    for (DiscoveredEntity discovered : entities) {
+      Object reference = discovered.platformReference();
+      if (reference instanceof UUID uuid) {
+        cleaner.registerCustomCleanup(
+            instanceId,
+            () -> {
+              Entity entity = Bukkit.getEntity(uuid);
+              if (entity != null && entity.isValid()) {
+                entity.getScheduler().execute(plugin, entity::remove, null, 1);
+              }
+            });
+      }
+    }
   }
 }

@@ -8,50 +8,55 @@ import org.junit.jupiter.api.Test;
 
 class ManualUrlResourcePackSourceTest {
 
-  @Test
-  void testValidManualSource() throws Exception {
-    ManualUrlResourcePackSource source =
-        new ManualUrlResourcePackSource("https://example.com/pack.zip", "abcdef1234567890");
+  private static final String TEST_VERSION = "1.0.0";
 
-    ResourcePackDescriptor desc = source.resolve("1.0.0", AssetTargetProfile.PROFILE_26_3).get();
+  @Test
+  void testValidManualSource()
+      throws InterruptedException, java.util.concurrent.ExecutionException {
+    ManualUrlResourcePackSource source =
+        new ManualUrlResourcePackSource("https://example.com/pack.zip", "a".repeat(40));
+
+    ResourcePackDescriptor desc =
+        source.resolve(TEST_VERSION, AssetTargetProfile.PROFILE_26_3).get();
     Assertions.assertEquals("https://example.com/pack.zip", desc.url());
-    Assertions.assertEquals("abcdef1234567890", desc.sha1());
+    Assertions.assertEquals("a".repeat(40), desc.sha1());
     Assertions.assertEquals("MANUAL", desc.source());
   }
 
   @Test
   void testMissingUrlRejected() {
-    ManualUrlResourcePackSource source = new ManualUrlResourcePackSource("", "abcdef");
+    ManualUrlResourcePackSource source = new ManualUrlResourcePackSource("", "a".repeat(40));
     ExecutionException ex =
         Assertions.assertThrows(
             ExecutionException.class,
             () -> {
-              source.resolve("1.0.0", AssetTargetProfile.PROFILE_26_3).get();
+              source.resolve(TEST_VERSION, AssetTargetProfile.PROFILE_26_3).get();
             });
     Assertions.assertTrue(ex.getCause().getMessage().contains("empty"));
   }
 
   @Test
   void testMissingSha1Rejected() {
-    ManualUrlResourcePackSource source = new ManualUrlResourcePackSource("https://example.com", "");
+    ManualUrlResourcePackSource source =
+        new ManualUrlResourcePackSource("https://example.com/pack.zip", "");
     ExecutionException ex =
         Assertions.assertThrows(
             ExecutionException.class,
             () -> {
-              source.resolve("1.0.0", AssetTargetProfile.PROFILE_26_3).get();
+              source.resolve(TEST_VERSION, AssetTargetProfile.PROFILE_26_3).get();
             });
-    Assertions.assertTrue(ex.getCause().getMessage().contains("missing"));
+    Assertions.assertTrue(ex.getCause().getMessage().contains("exactly 40"));
   }
 
   @Test
   void testHttpUrlRejected() {
     ManualUrlResourcePackSource source =
-        new ManualUrlResourcePackSource("http://example.com", "abc");
+        new ManualUrlResourcePackSource("http://example.com/pack.zip", "a".repeat(40));
     ExecutionException ex =
         Assertions.assertThrows(
             ExecutionException.class,
             () -> {
-              source.resolve("1.0.0", AssetTargetProfile.PROFILE_26_3).get();
+              source.resolve(TEST_VERSION, AssetTargetProfile.PROFILE_26_3).get();
             });
     Assertions.assertTrue(ex.getCause().getMessage().contains("HTTPS"));
   }

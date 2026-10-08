@@ -1,47 +1,25 @@
-# Create Your First SpectraEvents Model
+# Create Your First Model
 
-This tutorial guides you through creating, importing, building, and spawning a simple 3D model using SpectraEvents.
+Create the visual model in Blockbench and save it as a `.bbmodel`; this is the only supported
+canonical source. Use either the Generic Model or Java Block format, group visible cubes, add named
+animations, and embed PNG/JPEG textures.
 
-## 1. Create the Model in Blockbench
-1. Open Blockbench and start a **Generic Model** project.
-2. Under the **Outliner**, create a new group (folder) and name it `root`.
-3. Inside `root`, create another group named `cube`.
-4. Inside `cube`, create a single block/cube.
-5. Add a texture named `example.png` and paint your cube.
-6. Make sure to map your UVs to the texture (Box UV is recommended).
+Place `my_model.bbmodel` in `plugins/SpectraEvents/assets/source/`, then restart the server. The
+filename becomes the model ID (`my_model`) and the animation names in Blockbench are used directly
+by event YAML:
 
-## 2. Add an Animation
-1. Switch to the **Animate** tab in Blockbench.
-2. Create a new animation named `spin`. Set the loop mode to **Loop**.
-3. Select the `cube` group.
-4. Add rotation keyframes:
-   - At `0.0s`: Rotation `[0, 0, 0]`
-   - At `1.0s`: Rotation `[0, 360, 0]`
-5. This creates a continuous 360° spin over 1 second.
+```yaml
+on-enter:
+  - type: spawn_model
+    model: my_model
+  - type: play_animation
+    model: my_model
+    animation: idle
+```
 
-## 3. Export
-1. Ensure the `spectra_exporter.js` plugin is installed (see [Blockbench Guide](blockbench.md)).
-2. Go to **File** -> **Export** -> **Export Spectra Bundle**.
-3. Save the file as `example_cube.spectra.zip`.
+Alternatively use **File → Export → Export Spectra Bundle** from
+`tools/blockbench/spectraevents-exporter/spectraevents_exporter.js` and place the generated
+`.spectra.zip` in the same directory. Paper exposes asset inspection and rebuild commands; Spigot
+imports the same files at startup but does not expose the Paper-only asset command tools.
 
-## 4. Import & Validate
-1. Place `example_cube.spectra.zip` in your server directory or designated upload folder.
-2. In the server console or in-game, run:
-   `/event assets import example_cube.spectra.zip`
-3. Validate the model definition:
-   `/event assets validate example_cube`
-
-## 5. Build Resource Pack
-Once imported, you must compile the asset pipeline to generate the resource pack:
-`/event assets build`
-
-This builds the `pack.mcmeta`, models, and textures into the final resource pack state.
-
-## 6. Spawn and Animate
-Log into your server and run:
-`/event model spawn example_cube`
-
-To play the animation:
-`/event animation play example_cube spin`
-
-Congratulations! You have successfully created, imported, and animated a SpectraEvents model.
+Never duplicate geometry or animation names in `models/*.yml`; that directory is not loaded.

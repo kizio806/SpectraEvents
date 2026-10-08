@@ -16,7 +16,10 @@ public interface IntegrationConditionResolver {
       ExecutionContext context);
 
   /**
-   * @return true if this resolver supports the given condition type.
+   * Checks if this resolver supports the given condition type.
+   *
+   * @param conditionType the condition type to check
+   * @return true if this resolver supports the given condition type
    */
   boolean supports(String conditionType);
 }

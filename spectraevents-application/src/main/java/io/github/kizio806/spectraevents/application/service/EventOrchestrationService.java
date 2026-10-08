@@ -1,9 +1,8 @@
 package io.github.kizio806.spectraevents.application.service;
 
+import io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompiler;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.registry.RegisteredEventDefinition;
-import io.github.kizio806.spectraevents.application.dev.fixture.MeteorFixture;
-import io.github.kizio806.spectraevents.application.dev.fixture.WalkingSkeletonFixture;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
@@ -15,9 +14,11 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleTransition;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
 /** Orchestrates event instance lifecycle operations for the application. */
+@SuppressWarnings("PMD.AvoidFieldNameMatchingMethodName")
 public final class EventOrchestrationService {
   private static final Logger LOGGER = Logger.getLogger(EventOrchestrationService.class.getName());
   private static final String MANUAL_TRIGGER_TYPE = "manual";
@@ -44,48 +45,6 @@ public final class EventOrchestrationService {
   public io.github.kizio806.spectraevents.application.execution.EventExecutionEngine
       executionEngine() {
     return executionEngine;
-  }
-
-  /**
-   * Starts a new walking skeleton event instance.
-   *
-   * @return the newly started instance
-   */
-  public EventInstance startWalkingSkeleton() {
-    EventInstanceId id = EventInstanceId.generate();
-    EventInstance created = EventInstance.create(id, WalkingSkeletonFixture.DEFINITION_ID);
-    EventLifecycleTransition transition = created.start(WalkingSkeletonFixture.getDefinition());
-
-    EventInstance running = transition.eventInstance();
-    repository.save(running);
-
-    LOGGER.info(
-        "Started event instance "
-            + id
-            + " using walking_skeleton in phase "
-            + running.currentPhase().orElseThrow());
-    return running;
-  }
-
-  /**
-   * Starts a new dev_meteor event instance.
-   *
-   * @return the newly started instance
-   */
-  public EventInstance startDevMeteor() {
-    EventInstanceId id = EventInstanceId.generate();
-    EventInstance created = EventInstance.create(id, MeteorFixture.DEFINITION_ID);
-    EventLifecycleTransition transition = created.start(MeteorFixture.getDefinition());
-
-    EventInstance running = transition.eventInstance();
-    repository.save(running);
-
-    LOGGER.info(
-        "Started event instance "
-            + id
-            + " using dev_meteor in phase "
-            + running.currentPhase().orElseThrow());
-    return running;
   }
 
   /**
@@ -130,6 +89,57 @@ public final class EventOrchestrationService {
   }
 
   /**
+   * Starts a definition after durable acceptance without blocking a platform-owned calling thread.
+   */
+  public CompletableFuture<EventInstance> startDefinitionAsync(
+      String definitionId, Object platformLocationReference) {
+    if (executionEngine != null) {
+      return executionEngine.startEventAsync(definitionId, platformLocationReference);
+    }
+    try {
+      return CompletableFuture.completedFuture(
+          startDefinition(definitionId, platformLocationReference));
+    } catch (RuntimeException exception) {
+      return CompletableFuture.failedFuture(exception);
+    }
+  }
+
+  /**
+   * Starts a definition with validated scalar parameter overrides from a platform-neutral caller.
+   */
+  public CompletableFuture<EventInstance> startDefinitionAsync(
+      String definitionId,
+      Object platformLocationReference,
+      java.util.Map<String, Object> overrides) {
+    java.util.Map<String, Object> nonNullOverrides =
+        java.util.Map.copyOf(Objects.requireNonNull(overrides, "overrides"));
+    if (nonNullOverrides.isEmpty()) {
+      return startDefinitionAsync(definitionId, platformLocationReference);
+    }
+    if (executionEngine == null) {
+      return CompletableFuture.failedFuture(
+          new IllegalStateException("Parameter overrides require the event execution engine"));
+    }
+    try {
+      RegisteredEventDefinition registered =
+          definitionRegistry
+              .findById(definitionId)
+              .orElseThrow(
+                  () ->
+                      new IllegalArgumentException("Event definition not found: " + definitionId));
+      EventDefinition compiled =
+          new EventDefinitionCompiler()
+              .compile(
+                  Objects.requireNonNull(
+                      registered.sourceSpec(), "Definition source is unavailable"),
+                  nonNullOverrides);
+      return executionEngine.startEventAsync(compiled, platformLocationReference);
+    } catch (RuntimeException exception) {
+      return CompletableFuture.failedFuture(exception);
+    }
+  }
+
+  /**
    * Transitions an event instance to its next available phase.
    *
    * @param instanceId string representation of the instance UUID
@@ -137,6 +147,9 @@ public final class EventOrchestrationService {
    * @throws IllegalArgumentException if the ID is invalid or instance is not found
    */
   public EventInstance transitionPhase(String instanceId) {
+    if (executionEngine != null) {
+      return executionEngine.triggerManualTransition(parseInstanceId(instanceId));
+    }
     EventInstance instance = getExistingInstance(instanceId);
     EventDefinition definition = resolveDefinition(instance.definitionId());
 
@@ -163,6 +176,14 @@ public final class EventOrchestrationService {
    * @return the completed instance
    */
   public EventInstance completeEvent(String instanceId) {
+    if (executionEngine != null) {
+      EventInstance completed = executionEngine.completeEvent(parseInstanceId(instanceId));
+      if (completed == null) {
+        throw new IllegalStateException("Event is not running: " + instanceId);
+      }
+      LOGGER.info("Completed event " + completed.id());
+      return completed;
+    }
     EventInstance instance = getExistingInstance(instanceId);
     EventLifecycleTransition transition = instance.complete();
 
@@ -180,6 +201,14 @@ public final class EventOrchestrationService {
    * @return the cancelled instance
    */
   public EventInstance cancelEvent(String instanceId) {
+    if (executionEngine != null) {
+      EventInstance cancelled = executionEngine.cancelEvent(parseInstanceId(instanceId));
+      if (cancelled == null) {
+        throw new IllegalStateException("Event is not running: " + instanceId);
+      }
+      LOGGER.info("Cancelled event " + cancelled.id());
+      return cancelled;
+    }
     EventInstance instance = getExistingInstance(instanceId);
     EventLifecycleTransition transition = instance.cancel();
 
@@ -217,17 +246,10 @@ public final class EventOrchestrationService {
     return definitionRegistry
         .get(definitionId)
         .map(RegisteredEventDefinition::definition)
-        .orElseGet(() -> resolveFixtureDefinition(definitionId));
-  }
-
-  private EventDefinition resolveFixtureDefinition(EventDefinitionId definitionId) {
-    if (definitionId.equals(WalkingSkeletonFixture.DEFINITION_ID)) {
-      return WalkingSkeletonFixture.getDefinition();
-    }
-    if (definitionId.equals(MeteorFixture.DEFINITION_ID)) {
-      return MeteorFixture.getDefinition();
-    }
-    throw new IllegalStateException("Unsupported event definition: " + definitionId.value());
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "Event definition is no longer registered: " + definitionId.value()));
   }
 
   private PhaseId resolveNextPhase(EventDefinition definition, PhaseId currentPhase) {
@@ -252,6 +274,12 @@ public final class EventOrchestrationService {
   }
 
   private EventInstance getExistingInstance(String instanceId) {
+    return repository
+        .findById(parseInstanceId(instanceId))
+        .orElseThrow(() -> new IllegalArgumentException("Event instance not found: " + instanceId));
+  }
+
+  private EventInstanceId parseInstanceId(String instanceId) {
     UUID uuid;
     try {
       uuid = UUID.fromString(instanceId);
@@ -259,8 +287,6 @@ public final class EventOrchestrationService {
       throw new IllegalArgumentException("Invalid instance ID format.", e);
     }
 
-    return repository
-        .findById(new EventInstanceId(uuid))
-        .orElseThrow(() -> new IllegalArgumentException("Event instance not found: " + instanceId));
+    return new EventInstanceId(uuid);
   }
 }

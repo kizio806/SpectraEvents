@@ -2,15 +2,18 @@ package io.github.kizio806.spectraevents.application.model.animation.compiler;
 
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationDefinition;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationTime;
+import io.github.kizio806.spectraevents.core.visual.animation.AnimationTrackType;
 import io.github.kizio806.spectraevents.core.visual.animation.ModelPose;
 import io.github.kizio806.spectraevents.core.visual.model.ModelDefinition;
 import io.github.kizio806.spectraevents.core.visual.model.ModelPartDefinition;
 import io.github.kizio806.spectraevents.core.visual.model.ModelPartId;
 import io.github.kizio806.spectraevents.core.visual.model.ModelTransform;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeSet;
 
 /** Immutable precompiled animation ready for execution and fast pose evaluation. */
@@ -62,25 +65,85 @@ public class CompiledAnimation {
     Objects.requireNonNull(modelDef, "modelDef cannot be null");
 
     ModelTransform rootTransform = ModelTransform.IDENTITY;
-    Map<ModelPartId, ModelTransform> partTransforms = new HashMap<>();
+    Map<ModelPartId, ModelTransform> localTransforms = new HashMap<>();
 
     // Base part local transforms
     for (ModelPartDefinition part : modelDef.parts()) {
-      partTransforms.put(part.partId(), part.localTransform());
+      localTransforms.put(part.partId(), part.localTransform());
     }
 
     // Apply track updates
     for (CompiledTrack track : tracks) {
       if (track.target().isRoot()) {
-        rootTransform = track.evaluate(playhead, rootTransform);
+        rootTransform =
+            mergeChannel(rootTransform, track.evaluate(playhead, rootTransform), track.trackType());
       } else {
         ModelPartId partId = track.target().partId();
-        ModelTransform baseTransform = partTransforms.getOrDefault(partId, ModelTransform.IDENTITY);
-        ModelTransform evaluated = track.evaluate(playhead, baseTransform);
-        partTransforms.put(partId, evaluated);
+        ModelTransform baseTransform =
+            localTransforms.getOrDefault(partId, ModelTransform.IDENTITY);
+        localTransforms.put(
+            partId,
+            mergeChannel(
+                baseTransform, track.evaluate(playhead, baseTransform), track.trackType()));
       }
     }
 
-    return ModelPose.of(rootTransform, partTransforms);
+    Map<ModelPartId, ModelPartDefinition> partsById = new HashMap<>();
+    for (ModelPartDefinition part : modelDef.parts()) {
+      partsById.put(part.partId(), part);
+    }
+    Map<ModelPartId, ModelTransform> composedTransforms = new HashMap<>();
+    Set<ModelPartId> visiting = new HashSet<>();
+    for (ModelPartDefinition part : modelDef.parts()) {
+      composeTransform(
+          part, partsById, localTransforms, rootTransform, composedTransforms, visiting);
+    }
+
+    return ModelPose.of(rootTransform, composedTransforms);
+  }
+
+  private static ModelTransform mergeChannel(
+      ModelTransform base, ModelTransform evaluated, AnimationTrackType trackType) {
+    return switch (trackType) {
+      case TRANSLATION ->
+          new ModelTransform(evaluated.translation(), base.rotation(), base.scale(), base.pivot());
+      case ROTATION ->
+          new ModelTransform(base.translation(), evaluated.rotation(), base.scale(), base.pivot());
+      case SCALE ->
+          new ModelTransform(base.translation(), base.rotation(), evaluated.scale(), base.pivot());
+      case VISIBILITY -> base;
+    };
+  }
+
+  private static ModelTransform composeTransform(
+      ModelPartDefinition part,
+      Map<ModelPartId, ModelPartDefinition> partsById,
+      Map<ModelPartId, ModelTransform> localTransforms,
+      ModelTransform rootTransform,
+      Map<ModelPartId, ModelTransform> composedTransforms,
+      Set<ModelPartId> visiting) {
+    ModelTransform existing = composedTransforms.get(part.partId());
+    if (existing != null) {
+      return existing;
+    }
+    if (!visiting.add(part.partId())) {
+      throw new IllegalArgumentException("Model hierarchy contains a cycle at " + part.partId());
+    }
+    ModelTransform parentTransform = rootTransform;
+    if (part.parentPartId() != null) {
+      ModelPartDefinition parent = partsById.get(part.parentPartId());
+      if (parent == null) {
+        throw new IllegalArgumentException(
+            "Model hierarchy references missing parent " + part.parentPartId());
+      }
+      parentTransform =
+          composeTransform(
+              parent, partsById, localTransforms, rootTransform, composedTransforms, visiting);
+    }
+    ModelTransform local = localTransforms.getOrDefault(part.partId(), part.localTransform());
+    ModelTransform composed = local.compose(parentTransform);
+    visiting.remove(part.partId());
+    composedTransforms.put(part.partId(), composed);
+    return composed;
   }
 }

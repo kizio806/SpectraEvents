@@ -1,7 +1,9 @@
 # Scope
 
 ## V1 Scope
-The V1 release will focus on delivering a stable, data-driven foundation capable of running several distinct event types (e.g., Meteor, Airdrop, Metin, Pinata) natively.
+The V1 release focuses on a stable, data-driven foundation capable of running several distinct event
+types through the same runtime. Meteor, Airdrop, Metin, Piñata and Boss Portal are shipped as
+inactive presets, not hard-coded mechanics.
 
 Key V1 inclusions:
 - Data-driven event definitions via YAML.
@@ -16,13 +18,15 @@ Key V1 inclusions:
 - Event areas (basic entry/exit and rule enforcement).
 - Persistence and recovery.
 - Robust debug tooling and admin commands.
-- Primary target: Paper 26.2 (Java 25).
+- Paper/Purpur and Spigot/CraftBukkit distributions across 26.1–26.3, plus Folia 26.1–26.2, with
+  Java 25. Every published version still requires its complete real-server matrix.
 
 ## Post-V1 Scope
 These features are highly desirable but deferred until the V1 foundation is proven:
 - Full GUI inventory editor (frontend for configuration).
-- Complex skeletal animations and external resource-pack compilation.
-- Database persistence (SQLite, PostgreSQL).
+- Complex skeletal animation and arbitrary mesh rendering. The current resource-pack generator emits
+  cuboid geometry.
+- PostgreSQL storage; the current durable storage contract is SQLite.
 - Advanced placeholder integration (PlaceholderAPI) for all internal states.
 - Cross-server synchronization (Redis/velocity support).
 - Deep third-party integrations (Vault, Oraxen, Nexo, ItemsAdder).
@@ -32,4 +36,5 @@ These features are highly desirable but deferred until the V1 foundation is prov
 - Complete replacement of standard region management (WorldGuard).
 - Full economy or RPG leveling systems.
 - Scripting engines (Nashorn/GraalVM JS) for event logic.
-- 1.8 - 1.20 support (the engine targets modern Paper API exclusively).
+- Legacy Minecraft support; the engine targets the declared modern Paper-family and Spigot-family
+  range only.

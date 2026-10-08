@@ -85,6 +85,31 @@ class DefinitionLoaderTest {
     assertTrue(
         result.failures().get(0).diagnostics().stream()
             .anyMatch(d -> d.code().equals("SE-REG-001")));
+    assertTrue(
+        result.failures().get(0).diagnostics().stream()
+            .anyMatch(d -> d.path().equals("events/duplicate.yml:id")));
+  }
+
+  @Test
+  void prefixesCompilerDiagnosticsWithSourceFile() {
+    String invalidYaml =
+        """
+        schema-version: 1
+        id: invalid
+        initial-phase: missing
+        phases:
+          active: {}
+        """;
+
+    DefinitionLoadResult result = loader.load(Map.of("events/invalid.yml", invalidYaml));
+
+    assertEquals(1, result.failures().size());
+    assertTrue(
+        result.failures().get(0).diagnostics().stream()
+            .anyMatch(
+                diagnostic ->
+                    diagnostic.code().equals("SE-DEF-003")
+                        && diagnostic.path().equals("events/invalid.yml:initial-phase")));
   }
 
   @Test
@@ -100,5 +125,28 @@ class DefinitionLoaderTest {
     assertTrue(
         registry.get(new EventDefinitionId("valid")).isPresent(),
         "Old valid definition must remain active when reload fails");
+  }
+
+  @Test
+  void reloadRemovesDefinitionWhoseSourceFileWasDeleted() {
+    loader.load(Map.of("events/valid.yml", VALID_YAML));
+
+    loader.reload(Map.of());
+
+    assertTrue(registry.get(new EventDefinitionId("valid")).isEmpty());
+  }
+
+  @Test
+  void reloadRejectsDuplicateIdFromAnotherSource() {
+    loader.load(Map.of("events/valid.yml", VALID_YAML));
+    LinkedHashMap<String, String> sources = new LinkedHashMap<>();
+    sources.put("events/valid.yml", VALID_YAML);
+    sources.put("events/duplicate.yml", VALID_YAML);
+
+    DefinitionLoadResult result = loader.reload(sources);
+
+    assertEquals(1, result.failures().size());
+    assertEquals("events/duplicate.yml", result.failures().getFirst().sourceFile());
+    assertEquals(1, registry.getAll().size());
   }
 }

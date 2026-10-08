@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.paper.render;
 
+import io.github.kizio806.spectraevents.application.asset.GeneratedAssetItem;
 import io.github.kizio806.spectraevents.application.model.runtime.DiscoveredModelEntity;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelAnchor;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeId;
@@ -33,6 +34,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
@@ -61,6 +63,8 @@ public class PaperModelRenderer implements ModelRendererPort {
   private final Plugin plugin;
   private final CustomItemProvider customItemProvider;
   private final Map<ModelRuntimeId, RenderedModelHandle> activeHandles = new ConcurrentHashMap<>();
+  private final Map<ModelRuntimeId, CompletableFuture<Void>> inFlightTransforms =
+      new ConcurrentHashMap<>();
 
   public PaperModelRenderer(Plugin plugin, CustomItemProvider customItemProvider) {
     this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
@@ -120,6 +124,7 @@ public class PaperModelRenderer implements ModelRendererPort {
                 entity -> {
                   entity.setInteractionWidth(interaction.width());
                   entity.setInteractionHeight(interaction.height());
+                  entity.setPersistent(false);
 
                   PersistentDataContainer pdc = entity.getPersistentDataContainer();
                   pdc.set(
@@ -161,6 +166,12 @@ public class PaperModelRenderer implements ModelRendererPort {
       return handle;
 
     } catch (Exception e) {
+      plugin
+          .getLogger()
+          .log(
+              java.util.logging.Level.WARNING,
+              "Failed to spawn model " + definition.id().value() + " (" + runtimeId.value() + ")",
+              e);
       // Atomic Spawn Rollback: cleanup any already-spawned entities in this batch
       for (Entity entity : spawnedBatch) {
         if (entity != null && entity.isValid()) {
@@ -194,6 +205,7 @@ public class PaperModelRenderer implements ModelRendererPort {
               entity.setItemStack(itemStack);
               entity.setTransformationMatrix(matrix);
               entity.setItemDisplayTransform(toItemDisplayTransform(itemRef.transformMode()));
+              entity.setPersistent(false);
               applyRenderProperties(entity, part.renderProperties());
               tagPdc(
                   entity.getPersistentDataContainer(),
@@ -214,6 +226,7 @@ public class PaperModelRenderer implements ModelRendererPort {
             entity -> {
               entity.setBlock(blockData);
               entity.setTransformationMatrix(matrix);
+              entity.setPersistent(false);
               applyRenderProperties(entity, part.renderProperties());
               tagPdc(
                   entity.getPersistentDataContainer(),
@@ -235,6 +248,7 @@ public class PaperModelRenderer implements ModelRendererPort {
                 entity.text(MiniMessage.miniMessage().deserialize(textRef.text()));
               }
               entity.setTransformationMatrix(matrix);
+              entity.setPersistent(false);
               entity.setAlignment(toTextAlignment(textRef.alignment()));
               entity.setLineWidth(textRef.lineWidth());
               entity.setTextOpacity((byte) textRef.textOpacity());
@@ -270,6 +284,7 @@ public class PaperModelRenderer implements ModelRendererPort {
         display.setGlowColorOverride(
             Color.fromRGB(Integer.parseInt(props.glowColor().replace("#", ""), 16)));
       } catch (Exception ignored) {
+        plugin.getLogger().warning("Failed to parse glow color: " + ignored.getMessage());
       }
     }
     if (props.interpolationDurationTicks() > 0) {
@@ -309,18 +324,33 @@ public class PaperModelRenderer implements ModelRendererPort {
         new Location(
             world, newAnchor.x(), newAnchor.y(), newAnchor.z(), newAnchor.yaw(), newAnchor.pitch());
 
+    List<CompletableFuture<?>> teleportFutures = new ArrayList<>();
     for (RenderedPartHandle partHandle : handle.parts().values()) {
       Entity entity = Bukkit.getEntity(partHandle.entityUuid());
       if (entity != null && entity.isValid()) {
-        entity.teleportAsync(newLoc);
+        teleportFutures.add(entity.teleportAsync(newLoc));
       }
     }
     for (UUID interactionUuid : handle.interactions().values()) {
       Entity entity = Bukkit.getEntity(interactionUuid);
       if (entity != null && entity.isValid()) {
-        entity.teleportAsync(newLoc);
+        teleportFutures.add(entity.teleportAsync(newLoc));
       }
     }
+    CompletableFuture<Void> transformFuture =
+        CompletableFuture.allOf(teleportFutures.toArray(CompletableFuture<?>[]::new))
+            .exceptionally(
+                exception -> {
+                  plugin
+                      .getLogger()
+                      .warning(
+                          "Failed to move model "
+                              + handle.runtimeId()
+                              + ": "
+                              + exception.getMessage());
+                  return null;
+                });
+    inFlightTransforms.put(handle.runtimeId(), transformFuture);
     activeHandles.put(
         handle.runtimeId(),
         new RenderedModelHandle(
@@ -375,14 +405,34 @@ public class PaperModelRenderer implements ModelRendererPort {
   public boolean removeModel(RenderedModelHandle handle) {
     Objects.requireNonNull(handle, "handle cannot be null");
     activeHandles.remove(handle.runtimeId());
+    inFlightTransforms.remove(handle.runtimeId());
 
-    for (RenderedPartHandle partHandle : handle.parts().values()) {
-      removeEntityUuid(partHandle.entityUuid());
-    }
-    for (UUID interactionUuid : handle.interactions().values()) {
-      removeEntityUuid(interactionUuid);
+    World world = Bukkit.getWorld(handle.anchor().worldName());
+    if (world != null) {
+      Location loc =
+          new Location(world, handle.anchor().x(), handle.anchor().y(), handle.anchor().z());
+      if (!plugin.isEnabled()) {
+        removeEntities(handle);
+        return true;
+      }
+      Bukkit.getRegionScheduler().execute(plugin, loc, () -> removeEntities(handle));
     }
     return true;
+  }
+
+  private static void removeEntities(RenderedModelHandle handle) {
+    for (RenderedPartHandle partHandle : handle.parts().values()) {
+      Entity entity = Bukkit.getEntity(partHandle.entityUuid());
+      if (entity != null && entity.isValid()) {
+        entity.remove();
+      }
+    }
+    for (UUID interactionUuid : handle.interactions().values()) {
+      Entity entity = Bukkit.getEntity(interactionUuid);
+      if (entity != null && entity.isValid()) {
+        entity.remove();
+      }
+    }
   }
 
   public void cleanupInstance(EventInstanceId ownerEventId) {
@@ -394,12 +444,20 @@ public class PaperModelRenderer implements ModelRendererPort {
     }
   }
 
+  public int resourceCount(EventInstanceId ownerEventId) {
+    return activeHandles.values().stream()
+        .filter(handle -> ownerEventId.equals(handle.ownerEventId()))
+        .mapToInt(handle -> handle.parts().size() + handle.interactions().size())
+        .sum();
+  }
+
   @Override
   public void removeAll() {
     for (RenderedModelHandle handle : List.copyOf(activeHandles.values())) {
       removeModel(handle);
     }
     activeHandles.clear();
+    inFlightTransforms.clear();
   }
 
   @Override
@@ -436,14 +494,20 @@ public class PaperModelRenderer implements ModelRendererPort {
     return discovered;
   }
 
-  private void removeEntityUuid(UUID uuid) {
-    Entity entity = Bukkit.getEntity(uuid);
-    if (entity != null && entity.isValid()) {
-      entity.getScheduler().execute(plugin, entity::remove, null, 1);
-    }
-  }
-
   private ItemStack resolveItemStack(String itemRef) {
+    GeneratedAssetItem.ParsedReference generatedAsset = GeneratedAssetItem.parse(itemRef);
+    if (generatedAsset != null) {
+      ItemStack generatedItem = new ItemStack(Material.PAPER);
+      org.bukkit.inventory.meta.ItemMeta itemMeta = generatedItem.getItemMeta();
+      itemMeta.setItemModel(
+          new org.bukkit.NamespacedKey(
+              GeneratedAssetItem.NAMESPACE,
+              generatedAsset.modelId() + "/" + generatedAsset.nodeId()));
+      if (!generatedItem.setItemMeta(itemMeta)) {
+        throw new IllegalStateException("Paper rejected generated asset item metadata");
+      }
+      return generatedItem;
+    }
     if (customItemProvider != null && customItemProvider.isAvailable()) {
       ItemStack custom = customItemProvider.resolveItem(itemRef, 1);
       if (custom != null) {

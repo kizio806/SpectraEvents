@@ -48,6 +48,11 @@ public class ModelCompiler {
   public static final int MAX_HIERARCHY_DEPTH = 32;
 
   public ModelDefinition compile(ModelSpec spec) {
+    return compileWithAnimations(spec).definition();
+  }
+
+  /** Compiles a model while retaining the precomputed animation plans for runtime registration. */
+  public CompiledModel compileWithAnimations(ModelSpec spec) {
     Objects.requireNonNull(spec, "spec cannot be null");
     List<ValidationDiagnostic> diagnostics = new ArrayList<>();
 
@@ -119,7 +124,7 @@ public class ModelCompiler {
     }
 
     // 4. Cycle detection & Hierarchy depth check
-    detectCyclesAndDepth(partSpecs.keySet(), parentMap, modelId.value(), diagnostics);
+    detectCyclesAndDepth(partSpecs.keySet(), parentMap, diagnostics);
 
     if (diagnostics.stream().anyMatch(d -> d.severity() == Severity.ERROR)) {
       throw new ModelCompilerException(
@@ -129,7 +134,6 @@ public class ModelCompiler {
     // 5. Topological sort for composed transform pre-calculation
     List<String> sortedPartIds = topologicalSort(partSpecs.keySet(), parentMap);
     Map<String, ModelTransform> composedTransformMap = new HashMap<>();
-    Map<String, ModelPartDefinition> compiledPartsMap = new HashMap<>();
     List<ModelPartDefinition> compiledParts = new ArrayList<>();
 
     for (String partId : sortedPartIds) {
@@ -165,7 +169,6 @@ public class ModelCompiler {
               composedTransform,
               renderProperties,
               visualAsset);
-      compiledPartsMap.put(partId, compiledPart);
       compiledParts.add(compiledPart);
     }
 
@@ -255,7 +258,7 @@ public class ModelCompiler {
     }
 
     // 7. Compile Animations
-    Map<AnimationId, AnimationDefinition> compiledAnimations = new HashMap<>();
+    Map<AnimationId, CompiledAnimation> compiledAnimations = new HashMap<>();
     if (spec.getAnimations() != null && !spec.getAnimations().isEmpty()) {
       AnimationCompiler animationCompiler = new AnimationCompiler();
       for (Map.Entry<String, AnimationSpec> entry : spec.getAnimations().entrySet()) {
@@ -277,7 +280,7 @@ public class ModelCompiler {
           try {
             CompiledAnimation compiledAnim =
                 animationCompiler.compile(animId, animSpec, partSpecs.keySet());
-            compiledAnimations.put(animId, compiledAnim.definition());
+            compiledAnimations.put(animId, compiledAnim);
           } catch (AnimationCompilerException e) {
             diagnostics.addAll(e.diagnostics());
           }
@@ -290,13 +293,19 @@ public class ModelCompiler {
           "Failed to compile model '" + modelId.value() + "'", diagnostics);
     }
 
-    return new ModelDefinition(modelId, compiledParts, compiledInteractions, compiledAnimations);
+    Map<AnimationId, AnimationDefinition> animationDefinitions = new HashMap<>();
+    for (Map.Entry<AnimationId, CompiledAnimation> entry : compiledAnimations.entrySet()) {
+      animationDefinitions.put(entry.getKey(), entry.getValue().definition());
+    }
+
+    return new CompiledModel(
+        new ModelDefinition(modelId, compiledParts, compiledInteractions, animationDefinitions),
+        compiledAnimations);
   }
 
   private void detectCyclesAndDepth(
       Set<String> allPartIds,
       Map<String, String> parentMap,
-      String modelId,
       List<ValidationDiagnostic> diagnostics) {
 
     for (String startPartId : allPartIds) {

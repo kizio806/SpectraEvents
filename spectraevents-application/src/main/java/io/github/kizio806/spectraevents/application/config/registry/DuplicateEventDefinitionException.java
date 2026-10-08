@@ -5,6 +5,7 @@ import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
 import java.util.List;
 
 /** Thrown when registering an event definition whose ID is already present. */
+@SuppressWarnings({"PMD.AvoidFieldNameMatchingMethodName", "serial"})
 public final class DuplicateEventDefinitionException extends RuntimeException {
   private final EventDefinitionId definitionId;
   private final List<ValidationDiagnostic> diagnostics;

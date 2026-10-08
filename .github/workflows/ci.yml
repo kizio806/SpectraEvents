@@ -42,8 +42,14 @@ jobs:
         with:
           validate-wrappers: true
 
-      - name: Run code formatting & boundary checks
-        run: ./gradlew spotlessCheck verifyPlatformBoundaries
+      - name: Run formatting, static analysis, and boundary checks
+        run: ./gradlew --no-daemon spotlessCheck checkstyleMain pmdMain spotbugsMain verifyPlatformBoundaries
+
+      - name: Validate documented release blockers
+        run: |
+          python3 -m unittest discover -s scripts/release -p 'test_*.py'
+          python3 -m unittest discover -s scripts/runtime-smoke -p 'test_*.py'
+          python3 scripts/release/verify_release_gate.py --runtime-matrix-status failure --allow-blocked
 
   core-tests:
     name: CI / Core Tests
@@ -113,7 +119,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Run Adapter tests
-        run: ./gradlew :adapters:storage-sqlite:check :adapters:update-http:check
+        run: ./gradlew :adapters:storage-sqlite:check :adapters:update-http:check :adapters:assets-blockbench:check :adapters:assets-delivery:check
 
       - name: Upload Adapter test reports
         if: failure()
@@ -182,31 +188,29 @@ jobs:
           if-no-files-found: error
 
   runtime-smoke:
-    name: CI / Runtime Smoke Matrix (${{ matrix.platform }} ${{ matrix.version }})
+    name: CI / Runtime Workflow (${{ matrix.server }} ${{ matrix.version }})
     needs:
       - distribution-verification
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: paper
-            version: '26.1.1'
-          - platform: paper
-            version: '26.1.2'
-          - platform: paper
-            version: '26.2'
-          - platform: paper
-            version: '26.3'
-          - platform: spigot
-            version: '26.1.1'
-          - platform: spigot
-            version: '26.1.2'
-          - platform: spigot
-            version: '26.2'
-          - platform: spigot
-            version: '26.3'
+          - { server: paper, family: paper, version: '26.1' }
+          - { server: paper, family: paper, version: '26.2' }
+          - { server: paper, family: paper, version: '26.3' }
+          - { server: purpur, family: paper, version: '26.1' }
+          - { server: purpur, family: paper, version: '26.2' }
+          - { server: purpur, family: paper, version: '26.3' }
+          - { server: folia, family: paper, version: '26.1' }
+          - { server: folia, family: paper, version: '26.2' }
+          - { server: spigot, family: spigot, version: '26.1' }
+          - { server: spigot, family: spigot, version: '26.2' }
+          - { server: spigot, family: spigot, version: '26.3' }
+          - { server: craftbukkit, family: spigot, version: '26.1' }
+          - { server: craftbukkit, family: spigot, version: '26.2' }
+          - { server: craftbukkit, family: spigot, version: '26.3' }
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -221,13 +225,20 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Build distribution JARs
-        run: ./gradlew :distributions:${{ matrix.platform }}:build
+        run: ./gradlew :distributions:${{ matrix.family }}:build
 
-      - name: Make scripts executable
-        run: chmod +x scripts/runtime-smoke/*.sh
+      - name: Cache runtime server binaries
+        uses: actions/cache@v6
+        with:
+          path: .gradle/runtime-server-cache
+          key: runtime-${{ matrix.server }}-${{ matrix.version }}-java25
 
-      - name: Run Smoke Test
-        run: ./scripts/runtime-smoke/run-${{ matrix.platform }}-smoke.sh "${{ matrix.version }}"
+      - name: Run lifecycle, cleanup, and restart workflow
+        run: |
+          python3 scripts/runtime-smoke/runtime_workflow.py \
+            --server "${{ matrix.server }}" \
+            --version "${{ matrix.version }}" \
+            --artifact distributions/${{ matrix.family }}/build/libs/SpectraEvents-*-"${{ matrix.family }}".jar
 
   release-readiness:
     name: CI / Release Readiness
@@ -252,6 +263,14 @@ jobs:
 
       - name: Run root quality gate
         run: ./gradlew --no-daemon clean check build
+
+      - name: Scan locked dependencies for known vulnerabilities
+        uses: google/osv-scanner-action/osv-scanner-action@8dc09193bb540e09b23da07ad7e30bd33bf87018 # v2.3.8
+        with:
+          scan-args: |-
+            --config=osv-scanner.toml
+            --recursive
+            .
 
       - name: Generate CI Summary
         run: |

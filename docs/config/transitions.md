@@ -10,13 +10,10 @@ transitions:
       type: manual
     target: active
     conditions:
-      - type: players-online
-        parameters:
-          min: 1
+      - type: not_locked
     actions:
       - type: broadcast
-        parameters:
-          message: "Moving to active."
+        message: "Moving to active."
 ```
 
 ## Supported fields
@@ -33,10 +30,11 @@ The parser reads `target` (not design-draft `to:`). Trigger type lives at `trigg
 
 ## Manual transitions in development
 
-When `trigger.type` is `manual`, `/event dev event next <instance>` selects the first matching
-rule in declaration order and moves the instance to `target`.
+When `trigger.type` is `manual`, `/spectraevents event trigger <instance> manual` selects the first
+matching rule in declaration order and moves the instance to `target`.
 
-Conditions and actions are compiled but not evaluated or executed in the current milestone.
+Conditions are evaluated before actions. Actions execute in declaration order. A fatal action
+failure fails the instance and invokes cleanup.
 
 ## Determinism
 

@@ -10,6 +10,7 @@ dependencies {
     api(project(":adapters:storage-sqlite"))
     api(project(":adapters:update-http"))
     implementation(project(":adapters:assets-blockbench"))
+    implementation(project(":adapters:assets-delivery"))
     compileOnly(libs.spigot.api)
     implementation(libs.adventure.platform.bukkit)
     implementation(libs.adventure.text.minimessage)

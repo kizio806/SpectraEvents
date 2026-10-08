@@ -4,11 +4,14 @@ import io.github.kizio806.spectraevents.application.model.animation.compiler.Com
 import io.github.kizio806.spectraevents.application.model.animation.compiler.CompiledSegment;
 import io.github.kizio806.spectraevents.application.model.animation.compiler.CompiledTrack;
 import io.github.kizio806.spectraevents.application.model.animation.registry.AnimationDefinitionRegistry;
+import io.github.kizio806.spectraevents.application.model.registry.ModelDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.model.runtime.RenderedModelHandle;
 import io.github.kizio806.spectraevents.application.port.AnimationSchedulerPort;
 import io.github.kizio806.spectraevents.application.port.ModelRendererPort;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationId;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationTime;
+import io.github.kizio806.spectraevents.core.visual.animation.ModelPose;
+import io.github.kizio806.spectraevents.core.visual.model.ModelDefinition;
 import io.github.kizio806.spectraevents.core.visual.model.ModelTransform;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -23,6 +26,7 @@ import java.util.Optional;
 public class AnimationRuntimeService {
 
   private final AnimationDefinitionRegistry definitionRegistry;
+  private final ModelDefinitionRegistry modelDefinitionRegistry;
   private final ActiveAnimationRegistry activeRegistry;
   private final ModelRendererPort modelRenderer;
   private final AnimationSchedulerPort scheduler;
@@ -32,8 +36,22 @@ public class AnimationRuntimeService {
       ActiveAnimationRegistry activeRegistry,
       ModelRendererPort modelRenderer,
       AnimationSchedulerPort scheduler) {
+    this(definitionRegistry, null, activeRegistry, modelRenderer, scheduler);
+  }
+
+  /**
+   * Creates a runtime that composes animated local transforms through the registered model
+   * hierarchy before updating display entities.
+   */
+  public AnimationRuntimeService(
+      AnimationDefinitionRegistry definitionRegistry,
+      ModelDefinitionRegistry modelDefinitionRegistry,
+      ActiveAnimationRegistry activeRegistry,
+      ModelRendererPort modelRenderer,
+      AnimationSchedulerPort scheduler) {
     this.definitionRegistry =
         Objects.requireNonNull(definitionRegistry, "definitionRegistry cannot be null");
+    this.modelDefinitionRegistry = modelDefinitionRegistry;
     this.activeRegistry = Objects.requireNonNull(activeRegistry, "activeRegistry cannot be null");
     this.modelRenderer = Objects.requireNonNull(modelRenderer, "modelRenderer cannot be null");
     this.scheduler = Objects.requireNonNull(scheduler, "scheduler cannot be null");
@@ -199,6 +217,9 @@ public class AnimationRuntimeService {
       ActiveAnimation anim = animOpt.get();
       synchronized (anim) {
         anim.setCurrentTime(targetTime);
+        if (applyComposedPose(anim, targetTime, 0)) {
+          return true;
+        }
         // Instant update without interpolation duration
         for (CompiledTrack track : anim.compiledAnimation().tracks()) {
           if (!track.target().isRoot() && track.target().partId() != null) {
@@ -256,6 +277,10 @@ public class AnimationRuntimeService {
         return;
       }
 
+      if (stepComposedAnimation(activeAnim)) {
+        return;
+      }
+
       int minStepTicks = Integer.MAX_VALUE;
 
       for (CompiledTrack track : activeAnim.compiledAnimation().tracks()) {
@@ -299,5 +324,68 @@ public class AnimationRuntimeService {
             }
           });
     }
+  }
+
+  private boolean stepComposedAnimation(ActiveAnimation activeAnim) {
+    if (modelDefinitionRegistry == null
+        || modelDefinitionRegistry.get(activeAnim.modelHandle().definitionId()).isEmpty()) {
+      return false;
+    }
+
+    AnimationTime currentTime = activeAnim.currentTime();
+    AnimationTime targetTime = nextBoundary(activeAnim.compiledAnimation(), currentTime);
+    long animationDeltaNanos = targetTime.nanoseconds() - currentTime.nanoseconds();
+    if (animationDeltaNanos <= 0L) {
+      animationDeltaNanos = 50_000_000L;
+      targetTime = AnimationTime.fromNanos(currentTime.nanoseconds() + animationDeltaNanos);
+    }
+    int interpolationTicks =
+        (int) Math.max(1L, Math.ceil(animationDeltaNanos / (activeAnim.speed() * 50_000_000.0d)));
+    applyComposedPose(activeAnim, targetTime, interpolationTicks);
+
+    long stepNanos = interpolationTicks * 50_000_000L;
+    scheduler.schedule(
+        Duration.ofNanos(stepNanos),
+        () -> {
+          synchronized (activeAnim) {
+            if (activeAnim.state() != PlaybackState.PLAYING) {
+              return;
+            }
+            boolean completed = activeAnim.advanceTime(stepNanos);
+            if (completed) {
+              activeRegistry.remove(activeAnim.playbackId());
+            } else {
+              stepAnimation(activeAnim);
+            }
+          }
+        });
+    return true;
+  }
+
+  private AnimationTime nextBoundary(CompiledAnimation animation, AnimationTime currentTime) {
+    for (AnimationTime boundary : animation.boundaryScheduleTimes()) {
+      if (boundary.compareTo(currentTime) > 0) {
+        return boundary;
+      }
+    }
+    return animation.definition().duration().time();
+  }
+
+  private boolean applyComposedPose(
+      ActiveAnimation activeAnim, AnimationTime targetTime, int interpolationDurationTicks) {
+    if (modelDefinitionRegistry == null) {
+      return false;
+    }
+    ModelDefinition modelDefinition =
+        modelDefinitionRegistry.get(activeAnim.modelHandle().definitionId()).orElse(null);
+    if (modelDefinition == null) {
+      return false;
+    }
+    ModelPose pose = activeAnim.compiledAnimation().evaluatePose(targetTime, modelDefinition);
+    for (var entry : pose.partTransforms().entrySet()) {
+      modelRenderer.updatePartTransform(
+          activeAnim.modelHandle(), entry.getKey(), entry.getValue(), interpolationDurationTicks);
+    }
+    return true;
   }
 }

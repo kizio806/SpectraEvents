@@ -1,103 +1,33 @@
 # Blockbench Authoring Guide
 
-This guide explains how to properly structure, animate, and export 3D models from Blockbench for use in SpectraEvents.
+SpectraEvents accepts Blockbench **Generic Model** and **Java Block** projects. Install the local
+plugin from `tools/blockbench/spectraevents-exporter/spectraevents_exporter.js`, then select
+**File → Export → Export Spectra Bundle**.
 
-## 1. Project Format & Setup
+Before exporting:
 
-### Recommended Format
-**Generic Model** is the recommended format for SpectraEvents.
+1. Give the project a descriptive name. The exporter converts it to the model ID used in YAML:
+   lowercase letters, digits, `_` and `-`, maximum 64 characters.
+2. Put visible cubes in groups. Groups become reusable model parts; their Blockbench UUIDs are the
+   stable internal part IDs, so do not regenerate them after an event already targets an animation.
+3. Use embedded PNG textures only. In Blockbench, embed each texture before export; the exporter
+   rejects an external file reference rather than producing an incomplete bundle.
+4. Keep cube faces textured and use only standard cube geometry. Mesh elements are rejected by both
+   the exporter and the server because vanilla resource-pack item models are cuboid-only. Name animations clearly; supported
+   tracks are position, rotation and scale. Blockbench linear, step, and Catmull-Rom curves import
+   through the runtime's supported interpolation set.
+5. Save the `.bbmodel` directly to `plugins/SpectraEvents/assets/source/`, or export the
+   `.spectra.zip` to that directory when a signed portable bundle is wanted.
 
-### Unsupported Formats
-Java Block/Item, Bedrock, GeckoLib, Modded Entity formats are not strictly supported, though the exporter may attempt a best-effort export. Stick to **Generic Model**.
+The exporter writes only `manifest.json`, `model.bbmodel`, and `textures/*.png`, rewrites texture
+sources to the bundled PNG paths, and computes the SHA-256 checksums before the archive is saved.
+The server independently validates all of that data; exporter output is not trusted merely because it
+comes from the supplied plugin.
 
-### Security Restrictions
-SpectraEvents strictly enforces security upon import:
-- Arbitrary JavaScript is **not** executed.
-- MoLang expressions are **not** executed.
-- Texture files are validated against size limits (max 1024x1024, max 1.5MB).
-- ZIP path traversal vulnerabilities are strictly guarded.
-- Network access is disabled during import.
+Restart the server or run `/spectraevents assets build` on Paper. A successful import registers the
+canonical `.bbmodel` or bundle model ID for `spawn_model` and its animation names for
+`play_animation`. Inspect the import with
+`/spectraevents assets list`, `/spectraevents assets info <model-id>`, and `/spectraevents assets validate <model-id>`.
 
-## 2. Exporter Installation
-
-SpectraEvents comes with a custom Blockbench exporter script.
-
-1. Locate the exporter at `tools/blockbench/spectraevents-exporter/spectra_exporter.js` in the repository.
-2. In Blockbench, go to **File** -> **Plugins**.
-3. Click the **Load Plugin from File** icon (folder icon).
-4. Select `spectra_exporter.js`.
-5. Verify it is active by checking if **Export Spectra Bundle** is available under **File** -> **Export**.
-
-## 3. Model Hierarchy & Pivots
-
-A clean hierarchy is critical for runtime targeting (like hitboxes) and animations.
-
-### Best Practices
-- **GOOD**: `root` -> `body`, `core`, `outer_ring`, `left_arm`, `right_arm`
-- **BAD**: `group1`, `cube17`, `test`, `asdf`
-
-Name your groups descriptively, as these IDs act as your runtime identifiers for animations and interactions.
-
-### Pivots
-Pivots dictate the origin point for rotation and scaling.
-For example, a door should have its pivot on the hinge, not in the center of the model. SpectraEvents respects the Blockbench pivot completely.
-
-## 4. Textures and UV
-
-You do not need to manually copy PNG files to the resource pack. SpectraEvents extracts embedded textures and writes them to the correct `textures/spectra/...` namespace internally.
-
-### UV Mapping Support
-- **Box UV**: Supported.
-- **Per-Face UV**: Supported.
-
-## 5. Animation Authoring
-
-SpectraEvents translates Blockbench animations into native server-side interpolations.
-
-### Supported Properties
-- **Translation** (Movement)
-- **Rotation**
-- **Scale**
-
-### Interpolation Support Matrix
-
-The animation compiler translates Blockbench interpolations to server-side math.
-
-| Interpolation | Status | Notes |
-|---|---|---|
-| Linear | **Supported** | 1:1 direct translation |
-| Step | **Supported** | Snaps to keyframe |
-| Catmull-Rom | **Approximated** | Falls back to Linear/Bezier depending on internal heuristics |
-| Bezier | **Approximated** | Falls back to Linear |
-| Smooth | **Approximated** | Falls back to Linear |
-
-*Note: Unsupported inputs will be approximated to the nearest supported curve.*
-
-### Continuous Rotation vs Orientation
-SpectraEvents supports **continuous rotations**. If you define a keyframe rotating from `0°` to `720°`, the server will execute two full visual spins rather than interpolating the shortest path (orientation).
-
-## 6. Exporting
-
-1. Complete your model and animations.
-2. Go to **File** -> **Export** -> **Export Spectra Bundle**.
-3. Save the resulting `.spectra.zip` file.
-4. Import it to the server using `/event assets import <file>`.
-
-## Feature Matrix
-
-| Feature | Support Status |
-|---|---|
-| Cubes | **Supported** |
-| Groups/hierarchy | **Supported** |
-| Pivot/origin | **Supported** |
-| Textures | **Supported** |
-| Box UV | **Supported** |
-| Per-face UV | **Supported** |
-| Translation animation | **Supported** |
-| Rotation animation | **Supported** |
-| Scale animation | **Supported** |
-| Continuous rotations | **Supported** |
-| Interactions (Hitboxes) | **Partially supported** (Defined via YAML) |
-| Meshes | **Unsupported** |
-| MoLang | **Unsupported** |
-| Scripts | **Unsupported** |
+A new target profile or a changed custom-model-data mapping requires real-client acceptance before
+it is release-ready.

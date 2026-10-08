@@ -7,26 +7,25 @@ Phases describe local lifecycle state for an `EventInstance`. Only one phase is 
 ```yaml
 phases:
   waiting:
-    onEnter:
-      - type: broadcast
-        parameters:
-          message: "Event is waiting."
+    on-enter:
+      - type: broadcast_message
+        message: "Event is waiting."
     transitions:
       - trigger:
           type: manual
         target: active
-  active:
+  active: {}
 ```
 
 ## Supported phase fields
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
-| `onEnter` | list | Actions executed when entering the phase (compiled but not executed yet) |
+| `on-enter` | list | Actions executed when entering the phase |
 | `transitions` | list | Outgoing transition rules for this phase |
 
-Fields such as `components`, `on-exit`, and `on-enter` from design drafts are not parsed in v1.
-Use `onEnter` (camelCase) in authoring files.
+Fields such as `components` and `on-exit` from design drafts are not parsed in v1.
+`onEnter` and `on_enter` are accepted compatibility aliases, but `on-enter` is canonical.
 
 ## Phase map keys
 

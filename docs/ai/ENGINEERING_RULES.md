@@ -44,7 +44,7 @@ separate `MeteorHealthManager`, `PinataHealthManager`, and `MetinHealthManager` 
 ## Commands & Public Naming
 
 - Product name: `SpectraEvents`
-- Root command: `/event`
+- Root command: `/spectraevents`
 - Permission namespace: `spectraevents.*`
 
 ## Update Policy

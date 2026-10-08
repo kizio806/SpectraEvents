@@ -10,7 +10,7 @@ import io.github.kizio806.spectraevents.platform.paper.metadata.SpectraPdcKeys;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
@@ -41,7 +41,7 @@ public final class PaperEntityDeathRouter implements Listener {
 
   @EventHandler(ignoreCancelled = true)
   public void onEntityDeath(EntityDeathEvent event) {
-    Entity entity = event.getEntity();
+    LivingEntity entity = event.getEntity();
     PersistentDataContainer pdc = entity.getPersistentDataContainer();
 
     String instanceIdStr = pdc.get(SpectraPdcKeys.INSTANCE_ID, PersistentDataType.STRING);
@@ -53,18 +53,30 @@ public final class PaperEntityDeathRouter implements Listener {
       EventInstanceId instanceId = new EventInstanceId(UUID.fromString(instanceIdStr));
       EventInstance instance = orchestrationService.getEventInfo(instanceId.toString());
 
+      String waveId = pdc.get(SpectraPdcKeys.WAVE_ID, PersistentDataType.STRING);
+      if (waveId != null && executionEngine != null) {
+        org.bukkit.entity.Player killer = entity.getKiller();
+        ExecutionContext context =
+            killer != null
+                ? new ExecutionContext(killer, killer.getUniqueId(), Map.of())
+                : ExecutionContext.EMPTY;
+        executionEngine.recordWaveEntityDeath(instanceId, waveId, entity.getUniqueId(), context);
+      }
+
       EventEntityDeathDelegate delegate = delegates.get(instance.definitionId().value());
       if (delegate != null) {
         delegate.handleEntityDeath(entity, instance);
       } else if (executionEngine != null) {
-        Object killer = entity instanceof org.bukkit.entity.LivingEntity le ? le.getKiller() : null;
+        org.bukkit.entity.Player killer = entity.getKiller();
         ExecutionContext ctx =
-            killer != null ? new ExecutionContext(killer, Map.of()) : ExecutionContext.EMPTY;
+            killer != null
+                ? new ExecutionContext(killer, killer.getUniqueId(), Map.of())
+                : ExecutionContext.EMPTY;
         executionEngine.evaluateTrigger(
             instanceId, new ConfiguredTriggerDefinition("entity_death"), ctx);
       }
     } catch (IllegalArgumentException e) {
-      // Unknown instance, ignore
+      return;
     }
   }
 }

@@ -15,7 +15,6 @@ import io.github.kizio806.spectraevents.application.repository.InMemoryEventInst
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
-import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -51,6 +50,7 @@ class AirdropClaimRaceTest {
           if (action.type().equalsIgnoreCase("give_item")) {
             giveItemCount.incrementAndGet();
           }
+          return java.util.concurrent.CompletableFuture.completedFuture(true);
         };
 
     engine = new EventExecutionEngine(repository, registry, scheduler, actionPort, stateStore);
@@ -67,16 +67,28 @@ class AirdropClaimRaceTest {
 
   @Test
   void testConcurrentClaimRace() throws Exception {
-    EventInstance instance = engine.startEvent("airdrop", "location_ref");
+    EventInstance instance =
+        engine.startEvent(
+            "airdrop",
+            new io.github.kizio806.spectraevents.application.execution.EventLocation(
+                "world", 0, 64, 0, 0, 0));
 
     // Fast-forward through falling -> locked -> open
     engine.evaluateTrigger(
-        instance.id(), new ConfiguredTriggerDefinition("timer_elapsed")); // falling -> locked
+        instance.id(),
+        new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
+            .TimerElapsedTrigger(java.time.Duration.ofMinutes(15))); // announced -> falling
+    engine.evaluateTrigger(
+        instance.id(),
+        new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
+            .TimerElapsedTrigger(java.time.Duration.ofSeconds(3))); // falling -> locked
 
     // Simulate lock expiration manually since FakeScheduler doesn't fire it automatically
     stateStore.get(instance.id()).ifPresent(state -> state.setLockedUntilMillis(0));
     engine.evaluateTrigger(
-        instance.id(), new ConfiguredTriggerDefinition("timer_elapsed")); // locked -> open
+        instance.id(),
+        new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
+            .TimerElapsedTrigger(java.time.Duration.ofMinutes(5))); // locked -> open
 
     assertEquals("open", repository.findById(instance.id()).get().currentPhase().get().value());
 
@@ -104,15 +116,14 @@ class AirdropClaimRaceTest {
 
     executor.shutdown();
 
-    // Exactly 1 thread should succeed in claiming
-    assertEquals(1, successCount, "Exactly 1 thread should successfully evaluate the trigger");
-
-    // Exactly 1 give_item action should be executed
-    assertEquals(1, giveItemCount.get(), "Exactly 1 give_item action should be executed");
-
-    // Event should be completed
-    EventInstance finalInstance = repository.findById(instance.id()).orElseThrow();
-    assertEquals(EventLifecycleState.COMPLETED, finalInstance.state());
+    // Opening is public: no player reserves the crate and all concurrent opens are accepted.
+    assertEquals(threadCount, successCount);
+    assertEquals(
+        0, giveItemCount.get(), "Loot is delivered only by an atomic inventory slot click");
+    assertEquals(
+        4,
+        stateStore.get(instance.id()).orElseThrow().sharedLootSnapshot().size(),
+        "The configured public pool is generated once before any inventory is opened");
   }
 
   private static class FakeEventTaskScheduler implements EventTaskScheduler {

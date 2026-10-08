@@ -1,87 +1,42 @@
-# Meteor Event Specification
+# Meteor raid
 
-## Purpose
-A high-impact, competitive public event where players race to damage a falling celestial object for ranked rewards.
+`meteor.yml` is the reference large-raid definition. It uses the shared encounter zone,
+tracked-wave, global HUD and durable public-loot primitives; it is not implemented by an
+event-specific coordinator.
 
-## Player Experience
-Players are notified of a falling meteor. They race to the location, wait for it to cool down (locked phase), and then attack it. Rewards are distributed based on damage dealt.
+## Flow
 
-## Event Lifecycle
-Follows the standard global `CREATED` -> `RUNNING` -> `COMPLETED` lifecycle.
+| Phase | Behaviour | Exit |
+|---|---|---|
+| `announced` | Three-minute global warning and HUD. | Warning timer. |
+| `falling` | The model descends for 15 seconds. | Impact. |
+| `impact_lock` | Impact effects and a 45-second protected cooling period. | Cooling timer. |
+| `assault_one` | Melee damage can reduce the core from 100% to 75%. | `fracture_guard`. |
+| `fracture_guard` | Core is protected until its bounded first wave dies. | Clear within two minutes. |
+| `assault_two` | Core can be reduced from 75% to 50%. | `eruption_guard`. |
+| `eruption_guard` | Second bounded wave protects the core. | Clear within two minutes. |
+| `assault_three` | Core can be reduced from 50% to 25%. | `cataclysm`. |
+| `cataclysm` | Meteor Warden and the final bounded wave must die. | Clear within three minutes. |
+| `final_core` | The remaining 25% can be destroyed. | `victory`. |
 
-## Phases
+Each uncleared wave, and the absolute 20-minute encounter deadline, causes `failed`: no loot is
+released and every event-owned model, wave and HUD resource is cleaned up.
 
-1. **ANNOUNCED** (Optional)
-   - Triggers a server-wide broadcast and sets a timer before spawn.
-2. **FALLING**
-   - The meteor spawns high in the sky and descends toward the surface.
-   - **Transitions**: When it hits the ground -> `IMPACT`.
-3. **IMPACT**
-   - Plays a massive sound and particle explosion.
-   - **Transitions**: Immediate (0 ticks) -> `LOCKED`.
-4. **LOCKED**
-   - The meteor is too hot to touch. A countdown is displayed.
-   - **Transitions**: Timer expires -> `ACTIVE`.
-5. **ACTIVE**
-   - The meteor takes damage from players.
-   - **Transitions**: Health reaches zero -> `DESTROYED`.
-6. **DESTROYED**
-   - Destructive animation plays. Rewards are calculated.
-   - **Transitions**: Animation finishes -> `CLEANUP`.
-7. **CLEANUP**
-   - Drops world items, removes visual models, transitions the global state to `COMPLETED`.
+## Combat and rewards
 
-## Spawn
-- **Strategy**: Random Surface (avoids water, lava, restricted biomes).
+Only direct player melee hits on the model hitbox count. The platform passes Bukkit's final
+damage value into the platform-neutral `combat_damage` trigger; the YAML-configured cap and
+per-player cooldown are then applied. Percentage gates clamp a hit at the boundary, so an
+overpowered weapon cannot skip a wave.
 
-## Visuals
-- A large, spherical 3D model (block displays).
-- Trailing fire particles while falling.
-- A Bossbar displaying health during the `ACTIVE` phase.
-- Holograms displaying time remaining during `LOCKED`.
+Victory rolls the YAML loot pool once, persists the resulting slots, then releases tagged item
+entities around the core. The items are public immediately. Their tags and snapshot prevent a
+recovery replay from rerolling or spawning a second copy; normal Minecraft item despawn remains
+five minutes.
 
-## Interactions
-- **Hitbox**: Large interaction entity covering the model. Left-click/damage applies to the `HealthComponent`.
+## Operator configuration
 
-## Components
-- `ModelComponent`, `AnimationComponent`, `TimerComponent`, `HealthComponent`, `LeaderboardComponent`, `BossBarComponent`.
-
-## Triggers
-- `timer-expired`, `health-zero`, `animation-finished`, `ground-collision`.
-
-## Conditions
-- Minimum players online (for auto-start).
-
-## Actions
-- `broadcast`, `play-sound`, `spawn-particles`, `give-reward`.
-
-## Rewards
-- **Distribution**: Top 3 damage dealers receive premium loot. All other participants receive basic loot.
-
-## Leaderboard
-- Tracks cumulative damage dealt per player.
-
-## Event Area
-- Prevents PvP while the meteor is `LOCKED`, enables PvP when `ACTIVE`.
-
-## Persistence & Restart Recovery
-- If the server restarts during `FALLING`, the meteor resumes falling from its saved height.
-- If restarting during `ACTIVE`, health is restored, and the event continues.
-
-## Chunk Behavior
-- The event chunk is force-loaded while the event is `RUNNING`.
-
-## Cleanup
-- All display entities are strictly removed. Global state becomes `COMPLETED`.
-
-## Failure Cases
-- No valid spawn location found (transitions to `FAILED`).
-
-## Abuse / Anti-Dupe Considerations
-- Damage from projectiles must accurately attribute to the shooter.
-- Prevent players from blocking the meteor's fall with obsidian.
-
-## Required Engine Primitives
-- Falling mechanics (interpolation).
-- `HealthComponent`.
-- Ranked `LeaderboardComponent`.
+The definition exposes only bounded scalar parameters to command/GUI overrides: maximum HP,
+damage cap, hit cooldown, timings, zone radius and deadline. Waves, messages, models, animations
+and loot remain YAML-owned. A Meteor reserves a non-overlapping 160-block zone by default and
+counts toward the maximum of three large encounters per world.

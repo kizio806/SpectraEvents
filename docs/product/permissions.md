@@ -5,33 +5,29 @@ SpectraEvents follows a structured permission namespace (`spectraevents.*`). Per
 ## Permission Nodes
 
 ### Global
-- `spectraevents.admin`: Grants access to all `/event commands` and bypasses event-area restrictions.
-- `spectraevents.*`: Alias for `spectraevents.admin`.
-
-### Commands
-- `spectraevents.command.help`: Allow `/event help`. (Usually default true).
-- `spectraevents.command.version`: Allow `/event version`.
+- `spectraevents.admin`: Grants all declared administration features.
 
 ### Events
 - `spectraevents.event.*`: Grants all event instance controls.
 - `spectraevents.event.list`: Allow listing active events.
 - `spectraevents.event.start`: Allow starting events.
-- `spectraevents.event.stop`: Allow gracefully stopping events.
 - `spectraevents.event.cancel`: Allow forcefully cancelling events.
-- `spectraevents.event.info`: Allow checking event status.
-- `spectraevents.event.teleport`: Allow teleporting to events.
+- `spectraevents.event.trigger`: Allow manually advancing a configured diagnostic trigger.
+- `spectraevents.event.inspect`: Allow inspecting event runtime state.
 
 ### Definitions
 - `spectraevents.definition.*`: Grants all definition management controls.
 - `spectraevents.definition.list`: Allow listing definitions.
-- `spectraevents.definition.info`: Allow viewing definition info.
 - `spectraevents.definition.validate`: Allow running validation checks.
 - `spectraevents.definition.reload`: Allow reloading configurations.
 
-### Visuals
-- `spectraevents.model.preview`: Allow previewing 3D models.
-- `spectraevents.animation.preview`: Allow previewing animations.
+### Paper-only administration
+- `spectraevents.admin.assets` with `build`, `import`, `info`, `list`, and `validate` children.
+- `spectraevents.admin.model` with `info` and `list` children.
+- `spectraevents.gui`, `spectraevents.integrations`, and `spectraevents.update.*`.
 
-### Debug & Testing
-- `spectraevents.reward.test`: Allow simulating loot tables.
-- `spectraevents.debug`: Grants access to all debugging tools (hitboxes, performance metrics, verbose logging).
+### Other declared nodes
+- `spectraevents.status`, `spectraevents.doctor`, `spectraevents.schedule`.
+- `spectraevents.rewards.claim`: allows a player to claim their own durable rewards; default `true`.
+- `spectraevents.rewards.reconcile`: allows an administrator to inspect and explicitly resolve
+  crash-ambiguous `DELIVERING` claims. It must not be granted to ordinary players.

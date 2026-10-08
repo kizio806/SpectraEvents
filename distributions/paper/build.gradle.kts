@@ -1,6 +1,8 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.GradleException
+import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.tasks.Jar
 import xyz.jpenilla.runpaper.task.RunServer
 import java.util.zip.ZipFile
 
@@ -12,7 +14,6 @@ plugins {
 group = "io.github.kizio806.distribution"
 
 dependencies {
-    implementation(project(":spectraevents-api"))
     implementation(project(":spectraevents-core"))
     implementation(project(":spectraevents-application"))
     implementation(project(":adapters:storage-sqlite"))
@@ -52,6 +53,14 @@ val shadowJar =
         }
     }
 
+tasks.named<Jar>("jar") {
+    enabled = false
+}
+
+tasks.named<Jar>("sourcesJar") {
+    enabled = false
+}
+
 val verifyPluginArtifact =
     tasks.register("verifyPluginArtifact") {
         group = "verification"
@@ -78,10 +87,14 @@ val verifyPluginArtifact =
                 listOf(
                     "plugin.yml",
                     "io/github/kizio806/spectraevents/platform/paper/SpectraEventsPlugin.class",
+                    "io/github/kizio806/spectraevents/platform/paper/PaperBootstrap.class",
+                    "io/github/kizio806/spectraevents/platform/paper/command/SpectraMainCommand.class",
+                    "io/github/kizio806/spectraevents/platform/paper/interaction/PaperInteractionRouter.class",
                     "io/github/kizio806/spectraevents/platform/paper/common/PaperLifecycleReporter.class",
                     "io/github/kizio806/spectraevents/application/SpectraEventsApplication.class",
                     "io/github/kizio806/spectraevents/adapter/storage/sqlite/SQLiteEventInstanceRepository.class",
                     "io/github/kizio806/spectraevents/adapter/update/http/HttpUpdateAdapter.class",
+                    "org/sqlite/JDBC.class",
                 )
             val missing = requiredSuffixes.filter { required -> entries.none { it.endsWith(required) } }
             val forbidden =
@@ -91,12 +104,26 @@ val verifyPluginArtifact =
                         entry.contains(".idea/") ||
                         entry.contains(".gradle/") ||
                         entry.startsWith("server/") ||
-                        entry.startsWith("dev/spectraevents/")
+                        entry.startsWith("dev/spectraevents/") ||
+                        entry.startsWith("io/github/kizio806/spectraevents/platform/spigot/")
                 }
 
-            if (missing.isNotEmpty() || forbidden.isNotEmpty()) {
+            val pluginDescriptor =
+                ZipFile(archive).use { zip ->
+                    zip.getInputStream(zip.getEntry("plugin.yml")).use { input ->
+                        String(input.readAllBytes(), Charsets.UTF_8)
+                    }
+                }
+            val descriptorValid =
+                pluginDescriptor.contains(
+                    "main: io.github.kizio806.spectraevents.platform.paper.SpectraEventsPlugin",
+                ) &&
+                    pluginDescriptor.contains("api-version: '26.1'") &&
+                    pluginDescriptor.contains("folia-supported: true")
+
+            if (missing.isNotEmpty() || forbidden.isNotEmpty() || !descriptorValid) {
                 throw GradleException(
-                    "Invalid plugin artifact. Missing=$missing, forbidden=$forbidden",
+                    "Invalid Paper artifact. Missing=$missing, forbidden=$forbidden, descriptorValid=$descriptorValid",
                 )
             }
         }
@@ -113,4 +140,34 @@ tasks.named("check") {
 tasks.named<RunServer>("runServer") {
     minecraftVersion("26.2")
     runDirectory(rootProject.file("server"))
+    pluginJars(shadowJar.flatMap { it.archiveFile })
+}
+
+val localModelTestDirectory = layout.buildDirectory.dir("local-model-test-server")
+val prepareModelTestServer =
+    tasks.register<Sync>("prepareModelTestServer") {
+        group = "application"
+        description = "Creates an isolated Paper 26.2 server with the bundled models and presets enabled."
+        from(project(":spectraevents-application").file("src/main/resources/assets/source")) {
+            into("plugins/SpectraEvents/assets/source")
+        }
+        from(project(":spectraevents-application").file("src/main/resources/events")) {
+            include("*.yml")
+            into("plugins/SpectraEvents/events")
+        }
+        into(localModelTestDirectory)
+    }
+
+tasks.register<RunServer>("runModelTestServer") {
+    group = "application"
+    description =
+        "Validates the bundled assets, then runs an isolated Paper 26.2 server for visual model tests."
+    dependsOn(
+        shadowJar,
+        prepareModelTestServer,
+        ":adapters:assets-blockbench:buildReleaseResourcePacks",
+    )
+    minecraftVersion("26.2")
+    runDirectory(localModelTestDirectory.get().asFile)
+    pluginJars(shadowJar.flatMap { it.archiveFile })
 }
