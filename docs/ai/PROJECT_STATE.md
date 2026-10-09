@@ -62,8 +62,9 @@ Data-driven 3D model engine for Paper, Purpur, Spigot, and CraftBukkit across Mi
   - Spigot artifact (`SpectraEvents-<version>-spigot.jar`) supports Spigot and Bukkit-compatible servers.
   - Sponge: NOT SUPPORTED, NO ADAPTER, NO ARTIFACT, NO RELEASE. Completely removed per product decision.
   - Release workflow targets the 26.1–26.3 compatibility band and must block publication unless its real-server matrix passes.
-  - Configured multi-artifact release pipeline with one Modrinth version containing the Paper and
-    Spigot distributions, plus SHA-256 verification.
+  - Configured a platform-specific Modrinth release pipeline: Paper/Purpur, Spigot/CraftBukkit,
+    and Folia each receive a dedicated version with exactly one compatible JAR, plus SHA-256
+    verification on GitHub Releases.
 - [x] Professional 3D Model Runtime:
   - Built platform-neutral domain model & math primitives (`Vector3`, `Quaternion`, `EulerRotation`, `ModelTransform`, `ModelDefinition`, `ModelPartDefinition`, `InteractionDefinition`).
   - Hierarchical matrix, pivot, scale, and intrinsic Z-X-Y Euler-to-Quaternion rotation math.
