@@ -52,13 +52,12 @@ jobs:
           BASE_REPO: ${{ github.repository }}
         run: |
           if [ -n "${SONAR_TOKEN:-}" ]; then
-            # Ensure SonarCloud's default branch matches GitHub's 'main' branch
-            curl -s -X POST 'https://sonarcloud.io/api/project_branches/rename' \
-              -H "Authorization: Bearer ${SONAR_TOKEN}" \
-              -d "project=kizio806_SpectraEvents" \
-              -d "name=main" || true
+            WAIT_PARAM=""
+            if [ "$EVENT_NAME" = "pull_request" ]; then
+              WAIT_PARAM="-Dsonar.qualitygate.wait=true"
+            fi
 
-            ./gradlew --no-daemon clean check jacocoRootReport sonar -Dsonar.qualitygate.wait=true
+            ./gradlew --no-daemon clean check jacocoRootReport sonar $WAIT_PARAM
           else
             if [ "$EVENT_NAME" = "pull_request" ] && [ "$HEAD_REPO" != "$BASE_REPO" ]; then
               echo "::notice ::SONAR_TOKEN is unavailable for fork PR. Running clean check and JaCoCo coverage reports locally."
