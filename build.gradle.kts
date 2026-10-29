@@ -247,16 +247,6 @@ sonar {
         property("sonar.projectKey", "kizio806_SpectraEvents")
         property("sonar.organization", "kizio806")
         property("sonar.host.url", "https://sonarcloud.io")
-        property(
-            "sonar.coverage.jacoco.xmlReportPaths",
-            listOf(
-                layout.buildDirectory
-                    .file("reports/jacoco/jacocoRootReport/jacocoRootReport.xml")
-                    .get()
-                    .asFile.absolutePath,
-                "$projectDir/build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml",
-            ).joinToString(","),
-        )
         property("sonar.exclusions", "distributions/**,server/**")
         property("sonar.coverage.exclusions", "distributions/**,server/**,build-logic/**")
         property("sonar.cpd.exclusions", "distributions/**,server/**,build-logic/**")
@@ -264,22 +254,27 @@ sonar {
 }
 
 subprojects {
+    val isDistribution = project.path.startsWith(":distributions")
     sonar {
         properties {
-            val subprojectReport =
-                layout.buildDirectory
-                    .file("reports/jacoco/test/jacocoTestReport.xml")
-                    .get()
-                    .asFile
-            val rootReport =
-                rootProject.layout.buildDirectory
-                    .file("reports/jacoco/jacocoRootReport/jacocoRootReport.xml")
-                    .get()
-                    .asFile
-            property(
-                "sonar.coverage.jacoco.xmlReportPaths",
-                listOf(subprojectReport.absolutePath, rootReport.absolutePath).joinToString(","),
-            )
+            if (isDistribution) {
+                property("sonar.skip", "true")
+            } else {
+                val subprojectReport =
+                    layout.buildDirectory
+                        .file("reports/jacoco/test/jacocoTestReport.xml")
+                        .get()
+                        .asFile
+                val rootReport =
+                    rootProject.layout.buildDirectory
+                        .file("reports/jacoco/jacocoRootReport/jacocoRootReport.xml")
+                        .get()
+                        .asFile
+                property(
+                    "sonar.coverage.jacoco.xmlReportPaths",
+                    listOf(subprojectReport.absolutePath, rootReport.absolutePath).joinToString(","),
+                )
+            }
         }
     }
 }
