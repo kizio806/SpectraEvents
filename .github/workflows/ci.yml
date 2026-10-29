@@ -43,7 +43,7 @@ jobs:
           validate-wrappers: true
 
       - name: Run formatting, static analysis, and boundary checks
-        run: ./gradlew --no-daemon spotlessCheck checkstyleMain pmdMain spotbugsMain verifyPlatformBoundaries
+        run: ./gradlew --no-daemon spotlessCheck checkstyleMain pmdMain spotbugsMain verifyPlatformBoundaries validateStructure validateSourceHygiene
 
       - name: Validate documented release blockers
         run: |
@@ -263,6 +263,15 @@ jobs:
 
       - name: Run root quality gate
         run: ./gradlew --no-daemon clean check build
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574 # v5.4.0
+        with:
+          files: build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml
+          flags: unittests
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: ${{ github.repository }}
 
       - name: Scan locked dependencies for known vulnerabilities
         uses: google/osv-scanner-action/osv-scanner-action@8dc09193bb540e09b23da07ad7e30bd33bf87018 # v2.3.8

@@ -1,27 +1,20 @@
 version: 2
+# Dependabot maintains GitHub Actions workflows and actions.
+# Gradle dependencies, plugins, catalogs, and wrapper updates are managed by Renovate.
 updates:
-  - package-ecosystem: gradle
-    directory: /
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
-      interval: weekly
-      day: monday
-      time: '05:00'
-      timezone: Europe/Warsaw
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Europe/Warsaw"
     open-pull-requests-limit: 5
-    groups:
-      gradle-dependencies:
-        patterns:
-          - '*'
-
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
-      day: monday
-      time: '05:30'
-      timezone: Europe/Warsaw
-    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+      - "github-actions"
     groups:
       github-actions:
         patterns:
-          - '*'
+          - "*"

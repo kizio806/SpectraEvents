@@ -2,9 +2,13 @@ name: CodeQL
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'release/**'
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - 'release/**'
   schedule:
     - cron: '17 3 * * 1'
 
@@ -41,9 +45,12 @@ jobs:
         with:
           languages: java-kotlin
           build-mode: manual
+          queries: security-extended,security-and-quality
 
       - name: Build every Java and Kotlin source set for CodeQL extraction
         run: ./gradlew --no-daemon --no-build-cache clean classes testClasses integrationTestClasses
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:java-kotlin"

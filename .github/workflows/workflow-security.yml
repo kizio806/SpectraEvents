@@ -1,0 +1,53 @@
+name: "Workflow Security"
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+    paths:
+      - '.github/workflows/**'
+  pull_request:
+    branches:
+      - main
+      - 'release/**'
+    paths:
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+concurrency:
+  group: workflow-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: Lint GitHub Actions Workflows
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Run actionlint
+        uses: raven-actions/actionlint@v2
+        with:
+          flags: "-color"
+
+  zizmor:
+    name: Security Audit Workflows with Zizmor
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Run zizmor
+        uses: woodruffw/zizmor-action@v1
+        with:
+          args: "--persona=auditor"

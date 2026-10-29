@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "💬 General Discussion"
+    url: "https://github.com/kizio806/SpectraEvents/discussions"
+    about: "Questions, ideas, and general community chat."
+  - name: "📦 Download on Modrinth"
+    url: "https://modrinth.com/plugin/spectraevents"
+    about: "Download the latest verified release JARs."
+  - name: "📖 Documentation & Wiki"
+    url: "https://github.com/kizio806/SpectraEvents/wiki"
+    about: "Installation, event authoring, configuration, and diagnostics guides."

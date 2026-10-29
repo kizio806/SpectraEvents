@@ -54,16 +54,20 @@ jobs:
               echo "::error::Tag ${GITHUB_REF_NAME} does not match project version ${VERSION}"
               exit 1
             }
-            test "$(git cat-file -t "${GITHUB_REF_NAME}")" = tag || {
-              echo "::error::Release tags must be annotated and signed, not lightweight"
+            TAG_TYPE="$(git cat-file -t "${GITHUB_REF_NAME}" 2>/dev/null || echo "unknown")"
+            test "$TAG_TYPE" = tag || {
+              echo "::error::Release tags must be annotated git tags, not lightweight commits (got: $TAG_TYPE)"
               exit 1
             }
-            TAG_SHA="$(git rev-parse "refs/tags/${GITHUB_REF_NAME}")"
-            VERIFIED="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${TAG_SHA}" --jq '.verification.verified')"
-            test "$VERIFIED" = true || {
-              echo "::error::GitHub did not verify the signed tag ${GITHUB_REF_NAME}"
+            TAG_SHA="$(git rev-parse "${GITHUB_REF_NAME}^{tag}" 2>/dev/null || git rev-parse "refs/tags/${GITHUB_REF_NAME}" 2>/dev/null)"
+            TAG_DATA="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${TAG_SHA}" 2>&1 || true)"
+            VERIFIED="$(echo "$TAG_DATA" | jq -r '.verification.verified // false' 2>/dev/null || echo "false")"
+            REASON="$(echo "$TAG_DATA" | jq -r '.verification.reason // "unknown"' 2>/dev/null || echo "unknown")"
+            if [ "$VERIFIED" != "true" ]; then
+              echo "::error::GitHub cryptographic signature verification failed for tag ${GITHUB_REF_NAME} (reason: ${REASON})"
+              echo "::error::Release tags must be signed (git tag -s v${VERSION} -m 'Release v${VERSION}') with a GPG or SSH key registered on your GitHub account."
               exit 1
-            }
+            fi
           fi
           if [[ "$VERSION" == *-alpha* ]]; then
             TYPE=alpha

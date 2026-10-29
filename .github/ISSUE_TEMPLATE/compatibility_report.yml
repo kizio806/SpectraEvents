@@ -1,0 +1,39 @@
+name: "Compatibility Report"
+description: "Report verification findings on server platforms, forks, or third-party integrations."
+title: "[Compatibility] "
+labels: ["compatibility", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report test findings on supported platforms (Paper, Purpur, Folia, Spigot) or optional plugin integrations.
+
+  - type: input
+    id: server_impl
+    attributes:
+      label: "Server Platform and Exact Build"
+      placeholder: "e.g. Paper 26.2 build 74 / Purpur 26.2 build 52"
+    validations:
+      required: true
+
+  - type: input
+    id: mc_version
+    attributes:
+      label: "Minecraft Version"
+      placeholder: "e.g. 26.2"
+    validations:
+      required: true
+
+  - type: textarea
+    id: observations
+    attributes:
+      label: "Verification Findings"
+      description: "Describe the scenarios tested (fresh install, reference presets, animations, persistence, restart recovery)."
+    validations:
+      required: true
+
+  - type: textarea
+    id: integration_status
+    attributes:
+      label: "Integration States"
+      description: "Output from /spectraevents doctor regarding optional integrations (LuckPerms, Vault, WorldGuard, etc.)."
