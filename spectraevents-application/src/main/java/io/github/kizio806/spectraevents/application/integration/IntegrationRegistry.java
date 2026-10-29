@@ -30,9 +30,11 @@ public final class IntegrationRegistry {
     return Collections.unmodifiableMap(integrations);
   }
 
+  public long activeCount() {
+    return integrations.values().stream().filter(i -> i.state() == IntegrationState.ACTIVE).count();
+  }
+
   public long enabledCount() {
-    return integrations.values().stream()
-        .filter(i -> i.state() == IntegrationState.ENABLED)
-        .count();
+    return activeCount();
   }
 }

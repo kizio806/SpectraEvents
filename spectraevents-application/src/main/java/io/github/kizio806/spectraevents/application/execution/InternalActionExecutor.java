@@ -3,24 +3,32 @@ package io.github.kizio806.spectraevents.application.execution;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
 import io.github.kizio806.spectraevents.application.port.RewardClaimRepository;
+import io.github.kizio806.spectraevents.application.service.RewardMailboxService;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import io.github.kizio806.spectraevents.core.event.execution.TransitionRule;
 import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
 import io.github.kizio806.spectraevents.core.event.execution.action.CoreActions;
+import io.github.kizio806.spectraevents.core.event.execution.action.PlatformActions;
 import io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseDefinition;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
+import io.github.kizio806.spectraevents.core.gameplay.contribution.ContributionRanking;
 import io.github.kizio806.spectraevents.core.gameplay.health.Health;
 import io.github.kizio806.spectraevents.core.gameplay.hits.HitCounter;
 import io.github.kizio806.spectraevents.core.gameplay.reward.RewardClaim;
+import io.github.kizio806.spectraevents.core.gameplay.reward.RewardClaimStatus;
 import io.github.kizio806.spectraevents.core.gameplay.reward.RewardItem;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.logging.Logger;
 
 /** Handles execution of built-in domain actions. */
 class InternalActionExecutor {
+
+  private static final Logger LOGGER = Logger.getLogger(InternalActionExecutor.class.getName());
 
   private final EventInstanceRepository repository;
   private final List<IntegrationActionResolver> actionResolvers;
@@ -106,35 +114,72 @@ class InternalActionExecutor {
       if (snapshot.isEmpty()) {
         return CompletableFuture.completedFuture(true);
       }
+      RewardMailboxService mailboxService = new RewardMailboxService(claimRepository);
       List<CompletableFuture<Boolean>> deliveries = new java.util.ArrayList<>();
-      for (java.util.UUID participant : state.participants()) {
-        java.util.UUID claimId =
-            java.util.UUID.nameUUIDFromBytes(
+      for (UUID participant : state.participants()) {
+        UUID claimId =
+            UUID.nameUUIDFromBytes(
                 (instance.id() + ":participant-rewards:" + participant)
                     .getBytes(StandardCharsets.UTF_8));
         deliveries.add(
-            claimRepository
-                .savePendingDurablyAsync(
-                    new RewardClaim(
-                        claimId,
-                        instance.id(),
-                        participant,
-                        snapshot,
-                        io.github.kizio806.spectraevents.core.gameplay.reward.RewardClaimStatus
-                            .PENDING,
-                        java.time.Instant.now(),
-                        null))
-                .thenCompose(
-                    ignored -> platformActionPort.deliverRewardOrDrop(participant, snapshot))
-                .thenCompose(
-                    delivered ->
-                        Boolean.TRUE.equals(delivered)
-                            ? claimRepository.markDeliveredAsync(claimId)
-                            : CompletableFuture.completedFuture(false))
-                .handle((ignored, failure) -> true));
+            saveAndAttemptDelivery(
+                claimRepository,
+                mailboxService,
+                new RewardClaim(
+                    claimId,
+                    instance.id(),
+                    participant,
+                    snapshot,
+                    RewardClaimStatus.PENDING,
+                    java.time.Instant.now(),
+                    null)));
       }
-      return CompletableFuture.allOf(deliveries.toArray(CompletableFuture[]::new))
-          .thenApply(ignored -> true);
+      return allSuccessful(deliveries);
+    }
+
+    if (action instanceof PlatformActions.AwardPodiumAction awardPodium) {
+      if (!(repository instanceof RewardClaimRepository claimRepository)) {
+        throw new IllegalStateException("Reward-claim storage is unavailable");
+      }
+      List<UUID> ranked =
+          ContributionRanking.podium(
+              state.contribution(),
+              state.contribution().contributions().keySet(),
+              state.minimumContribution(),
+              state.contributionThresholdMillis());
+      return platformActionPort
+          .announcePodium(instance, ranked)
+          .thenCompose(
+              ignored -> {
+                RewardMailboxService mailboxService = new RewardMailboxService(claimRepository);
+                List<CompletableFuture<Boolean>> deliveries = new java.util.ArrayList<>();
+                for (int rank = 0;
+                    rank < Math.min(ranked.size(), awardPodium.pools().size());
+                    rank++) {
+                  UUID winner = ranked.get(rank);
+                  PlatformActions.PodiumPool pool = awardPodium.pools().get(rank);
+                  List<RewardItem> snapshot = rollPodiumPool(pool);
+                  if (!snapshot.isEmpty()) {
+                    UUID claimId =
+                        UUID.nameUUIDFromBytes(
+                            (instance.id() + ":podium-reward:" + rank + ":" + winner)
+                                .getBytes(StandardCharsets.UTF_8));
+                    deliveries.add(
+                        saveAndAttemptDelivery(
+                            claimRepository,
+                            mailboxService,
+                            new RewardClaim(
+                                claimId,
+                                instance.id(),
+                                winner,
+                                snapshot,
+                                RewardClaimStatus.PENDING,
+                                java.time.Instant.now(),
+                                null)));
+                  }
+                }
+                return allSuccessful(deliveries);
+              });
     }
 
     if (action instanceof CoreActions.ApplyDamageAction applyDamage) {
@@ -280,5 +325,56 @@ class InternalActionExecutor {
     if (updated.isDepleted()) {
       engine.evaluateTrigger(instance.id(), new CoreTriggers.HealthDepletedTrigger(), context);
     }
+  }
+
+  private static boolean acceptedAutomaticDeliveryResult(
+      UUID claimId, RewardMailboxService.ClaimDeliveryResult result) {
+    return switch (result.status()) {
+      case DELIVERED -> true;
+      case RETAINED -> {
+        LOGGER.warning(
+            "Reward delivery for claim " + claimId + " was retained in mailbox for player");
+        yield false;
+      }
+      case NOT_AVAILABLE, BUSY ->
+          throw new IllegalStateException(
+              "Reward claim was not available for automatic delivery: " + claimId);
+    };
+  }
+
+  private CompletableFuture<Boolean> saveAndAttemptDelivery(
+      RewardClaimRepository claimRepository,
+      RewardMailboxService mailboxService,
+      RewardClaim claim) {
+    return claimRepository
+        .savePendingDurablyAsync(claim)
+        .thenCompose(
+            ignored ->
+                mailboxService.claim(
+                    claim.playerId(), claim.id(), platformActionPort::deliverRewardOrDrop))
+        .thenApply(result -> acceptedAutomaticDeliveryResult(claim.id(), result));
+  }
+
+  private static List<RewardItem> rollPodiumPool(PlatformActions.PodiumPool pool) {
+    return pool.items().stream()
+        .filter(item -> ThreadLocalRandom.current().nextInt(100) < item.chance())
+        .map(item -> new RewardItem(item.material(), item.amount()))
+        .toList();
+  }
+
+  private static CompletableFuture<Boolean> allSuccessful(
+      List<CompletableFuture<Boolean>> deliveries) {
+    return CompletableFuture.allOf(deliveries.toArray(CompletableFuture[]::new))
+        .thenApply(
+            ignored ->
+                deliveries.stream()
+                    .allMatch(
+                        future -> {
+                          try {
+                            return Boolean.TRUE.equals(future.join());
+                          } catch (RuntimeException exception) {
+                            return false;
+                          }
+                        }));
   }
 }

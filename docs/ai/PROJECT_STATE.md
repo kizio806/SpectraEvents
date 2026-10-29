@@ -49,6 +49,25 @@ Data-driven 3D model engine for Paper, Purpur, Spigot, and CraftBukkit across Mi
   - Event runtime state and initial instance state are durably persisted through the single writer; external Minecraft side effects cannot be made transactionally exactly-once with SQLite.
   - Demonstrated full correctness under intense concurrent load via `SQLiteConcurrencyBenchmarkTest` and `AirdropClaimRaceTest`.
   - Platform actions use `GlobalRegionScheduler`, `RegionScheduler`, and `EntityScheduler` according to ownership; release claims remain gated by the real-server matrix.
+- [x] Production Hardening & Code-Level Blocker Resolution:
+  - Multi-timer deadline persistence and recovery across restarts implemented with fallback support (`SE-P1-001`).
+  - Durable mailbox claim reservation before automatic reward delivery and failure reconciliation (`SE-P0-001`, `SE-P0-002`).
+  - Durable mailbox claim processing for podium winners with announcement delegation (`SE-P1-011`).
+  - 5-state dynamic integration lifecycle (`ABSENT`, `AVAILABLE`, `ACTIVE`, `DEGRADED`, `FAILED`) across Paper & Spigot with GUI and command diagnostics (`SE-P1-009`).
+  - Comprehensive operational readiness validator covering definitions, models, animations, asset pipelines, and delivery configurations.
+  - Automated structural (`validate-structure.sh`) and source hygiene (`validate-source-hygiene.sh`) verification gates wired into Gradle `check` and CI.
+- [x] CI/CD, Static Analysis, Security Automation and Repository Bots (Jump Delay Fix Benchmark):
+  - SonarCloud multi-project integration with project key `kizio806_SpectraEvents` and workflow (`sonarcloud.yml`).
+  - JaCoCo aggregate root coverage report (`jacocoRootReport`) aggregating 375 classes in 80 packages, wired into `./gradlew check` and Codecov action with `codecov.yml` component boundaries.
+  - CodeQL analysis expanded with `security-extended,security-and-quality` queries.
+  - Dependency Review workflow (`dependency-review.yml`) for pull requests with high-severity policy.
+  - Secret scanning via Gitleaks (`gitleaks.yml`, `.gitleaks.toml`).
+  - Workflow security analysis via Zizmor and Actionlint (`workflow-security.yml`).
+  - Coordinated dependency automation: Renovate (`renovate.json`) managing Gradle dependencies, plugins, and wrapper; Dependabot (`dependabot.yml`) managing GitHub Actions without overlap.
+  - Automatic pull request path labeler (`labeler.yml` and `labeler.yml` workflow).
+  - Issue templates (`config.yml`, `bug_report.yml`, `feature_request.yml`, `compatibility_report.yml`).
+  - Documentation GitHub Wiki sync workflow (`wiki-sync.yml`) syncing `wiki/`.
+  - Release pipeline signed tag verification hardened with resilient reason reporting and runtime smoke-test `JAVA_HOME` awareness.
 - [x] Production Hardening & Integrations:
   - Added full dynamic integration resolver via `IntegrationRegistry`.
   - Integrated Optional dependencies: `LuckPerms`, `WorldGuard`, `Vault`, `PlaceholderAPI`, `MiniPlaceholders`.
@@ -130,6 +149,9 @@ Data-driven 3D model engine for Paper, Purpur, Spigot, and CraftBukkit across Mi
 - Release eligibility checks artifacts, the CI runtime matrix and the resource-pack evidence manifest.
   Complete current-build runtime evidence and, when delivery is enabled, real-client acceptance remain
   required before publication.
+- Code-level P0/P1 blockers (SE-P0-001, SE-P0-002, SE-P1-001, SE-P1-009, SE-P1-011) have verified unit
+  and integration test coverage; the project remains strictly pre-release (`0.1.1-beta.2`) awaiting
+  verified real-server matrix evidence.
 
 ## Next Planned Milestone
 
@@ -150,4 +172,4 @@ V1 release candidate: confirm the real-server matrix on the current build, prepa
 
 ## Last Updated
 
-2026-10-03
+2026-10-29

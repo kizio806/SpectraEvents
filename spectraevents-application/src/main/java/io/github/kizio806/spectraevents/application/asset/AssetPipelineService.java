@@ -30,6 +30,9 @@ public final class AssetPipelineService {
   private final Map<String, String> sourceCache = new HashMap<>();
   private final Map<String, SpectraAssetDocument> compiledDocuments = new HashMap<>();
   private boolean resourcePackDirty;
+  private volatile boolean building;
+  private volatile boolean ready;
+  private volatile String lastFailure;
 
   public AssetPipelineService(
       AssetImportPort importPort,
@@ -54,15 +57,17 @@ public final class AssetPipelineService {
   }
 
   public synchronized void buildAssets() {
-    LOGGER.fine("Starting Asset Pipeline build...");
-    if (!Files.exists(sourceDirectory)) {
-      LOGGER.fine("Source directory does not exist: " + sourceDirectory);
-      return;
-    }
-
-    List<String> failures = new ArrayList<>();
+    building = true;
     try {
+      LOGGER.fine("Starting Asset Pipeline build...");
+      if (!Files.exists(sourceDirectory)) {
+        LOGGER.fine("Source directory does not exist: " + sourceDirectory);
+        ready = true;
+        lastFailure = null;
+        return;
+      }
 
+      List<String> failures = new ArrayList<>();
       try (java.util.stream.Stream<Path> stream = Files.walk(sourceDirectory)) {
         stream
             .filter(Files::isRegularFile)
@@ -71,7 +76,6 @@ public final class AssetPipelineService {
                 path -> {
                   try {
                     importSource(path);
-
                   } catch (Exception e) {
                     LOGGER.severe("Failed to compile asset source " + path + ": " + e.getMessage());
                     failures.add(path.getFileName() + ": " + e.getMessage());
@@ -84,9 +88,35 @@ public final class AssetPipelineService {
             "Asset pipeline rejected bundle(s): " + String.join("; ", failures));
       }
       rebuildResourcePackIfDirty();
-    } catch (IOException e) {
-      throw new IllegalStateException("Failed to walk asset source directory", e);
+      ready = true;
+      lastFailure = null;
+    } catch (RuntimeException e) {
+      ready = false;
+      lastFailure = e.getMessage();
+      throw e;
+    } catch (Exception e) {
+      ready = false;
+      lastFailure = e.getMessage();
+      throw new IllegalStateException("Failed to build assets", e);
+    } finally {
+      building = false;
     }
+  }
+
+  public boolean isBuilding() {
+    return building;
+  }
+
+  public boolean isReady() {
+    return ready;
+  }
+
+  public String lastFailure() {
+    return lastFailure;
+  }
+
+  public AssetTargetProfile targetProfile() {
+    return targetProfile;
   }
 
   /** Runs filesystem parsing and resource-pack generation away from a platform scheduler thread. */

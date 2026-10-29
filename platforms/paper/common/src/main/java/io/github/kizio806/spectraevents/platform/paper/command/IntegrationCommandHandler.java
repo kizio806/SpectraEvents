@@ -38,9 +38,11 @@ public final class IntegrationCommandHandler {
       var info = entry.getValue();
       NamedTextColor color =
           switch (info.state()) {
-            case ENABLED -> NamedTextColor.GREEN;
-            case DISABLED -> NamedTextColor.YELLOW;
-            case MISSING -> NamedTextColor.GRAY;
+            case ACTIVE -> NamedTextColor.GREEN;
+            case AVAILABLE -> NamedTextColor.YELLOW;
+            case DEGRADED -> NamedTextColor.GOLD;
+            case FAILED -> NamedTextColor.RED;
+            case ABSENT -> NamedTextColor.GRAY;
           };
       sender.sendMessage(
           messages

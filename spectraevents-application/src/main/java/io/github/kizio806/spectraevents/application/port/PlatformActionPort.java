@@ -62,6 +62,16 @@ public interface PlatformActionPort {
     return CompletableFuture.completedFuture(false);
   }
 
+  default CompletableFuture<Boolean> announcePodium(
+      EventInstance instance, List<UUID> rankedPlayerIds) {
+    return announcePodium(instance.id(), rankedPlayerIds);
+  }
+
+  default CompletableFuture<Boolean> announcePodium(
+      EventInstanceId instanceId, List<UUID> rankedPlayerIds) {
+    return CompletableFuture.completedFuture(true);
+  }
+
   /** Registers the engine callback used when an asynchronously scheduled platform action fails. */
   default void setFatalActionHandler(BiConsumer<EventInstanceId, Throwable> handler) {}
 }

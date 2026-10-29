@@ -208,16 +208,30 @@ public final class PaperBootstrap {
                 .class,
             plugin.getClass().getClassLoader())) {
       if (org.bukkit.Bukkit.getPluginManager().getPlugin(module.requiredPluginName()) != null) {
+        String pluginName = module.requiredPluginName();
         try {
           module.initialize(integrationContext);
-        } catch (RuntimeException e) {
+          String existingDetails =
+              integrationRegistry
+                  .get(pluginName)
+                  .map(
+                      io.github.kizio806.spectraevents.application.integration.IntegrationRegistry
+                              .IntegrationInfo
+                          ::details)
+                  .orElse("Active");
+          integrationRegistry.register(
+              pluginName,
+              io.github.kizio806.spectraevents.application.integration.IntegrationState.ACTIVE,
+              existingDetails);
+        } catch (Exception e) {
+          String reason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+          integrationRegistry.register(
+              pluginName,
+              io.github.kizio806.spectraevents.application.integration.IntegrationState.FAILED,
+              "Initialization failed: " + reason);
           plugin
               .getLogger()
-              .warning(
-                  "Failed to initialize integration "
-                      + module.requiredPluginName()
-                      + ": "
-                      + e.getMessage());
+              .warning("Failed to initialize integration " + pluginName + ": " + reason);
         }
       }
     }

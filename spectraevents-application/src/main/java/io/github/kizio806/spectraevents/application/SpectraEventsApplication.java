@@ -1,9 +1,16 @@
 package io.github.kizio806.spectraevents.application;
 
+import io.github.kizio806.spectraevents.application.asset.AssetPipelineService;
+import io.github.kizio806.spectraevents.application.asset.AssetTargetProfile;
+import io.github.kizio806.spectraevents.application.asset.delivery.ResourcePackDeliveryCoordinator;
+import io.github.kizio806.spectraevents.application.asset.delivery.ResourcePackDeliverySettings;
 import io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompiler;
 import io.github.kizio806.spectraevents.application.config.loader.DefinitionLoader;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
+import io.github.kizio806.spectraevents.application.config.registry.RegisteredEventDefinition;
+import io.github.kizio806.spectraevents.application.config.validation.ValidationDiagnostic;
 import io.github.kizio806.spectraevents.application.config.yaml.EventSpecYamlParser;
+import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.model.animation.registry.AnimationDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.model.animation.runtime.ActiveAnimationRegistry;
 import io.github.kizio806.spectraevents.application.model.animation.runtime.AnimationRuntimeService;
@@ -19,6 +26,7 @@ import io.github.kizio806.spectraevents.application.schedule.EventSchedule;
 import io.github.kizio806.spectraevents.application.schedule.EventScheduleService;
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
 import io.github.kizio806.spectraevents.application.service.RewardMailboxService;
+import io.github.kizio806.spectraevents.application.validation.OperationalReadinessValidator;
 import java.time.Clock;
 import java.util.List;
 import java.util.Objects;
@@ -48,8 +56,13 @@ public final class SpectraEventsApplication {
   private final AnimationDefinitionRegistry animationDefinitionRegistry;
   private final ActiveAnimationRegistry activeAnimationRegistry;
   private final AnimationRuntimeService animationRuntimeService;
-  private io.github.kizio806.spectraevents.application.asset.AssetPipelineService
-      assetPipelineService;
+  private final IntegrationRegistry integrationRegistry = new IntegrationRegistry();
+  private final OperationalReadinessValidator operationalReadinessValidator =
+      new OperationalReadinessValidator();
+  private ResourcePackDeliveryCoordinator resourcePackCoordinator;
+  private ResourcePackDeliverySettings resourcePackSettings;
+  private AssetTargetProfile assetTargetProfile;
+  private AssetPipelineService assetPipelineService;
 
   /**
    * Creates the application composition root with platform ports.
@@ -283,5 +296,57 @@ public final class SpectraEventsApplication {
 
   public PlatformCapabilityQuery capabilityQuery() {
     return capabilityQuery;
+  }
+
+  public IntegrationRegistry integrationRegistry() {
+    return integrationRegistry;
+  }
+
+  public OperationalReadinessValidator operationalReadinessValidator() {
+    return operationalReadinessValidator;
+  }
+
+  public ResourcePackDeliveryCoordinator resourcePackCoordinator() {
+    return resourcePackCoordinator;
+  }
+
+  public void setResourcePackCoordinator(ResourcePackDeliveryCoordinator coordinator) {
+    this.resourcePackCoordinator = coordinator;
+  }
+
+  public ResourcePackDeliverySettings resourcePackSettings() {
+    return resourcePackSettings;
+  }
+
+  public void setResourcePackSettings(ResourcePackDeliverySettings settings) {
+    this.resourcePackSettings = settings;
+  }
+
+  public AssetTargetProfile assetTargetProfile() {
+    return assetTargetProfile;
+  }
+
+  public void setAssetTargetProfile(AssetTargetProfile profile) {
+    this.assetTargetProfile = profile;
+  }
+
+  public List<ValidationDiagnostic> validateEventReadiness(String eventId) {
+    RegisteredEventDefinition registered = definitionRegistry.findById(eventId).orElse(null);
+    if (registered == null) {
+      return List.of(
+          new ValidationDiagnostic(
+              ValidationDiagnostic.Severity.ERROR,
+              "SE-READY-DEF-001",
+              eventId,
+              "Unknown event definition '" + eventId + "'"));
+    }
+    return operationalReadinessValidator.validateDefinitionReadiness(
+        registered.definition(),
+        modelDefinitionRegistry,
+        animationDefinitionRegistry,
+        assetPipelineService,
+        resourcePackSettings,
+        resourcePackCoordinator,
+        assetTargetProfile);
   }
 }

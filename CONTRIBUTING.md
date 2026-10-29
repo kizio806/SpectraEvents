@@ -34,4 +34,12 @@ Before submitting a Pull Request, ensure all checks pass cleanly:
 ./gradlew clean check build
 ```
 
+The `./gradlew check` task enforces:
+- Spotless code formatting across Java, Kotlin, JSON, YAML, and Markdown.
+- Checkstyle, PMD, and SpotBugs static analysis across all modules.
+- Architectural boundary verification (`verifyPlatformBoundaries` ensuring zero Minecraft imports in core/application).
+- Directory structure validation (`validateStructure` checking package-directory alignment, forbidden platform imports, and documentation presence).
+- Source hygiene validation (`validateSourceHygiene` preventing unfinished markers and wildcard imports).
+- Unit and integration tests with JaCoCo coverage reporting.
+
 All new domain behaviors must be accompanied by unit or architecture tests.

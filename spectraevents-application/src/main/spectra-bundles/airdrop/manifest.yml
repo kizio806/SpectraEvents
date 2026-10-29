@@ -1,0 +1,18 @@
+schema-version: 1
+id: airdrop
+version: 1.0.0
+minimum-spectraevents-version: 0.1.1-beta.2
+event-definitions:
+  - event.yml
+assets:
+  - models/airdrop_crate.bbmodel
+dependencies: []
+compatibility:
+  paper: ["26.1", "26.2", "26.3"]
+  purpur: ["26.1", "26.2", "26.3"]
+  folia: ["26.1", "26.2"]
+  spigot: ["26.1", "26.2", "26.3"]
+  bukkit: ["26.1", "26.2", "26.3"]
+checksums:
+  event.yml: 47b7e53d6c65b2e7a8693d5a777cfc0e4d1c7dcbea6c1fd803fef64c9c07f0a3
+  models/airdrop_crate.bbmodel: 3f6c69d3d6b0d7b3fec05041de0daf4f2a43a0a2bc0611a81cf388f8774d98fb

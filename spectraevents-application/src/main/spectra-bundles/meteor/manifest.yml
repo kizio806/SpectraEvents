@@ -1,0 +1,18 @@
+schema-version: 1
+id: meteor
+version: 1.0.0
+minimum-spectraevents-version: 0.1.1-beta.2
+event-definitions:
+  - event.yml
+assets:
+  - models/meteor_core.bbmodel
+dependencies: []
+compatibility:
+  paper: ["26.1", "26.2", "26.3"]
+  purpur: ["26.1", "26.2", "26.3"]
+  folia: ["26.1", "26.2"]
+  spigot: ["26.1", "26.2", "26.3"]
+  bukkit: ["26.1", "26.2", "26.3"]
+checksums:
+  event.yml: 54c1ddbb80838677559618ae465be8f10dc3d779758a26d63c703e165a7617a6
+  models/meteor_core.bbmodel: a16cf67d6cfaf6ee6406c20470a1455135c4eec25e2a840942feae4333d83445

@@ -82,9 +82,11 @@ public final class PaperStartupLogger {
 
   private String integrationState(IntegrationRegistry.IntegrationInfo info) {
     return switch (info.state()) {
-      case ENABLED -> "ACTIVE";
-      case DISABLED -> "DISABLED";
-      case MISSING -> "NOT INSTALLED";
+      case ACTIVE -> "ACTIVE";
+      case AVAILABLE -> "AVAILABLE";
+      case DEGRADED -> "DEGRADED";
+      case FAILED -> "FAILED";
+      case ABSENT -> "NOT INSTALLED";
     };
   }
 

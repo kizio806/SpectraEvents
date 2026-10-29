@@ -246,7 +246,7 @@ class ReferenceEventsConfigDrivenIntegrationTest {
     assertTrue(
         definition.phase(new PhaseId("victory")).orElseThrow().onEnterActions().stream()
             .anyMatch(action -> "create_participant_reward_claims".equals(action.type())));
-    assertTrue(actionPort.containsAction("award_podium"));
+    assertEquals(1, actionPort.podiumAnnouncements());
     assertTrue(actionPort.containsAction("remove_bossbar"));
     assertTrue(actionPort.containsAction("remove_model"));
   }
@@ -273,6 +273,7 @@ class ReferenceEventsConfigDrivenIntegrationTest {
   private static final class RecordingPlatformActionPort implements PlatformActionPort {
     private final List<ActionDefinition> actions = new ArrayList<>();
     private final List<UUID> rewardRecipients = new ArrayList<>();
+    private int podiumAnnouncements;
 
     @Override
     public java.util.concurrent.CompletableFuture<Boolean> executeAction(
@@ -289,12 +290,23 @@ class ReferenceEventsConfigDrivenIntegrationTest {
       return java.util.concurrent.CompletableFuture.completedFuture(true);
     }
 
+    @Override
+    public java.util.concurrent.CompletableFuture<Boolean> announcePodium(
+        EventInstanceId instanceId, List<UUID> rankedPlayerIds) {
+      podiumAnnouncements++;
+      return java.util.concurrent.CompletableFuture.completedFuture(true);
+    }
+
     boolean containsAction(String type) {
       return actions.stream().anyMatch(action -> type.equalsIgnoreCase(action.type()));
     }
 
     List<UUID> rewardsDeliveredTo() {
       return List.copyOf(rewardRecipients);
+    }
+
+    int podiumAnnouncements() {
+      return podiumAnnouncements;
     }
   }
 }

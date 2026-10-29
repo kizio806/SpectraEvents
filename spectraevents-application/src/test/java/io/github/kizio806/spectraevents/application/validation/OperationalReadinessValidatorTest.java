@@ -42,8 +42,8 @@ class OperationalReadinessValidatorTest {
   @Test
   void reportsOptionalIntegrationStateWithoutFailingValidation() {
     IntegrationRegistry integrations = new IntegrationRegistry();
-    integrations.register("Vault", IntegrationState.MISSING, "Not installed");
-    integrations.register("WorldGuard", IntegrationState.ENABLED, "Available");
+    integrations.register("Vault", IntegrationState.ABSENT, "Not installed");
+    integrations.register("WorldGuard", IntegrationState.ACTIVE, "Available");
 
     var diagnostics = validator.validateIntegrations(integrations);
 

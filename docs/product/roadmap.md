@@ -1,6 +1,6 @@
 # SpectraEvents Roadmap
 
-This roadmap is aligned with [`PROJECT_MASTER_PLAN.md`](../../PROJECT_MASTER_PLAN.md), which is the detailed execution plan and status ledger. A feature is not considered complete merely because source code exists: the relevant tests, real-server workflow, documentation, and full quality gate must also pass.
+This roadmap is aligned with [`MASTER_PLAN.md`](../../MASTER_PLAN.md), which is the detailed execution plan and status ledger. A feature is not considered complete merely because source code exists: the relevant tests, real-server workflow, documentation, and full quality gate must also pass.
 
 ## Completed foundation
 

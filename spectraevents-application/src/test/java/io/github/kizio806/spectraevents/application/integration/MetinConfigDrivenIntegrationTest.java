@@ -123,7 +123,7 @@ class MetinConfigDrivenIntegrationTest {
 
     EventInstance afterVictory = repository.findById(instance.id()).orElseThrow();
     assertEquals(EventLifecycleState.COMPLETED, afterVictory.state());
-    assertTrue(actionPort.containsAction("award_podium"));
+    assertEquals(1, actionPort.podiumAnnouncements);
     assertTrue(actionPort.containsAction("remove_model"));
   }
 
@@ -141,11 +141,19 @@ class MetinConfigDrivenIntegrationTest {
 
   private static class RecordingPlatformActionPort implements PlatformActionPort {
     List<ActionDefinition> actions = new ArrayList<>();
+    int podiumAnnouncements;
 
     @Override
     public java.util.concurrent.CompletableFuture<Boolean> executeAction(
         EventInstance instance, EventRuntimeState state, ActionDefinition action) {
       actions.add(action);
+      return java.util.concurrent.CompletableFuture.completedFuture(true);
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Boolean> announcePodium(
+        EventInstanceId instanceId, List<java.util.UUID> rankedPlayerIds) {
+      podiumAnnouncements++;
       return java.util.concurrent.CompletableFuture.completedFuture(true);
     }
 

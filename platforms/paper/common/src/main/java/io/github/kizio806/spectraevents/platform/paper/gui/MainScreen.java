@@ -76,6 +76,18 @@ public final class MainScreen {
     return inv;
   }
 
+  public static ItemStack createFillerItem(Material material) {
+    ItemStack item = new ItemStack(material);
+    ItemMeta meta = item.getItemMeta();
+    if (meta != null) {
+      meta.displayName(Component.empty());
+      if (!item.setItemMeta(meta)) {
+        throw new IllegalStateException("Could not apply filler item metadata");
+      }
+    }
+    return item;
+  }
+
   static ItemStack createGuiItem(Material mat, Component name, List<Component> lore) {
     ItemStack item = new ItemStack(mat);
     ItemMeta meta = item.getItemMeta();

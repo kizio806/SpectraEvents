@@ -77,6 +77,7 @@ public final class SpigotBootstrap {
             reconciler,
             new SpigotCapabilityQuery(),
             renderer);
+    detectIntegrations(application.integrationRegistry());
     io.github.kizio806.spectraevents.application.asset.AssetTargetProfile assetTargetProfile =
         io.github.kizio806.spectraevents.application.asset.AssetTargetProfile.forMinecraftVersion(
             minecraftVersion());
@@ -219,5 +220,29 @@ public final class SpigotBootstrap {
 
   private Path dataDirectory() {
     return plugin.getDataFolder().toPath();
+  }
+
+  private void detectIntegrations(
+      io.github.kizio806.spectraevents.application.integration.IntegrationRegistry registry) {
+    for (String pluginName :
+        java.util.List.of("LuckPerms", "WorldGuard", "Vault", "PlaceholderAPI")) {
+      org.bukkit.plugin.Plugin p = plugin.getServer().getPluginManager().getPlugin(pluginName);
+      if (p != null && p.isEnabled()) {
+        registry.register(
+            pluginName,
+            io.github.kizio806.spectraevents.application.integration.IntegrationState.ACTIVE,
+            pluginName + " " + p.getDescription().getVersion());
+      } else if (p != null) {
+        registry.register(
+            pluginName,
+            io.github.kizio806.spectraevents.application.integration.IntegrationState.DEGRADED,
+            pluginName + " present but disabled");
+      } else {
+        registry.register(
+            pluginName,
+            io.github.kizio806.spectraevents.application.integration.IntegrationState.ABSENT,
+            pluginName + " not installed");
+      }
+    }
   }
 }

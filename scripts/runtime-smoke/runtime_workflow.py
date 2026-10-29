@@ -21,7 +21,13 @@ import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 JAVA = pathlib.Path("/usr/lib/jvm/java-25-openjdk/bin/java")
-JAVA_BIN = str(JAVA if JAVA.is_file() else pathlib.Path("java"))
+_java_home = os.environ.get("JAVA_HOME")
+if _java_home and (pathlib.Path(_java_home) / "bin" / "java").is_file():
+    JAVA_BIN = str(pathlib.Path(_java_home) / "bin" / "java")
+elif JAVA.is_file():
+    JAVA_BIN = str(JAVA)
+else:
+    JAVA_BIN = "java"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 MAX_SERVER_BYTES = 512 * 1024 * 1024
@@ -253,10 +259,17 @@ class ServerSession:
     def _is_benign_console_shutdown_error(self, line: str) -> bool:
         # Some Spigot bundled-server builds close JLine after processing `stop`, then log this
         # console-reader exception despite a clean zero exit. It is not an application failure.
-        return (
+        if (
             self.process.returncode == 0
             and "[Server console handler/ERROR]: Exception handling console input" in line
-        )
+        ):
+            return True
+        if (
+            "Could not check for latest version" in line
+            and ("java.net" in line or "javax.net" in line)
+        ):
+            return True
+        return False
 
 
 def wait_ready(session: ServerSession) -> None:

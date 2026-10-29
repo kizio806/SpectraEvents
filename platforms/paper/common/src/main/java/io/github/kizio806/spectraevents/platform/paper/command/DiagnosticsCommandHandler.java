@@ -84,7 +84,7 @@ public final class DiagnosticsCommandHandler {
                 i ->
                     i.state()
                         == io.github.kizio806.spectraevents.application.integration.IntegrationState
-                            .ENABLED)
+                            .ACTIVE)
             .count();
     sender.sendMessage(
         messages.component(

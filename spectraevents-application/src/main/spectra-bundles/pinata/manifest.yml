@@ -1,0 +1,18 @@
+schema-version: 1
+id: pinata
+version: 1.0.0
+minimum-spectraevents-version: 0.1.1-beta.2
+event-definitions:
+  - event.yml
+assets:
+  - models/pinata.bbmodel
+dependencies: []
+compatibility:
+  paper: ["26.1", "26.2", "26.3"]
+  purpur: ["26.1", "26.2", "26.3"]
+  folia: ["26.1", "26.2"]
+  spigot: ["26.1", "26.2", "26.3"]
+  bukkit: ["26.1", "26.2", "26.3"]
+checksums:
+  event.yml: dd059435204a6a83381e7a80b982853b621cc71fbfd93ac9e70081277635bb81
+  models/pinata.bbmodel: 9338f531a4f651acf2945c87961bfdf304e239210baa15641eaa070d7e8718ef
