@@ -4,8 +4,12 @@ title = "SpectraEvents Gitleaks Configuration"
 useDefault = true
 
 [allowlist]
-description = "Allowlist for build directories and mock test fixtures"
+description = "Allowlist for build directories, test fixtures, and secret environment variable expansions"
 paths = [
     '''(^|/)build/''',
     '''(^|/)\.gradle/''',
+]
+regexTarget = "match"
+regexes = [
+    '''\$\{SONAR_TOKEN\}''',
 ]
