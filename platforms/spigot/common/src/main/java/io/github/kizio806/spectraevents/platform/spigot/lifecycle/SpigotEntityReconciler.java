@@ -6,6 +6,7 @@ import io.github.kizio806.spectraevents.platform.spigot.action.SpigotActionAdapt
 import io.github.kizio806.spectraevents.platform.spigot.metadata.SpigotPdcKeys;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -15,10 +16,16 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 
 public class SpigotEntityReconciler implements PlatformEntityReconcilerPort {
+  private final Plugin plugin;
   private final SpigotActionAdapter actionAdapter;
 
   public SpigotEntityReconciler(Plugin plugin, SpigotActionAdapter actionAdapter) {
-    this.actionAdapter = actionAdapter;
+    this.plugin = Objects.requireNonNull(plugin, "plugin");
+    this.actionAdapter = Objects.requireNonNull(actionAdapter, "actionAdapter");
+  }
+
+  public Plugin getPlugin() {
+    return plugin;
   }
 
   @Override

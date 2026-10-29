@@ -22,4 +22,9 @@
     <Match>
         <Bug pattern="CT_CONSTRUCTOR_THROW,SE_TRANSIENT_FIELD_NOT_RESTORED,SE_BAD_FIELD,CWO_CLOSED_WITHOUT_OPENED,NP_BOOLEAN_RETURN_NULL,SE_BAD_FIELD_STORE,UCF_USELESS_CONTROL_FLOW,RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE" />
     </Match>
+    <!-- PlaceholderExpansion declares final equals(Object) without hashCode in third-party PlaceholderAPI library -->
+    <Match>
+        <Class name="io.github.kizio806.spectraevents.platform.paper.integration.PlaceholderAPIIntegration$SpectraExpansion" />
+        <Bug pattern="HE_INHERITS_EQUALS_USE_HASHCODE" />
+    </Match>
 </FindBugsFilter>

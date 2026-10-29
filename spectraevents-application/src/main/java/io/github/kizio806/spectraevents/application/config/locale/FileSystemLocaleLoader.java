@@ -38,7 +38,8 @@ public final class FileSystemLocaleLoader {
       if (Files.exists(target)) {
         continue;
       }
-      try (InputStream resource = getClass().getResourceAsStream("/locales/" + fileName)) {
+      try (InputStream resource =
+          FileSystemLocaleLoader.class.getResourceAsStream("/locales/" + fileName)) {
         if (resource == null) {
           throw new IOException("Missing bundled locale resource: " + fileName);
         }
@@ -71,7 +72,8 @@ public final class FileSystemLocaleLoader {
 
   private Map<String, String> readMergedLocale(String locale) throws IOException {
     Map<String, String> result = new LinkedHashMap<>();
-    try (InputStream bundled = getClass().getResourceAsStream("/locales/" + locale + ".yml")) {
+    try (InputStream bundled =
+        FileSystemLocaleLoader.class.getResourceAsStream("/locales/" + locale + ".yml")) {
       if (bundled == null) {
         throw new IOException("Missing bundled locale resource: " + locale);
       }

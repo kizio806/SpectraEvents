@@ -22,54 +22,43 @@ public abstract class AbstractPlatformActionAdapter implements PlatformActionPor
       EventRuntimeState state,
       ActionDefinition action,
       ExecutionContext context) {
-    if (action instanceof PlatformActions.SpawnModelAction spawnModelAction) {
-      return handleSpawnModel(instance, state, spawnModelAction, context);
-    } else if (action instanceof PlatformActions.MoveModelAction moveModelAction) {
-      return handleMoveModel(instance, state, moveModelAction, context);
-    } else if (action instanceof PlatformActions.RemoveModelAction removeModelAction) {
-      return handleRemoveModel(instance, state, removeModelAction, context);
-    } else if (action instanceof PlatformActions.PlayAnimationAction playAnimationAction) {
-      return handlePlayAnimation(instance, state, playAnimationAction, context);
-    } else if (action instanceof PlatformActions.PlaySoundAction playSoundAction) {
-      return handlePlaySound(instance, state, playSoundAction, context);
-    } else if (action instanceof PlatformActions.SpawnParticlesAction spawnParticlesAction) {
-      return handleSpawnParticles(instance, state, spawnParticlesAction, context);
-    } else if (action instanceof PlatformActions.GiveItemAction giveItemAction) {
-      return handleGiveItem(instance, state, giveItemAction, context);
-    } else if (action instanceof PlatformActions.OpenSharedLootAction openSharedLootAction) {
-      return handleOpenSharedLoot(instance, state, openSharedLootAction, context);
-    } else if (action instanceof PlatformActions.DropLootAction dropLootAction) {
-      return handleDropLoot(instance, state, dropLootAction, context);
-    } else if (action instanceof PlatformActions.ReleaseGroundLootAction releaseGroundLootAction) {
-      return handleReleaseGroundLoot(instance, state, releaseGroundLootAction, context);
-    } else if (action instanceof PlatformActions.AwardPodiumAction awardPodiumAction) {
-      return handleAwardPodium(instance, state, awardPodiumAction, context);
-    } else if (action instanceof PlatformActions.SendMessageAction sendMessageAction) {
-      return handleSendMessage(instance, state, sendMessageAction, context);
-    } else if (action instanceof PlatformActions.BroadcastMessageAction broadcastMessageAction) {
-      return handleBroadcastMessage(instance, state, broadcastMessageAction, context);
-    } else if (action instanceof PlatformActions.ShowTitleAction showTitleAction) {
-      return handleShowTitle(instance, state, showTitleAction, context);
-    } else if (action instanceof PlatformActions.SpawnBossAction spawnBossAction) {
-      return handleSpawnBoss(instance, state, spawnBossAction, context);
-    } else if (action instanceof PlatformActions.SpawnMobsAction spawnMobsAction) {
-      return handleSpawnMobs(instance, state, spawnMobsAction, context);
-    } else if (action instanceof PlatformActions.ShowBossbarAction showBossbarAction) {
-      return handleShowBossbar(instance, state, showBossbarAction, context);
-    } else if (action instanceof PlatformActions.UpdateBossbarAction updateBossbarAction) {
-      return handleUpdateBossbar(instance, state, updateBossbarAction, context);
-    } else if (action instanceof PlatformActions.RemoveBossbarAction removeBossbarAction) {
-      return handleRemoveBossbar(instance, state, removeBossbarAction, context);
-    } else if (action instanceof PlatformActions.ShowScoreboardAction showScoreboardAction) {
-      return handleShowScoreboard(instance, state, showScoreboardAction, context);
-    } else if (action instanceof PlatformActions.UpdateScoreboardAction updateScoreboardAction) {
-      return handleUpdateScoreboard(instance, state, updateScoreboardAction, context);
-    } else if (action instanceof PlatformActions.RemoveScoreboardAction removeScoreboardAction) {
-      return handleRemoveScoreboard(instance, state, removeScoreboardAction, context);
-    }
-
-    throw new FatalActionException(
-        "Unsupported action type '" + action.type() + "' for instance " + instance.id());
+    return switch (action) {
+      case PlatformActions.SpawnModelAction a -> handleSpawnModel(instance, state, a, context);
+      case PlatformActions.MoveModelAction a -> handleMoveModel(instance, state, a, context);
+      case PlatformActions.RemoveModelAction a -> handleRemoveModel(instance, state, a, context);
+      case PlatformActions.PlayAnimationAction a ->
+          handlePlayAnimation(instance, state, a, context);
+      case PlatformActions.PlaySoundAction a -> handlePlaySound(instance, state, a, context);
+      case PlatformActions.SpawnParticlesAction a ->
+          handleSpawnParticles(instance, state, a, context);
+      case PlatformActions.GiveItemAction a -> handleGiveItem(instance, state, a, context);
+      case PlatformActions.OpenSharedLootAction a ->
+          handleOpenSharedLoot(instance, state, a, context);
+      case PlatformActions.DropLootAction a -> handleDropLoot(instance, state, a, context);
+      case PlatformActions.ReleaseGroundLootAction a ->
+          handleReleaseGroundLoot(instance, state, a, context);
+      case PlatformActions.AwardPodiumAction a -> handleAwardPodium(instance, state, a, context);
+      case PlatformActions.SendMessageAction a -> handleSendMessage(instance, state, a, context);
+      case PlatformActions.BroadcastMessageAction a ->
+          handleBroadcastMessage(instance, state, a, context);
+      case PlatformActions.ShowTitleAction a -> handleShowTitle(instance, state, a, context);
+      case PlatformActions.SpawnBossAction a -> handleSpawnBoss(instance, state, a, context);
+      case PlatformActions.SpawnMobsAction a -> handleSpawnMobs(instance, state, a, context);
+      case PlatformActions.ShowBossbarAction a -> handleShowBossbar(instance, state, a, context);
+      case PlatformActions.UpdateBossbarAction a ->
+          handleUpdateBossbar(instance, state, a, context);
+      case PlatformActions.RemoveBossbarAction a ->
+          handleRemoveBossbar(instance, state, a, context);
+      case PlatformActions.ShowScoreboardAction a ->
+          handleShowScoreboard(instance, state, a, context);
+      case PlatformActions.UpdateScoreboardAction a ->
+          handleUpdateScoreboard(instance, state, a, context);
+      case PlatformActions.RemoveScoreboardAction a ->
+          handleRemoveScoreboard(instance, state, a, context);
+      default ->
+          throw new FatalActionException(
+              "Unsupported action type '" + action.type() + "' for instance " + instance.id());
+    };
   }
 
   protected abstract CompletableFuture<Boolean> handleSpawnModel(

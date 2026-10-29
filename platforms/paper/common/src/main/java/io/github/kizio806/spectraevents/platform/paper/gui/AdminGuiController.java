@@ -13,6 +13,7 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.Component;
@@ -68,6 +69,14 @@ public final class AdminGuiController implements Listener {
         Objects.requireNonNull(orchestrationService, "orchestrationService");
     this.settingsStore = Objects.requireNonNull(settingsStore, "settingsStore");
     this.locales = Objects.requireNonNull(locales, "locales");
+  }
+
+  public Optional<MenuType> getOpenSession(UUID playerId) {
+    return Optional.ofNullable(openSessions.get(playerId));
+  }
+
+  public boolean hasOpenSession(UUID playerId) {
+    return openSessions.containsKey(playerId);
   }
 
   public void openMainMenu(Player player) {

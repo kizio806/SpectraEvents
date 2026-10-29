@@ -2,6 +2,7 @@ package io.github.kizio806.spectraevents.application.config.compiler;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -260,5 +261,321 @@ class EventDefinitionCompilerTest {
             definition.phase(new PhaseId("waiting")).orElseThrow().rules().getFirst().trigger();
 
     assertEquals(java.time.Duration.ofMillis(500), trigger.duration());
+  }
+
+  @Test
+  void testCompileEncounterWithoutLimits() {
+    EventSpec spec =
+        new EventSpec(
+            "encounter_only",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of("zone-radius", 30.0, "deadline", "5m"),
+            null,
+            Map.of());
+
+    EventDefinition def = compiler.compile(spec);
+    assertEquals("encounter_only", def.id().value());
+    assertEquals(30.0, def.encounterSettings().zoneRadius());
+    assertEquals(java.time.Duration.ofMinutes(5), def.encounterSettings().deadline());
+    assertEquals(1, def.encounterSettings().maxActivePerWorld());
+  }
+
+  @Test
+  void testCompileLimitsWithoutEncounter() {
+    EventSpec spec =
+        new EventSpec(
+            "limits_only",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            null,
+            Map.of("max-active-per-world", 3),
+            Map.of());
+
+    EventDefinition def = compiler.compile(spec);
+    assertEquals("limits_only", def.id().value());
+    assertEquals(0.0, def.encounterSettings().zoneRadius());
+    assertEquals(3, def.encounterSettings().maxActivePerWorld());
+  }
+
+  @Test
+  void testCompileEncounterAndLimitsValidationErrors() {
+    EventSpec invalidEnc =
+        new EventSpec(
+            "invalid_enc",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of("unknown-encounter-key", "val"),
+            Map.of("unknown-limit-key", 1),
+            Map.of());
+
+    EventDefinitionCompilerException ex =
+        assertThrows(EventDefinitionCompilerException.class, () -> compiler.compile(invalidEnc));
+    assertTrue(ex.getDiagnostics().stream().anyMatch(d -> d.code().equals("SE-DEF-ENC-001")));
+    assertTrue(ex.getDiagnostics().stream().anyMatch(d -> d.code().equals("SE-DEF-LIMIT-001")));
+  }
+
+  @Test
+  void testCompileActionsWithInvalidNumberStringReportsDiagnostics() {
+    EventSpec spec =
+        new EventSpec(
+            "action_invalid_numbers",
+            "1.0",
+            "active",
+            Map.of(
+                "active",
+                new PhaseSpec(
+                    Set.of(),
+                    List.of(),
+                    List.of(
+                        new ActionSpec(
+                            "play_sound",
+                            Map.of("sound", "bell", "volume", "not_a_float", "pitch", "1.5")),
+                        new ActionSpec(
+                            "spawn_particles",
+                            Map.of("particle", "flame", "count", "invalid_int"))))),
+            null,
+            null,
+            Map.of());
+
+    EventDefinitionCompilerException ex =
+        assertThrows(EventDefinitionCompilerException.class, () -> compiler.compile(spec));
+    assertTrue(ex.getDiagnostics().stream().anyMatch(d -> d.code().equals("SE-DEF-VALUE-001")));
+  }
+
+  @Test
+  void testCompileEncounterWithoutDeadline() {
+    EventSpec spec =
+        new EventSpec(
+            "encounter_no_deadline",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of("zone-radius", 25.0, "minimum-contribution", 10),
+            Map.of("max-active-per-world", 2),
+            Map.of());
+
+    EventDefinition def = compiler.compile(spec);
+    assertEquals("encounter_no_deadline", def.id().value());
+    assertEquals(25.0, def.encounterSettings().zoneRadius());
+    assertEquals(java.time.Duration.ZERO, def.encounterSettings().deadline());
+    assertEquals(10, def.encounterSettings().minimumContribution());
+    assertEquals(2, def.encounterSettings().maxActivePerWorld());
+  }
+
+  @Test
+  void testCompileEncounterEmptyMapsReturnsNone() {
+    EventSpec spec =
+        new EventSpec(
+            "encounter_empty",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of(),
+            Map.of(),
+            Map.of());
+
+    EventDefinition def = compiler.compile(spec);
+    assertEquals(
+        io.github.kizio806.spectraevents.core.event.definition.EventEncounterSettings.NONE,
+        def.encounterSettings());
+  }
+
+  @Test
+  void testCompileEncounterWithInvalidSettingsProducesDiagnostic() {
+    EventSpec negativeRadius =
+        new EventSpec(
+            "negative_radius",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of("zone-radius", -10.0),
+            null,
+            Map.of());
+
+    EventDefinitionCompilerException ex1 =
+        assertThrows(
+            EventDefinitionCompilerException.class, () -> compiler.compile(negativeRadius));
+    assertTrue(ex1.getDiagnostics().stream().anyMatch(d -> d.code().equals("SE-DEF-ENC-002")));
+
+    EventSpec negativeContribution =
+        new EventSpec(
+            "negative_contrib",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of("minimum-contribution", -1),
+            null,
+            Map.of());
+
+    EventDefinitionCompilerException ex2 =
+        assertThrows(
+            EventDefinitionCompilerException.class, () -> compiler.compile(negativeContribution));
+    assertTrue(ex2.getDiagnostics().stream().anyMatch(d -> d.code().equals("SE-DEF-ENC-002")));
+
+    EventSpec zeroActiveWithZone =
+        new EventSpec(
+            "zero_active_with_zone",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of("zone-radius", 15.0),
+            Map.of("max-active-per-world", 0),
+            Map.of());
+
+    EventDefinitionCompilerException ex3 =
+        assertThrows(
+            EventDefinitionCompilerException.class, () -> compiler.compile(zeroActiveWithZone));
+    assertTrue(ex3.getDiagnostics().stream().anyMatch(d -> d.code().equals("SE-DEF-ENC-002")));
+  }
+
+  @Test
+  void testCompilerNumericParsingBranches() {
+    // 1. getInt with decimal Number throws SE-DEF-VALUE-001
+    EventSpec decimalIntSpec =
+        new EventSpec(
+            "decimal_int",
+            "1.0",
+            "active",
+            Map.of(
+                "active",
+                new PhaseSpec(
+                    Set.of(),
+                    List.of(),
+                    List.of(new ActionSpec("initialize_health", Map.of("max", 20.5))))));
+    assertThrows(EventDefinitionCompilerException.class, () -> compiler.compile(decimalIntSpec));
+
+    // 2. getInt with string number parses successfully
+    EventSpec stringIntSpec =
+        new EventSpec(
+            "string_int",
+            "1.0",
+            "active",
+            Map.of(
+                "active",
+                new PhaseSpec(
+                    Set.of(),
+                    List.of(),
+                    List.of(new ActionSpec("initialize_health", Map.of("max", "25"))))));
+    assertNotNull(compiler.compile(stringIntSpec));
+
+    // 2b. getInt with non-integer string throws SE-DEF-VALUE-001
+    EventSpec invalidStringIntSpec =
+        new EventSpec(
+            "invalid_str_int",
+            "1.0",
+            "active",
+            Map.of(
+                "active",
+                new PhaseSpec(
+                    Set.of(),
+                    List.of(),
+                    List.of(new ActionSpec("initialize_health", Map.of("max", "not_an_int"))))));
+    assertThrows(
+        EventDefinitionCompilerException.class, () -> compiler.compile(invalidStringIntSpec));
+
+    // 3. getFloat with string float parses successfully
+    EventSpec stringFloatSpec =
+        new EventSpec(
+            "string_float",
+            "1.0",
+            "active",
+            Map.of(
+                "active",
+                new PhaseSpec(
+                    Set.of(),
+                    List.of(),
+                    List.of(
+                        new ActionSpec(
+                            "play_sound",
+                            Map.of("sound", "ambient.cave", "volume", "1.5", "pitch", "0.8"))))));
+    assertNotNull(compiler.compile(stringFloatSpec));
+
+    // 4. getFloat with NaN Number throws SE-DEF-VALUE-001
+    EventSpec nanFloatSpec =
+        new EventSpec(
+            "nan_float",
+            "1.0",
+            "active",
+            Map.of(
+                "active",
+                new PhaseSpec(
+                    Set.of(),
+                    List.of(),
+                    List.of(
+                        new ActionSpec(
+                            "play_sound", Map.of("sound", "ambient.cave", "volume", Float.NaN))))));
+    assertThrows(EventDefinitionCompilerException.class, () -> compiler.compile(nanFloatSpec));
+
+    // 5. getFloat with string NaN throws SE-DEF-VALUE-001
+    EventSpec stringNanFloatSpec =
+        new EventSpec(
+            "string_nan_float",
+            "1.0",
+            "active",
+            Map.of(
+                "active",
+                new PhaseSpec(
+                    Set.of(),
+                    List.of(),
+                    List.of(
+                        new ActionSpec(
+                            "play_sound", Map.of("sound", "ambient.cave", "volume", "NaN"))))));
+    assertThrows(
+        EventDefinitionCompilerException.class, () -> compiler.compile(stringNanFloatSpec));
+
+    // 6. getDouble with string double parses successfully
+    EventSpec stringDoubleSpec =
+        new EventSpec(
+            "string_double",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of("zone-radius", "45.5"),
+            null,
+            Map.of());
+    EventDefinition stringDoubleDef = compiler.compile(stringDoubleSpec);
+    assertEquals(45.5, stringDoubleDef.encounterSettings().zoneRadius());
+
+    // 7. getDouble with non-finite Number throws SE-DEF-VALUE-001
+    EventSpec nanDoubleSpec =
+        new EventSpec(
+            "nan_double",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of("zone-radius", Double.NaN),
+            null,
+            Map.of());
+    assertThrows(EventDefinitionCompilerException.class, () -> compiler.compile(nanDoubleSpec));
+
+    // 8. getDouble with string NaN throws SE-DEF-VALUE-001
+    EventSpec stringNanDoubleSpec =
+        new EventSpec(
+            "string_nan_double",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of("zone-radius", "NaN"),
+            null,
+            Map.of());
+    assertThrows(
+        EventDefinitionCompilerException.class, () -> compiler.compile(stringNanDoubleSpec));
+
+    // 9. getDouble with non-number string throws SE-DEF-VALUE-001
+    EventSpec invalidDoubleStringSpec =
+        new EventSpec(
+            "invalid_double_str",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of("zone-radius", "not_a_double"),
+            null,
+            Map.of());
+    assertThrows(
+        EventDefinitionCompilerException.class, () -> compiler.compile(invalidDoubleStringSpec));
   }
 }

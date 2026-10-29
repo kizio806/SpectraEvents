@@ -383,9 +383,10 @@ public class EventDefinitionCompiler {
       Map<String, Object> encounter,
       Map<String, Object> limits,
       List<ValidationDiagnostic> diagnostics) {
-    if ((encounter == null || encounter.isEmpty()) && (limits == null || limits.isEmpty())) {
+    if (encounter.isEmpty() && limits.isEmpty()) {
       return EventEncounterSettings.NONE;
     }
+
     Set<String> supported = Set.of("zone-radius", "deadline", "minimum-contribution");
     for (String key : encounter.keySet()) {
       if (!supported.contains(key)) {
@@ -410,7 +411,8 @@ public class EventDefinitionCompiler {
     }
     double radius = getDouble(encounter, "zone-radius", 0.0d);
     int minimumContribution = getInt(encounter, "minimum-contribution", 0);
-    int maxActivePerWorld = getInt(limits, "max-active-per-world", radius > 0.0d ? 1 : 0);
+    int defaultMaxActive = radius > 0.0d ? 1 : 0;
+    int maxActivePerWorld = getInt(limits, "max-active-per-world", defaultMaxActive);
     Duration deadline =
         encounter.containsKey("deadline")
             ? parseDuration(encounter.get("deadline"))

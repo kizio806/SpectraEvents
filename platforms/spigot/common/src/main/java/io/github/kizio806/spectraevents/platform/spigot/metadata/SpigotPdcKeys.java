@@ -20,15 +20,15 @@ public final class SpigotPdcKeys {
       new NamespacedKey("spectraevents", "ground_loot_slot");
 
   public static NamespacedKey instanceId(Plugin plugin) {
-    return EVENT_INSTANCE_ID;
+    return new NamespacedKey(plugin, "instance_id");
   }
 
   public static NamespacedKey partId(Plugin plugin) {
-    return MODEL_PART_ID;
+    return new NamespacedKey(plugin, "model_part_id");
   }
 
   public static NamespacedKey entityRole(Plugin plugin) {
-    return RESOURCE_ROLE;
+    return new NamespacedKey(plugin, "resource_role");
   }
 
   private SpigotPdcKeys() {}

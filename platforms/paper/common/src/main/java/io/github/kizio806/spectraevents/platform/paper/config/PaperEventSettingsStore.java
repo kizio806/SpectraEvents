@@ -31,7 +31,7 @@ public final class PaperEventSettingsStore {
     this(Objects.requireNonNull(plugin, "plugin").getDataFolder().toPath());
   }
 
-  PaperEventSettingsStore(Path dataDirectory) {
+  public PaperEventSettingsStore(Path dataDirectory) {
     try {
       DataDirectoryLayout layout = DataDirectoryLayout.prepare(dataDirectory);
       this.configFile = layout.configFile();

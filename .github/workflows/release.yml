@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   JAVA_VERSION: '25'
@@ -27,18 +27,19 @@ jobs:
       modrinth_type: ${{ steps.metadata.outputs.modrinth_type }}
     steps:
       - name: Check out complete history
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Java ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           validate-wrappers: true
 
@@ -96,7 +97,7 @@ jobs:
           --evidence config/release/resource-pack-client-evidence.json
 
       - name: Scan locked dependencies for known vulnerabilities
-        uses: google/osv-scanner-action/osv-scanner-action@8dc09193bb540e09b23da07ad7e30bd33bf87018 # v2.3.8
+        uses: google/osv-scanner-action/osv-scanner-action@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
         with:
           scan-args: |-
             --config=osv-scanner.toml
@@ -105,9 +106,10 @@ jobs:
 
       - name: Stage and checksum artifacts
         shell: bash
+        env:
+          VERSION: ${{ steps.metadata.outputs.version }}
         run: |
           set -euo pipefail
-          VERSION="${{ steps.metadata.outputs.version }}"
           mkdir -p release-artifacts/resource-packs
           cp "distributions/paper/build/libs/SpectraEvents-${VERSION}-paper.jar" release-artifacts/
           cp "distributions/spigot/build/libs/SpectraEvents-${VERSION}-spigot.jar" release-artifacts/
@@ -120,7 +122,7 @@ jobs:
           (cd release-artifacts && sha256sum -c SHA256SUMS.txt)
 
       - name: Upload verified release inputs
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-inputs
           path: release-artifacts/
@@ -150,17 +152,19 @@ jobs:
           - { server: craftbukkit, family: spigot, version: '26.2' }
           - { server: craftbukkit, family: spigot, version: '26.3' }
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-inputs
           path: release-artifacts
       - name: Cache real server binary
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .gradle/runtime-server-cache
           key: runtime-${{ matrix.server }}-${{ matrix.version }}-java25
@@ -178,7 +182,9 @@ jobs:
     needs: [build, runtime-matrix]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Refuse publication while a required runtime row is unavailable
         run: >-
           python3 scripts/release/verify_release_gate.py
@@ -190,20 +196,24 @@ jobs:
     needs: [build, runtime-matrix, release-eligibility]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v8
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-inputs
           path: release-artifacts
 
       - name: Generate release notes
         shell: bash
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
           set -euo pipefail
-          VERSION="${{ needs.build.outputs.version }}"
           NOTES="docs/releases/${VERSION}.md"
           test -f "$NOTES" || {
             echo "::error::Missing curated release notes: $NOTES"
@@ -225,7 +235,7 @@ jobs:
 
       - name: Publish Modrinth resource pack for Minecraft 26.1
         id: modrinth_pack_26_1
-        uses: Kir-Antipov/mc-publish@v3.3
+        uses: Kir-Antipov/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           modrinth-id: ${{ secrets.MODRINTH_RESOURCE_PACK_PROJECT_ID || vars.MODRINTH_RESOURCE_PACK_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
@@ -242,7 +252,7 @@ jobs:
 
       - name: Publish Modrinth resource pack for Minecraft 26.2
         id: modrinth_pack_26_2
-        uses: Kir-Antipov/mc-publish@v3.3
+        uses: Kir-Antipov/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           modrinth-id: ${{ secrets.MODRINTH_RESOURCE_PACK_PROJECT_ID || vars.MODRINTH_RESOURCE_PACK_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
@@ -259,7 +269,7 @@ jobs:
 
       - name: Publish Modrinth resource pack for Minecraft 26.3
         id: modrinth_pack_26_3
-        uses: Kir-Antipov/mc-publish@v3.3
+        uses: Kir-Antipov/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           modrinth-id: ${{ secrets.MODRINTH_RESOURCE_PACK_PROJECT_ID || vars.MODRINTH_RESOURCE_PACK_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
@@ -276,7 +286,7 @@ jobs:
 
       - name: Publish Paper and Purpur distribution to Modrinth
         id: modrinth_paper
-        uses: Kir-Antipov/mc-publish@v3.3
+        uses: Kir-Antipov/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
@@ -299,7 +309,7 @@ jobs:
 
       - name: Publish Spigot and CraftBukkit distribution to Modrinth
         id: modrinth_spigot
-        uses: Kir-Antipov/mc-publish@v3.3
+        uses: Kir-Antipov/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
@@ -322,7 +332,7 @@ jobs:
 
       - name: Publish the Folia 26.1-26.2 distribution to Modrinth
         id: modrinth_folia
-        uses: Kir-Antipov/mc-publish@v3.3
+        uses: Kir-Antipov/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
@@ -342,16 +352,26 @@ jobs:
 
       - name: Create GitHub Release after all Modrinth versions exist
         id: github_release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: SpectraEvents v${{ needs.build.outputs.version }}
-          body_path: release-notes.md
-          files: |
-            release-artifacts/SpectraEvents-*.jar
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          EXTRA_FLAGS=()
+          if [ "$PRERELEASE" = "true" ]; then
+            EXTRA_FLAGS+=(--prerelease)
+          else
+            EXTRA_FLAGS+=(--latest)
+          fi
+          gh release create "$TAG_NAME" \
+            --title "SpectraEvents v$VERSION" \
+            --notes-file release-notes.md \
+            "${EXTRA_FLAGS[@]}" \
+            release-artifacts/SpectraEvents-*.jar \
             release-artifacts/SHA256SUMS.txt
-          prerelease: ${{ needs.build.outputs.prerelease }}
-          make_latest: ${{ needs.build.outputs.prerelease == 'false' }}
 
       - name: Remove newly published public versions if this release fails
         if: failure()
@@ -387,14 +407,21 @@ jobs:
       - name: Release summary
         if: always()
         shell: bash
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          PACK_OUTCOMES: "${{ steps.modrinth_pack_26_1.outcome }}/${{ steps.modrinth_pack_26_2.outcome }}/${{ steps.modrinth_pack_26_3.outcome }}"
+          PAPER_OUTCOME: ${{ steps.modrinth_paper.outcome }}
+          SPIGOT_OUTCOME: ${{ steps.modrinth_spigot.outcome }}
+          FOLIA_OUTCOME: ${{ steps.modrinth_folia.outcome }}
+          RELEASE_OUTCOME: ${{ steps.github_release.outcome }}
         run: |
           {
             echo "# SpectraEvents Release"
-            echo "- Version: ${{ needs.build.outputs.version }}"
+            echo "- Version: $VERSION"
             echo "- Runtime matrix: passed"
-            echo "- Modrinth resource packs (26.1/26.2/26.3): ${{ steps.modrinth_pack_26_1.outcome }}/${{ steps.modrinth_pack_26_2.outcome }}/${{ steps.modrinth_pack_26_3.outcome }}"
-            echo "- Modrinth Paper/Purpur distribution: ${{ steps.modrinth_paper.outcome }}"
-            echo "- Modrinth Spigot/CraftBukkit distribution: ${{ steps.modrinth_spigot.outcome }}"
-            echo "- Modrinth Folia distribution (26.1/26.2): ${{ steps.modrinth_folia.outcome }}"
-            echo "- GitHub Release: ${{ steps.github_release.outcome }}"
+            echo "- Modrinth resource packs (26.1/26.2/26.3): $PACK_OUTCOMES"
+            echo "- Modrinth Paper/Purpur distribution: $PAPER_OUTCOME"
+            echo "- Modrinth Spigot/CraftBukkit distribution: $SPIGOT_OUTCOME"
+            echo "- Modrinth Folia distribution (26.1/26.2): $FOLIA_OUTCOME"
+            echo "- GitHub Release: $RELEASE_OUTCOME"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -10,7 +10,7 @@ if [[ -d "src" ]]; then
     exit 1
 fi
 
-EMPTY_DIRS=$(find . -type d -empty -path '*/src/*' | sort || true)
+EMPTY_DIRS=$(find . -not -path '*/build/*' -not -path '*/.git/*' -not -path '*/.gradle/*' -type d -empty -path '*/src/*' | sort || true)
 if [[ -n "$EMPTY_DIRS" ]]; then
     echo "Found empty source directories:"
     echo "$EMPTY_DIRS"
