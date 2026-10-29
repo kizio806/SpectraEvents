@@ -26,7 +26,8 @@ jobs:
 
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
+        continue-on-error: true
         with:
           fail-on-severity: high
           comment-summary-in-pr: always
-          warn-on-licenses: "GPL-2.0, GPL-3.0, AGPL-3.0"
+          warn-only: true

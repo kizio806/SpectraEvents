@@ -79,9 +79,11 @@ jobs:
             TYPE=release
             PRERELEASE=false
           fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
-          echo "modrinth_type=$TYPE" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=$VERSION"
+            echo "prerelease=$PRERELEASE"
+            echo "modrinth_type=$TYPE"
+          } >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
 

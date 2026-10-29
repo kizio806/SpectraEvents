@@ -283,7 +283,9 @@ jobs:
 
       - name: Generate CI Summary
         run: |
-          echo "# SpectraEvents CI Status" >> $GITHUB_STEP_SUMMARY
-          echo "- **Quality Gate:** PASS" >> $GITHUB_STEP_SUMMARY
-          echo "- **Distribution Verification:** PASS" >> $GITHUB_STEP_SUMMARY
-          echo "- **Target Java:** ${{ env.JAVA_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "# SpectraEvents CI Status"
+            echo "- **Quality Gate:** PASS"
+            echo "- **Distribution Verification:** PASS"
+            echo "- **Target Java:** ${{ env.JAVA_VERSION }}"
+          } >> "$GITHUB_STEP_SUMMARY"
