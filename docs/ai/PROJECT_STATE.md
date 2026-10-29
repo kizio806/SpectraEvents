@@ -76,11 +76,14 @@ Data-driven 3D model engine for Paper, Purpur, Spigot, and CraftBukkit across Mi
   - Built comprehensive `EntityReconciliationService` to garbage-collect orphaned models and entities at boot or reconnect them to running events.
   - Finalized `/spectraevents doctor` diagnostics exposing missing optional dependencies and integration status gracefully.
 - [x] Quality Remediation, Security Hardening & Documentation Unification (Jump Delay Fix Benchmark):
+  - PR #28 squashed and merged into `main` (`6b7ebb7`) with all 31 CI checks passing.
   - Repository secrets verified (`SONAR_TOKEN`, `CODECOV_TOKEN`) by repository owner.
   - Zizmor workflow security analysis enforced with zero findings across all 9 GitHub workflows (all action references pinned to commit SHAs, permissions strictly bounded, GitHub context template injection neutralized, `continue-on-error: true` removed).
   - Dependency review enforced with `fail-on-severity: high` and explicit open-source license policy.
-  - SonarCloud quality gate wait (`-Dsonar.qualitygate.wait=true`) and Codecov authenticated upload (`fail_ci_if_error: ${{ secrets.CODECOV_TOKEN != '' }}`) active.
+  - SonarCloud quality gate wait (`-Dsonar.qualitygate.wait=true`) and Codecov authenticated upload (`fail_ci_if_error: ${{ secrets.CODECOV_TOKEN != '' }}`) active; SonarCloud confirmed 100.0% coverage on new code.
   - CodeQL alert triage and remediation across repository (NPE fix in `EventDefinitionCompiler` with regression tests, container leakage resolution in `AdminGuiController`, safe class-loader resource access in configuration and locale loaders, pattern matching switch in `AbstractPlatformActionAdapter`, and targeted SpotBugs exclude for `PlaceholderExpansion.equals` final library constraint).
+  - Streamlined encounter compilation in `EventDefinitionCompiler` and added thorough test coverage for all numeric parsing and validation branches, reaching 100% patch coverage with zero partial branches.
+  - Configured `codecov.yml` with strict 90% patch coverage threshold and 70...100 visual range.
   - Authored canonical Documentation Style Guide (`docs/ai/DOCUMENTATION_STYLE.md`) linked from `AGENTS.md` and `docs/ai/ENGINEERING_RULES.md`.
   - Completely redesigned and rewrote `README.md` to benchmark standard with complete badge row, value proposition, table of contents, scannable feature highlights, architectural overview, platform compatibility matrix, quick start guide, operator command reference, and verified documentation links.
   - Full quality gate validated: `./gradlew clean check build` passes cleanly across all modules and tests.
