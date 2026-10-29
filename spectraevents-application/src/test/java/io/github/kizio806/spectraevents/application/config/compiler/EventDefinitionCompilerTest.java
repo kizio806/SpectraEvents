@@ -298,4 +298,50 @@ class EventDefinitionCompilerTest {
     assertEquals(0.0, def.encounterSettings().zoneRadius());
     assertEquals(3, def.encounterSettings().maxActivePerWorld());
   }
+
+  @Test
+  void testCompileEncounterAndLimitsValidationErrors() {
+    EventSpec invalidEnc =
+        new EventSpec(
+            "invalid_enc",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of("unknown-encounter-key", "val"),
+            Map.of("unknown-limit-key", 1),
+            Map.of());
+
+    EventDefinitionCompilerException ex =
+        assertThrows(EventDefinitionCompilerException.class, () -> compiler.compile(invalidEnc));
+    assertTrue(ex.getDiagnostics().stream().anyMatch(d -> d.code().equals("SE-DEF-ENC-001")));
+    assertTrue(ex.getDiagnostics().stream().anyMatch(d -> d.code().equals("SE-DEF-LIMIT-001")));
+  }
+
+  @Test
+  void testCompileActionsWithInvalidNumberStringReportsDiagnostics() {
+    EventSpec spec =
+        new EventSpec(
+            "action_invalid_numbers",
+            "1.0",
+            "active",
+            Map.of(
+                "active",
+                new PhaseSpec(
+                    Set.of(),
+                    List.of(),
+                    List.of(
+                        new ActionSpec(
+                            "play_sound",
+                            Map.of("sound", "bell", "volume", "not_a_float", "pitch", "1.5")),
+                        new ActionSpec(
+                            "spawn_particles",
+                            Map.of("particle", "flame", "count", "invalid_int"))))),
+            null,
+            null,
+            Map.of());
+
+    EventDefinitionCompilerException ex =
+        assertThrows(EventDefinitionCompilerException.class, () -> compiler.compile(spec));
+    assertTrue(ex.getDiagnostics().stream().anyMatch(d -> d.code().equals("SE-DEF-VALUE-001")));
+  }
 }

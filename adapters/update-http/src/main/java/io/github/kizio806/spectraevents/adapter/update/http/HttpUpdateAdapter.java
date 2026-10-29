@@ -21,15 +21,23 @@ public final class HttpUpdateAdapter implements UpdatePort {
   private static final String DEFAULT_UPDATE_URL =
       "https://api.github.com/repos/kizio806/SpectraEvents/releases/latest";
 
+  private final String updateUrl;
   private final HttpClient httpClient;
 
   public HttpUpdateAdapter(Path updateDirectory) {
-    Objects.requireNonNull(updateDirectory, "updateDirectory");
-    this.httpClient =
+    this(
+        updateDirectory,
+        DEFAULT_UPDATE_URL,
         HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .followRedirects(HttpClient.Redirect.NEVER)
-            .build();
+            .build());
+  }
+
+  HttpUpdateAdapter(Path updateDirectory, String updateUrl, HttpClient httpClient) {
+    Objects.requireNonNull(updateDirectory, "updateDirectory");
+    this.updateUrl = Objects.requireNonNull(updateUrl, "updateUrl");
+    this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
   }
 
   @Override
@@ -41,7 +49,7 @@ public final class HttpUpdateAdapter implements UpdatePort {
           try {
             HttpRequest request =
                 HttpRequest.newBuilder()
-                    .uri(URI.create(DEFAULT_UPDATE_URL))
+                    .uri(URI.create(updateUrl))
                     .header("User-Agent", "SpectraEvents-Plugin")
                     .timeout(Duration.ofSeconds(5))
                     .GET()
