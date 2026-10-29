@@ -4,6 +4,7 @@ import io.github.kizio806.spectraevents.application.asset.AssetTargetProfile;
 import io.github.kizio806.spectraevents.application.asset.delivery.PlayerResourcePackService;
 import io.github.kizio806.spectraevents.application.asset.delivery.PlayerResourcePackState;
 import io.github.kizio806.spectraevents.application.asset.delivery.ResourcePackDescriptor;
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import java.util.Optional;
 import java.util.UUID;
 import org.bukkit.event.EventHandler;
@@ -18,16 +19,19 @@ public class SpigotPlayerResourcePackAdapter implements Listener {
   private final String pluginVersion;
   private final AssetTargetProfile profile;
   private final String sourceConfigId;
+  private final LocaleCatalog locales;
 
   public SpigotPlayerResourcePackAdapter(
       PlayerResourcePackService service,
       String pluginVersion,
       AssetTargetProfile profile,
-      String sourceConfigId) {
+      String sourceConfigId,
+      LocaleCatalog locales) {
     this.service = service;
     this.pluginVersion = pluginVersion;
     this.profile = profile;
     this.sourceConfigId = sourceConfigId;
+    this.locales = locales;
   }
 
   @EventHandler
@@ -69,7 +73,7 @@ public class SpigotPlayerResourcePackAdapter implements Listener {
     service.updateState(event.getPlayer().getUniqueId(), state);
     if (service.isRequired()
         && (state == PlayerResourcePackState.DECLINED || state == PlayerResourcePackState.FAILED)) {
-      event.getPlayer().kickPlayer("The required SpectraEvents resource pack could not be loaded.");
+      event.getPlayer().kickPlayer(locales.message("messages.resource-pack-required"));
     }
   }
 

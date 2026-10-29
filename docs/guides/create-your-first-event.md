@@ -5,13 +5,15 @@ behavior, validate it, reload it, start it, and diagnose the running instance.
 
 ## Where definitions live
 
-On first startup, Paper creates:
+On first startup, SpectraEvents creates:
 
 ```text
-plugins/SpectraEvents/events/
+plugins/SpectraEvents/events/          # active definitions; initially empty
+plugins/SpectraEvents/events/presets/  # shipped reference definitions
 ```
 
-If the directory is empty, the plugin writes `example.yml` automatically.
+No definition is activated automatically. This makes a new server's first live event an explicit
+administrator decision.
 
 ## Copy a verified event
 
@@ -23,9 +25,10 @@ Start with one of the shipped v1 examples:
 | `airdrop.yml` | timed unlock, interaction claim, rewards, bossbar/scoreboard, cleanup |
 | `metin.yml` | health damage, threshold transitions, mob waves, boss phase, cleanup |
 
-Copy the file from `plugins/SpectraEvents/events/` to a new filename and change its `id`.
-Also copy or edit the referenced model under `plugins/SpectraEvents/models/` so the model ID and
-named animations match.
+Copy the file from `plugins/SpectraEvents/events/presets/` to `plugins/SpectraEvents/events/` under a
+new filename and change its `id`.
+Create or edit the referenced Blockbench source under `plugins/SpectraEvents/assets/source/` so the
+model ID and named animations match.
 
 ## Minimal working definition
 
@@ -80,7 +83,8 @@ Use `/spectraevents event trigger <instance> manual` to advance a matching manua
 
 ## Config-Driven Meteor Event Example
 
-SpectraEvents ships with a complete executable configuration for the Meteor event at `events/meteor.yml`:
+SpectraEvents ships the Meteor reference configuration at `events/presets/meteor.yml`. Copy it to
+`events/meteor.yml` before loading it:
 
 ```yaml
 id: meteor

@@ -1,0 +1,11 @@
+title = "SpectraEvents Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlist for build directories and mock test fixtures"
+paths = [
+    '''(^|/)build/''',
+    '''(^|/)\.gradle/''',
+]

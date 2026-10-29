@@ -1,0 +1,68 @@
+core:
+  - changed-files:
+      - any-glob-to-any-file: "spectraevents-core/**"
+
+application:
+  - changed-files:
+      - any-glob-to-any-file: "spectraevents-application/**"
+
+paper:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "platforms/paper/**"
+          - "distributions/paper/**"
+
+spigot:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "platforms/spigot/**"
+          - "distributions/spigot/**"
+
+storage:
+  - changed-files:
+      - any-glob-to-any-file: "adapters/storage-sqlite/**"
+
+assets:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "adapters/assets-blockbench/**"
+          - "adapters/assets-delivery/**"
+          - "assets/**"
+          - "scripts/assets/**"
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/src/test/**"
+          - "**/src/integrationTest/**"
+          - "scripts/runtime-smoke/**"
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "wiki/**"
+          - "*.md"
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+          - "build-logic/**"
+          - "scripts/verification/**"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "gradle/**"
+          - "*.gradle.kts"
+          - "gradle.properties"
+          - "gradlew*"
+          - "renovate.json"
+
+release:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "config/release/**"
+          - "scripts/release/**"
+          - "publishing/**"

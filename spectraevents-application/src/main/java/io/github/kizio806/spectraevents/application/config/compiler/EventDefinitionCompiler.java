@@ -1,6 +1,6 @@
 package io.github.kizio806.spectraevents.application.config.compiler;
 
-import io.github.kizio806.spectraevents.application.config.compiled.ConfiguredActionDefinition;
+import io.github.kizio806.spectraevents.application.config.DurationText;
 import io.github.kizio806.spectraevents.application.config.compiled.ConfiguredConditionDefinition;
 import io.github.kizio806.spectraevents.application.config.compiled.ConfiguredTriggerDefinition;
 import io.github.kizio806.spectraevents.application.config.spec.ActionSpec;
@@ -35,6 +35,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -42,6 +44,7 @@ import java.util.stream.Collectors;
  * compilation entirely if any errors are encountered.
  */
 public class EventDefinitionCompiler {
+  private static final Pattern PARAMETER_REFERENCE = Pattern.compile("\\$\\{([a-z][a-z0-9-]*)}");
 
   /**
    * Compiles an EventSpec.
@@ -59,6 +62,23 @@ public class EventDefinitionCompiler {
    * YAML structures intentionally cannot be overridden by an operator settings file.
    */
   public EventDefinition compile(EventSpec spec, Map<String, Object> overrides) {
+    try {
+      return compileResolved(spec, overrides);
+    } catch (EventDefinitionCompilerException exception) {
+      throw exception;
+    } catch (IllegalArgumentException exception) {
+      throw new EventDefinitionCompilerException(
+          "Failed to compile EventDefinition",
+          List.of(
+              new ValidationDiagnostic(
+                  ValidationDiagnostic.Severity.ERROR,
+                  "SE-DEF-VALUE-001",
+                  "definition",
+                  exception.getMessage())));
+    }
+  }
+
+  private EventDefinition compileResolved(EventSpec spec, Map<String, Object> overrides) {
     spec = resolveParameters(spec, overrides == null ? Map.of() : overrides);
     List<ValidationDiagnostic> diagnostics = new ArrayList<>();
 
@@ -272,15 +292,29 @@ public class EventDefinitionCompiler {
 
   @SuppressWarnings("unchecked")
   private Object resolveValue(Object value, Map<String, Object> values) {
-    if (value instanceof String text
-        && text.startsWith("${")
-        && text.endsWith("}")
-        && text.length() > 3) {
-      String name = text.substring(2, text.length() - 1);
-      if (!values.containsKey(name)) {
-        throw new IllegalArgumentException("YAML references undeclared event parameter: " + name);
+    if (value instanceof String text) {
+      Matcher matcher = PARAMETER_REFERENCE.matcher(text);
+      if (!matcher.find()) {
+        return text;
       }
-      return values.get(name);
+      if (matcher.start() == 0 && matcher.end() == text.length()) {
+        String name = matcher.group(1);
+        if (!values.containsKey(name)) {
+          throw new IllegalArgumentException("YAML references undeclared event parameter: " + name);
+        }
+        return values.get(name);
+      }
+      StringBuffer resolved = new StringBuffer();
+      do {
+        String name = matcher.group(1);
+        if (!values.containsKey(name)) {
+          throw new IllegalArgumentException("YAML references undeclared event parameter: " + name);
+        }
+        matcher.appendReplacement(
+            resolved, Matcher.quoteReplacement(String.valueOf(values.get(name))));
+      } while (matcher.find());
+      matcher.appendTail(resolved);
+      return resolved.toString();
     }
     if (value instanceof Map<?, ?> map) {
       Map<String, Object> nested = new LinkedHashMap<>();
@@ -484,7 +518,7 @@ public class EventDefinitionCompiler {
       }
       case "spawn_model" -> {
         return new PlatformActions.SpawnModelAction(
-            String.valueOf(params.getOrDefault("model", "meteor")),
+            requiredString(params, "model"),
             getInt(params, "height-offset", getInt(params, "height_offset", 0)));
       }
       case "move_model" -> {
@@ -494,24 +528,21 @@ public class EventDefinitionCompiler {
         return new PlatformActions.RemoveModelAction();
       }
       case "play_animation", "play-animation" -> {
-        return new PlatformActions.PlayAnimationAction(
-            String.valueOf(params.getOrDefault("animation", "")));
+        return new PlatformActions.PlayAnimationAction(requiredString(params, "animation"));
       }
       case "play_sound" -> {
         return new PlatformActions.PlaySoundAction(
-            String.valueOf(params.getOrDefault("sound", "minecraft:entity.generic.explode")),
+            requiredString(params, "sound"),
             getFloat(params, "volume", 1.0f),
             getFloat(params, "pitch", 1.0f));
       }
       case "spawn_particles" -> {
         return new PlatformActions.SpawnParticlesAction(
-            String.valueOf(params.getOrDefault("particle", "minecraft:explosion")),
-            getInt(params, "count", 10));
+            requiredString(params, "particle"), getInt(params, "count", 10));
       }
       case "give_item" -> {
         return new PlatformActions.GiveItemAction(
-            String.valueOf(params.getOrDefault("material", "minecraft:diamond")),
-            getInt(params, "amount", 1));
+            requiredString(params, "material"), getInt(params, "amount", 1));
       }
       case "open_shared_loot" -> {
         return new PlatformActions.OpenSharedLootAction(
@@ -563,12 +594,10 @@ public class EventDefinitionCompiler {
         return new PlatformActions.AwardPodiumAction(pools);
       }
       case "send_message" -> {
-        return new PlatformActions.SendMessageAction(
-            String.valueOf(params.getOrDefault("message", "")));
+        return new PlatformActions.SendMessageAction(requiredString(params, "message"));
       }
       case "broadcast_message", "broadcast" -> {
-        return new PlatformActions.BroadcastMessageAction(
-            String.valueOf(params.getOrDefault("message", "")));
+        return new PlatformActions.BroadcastMessageAction(requiredString(params, "message"));
       }
       case "show_title" -> {
         return new PlatformActions.ShowTitleAction(
@@ -583,8 +612,8 @@ public class EventDefinitionCompiler {
             getInt(params, "offset-x", 2),
             getInt(params, "offset-y", 0),
             getInt(params, "offset-z", 0),
-            String.valueOf(params.getOrDefault("entity_type", "minecraft:zombie")),
-            String.valueOf(params.getOrDefault("name", "<red>Boss")));
+            requiredString(params, "entity_type"),
+            requiredString(params, "name"));
       }
       case "spawn_mobs", "spawn_wave" -> {
         List<PlatformActions.MobSpawn> mobs = new ArrayList<>();
@@ -650,7 +679,7 @@ public class EventDefinitionCompiler {
         return new IntegrationActions.TakeMoneyAction(getDouble(params, "amount", 0.0));
       }
       default -> {
-        return new ConfiguredActionDefinition(spec.type());
+        throw new IllegalArgumentException("Unknown action type: " + spec.type());
       }
     }
   }
@@ -729,33 +758,67 @@ public class EventDefinitionCompiler {
   private int getInt(Map<String, Object> params, String key, int defaultValue) {
     Object val = params.get(key);
     if (val == null) return defaultValue;
-    if (val instanceof Number n) return n.intValue();
+    if (val instanceof Number n) {
+      try {
+        return new java.math.BigDecimal(n.toString()).intValueExact();
+      } catch (NumberFormatException | ArithmeticException exception) {
+        throw new IllegalArgumentException(key + " must be an integer in range", exception);
+      }
+    }
     try {
       return Integer.parseInt(String.valueOf(val));
     } catch (NumberFormatException e) {
-      return defaultValue;
+      throw new IllegalArgumentException(key + " must be an integer", e);
     }
+  }
+
+  private String requiredString(Map<String, Object> params, String key) {
+    Object value = params.get(key);
+    if (value == null || String.valueOf(value).isBlank()) {
+      throw new IllegalArgumentException("action parameter '" + key + "' is required");
+    }
+    return String.valueOf(value);
   }
 
   private float getFloat(Map<String, Object> params, String key, float defaultValue) {
     Object val = params.get(key);
     if (val == null) return defaultValue;
-    if (val instanceof Number n) return n.floatValue();
+    if (val instanceof Number n) {
+      float numeric = n.floatValue();
+      if (!Float.isFinite(numeric)) {
+        throw new IllegalArgumentException(key + " must be a finite number");
+      }
+      return numeric;
+    }
     try {
-      return Float.parseFloat(String.valueOf(val));
+      float numeric = Float.parseFloat(String.valueOf(val));
+      if (!Float.isFinite(numeric)) {
+        throw new IllegalArgumentException(key + " must be a finite number");
+      }
+      return numeric;
     } catch (NumberFormatException e) {
-      return defaultValue;
+      throw new IllegalArgumentException(key + " must be a number", e);
     }
   }
 
   private double getDouble(Map<String, Object> params, String key, double defaultValue) {
     Object value = params.get(key);
     if (value == null) return defaultValue;
-    if (value instanceof Number number) return number.doubleValue();
+    if (value instanceof Number number) {
+      double numeric = number.doubleValue();
+      if (!Double.isFinite(numeric)) {
+        throw new IllegalArgumentException(key + " must be a finite number");
+      }
+      return numeric;
+    }
     try {
-      return Double.parseDouble(String.valueOf(value));
+      double numeric = Double.parseDouble(String.valueOf(value));
+      if (!Double.isFinite(numeric)) {
+        throw new IllegalArgumentException(key + " must be a finite number");
+      }
+      return numeric;
     } catch (NumberFormatException exception) {
-      return defaultValue;
+      throw new IllegalArgumentException(key + " must be a number", exception);
     }
   }
 
@@ -768,36 +831,14 @@ public class EventDefinitionCompiler {
   }
 
   private Duration parseDuration(Object obj) {
-    if (obj == null) return Duration.ZERO;
-    String str = String.valueOf(obj).trim().toLowerCase(java.util.Locale.ROOT);
-    if (str.isEmpty()) return Duration.ZERO;
-    if (str.endsWith("s")) {
-      try {
-        long sec = Long.parseLong(str.substring(0, str.length() - 1).trim());
-        return Duration.ofSeconds(sec);
-      } catch (NumberFormatException e) {
-        return Duration.ZERO;
-      }
-    } else if (str.endsWith("m")) {
-      try {
-        long min = Long.parseLong(str.substring(0, str.length() - 1).trim());
-        return Duration.ofMinutes(min);
-      } catch (NumberFormatException e) {
-        return Duration.ZERO;
-      }
-    } else if (str.endsWith("h")) {
-      try {
-        long hours = Long.parseLong(str.substring(0, str.length() - 1).trim());
-        return Duration.ofHours(hours);
-      } catch (NumberFormatException e) {
-        return Duration.ZERO;
-      }
+    if (obj == null) {
+      throw new IllegalArgumentException("duration is required and must use ms, s, m, or h");
     }
     try {
-      long sec = Long.parseLong(str);
-      return Duration.ofSeconds(sec);
-    } catch (NumberFormatException e) {
-      return Duration.ZERO;
+      return DurationText.parse(String.valueOf(obj).trim().toLowerCase(java.util.Locale.ROOT));
+    } catch (IllegalArgumentException exception) {
+      throw new IllegalArgumentException(
+          "duration must be an integer followed by ms, s, m, or h", exception);
     }
   }
 }

@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -481,11 +482,37 @@ public final class SQLiteEventInstanceRepository
   }
 
   @Override
+  public CompletableFuture<Void> saveStateDurablyAsync(EventRuntimeState state) {
+    stateCache.put(state.instanceId(), state);
+    StateSnapshot snapshot = snapshot(state);
+    return executor.executeAsync(() -> persistState(snapshot, true));
+  }
+
+  @Override
   public void saveWithStateDurably(EventInstance eventInstance, EventRuntimeState state) {
     cache.put(eventInstance.id(), eventInstance);
     stateCache.put(state.instanceId(), state);
     StateSnapshot snapshot = snapshot(state);
     executor.executeAndWait(
+        () -> {
+          try {
+            persistInstance(eventInstance, false);
+            persistState(snapshot, false);
+            commitOrThrow();
+          } catch (RuntimeException exception) {
+            rollbackQuietly();
+            throw exception;
+          }
+        });
+  }
+
+  @Override
+  public CompletableFuture<Void> saveWithStateDurablyAsync(
+      EventInstance eventInstance, EventRuntimeState state) {
+    cache.put(eventInstance.id(), eventInstance);
+    stateCache.put(state.instanceId(), state);
+    StateSnapshot snapshot = snapshot(state);
+    return executor.executeAsync(
         () -> {
           try {
             persistInstance(eventInstance, false);
@@ -756,54 +783,90 @@ public final class SQLiteEventInstanceRepository
     if (claim.status() != RewardClaimStatus.PENDING) {
       throw new IllegalArgumentException("Only pending reward claims may be created");
     }
-    executor.executeAndWait(
+    executor.executeAndWait(() -> persistPendingClaim(claim));
+  }
+
+  @Override
+  public CompletableFuture<Void> savePendingDurablyAsync(RewardClaim claim) {
+    Objects.requireNonNull(claim, "claim");
+    if (claim.status() != RewardClaimStatus.PENDING) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Only pending reward claims may be created"));
+    }
+    return executor.executeAsync(
         () -> {
-          String claimSql =
-              "INSERT OR IGNORE INTO spectra_reward_claims (claim_id, instance_id, player_uuid, status, created_at, delivered_at) VALUES (?, ?, ?, ?, ?, ?)";
-          String itemSql =
-              "INSERT INTO spectra_reward_items (claim_id, slot, material, amount) VALUES (?, ?, ?, ?)";
-          try (PreparedStatement claimStatement = writerConnection.prepareStatement(claimSql);
-              PreparedStatement itemStatement = writerConnection.prepareStatement(itemSql)) {
-            claimStatement.setString(1, claim.id().toString());
-            claimStatement.setString(2, claim.instanceId().toString());
-            claimStatement.setString(3, claim.playerId().toString());
-            claimStatement.setString(4, claim.status().name());
-            claimStatement.setLong(5, claim.createdAt().toEpochMilli());
-            setNullableLong(
-                claimStatement,
-                6,
-                claim.deliveredAt() == null ? null : claim.deliveredAt().toEpochMilli());
-            if (claimStatement.executeUpdate() == 0) {
-              commitOrThrow();
-              return;
-            }
-            int slot = 0;
-            for (RewardItem item : claim.items()) {
-              itemStatement.setString(1, claim.id().toString());
-              itemStatement.setInt(2, slot++);
-              itemStatement.setString(3, item.material());
-              itemStatement.setInt(4, item.amount());
-              itemStatement.addBatch();
-            }
-            itemStatement.executeBatch();
-            commitOrThrow();
-          } catch (SQLException exception) {
-            rollbackQuietly();
-            throw new IllegalStateException("Failed to persist reward claim", exception);
-          }
+          persistPendingClaim(claim);
         });
+  }
+
+  private void persistPendingClaim(RewardClaim claim) {
+    String claimSql =
+        "INSERT OR IGNORE INTO spectra_reward_claims (claim_id, instance_id, player_uuid, status, created_at, delivered_at) VALUES (?, ?, ?, ?, ?, ?)";
+    String itemSql =
+        "INSERT INTO spectra_reward_items (claim_id, slot, material, amount) VALUES (?, ?, ?, ?)";
+    try (PreparedStatement claimStatement = writerConnection.prepareStatement(claimSql);
+        PreparedStatement itemStatement = writerConnection.prepareStatement(itemSql)) {
+      claimStatement.setString(1, claim.id().toString());
+      claimStatement.setString(2, claim.instanceId().toString());
+      claimStatement.setString(3, claim.playerId().toString());
+      claimStatement.setString(4, claim.status().name());
+      claimStatement.setLong(5, claim.createdAt().toEpochMilli());
+      setNullableLong(
+          claimStatement,
+          6,
+          claim.deliveredAt() == null ? null : claim.deliveredAt().toEpochMilli());
+      if (claimStatement.executeUpdate() == 0) {
+        commitOrThrow();
+        return;
+      }
+      int slot = 0;
+      for (RewardItem item : claim.items()) {
+        itemStatement.setString(1, claim.id().toString());
+        itemStatement.setInt(2, slot++);
+        itemStatement.setString(3, item.material());
+        itemStatement.setInt(4, item.amount());
+        itemStatement.addBatch();
+      }
+      itemStatement.executeBatch();
+      commitOrThrow();
+    } catch (SQLException exception) {
+      rollbackQuietly();
+      throw new IllegalStateException("Failed to persist reward claim", exception);
+    }
   }
 
   @Override
   public List<RewardClaim> findPending(UUID playerId) {
     Objects.requireNonNull(playerId, "playerId");
-    String sql =
-        "SELECT claim_id, instance_id, player_uuid, status, created_at, delivered_at FROM spectra_reward_claims WHERE player_uuid = ? AND status = ? ORDER BY created_at";
+    return readRewardClaims(
+        "SELECT claim_id, instance_id, player_uuid, status, created_at, delivered_at FROM spectra_reward_claims WHERE player_uuid = ? AND status = ? ORDER BY created_at",
+        statement -> {
+          statement.setString(1, playerId.toString());
+          statement.setString(2, RewardClaimStatus.PENDING.name());
+        });
+  }
+
+  @Override
+  public CompletableFuture<List<RewardClaim>> findPendingAsync(UUID playerId) {
+    UUID nonNullPlayerId = Objects.requireNonNull(playerId, "playerId");
+    return CompletableFuture.supplyAsync(() -> findPending(nonNullPlayerId));
+  }
+
+  @Override
+  public CompletableFuture<List<RewardClaim>> findByStatusAsync(RewardClaimStatus status) {
+    RewardClaimStatus nonNullStatus = Objects.requireNonNull(status, "status");
+    return CompletableFuture.supplyAsync(
+        () ->
+            readRewardClaims(
+                "SELECT claim_id, instance_id, player_uuid, status, created_at, delivered_at FROM spectra_reward_claims WHERE status = ? ORDER BY created_at",
+                statement -> statement.setString(1, nonNullStatus.name())));
+  }
+
+  private List<RewardClaim> readRewardClaims(String sql, SqlStatementBinder binder) {
     List<RewardClaim> claims = new ArrayList<>();
     try (Connection connection = getConnection();
         PreparedStatement statement = connection.prepareStatement(sql)) {
-      statement.setString(1, playerId.toString());
-      statement.setString(2, RewardClaimStatus.PENDING.name());
+      binder.bind(statement);
       try (ResultSet resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
           claims.add(readRewardClaim(connection, resultSet));
@@ -824,11 +887,25 @@ public final class SQLiteEventInstanceRepository
   }
 
   @Override
-  public void returnToPending(UUID claimId) {
-    transitionRewardClaim(
+  public CompletableFuture<Boolean> beginDeliveryAsync(UUID claimId) {
+    UUID nonNullClaimId = Objects.requireNonNull(claimId, "claimId");
+    return transitionRewardClaimAsync(
+        nonNullClaimId, RewardClaimStatus.PENDING, RewardClaimStatus.DELIVERING);
+  }
+
+  @Override
+  public boolean returnToPending(UUID claimId) {
+    return transitionRewardClaim(
         Objects.requireNonNull(claimId, "claimId"),
         RewardClaimStatus.DELIVERING,
         RewardClaimStatus.PENDING);
+  }
+
+  @Override
+  public CompletableFuture<Boolean> returnToPendingAsync(UUID claimId) {
+    UUID nonNullClaimId = Objects.requireNonNull(claimId, "claimId");
+    return transitionRewardClaimAsync(
+        nonNullClaimId, RewardClaimStatus.DELIVERING, RewardClaimStatus.PENDING);
   }
 
   @Override
@@ -855,6 +932,28 @@ public final class SQLiteEventInstanceRepository
     return updated.get();
   }
 
+  @Override
+  public CompletableFuture<Boolean> markDeliveredAsync(UUID claimId) {
+    UUID nonNullClaimId = Objects.requireNonNull(claimId, "claimId");
+    return executor.supplyAsync(
+        () -> {
+          String sql =
+              "UPDATE spectra_reward_claims SET status = ?, delivered_at = ? WHERE claim_id = ? AND status = ?";
+          try (PreparedStatement statement = writerConnection.prepareStatement(sql)) {
+            statement.setString(1, RewardClaimStatus.DELIVERED.name());
+            statement.setLong(2, System.currentTimeMillis());
+            statement.setString(3, nonNullClaimId.toString());
+            statement.setString(4, RewardClaimStatus.DELIVERING.name());
+            boolean updated = statement.executeUpdate() == 1;
+            commitOrThrow();
+            return updated;
+          } catch (SQLException exception) {
+            rollbackQuietly();
+            throw new IllegalStateException("Failed to mark reward claim delivered", exception);
+          }
+        });
+  }
+
   private boolean transitionRewardClaim(
       UUID claimId, RewardClaimStatus expected, RewardClaimStatus next) {
     java.util.concurrent.atomic.AtomicBoolean updated =
@@ -875,6 +974,31 @@ public final class SQLiteEventInstanceRepository
           }
         });
     return updated.get();
+  }
+
+  private CompletableFuture<Boolean> transitionRewardClaimAsync(
+      UUID claimId, RewardClaimStatus expected, RewardClaimStatus next) {
+    return executor.supplyAsync(
+        () -> {
+          String sql =
+              "UPDATE spectra_reward_claims SET status = ? WHERE claim_id = ? AND status = ?";
+          try (PreparedStatement statement = writerConnection.prepareStatement(sql)) {
+            statement.setString(1, next.name());
+            statement.setString(2, claimId.toString());
+            statement.setString(3, expected.name());
+            boolean updated = statement.executeUpdate() == 1;
+            commitOrThrow();
+            return updated;
+          } catch (SQLException exception) {
+            rollbackQuietly();
+            throw new IllegalStateException("Failed to transition reward claim", exception);
+          }
+        });
+  }
+
+  @FunctionalInterface
+  private interface SqlStatementBinder {
+    void bind(PreparedStatement statement) throws SQLException;
   }
 
   private RewardClaim readRewardClaim(Connection connection, ResultSet resultSet)

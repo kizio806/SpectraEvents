@@ -1,5 +1,6 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.GradleException
+import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.jvm.tasks.Jar
 import xyz.jpenilla.runpaper.task.RunServer
@@ -139,4 +140,34 @@ tasks.named("check") {
 tasks.named<RunServer>("runServer") {
     minecraftVersion("26.2")
     runDirectory(rootProject.file("server"))
+    pluginJars(shadowJar.flatMap { it.archiveFile })
+}
+
+val localModelTestDirectory = layout.buildDirectory.dir("local-model-test-server")
+val prepareModelTestServer =
+    tasks.register<Sync>("prepareModelTestServer") {
+        group = "application"
+        description = "Creates an isolated Paper 26.2 server with the bundled models and presets enabled."
+        from(project(":spectraevents-application").file("src/main/resources/assets/source")) {
+            into("plugins/SpectraEvents/assets/source")
+        }
+        from(project(":spectraevents-application").file("src/main/resources/events")) {
+            include("*.yml")
+            into("plugins/SpectraEvents/events")
+        }
+        into(localModelTestDirectory)
+    }
+
+tasks.register<RunServer>("runModelTestServer") {
+    group = "application"
+    description =
+        "Validates the bundled assets, then runs an isolated Paper 26.2 server for visual model tests."
+    dependsOn(
+        shadowJar,
+        prepareModelTestServer,
+        ":adapters:assets-blockbench:buildReleaseResourcePacks",
+    )
+    minecraftVersion("26.2")
+    runDirectory(localModelTestDirectory.get().asFile)
+    pluginJars(shadowJar.flatMap { it.archiveFile })
 }

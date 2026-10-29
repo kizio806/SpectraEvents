@@ -2,6 +2,7 @@ package io.github.kizio806.spectraevents.platform.paper.integration;
 
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.integration.IntegrationState;
+import java.util.Set;
 import java.util.logging.Logger;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
@@ -9,6 +10,8 @@ import org.bukkit.plugin.Plugin;
 /** Detects and manages optional paper plugin integrations safely. */
 public final class PaperIntegrationManager {
   private static final Logger LOGGER = Logger.getLogger(PaperIntegrationManager.class.getName());
+  private static final Set<String> REQUIRES_MODULE_INIT =
+      Set.of("LuckPerms", "WorldGuard", "Vault", "PlaceholderAPI");
 
   private final IntegrationRegistry registry;
 
@@ -30,16 +33,18 @@ public final class PaperIntegrationManager {
   private void detectPlugin(String name, String description) {
     Plugin plugin = Bukkit.getPluginManager().getPlugin(name);
     if (plugin != null && plugin.isEnabled()) {
+      IntegrationState state =
+          REQUIRES_MODULE_INIT.contains(name)
+              ? IntegrationState.AVAILABLE
+              : IntegrationState.ACTIVE;
       registry.register(
-          name,
-          IntegrationState.ENABLED,
-          description + " (v" + plugin.getPluginMeta().getVersion() + ")");
-      LOGGER.fine("Integration detected and enabled: " + name);
+          name, state, description + " (v" + plugin.getPluginMeta().getVersion() + ")");
+      LOGGER.fine("Integration detected (" + state + "): " + name);
     } else if (plugin != null) {
       registry.register(
-          name, IntegrationState.DISABLED, description + " (Plugin present but disabled)");
+          name, IntegrationState.DEGRADED, description + " (Plugin present but disabled)");
     } else {
-      registry.register(name, IntegrationState.MISSING, description + " (Not installed)");
+      registry.register(name, IntegrationState.ABSENT, description + " (Not installed)");
     }
   }
 

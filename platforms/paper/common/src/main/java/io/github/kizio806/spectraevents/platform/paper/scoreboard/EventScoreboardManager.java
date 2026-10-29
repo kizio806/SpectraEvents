@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.paper.scoreboard;
 
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.platform.paper.common.EventDisplayPlaceholders;
@@ -49,11 +50,13 @@ public final class EventScoreboardManager implements Listener {
 
   private final Map<UUID, ScoreboardHolder> activeScoreboards = new ConcurrentHashMap<>();
   private final RegionTaskScheduler scheduler;
+  private final LocaleCatalog locales;
   private volatile boolean scoreboardsSupported = true;
   private volatile boolean shuttingDown;
 
-  public EventScoreboardManager(RegionTaskScheduler scheduler) {
+  public EventScoreboardManager(RegionTaskScheduler scheduler, LocaleCatalog locales) {
     this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
+    this.locales = Objects.requireNonNull(locales, "locales");
   }
 
   public void showScoreboard(
@@ -70,7 +73,8 @@ public final class EventScoreboardManager implements Listener {
       throw new IllegalStateException(
           "A Minecraft client can display only one sidebar; another event already owns it");
     }
-    String titleTemplate = getString(params, "title", "<gold>SpectraEvents");
+    String titleTemplate =
+        getString(params, "title", locales.message("messages.default-scoreboard-title"));
     List<String> lineTemplates = getList(params, "lines");
 
     Scoreboard scoreboard;
@@ -209,7 +213,8 @@ public final class EventScoreboardManager implements Listener {
   private Component renderComponent(
       String template, EventInstance instance, EventRuntimeState state) {
     return MiniPlaceholdersIntegration.getMiniMessage()
-        .deserialize(EventDisplayPlaceholders.resolve(template, instance, state));
+        .deserialize(
+            EventDisplayPlaceholders.resolve(locales.resolveTemplate(template), instance, state));
   }
 
   private void logUnsupported(UUID instanceId) {

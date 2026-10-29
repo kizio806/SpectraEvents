@@ -14,7 +14,7 @@ loot, cleanup, and recovery contracts — no `BossPortalManager` is needed.
 
 ## Visual Model
 
-The `boss_portal` model ([`models/boss-portal.yml`](../authoring/models.md)) is built from 16 parts:
+The `boss_portal` model ([`assets/source/boss_portal.bbmodel`](../authoring/models.md)) is imported from Blockbench:
 
 | Group | Parts | Description |
 |---|---|---|
@@ -37,7 +37,7 @@ The `boss_portal` model ([`models/boss-portal.yml`](../authoring/models.md)) is 
 
 | Concern | Contract |
 |---|---|
-| Visual asset | `models/boss-portal.yml` — 16-part hierarchical model |
+| Visual asset | `assets/source/boss_portal.bbmodel` — imported hierarchical model |
 | Timer | `timer_elapsed` moves `opening → active` after 10 s |
 | Boss spawn | `spawn_boss` tags entity with PDC linking it to this event instance |
 | Boss kill | `entity_death` routes the kill back automatically via PDC tag |
@@ -57,6 +57,6 @@ The `boss_portal` model ([`models/boss-portal.yml`](../authoring/models.md)) is 
 4. Players defeat the boss; loot drops and the portal collapses.
 5. Verify bossbar, scoreboard, and model are removed after completion.
 
-To customise: copy `events/boss-portal.yml`, change the `id`, adjust the boss `entity_type`,
+To customise: copy `events/presets/boss-portal.yml` into `events/`, change the `id`, adjust the boss `entity_type`,
 the `duration` on `timer_elapsed`, and the loot table under `drop_loot`.
 Then reload with `/spectraevents definition reload`.

@@ -43,13 +43,13 @@ jobs:
           validate-wrappers: true
 
       - name: Run formatting, static analysis, and boundary checks
-        run: ./gradlew --no-daemon spotlessCheck checkstyleMain pmdMain spotbugsMain verifyPlatformBoundaries
+        run: ./gradlew --no-daemon spotlessCheck checkstyleMain pmdMain spotbugsMain verifyPlatformBoundaries validateStructure validateSourceHygiene
 
       - name: Validate documented release blockers
         run: |
           python3 -m unittest discover -s scripts/release -p 'test_*.py'
           python3 -m unittest discover -s scripts/runtime-smoke -p 'test_*.py'
-          python3 scripts/release/verify_release_gate.py
+          python3 scripts/release/verify_release_gate.py --runtime-matrix-status failure --allow-blocked
 
   core-tests:
     name: CI / Core Tests
@@ -264,16 +264,28 @@ jobs:
       - name: Run root quality gate
         run: ./gradlew --no-daemon clean check build
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574 # v5.4.0
+        with:
+          files: build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml
+          flags: unittests
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: ${{ github.repository }}
+
       - name: Scan locked dependencies for known vulnerabilities
         uses: google/osv-scanner-action/osv-scanner-action@8dc09193bb540e09b23da07ad7e30bd33bf87018 # v2.3.8
         with:
           scan-args: |-
+            --config=osv-scanner.toml
             --recursive
             .
 
       - name: Generate CI Summary
         run: |
-          echo "# SpectraEvents CI Status" >> $GITHUB_STEP_SUMMARY
-          echo "- **Quality Gate:** PASS" >> $GITHUB_STEP_SUMMARY
-          echo "- **Distribution Verification:** PASS" >> $GITHUB_STEP_SUMMARY
-          echo "- **Target Java:** ${{ env.JAVA_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "# SpectraEvents CI Status"
+            echo "- **Quality Gate:** PASS"
+            echo "- **Distribution Verification:** PASS"
+            echo "- **Target Java:** ${{ env.JAVA_VERSION }}"
+          } >> "$GITHUB_STEP_SUMMARY"

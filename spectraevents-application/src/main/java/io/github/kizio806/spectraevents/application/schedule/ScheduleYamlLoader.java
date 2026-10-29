@@ -67,7 +67,8 @@ public final class ScheduleYamlLoader {
                     number(entry, "y", fileName, path),
                     number(entry, "z", fileName, path),
                     0,
-                    0)));
+                    0),
+                parameterOverrides(entry, fileName, path)));
       } catch (IllegalArgumentException exception) {
         failures.add(new ScheduleLoadResult.Failure(fileName + ":" + path, exception.getMessage()));
       }
@@ -91,6 +92,28 @@ public final class ScheduleYamlLoader {
     Object value = entry.get(key);
     if (!(value instanceof Number number)) throw invalid(file, path + "." + key, "must be numeric");
     return number.doubleValue();
+  }
+
+  private static Map<String, Object> parameterOverrides(Map<?, ?> entry, String file, String path) {
+    Object raw = entry.get("parameters");
+    if (raw == null) {
+      return Map.of();
+    }
+    if (!(raw instanceof Map<?, ?> values)) {
+      throw invalid(file, path + ".parameters", "must be a mapping");
+    }
+    java.util.LinkedHashMap<String, Object> result = new java.util.LinkedHashMap<>();
+    values.forEach(
+        (key, value) -> {
+          if (key == null || String.valueOf(key).isBlank()) {
+            throw invalid(file, path + ".parameters", "keys must not be blank");
+          }
+          if (value instanceof Map<?, ?> || value instanceof List<?>) {
+            throw invalid(file, path + ".parameters." + key, "must be a scalar value");
+          }
+          result.put(String.valueOf(key), value);
+        });
+    return Map.copyOf(result);
   }
 
   private static IllegalArgumentException invalid(String file, String path, String message) {

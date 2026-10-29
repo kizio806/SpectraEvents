@@ -58,5 +58,12 @@ invalid field. A failed file does not replace an already active valid definition
 `DefinitionLoader` skips files that fail parse, compile, or registration. Other files in the same
 batch still load successfully.
 
-Use `/spectraevents definition validate` on a running Paper or Spigot server to inspect diagnostics
-without changing the active registry. Use `/spectraevents definition reload` only after validation passes.
+Use `/spectraevents validate` (or `/spectraevents definition validate`) on a running Paper or Spigot
+server to inspect diagnostics without changing the active registry. In addition to YAML/schema and
+duplicate-ID checks, it resolves `spawn_model` and `play_animation` references against the imported
+asset registry. Unsupported Blockbench geometry is rejected when assets are built, including during
+`/spectraevents template install`. The command also reports resource-pack delivery readiness: a
+disabled delivery configuration is a warning, not a false claim that remote clients can render the
+custom model. Paper additionally reports the state of optional integrations. A configured HTTPS or
+Modrinth descriptor is still not real-client acceptance evidence. Use `/spectraevents definition
+reload` only after validation passes.

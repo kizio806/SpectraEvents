@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
 public final class AssetPipelineService {
@@ -29,6 +30,9 @@ public final class AssetPipelineService {
   private final Map<String, String> sourceCache = new HashMap<>();
   private final Map<String, SpectraAssetDocument> compiledDocuments = new HashMap<>();
   private boolean resourcePackDirty;
+  private volatile boolean building;
+  private volatile boolean ready;
+  private volatile String lastFailure;
 
   public AssetPipelineService(
       AssetImportPort importPort,
@@ -52,16 +56,18 @@ public final class AssetPipelineService {
     this.modelRegistrar = modelRegistrar;
   }
 
-  public void buildAssets() {
-    LOGGER.fine("Starting Asset Pipeline build...");
-    if (!Files.exists(sourceDirectory)) {
-      LOGGER.fine("Source directory does not exist: " + sourceDirectory);
-      return;
-    }
-
-    List<String> failures = new ArrayList<>();
+  public synchronized void buildAssets() {
+    building = true;
     try {
+      LOGGER.fine("Starting Asset Pipeline build...");
+      if (!Files.exists(sourceDirectory)) {
+        LOGGER.fine("Source directory does not exist: " + sourceDirectory);
+        ready = true;
+        lastFailure = null;
+        return;
+      }
 
+      List<String> failures = new ArrayList<>();
       try (java.util.stream.Stream<Path> stream = Files.walk(sourceDirectory)) {
         stream
             .filter(Files::isRegularFile)
@@ -69,10 +75,7 @@ public final class AssetPipelineService {
             .forEach(
                 path -> {
                   try {
-                    if (importSource(path)) {
-                      resourcePackDirty = true;
-                    }
-
+                    importSource(path);
                   } catch (Exception e) {
                     LOGGER.severe("Failed to compile asset source " + path + ": " + e.getMessage());
                     failures.add(path.getFileName() + ": " + e.getMessage());
@@ -85,12 +88,43 @@ public final class AssetPipelineService {
             "Asset pipeline rejected bundle(s): " + String.join("; ", failures));
       }
       rebuildResourcePackIfDirty();
-    } catch (IOException e) {
-      throw new IllegalStateException("Failed to walk asset source directory", e);
+      ready = true;
+      lastFailure = null;
+    } catch (RuntimeException e) {
+      ready = false;
+      lastFailure = e.getMessage();
+      throw e;
+    } catch (Exception e) {
+      ready = false;
+      lastFailure = e.getMessage();
+      throw new IllegalStateException("Failed to build assets", e);
+    } finally {
+      building = false;
     }
   }
 
-  public void importFile(String filename) {
+  public boolean isBuilding() {
+    return building;
+  }
+
+  public boolean isReady() {
+    return ready;
+  }
+
+  public String lastFailure() {
+    return lastFailure;
+  }
+
+  public AssetTargetProfile targetProfile() {
+    return targetProfile;
+  }
+
+  /** Runs filesystem parsing and resource-pack generation away from a platform scheduler thread. */
+  public CompletableFuture<Void> buildAssetsAsync() {
+    return CompletableFuture.runAsync(this::buildAssets);
+  }
+
+  public synchronized void importFile(String filename) {
     Objects.requireNonNull(filename, "filename");
     Path path = sourceDirectory.resolve(filename).toAbsolutePath().normalize();
     if (!path.startsWith(sourceDirectory)
@@ -109,6 +143,11 @@ public final class AssetPipelineService {
     } catch (Exception e) {
       throw new RuntimeException("Import failed: " + e.getMessage(), e);
     }
+  }
+
+  /** Imports one validated source asynchronously while preserving pipeline cache serialization. */
+  public CompletableFuture<Void> importFileAsync(String filename) {
+    return CompletableFuture.runAsync(() -> importFile(filename));
   }
 
   private boolean importSource(Path source) throws Exception {
@@ -134,7 +173,7 @@ public final class AssetPipelineService {
     return filename.endsWith(SPECTRA_BUNDLE_EXTENSION) || filename.endsWith(BLOCKBENCH_EXTENSION);
   }
 
-  public boolean validateModel(String modelId) {
+  public synchronized boolean validateModel(String modelId) {
     if (!compiledDocuments.containsKey(modelId)) return false;
     SpectraAssetDocument doc = compiledDocuments.get(modelId);
     // Simple validation rule checks
@@ -142,15 +181,15 @@ public final class AssetPipelineService {
     return true;
   }
 
-  public Collection<String> listModels() {
+  public synchronized Collection<String> listModels() {
     return List.copyOf(compiledDocuments.keySet());
   }
 
-  public SpectraAssetDocument getModelInfo(String modelId) {
+  public synchronized SpectraAssetDocument getModelInfo(String modelId) {
     return compiledDocuments.get(modelId);
   }
 
-  public void clean() {
+  public synchronized void clean() {
     sourceCache.clear();
     compiledDocuments.clear();
     resourcePackDirty = false;

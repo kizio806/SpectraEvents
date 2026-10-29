@@ -6,6 +6,7 @@ import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import io.github.kizio806.spectraevents.application.config.compiled.ConfiguredTriggerDefinition;
 import io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompiler;
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
@@ -14,6 +15,7 @@ import io.github.kizio806.spectraevents.application.service.EventOrchestrationSe
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
+import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.util.Collection;
@@ -33,21 +35,22 @@ public final class EventCommandHandler {
   private final EventInstanceRepository instanceRepository;
   private final EventDefinitionRegistry definitionRegistry;
   private final PaperEventSettingsStore settingsStore;
+  private final RegionTaskScheduler regionScheduler;
+  private final CommandText messages;
 
   public EventCommandHandler(
       EventOrchestrationService orchestrationService,
       EventInstanceRepository instanceRepository,
       EventDefinitionRegistry definitionRegistry,
-      PaperEventSettingsStore settingsStore) {
+      PaperEventSettingsStore settingsStore,
+      RegionTaskScheduler regionScheduler,
+      LocaleCatalog locales) {
     this.orchestrationService = orchestrationService;
     this.instanceRepository = instanceRepository;
     this.definitionRegistry = definitionRegistry;
     this.settingsStore = settingsStore;
-  }
-
-  public EventCommandHandler(
-      EventOrchestrationService orchestrationService, EventInstanceRepository instanceRepository) {
-    this(orchestrationService, instanceRepository, null, null);
+    this.regionScheduler = regionScheduler;
+    this.messages = new CommandText(locales);
   }
 
   public LiteralArgumentBuilder<CommandSourceStack> build() {
@@ -83,14 +86,6 @@ public final class EventCommandHandler {
                                             Commands.argument("value", StringArgumentType.word())
                                                 .executes(this::setConfiguration))))))
         .then(
-            Commands.literal("stop")
-                .requires(s -> s.getSender().hasPermission("spectraevents.event.stop"))
-                .executes(ctx -> missingArgument(ctx, "/spectraevents event stop <instance-id>"))
-                .then(
-                    Commands.argument("instance", StringArgumentType.word())
-                        .suggests(this::suggestActiveInstances)
-                        .executes(this::eventStop)))
-        .then(
             Commands.literal("cancel")
                 .requires(s -> s.getSender().hasPermission("spectraevents.event.cancel"))
                 .executes(ctx -> missingArgument(ctx, "/spectraevents event cancel <instance-id>"))
@@ -123,15 +118,10 @@ public final class EventCommandHandler {
 
   private int eventUsage(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
-    sender.sendMessage(Component.text("Event commands:", NamedTextColor.AQUA));
-    sender.sendMessage(
-        Component.text("/spectraevents event start <event-id>", NamedTextColor.GRAY));
-    sender.sendMessage(
-        Component.text(
-            "/spectraevents event list | inspect <instance-id> | cancel <instance-id>",
-            NamedTextColor.GRAY));
-    sender.sendMessage(
-        Component.text("/spectraevents event config <event-id> show", NamedTextColor.GRAY));
+    sender.sendMessage(messages.component("command.events.usage-title", NamedTextColor.AQUA));
+    sender.sendMessage(messages.component("command.events.usage-start", NamedTextColor.GRAY));
+    sender.sendMessage(messages.component("command.events.usage-manage", NamedTextColor.GRAY));
+    sender.sendMessage(messages.component("command.events.usage-config", NamedTextColor.GRAY));
     return 1;
   }
 
@@ -152,7 +142,8 @@ public final class EventCommandHandler {
     ctx.getSource()
         .getSender()
         .sendMessage(
-            Component.text("A required value is missing. Example: " + example, NamedTextColor.RED));
+            messages.component(
+                "command.events.value-required", NamedTextColor.RED, Map.of("example", example)));
     return 0;
   }
 
@@ -226,19 +217,23 @@ public final class EventCommandHandler {
     CommandSender sender = ctx.getSource().getSender();
     Collection<EventInstance> instances = instanceRepository.findAll();
     sender.sendMessage(
-        Component.text("Active Event Instances (" + instances.size() + "):", NamedTextColor.GOLD));
+        messages.component(
+            "command.events.list-title", NamedTextColor.GOLD, Map.of("count", instances.size())));
     for (EventInstance inst : instances) {
       sender.sendMessage(
-          Component.text(" - ID: ", NamedTextColor.GRAY)
-              .append(Component.text(inst.id().toString(), NamedTextColor.AQUA))
-              .append(Component.text(" Definition: ", NamedTextColor.GRAY))
-              .append(Component.text(inst.definitionId().value(), NamedTextColor.YELLOW))
-              .append(Component.text(" State: ", NamedTextColor.GRAY))
-              .append(Component.text(inst.state().name(), NamedTextColor.GREEN)));
+          messages.component(
+              "command.events.list-entry",
+              NamedTextColor.GRAY,
+              Map.of(
+                  "id", inst.id(),
+                  "definition", inst.definitionId().value(),
+                  "state", inst.state().name())));
     }
     return 1;
   }
 
+  @SuppressWarnings(
+      "FutureReturnValueIgnored") // Completion sends the platform-thread command reply.
   private int eventStart(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
     String defIdStr = StringArgumentType.getString(ctx, "definition");
@@ -283,30 +278,59 @@ public final class EventCommandHandler {
                       new IllegalArgumentException("Event '" + defIdStr + "' is not registered."));
       Map<String, Object> settings =
           settingsStore == null ? Map.of() : settingsStore.overridesFor(defIdStr);
-      var instance =
-          orchestrationService
-              .executionEngine()
-              .startEvent(
-                  new EventDefinitionCompiler()
-                      .compile(
-                          java.util.Objects.requireNonNull(
-                              registered.sourceSpec(), "Definition source is unavailable"),
-                          settings),
-                  platformLocation);
-      sender.sendMessage(
-          Component.text(
-              "Started "
-                  + defIdStr
-                  + " at "
-                  + platformLocation.world()
-                  + ". Instance: "
-                  + instance.id(),
-              NamedTextColor.GREEN));
+      orchestrationService
+          .executionEngine()
+          .startEventAsync(
+              new EventDefinitionCompiler()
+                  .compile(
+                      java.util.Objects.requireNonNull(
+                          registered.sourceSpec(), "Definition source is unavailable"),
+                      settings),
+              platformLocation)
+          .whenComplete(
+              (instance, failure) ->
+                  replyLater(
+                      sender,
+                      failure == null
+                          ? messages.component(
+                              "command.events.started",
+                              NamedTextColor.GREEN,
+                              Map.of(
+                                  "event",
+                                  defIdStr,
+                                  "world",
+                                  platformLocation.world(),
+                                  "id",
+                                  instance.id()))
+                          : messages.component(
+                              "command.events.start-failed",
+                              NamedTextColor.RED,
+                              Map.of(
+                                  "reason",
+                                  safeMessage(
+                                      failure.getCause() == null
+                                          ? failure
+                                          : failure.getCause())))));
     } catch (Exception e) {
       sender.sendMessage(
-          Component.text("Failed to start event: " + e.getMessage(), NamedTextColor.RED));
+          messages.component(
+              "command.events.start-failed", NamedTextColor.RED, Map.of("reason", e.getMessage())));
     }
     return 1;
+  }
+
+  private String safeMessage(Throwable throwable) {
+    return throwable.getMessage() == null
+        ? throwable.getClass().getSimpleName()
+        : throwable.getMessage();
+  }
+
+  private void replyLater(CommandSender sender, Component message) {
+    if (sender instanceof Player player) {
+      regionScheduler.executeFor(player, () -> player.sendMessage(message));
+    } else {
+      regionScheduler.executeGlobal(() -> sender.sendMessage(message));
+    }
   }
 
   private int showConfiguration(CommandContext<CommandSourceStack> ctx) {
@@ -315,12 +339,16 @@ public final class EventCommandHandler {
     try {
       requireSettingsStore();
       sender.sendMessage(
-          Component.text(
-              definition + " overrides=" + settingsStore.overridesFor(definition),
-              NamedTextColor.AQUA));
+          messages.component(
+              "command.events.overrides",
+              NamedTextColor.AQUA,
+              Map.of("event", definition, "values", settingsStore.overridesFor(definition))));
     } catch (IllegalArgumentException | IllegalStateException exception) {
       sender.sendMessage(
-          Component.text("Configuration error: " + exception.getMessage(), NamedTextColor.RED));
+          messages.component(
+              "command.events.configuration-error",
+              NamedTextColor.RED,
+              Map.of("reason", exception.getMessage())));
     }
     return 1;
   }
@@ -349,10 +377,16 @@ public final class EventCommandHandler {
               Map.of(parameter, value));
       settingsStore.setParameter(definition, parameter, value);
       sender.sendMessage(
-          Component.text("Saved " + parameter + " for " + definition + ".", NamedTextColor.GREEN));
+          messages.component(
+              "command.events.setting-saved",
+              NamedTextColor.GREEN,
+              Map.of("parameter", parameter, "event", definition)));
     } catch (IllegalArgumentException | IllegalStateException exception) {
       sender.sendMessage(
-          Component.text("Setting was not saved: " + exception.getMessage(), NamedTextColor.RED));
+          messages.component(
+              "command.events.setting-not-saved",
+              NamedTextColor.RED,
+              Map.of("reason", exception.getMessage())));
     }
     return 1;
   }
@@ -363,23 +397,23 @@ public final class EventCommandHandler {
     }
   }
 
-  private int eventStop(CommandContext<CommandSourceStack> ctx) {
+  private int eventCancel(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
     String instIdStr = StringArgumentType.getString(ctx, "instance");
 
     try {
       orchestrationService.cancelEvent(instIdStr);
       sender.sendMessage(
-          Component.text("Stopped event instance " + instIdStr, NamedTextColor.GREEN));
+          messages.component(
+              "command.events.cancelled", NamedTextColor.GREEN, Map.of("id", instIdStr)));
     } catch (Exception e) {
       sender.sendMessage(
-          Component.text("Failed to stop event: " + e.getMessage(), NamedTextColor.RED));
+          messages.component(
+              "command.events.cancel-failed",
+              NamedTextColor.RED,
+              Map.of("reason", e.getMessage())));
     }
     return 1;
-  }
-
-  private int eventCancel(CommandContext<CommandSourceStack> ctx) {
-    return eventStop(ctx);
   }
 
   private int eventTrigger(CommandContext<CommandSourceStack> ctx) {
@@ -396,11 +430,17 @@ public final class EventCommandHandler {
               .executionEngine()
               .evaluateTrigger(instanceId, new ConfiguredTriggerDefinition(trigger), context);
       sender.sendMessage(
-          Component.text("Trigger " + trigger + " handled=" + handled, NamedTextColor.YELLOW));
+          messages.component(
+              "command.events.trigger-result",
+              NamedTextColor.YELLOW,
+              Map.of("trigger", trigger, "handled", handled)));
       return handled ? 1 : 0;
     } catch (IllegalArgumentException | IllegalStateException exception) {
       sender.sendMessage(
-          Component.text("Trigger was not sent: " + exception.getMessage(), NamedTextColor.RED));
+          messages.component(
+              "command.events.trigger-failed",
+              NamedTextColor.RED,
+              Map.of("reason", exception.getMessage())));
       return 0;
     }
   }
@@ -412,39 +452,50 @@ public final class EventCommandHandler {
       EventInstance instance = orchestrationService.getEventInfo(instanceId.toString());
       var diagnostics = orchestrationService.executionEngine().diagnostics(instanceId);
       sender.sendMessage(
-          Component.text(
-              "Event "
-                  + instanceId
-                  + " state="
-                  + instance.state()
-                  + " runtimeState="
-                  + diagnostics.runtimeStatePresent()
-                  + " tasks="
-                  + diagnostics.pendingTasks()
-                  + " resources="
-                  + diagnostics.platformResources()
-                  + " claim="
-                  + (diagnostics.claimant() != null ? diagnostics.claimant() : "unclaimed"),
-              NamedTextColor.YELLOW));
-      if (!diagnostics.runtimeStatePresent()
-          || (instance.state().isTerminal()
-              && (diagnostics.pendingTasks() != 0 || diagnostics.platformResources() != 0))) {
+          messages.component(
+              "command.events.inspect",
+              NamedTextColor.YELLOW,
+              Map.of(
+                  "id",
+                  instanceId,
+                  "state",
+                  instance.state(),
+                  "runtime",
+                  diagnostics.runtimeStatePresent(),
+                  "tasks",
+                  diagnostics.pendingTasks(),
+                  "resources",
+                  diagnostics.platformResources(),
+                  "claim",
+                  diagnostics.claimant() != null
+                      ? diagnostics.claimant()
+                      : messages.message("command.events.unclaimed"))));
+      if (needsRecoveryGuidance(
+          instance.state().isTerminal(),
+          diagnostics.runtimeStatePresent(),
+          diagnostics.pendingTasks(),
+          diagnostics.platformResources())) {
         sender.sendMessage(
-            Component.text(
-                "Recovery guidance: run /spectraevents doctor, preserve logs, and back up spectraevents.db before restarting.",
-                NamedTextColor.RED));
+            messages.component("command.events.recovery-guidance", NamedTextColor.RED));
       } else if (diagnostics.claimant() != null) {
         sender.sendMessage(
-            Component.text(
-                "Claim recorded: reconcile any external reward before granting a manual replacement.",
-                NamedTextColor.GOLD));
+            messages.component("command.events.claim-guidance", NamedTextColor.GOLD));
       }
       return 1;
     } catch (IllegalArgumentException | IllegalStateException exception) {
       sender.sendMessage(
-          Component.text("Could not inspect event: " + exception.getMessage(), NamedTextColor.RED));
+          messages.component(
+              "command.events.inspect-failed",
+              NamedTextColor.RED,
+              Map.of("reason", exception.getMessage())));
       return 0;
     }
+  }
+
+  static boolean needsRecoveryGuidance(
+      boolean terminal, boolean runtimeStatePresent, int pendingTasks, int platformResources) {
+    return (!terminal && !runtimeStatePresent)
+        || (terminal && (pendingTasks != 0 || platformResources != 0));
   }
 
   private EventInstanceId instanceId(CommandContext<CommandSourceStack> ctx) {

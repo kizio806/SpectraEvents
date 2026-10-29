@@ -71,13 +71,24 @@ final class PhaseExecutionController {
     for (TransitionRule rule : phaseDef.rules()) {
       if (triggerEvaluator.matchesTrigger(rule.trigger(), trigger)
           && triggerEvaluator.evaluateConditions(rule.conditions(), state, execContext)) {
-        if (actionCoordinator.containsRewardAction(rule.actions())
-            && !actionCoordinator.acceptRewardClaim(state, trigger, execContext)) {
+        boolean rewardRule = actionCoordinator.containsRewardAction(rule.actions());
+        if (rewardRule && state.isClaimed()) {
           return false;
         }
+        java.util.concurrent.CompletableFuture<Boolean> actions =
+            rewardRule
+                ? actionCoordinator
+                    .acceptRewardClaim(state, trigger, execContext)
+                    .thenCompose(
+                        accepted ->
+                            accepted
+                                ? actionCoordinator.executeActions(
+                                    instance, state, rule.actions(), execContext)
+                                : java.util.concurrent.CompletableFuture.completedFuture(false))
+                : actionCoordinator.executeActions(instance, state, rule.actions(), execContext);
         actionCoordinator.observeActionCompletion(
             instance.id(),
-            actionCoordinator.executeActions(instance, state, rule.actions(), execContext),
+            actions,
             (actionsOk, ex) -> {
               if (ex != null) {
                 lifecycleManager.failEvent(
@@ -146,48 +157,57 @@ final class PhaseExecutionController {
             return;
           }
 
-          for (TransitionRule rule : phaseDef.rules()) {
-            if (rule.trigger() instanceof CoreTriggers.TimerElapsedTrigger timerTriggerRule) {
-              Duration duration = timerTriggerRule.duration();
-              if (duration == null || duration.isZero() || duration.isNegative())
-                throw new FatalActionException(
-                    "timer_elapsed.duration must be a positive duration");
-              if (duration.compareTo(MAX_TIMER_DURATION) > 0)
-                throw new FatalActionException(
-                    "timer_elapsed.duration must not exceed " + MAX_TIMER_DURATION);
-
-              TriggerDefinition timerTrigger = rule.trigger();
-              long deadline = Math.addExact(System.currentTimeMillis(), duration.toMillis());
-
-              ReentrantLock l =
-                  context
-                      .instanceLocks()
-                      .computeIfAbsent(instance.id(), ignored -> new ReentrantLock());
-              l.lock();
-              try {
-                EventRuntimeState latestState = context.stateStore().getOrCreate(instance.id());
-                latestState.setTimerDeadlineMillis(deadline);
-                context.repository().saveState(latestState);
-              } finally {
-                l.unlock();
-              }
-
+          ReentrantLock l =
               context
-                  .scheduler()
-                  .schedule(
-                      instance.id(),
-                      duration,
-                      () -> {
-                        try {
-                          evaluateTrigger(instance.id(), timerTrigger, execContext);
-                        } catch (RuntimeException e) {
-                          LOGGER.log(
-                              Level.SEVERE,
-                              "Error executing timer trigger for event " + instance.id(),
-                              e);
-                        }
-                      });
+                  .instanceLocks()
+                  .computeIfAbsent(instance.id(), ignored -> new ReentrantLock());
+          l.lock();
+          try {
+            Optional<EventInstance> currentInstance = context.repository().findById(instance.id());
+            if (currentInstance.isEmpty()
+                || currentInstance.get().state() != EventLifecycleState.RUNNING) {
+              return;
             }
+            EventRuntimeState latestState = context.stateStore().getOrCreate(instance.id());
+            latestState.clearTimerDeadlines();
+            int ruleIndex = 0;
+            for (TransitionRule rule : phaseDef.rules()) {
+              String timerKey = String.valueOf(ruleIndex++);
+              if (rule.trigger() instanceof CoreTriggers.TimerElapsedTrigger timerTriggerRule) {
+                Duration duration = timerTriggerRule.duration();
+                if (duration == null || duration.isZero() || duration.isNegative()) {
+                  throw new FatalActionException(
+                      "timer_elapsed.duration must be a positive duration");
+                }
+                if (duration.compareTo(MAX_TIMER_DURATION) > 0) {
+                  throw new FatalActionException(
+                      "timer_elapsed.duration must not exceed " + MAX_TIMER_DURATION);
+                }
+
+                TriggerDefinition timerTrigger = rule.trigger();
+                long deadline = Math.addExact(System.currentTimeMillis(), duration.toMillis());
+                latestState.setTimerDeadlineMillis(timerKey, deadline);
+
+                context
+                    .scheduler()
+                    .schedule(
+                        instance.id(),
+                        duration,
+                        () -> {
+                          try {
+                            evaluateTrigger(instance.id(), timerTrigger, execContext);
+                          } catch (RuntimeException e) {
+                            LOGGER.log(
+                                Level.SEVERE,
+                                "Error executing timer trigger for event " + instance.id(),
+                                e);
+                          }
+                        });
+              }
+            }
+            context.repository().saveState(latestState);
+          } finally {
+            l.unlock();
           }
         });
   }
@@ -220,18 +240,26 @@ final class PhaseExecutionController {
         }
         actionCoordinator.recoverPlatformResources(instance, state, definition);
 
-        long deadline = state.timerDeadlineMillis();
-        if (deadline > 0) {
-          long remaining = deadline - System.currentTimeMillis();
-          if (remaining < 0) remaining = 0;
-
-          PhaseId currentPhaseId = instance.currentPhase().orElse(null);
-          if (currentPhaseId != null) {
-            PhaseDefinition phaseDef = definition.phase(currentPhaseId).orElse(null);
-            if (phaseDef != null) {
-              for (TransitionRule rule : phaseDef.rules()) {
-                if (rule.trigger() instanceof CoreTriggers.TimerElapsedTrigger) {
-                  TriggerDefinition timerTrigger = rule.trigger();
+        PhaseId currentPhaseId = instance.currentPhase().orElse(null);
+        if (currentPhaseId != null) {
+          PhaseDefinition phaseDef = definition.phase(currentPhaseId).orElse(null);
+          if (phaseDef != null) {
+            boolean hasKeyedDeadlines = !state.timerDeadlines().isEmpty();
+            long legacyDeadline = state.timerDeadlineMillis();
+            int ruleIndex = 0;
+            for (TransitionRule rule : phaseDef.rules()) {
+              String timerKey = String.valueOf(ruleIndex++);
+              if (rule.trigger() instanceof CoreTriggers.TimerElapsedTrigger) {
+                TriggerDefinition timerTrigger = rule.trigger();
+                long deadline;
+                if (hasKeyedDeadlines) {
+                  deadline = state.timerDeadlineMillis(timerKey);
+                } else {
+                  deadline = legacyDeadline;
+                  legacyDeadline = 0L;
+                }
+                if (deadline > 0L) {
+                  long remaining = Math.max(0L, deadline - System.currentTimeMillis());
                   context
                       .scheduler()
                       .schedule(
@@ -247,7 +275,6 @@ final class PhaseExecutionController {
                                   e);
                             }
                           });
-                  break;
                 }
               }
             }

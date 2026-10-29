@@ -24,10 +24,15 @@ class ScheduleYamlLoaderTest {
                 x: 10
                 y: 80
                 z: -5
+                parameters:
+                  health: 250
+                  lock-duration: 15m
             """,
             "schedules.yml");
     assertEquals(1, schedules.size());
     assertEquals("nightly-metin", schedules.getFirst().id());
+    assertEquals(250, schedules.getFirst().parameterOverrides().get("health"));
+    assertEquals("15m", schedules.getFirst().parameterOverrides().get("lock-duration"));
   }
 
   @Test

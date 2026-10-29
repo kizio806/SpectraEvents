@@ -1,5 +1,7 @@
 package io.github.kizio806.spectraevents.platform.paper.gui;
 
+import io.github.kizio806.spectraevents.application.config.DurationText;
+import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
@@ -46,6 +48,7 @@ public final class AdminGuiController implements Listener {
   private final UpdateService updateService;
   private final EventOrchestrationService orchestrationService;
   private final PaperEventSettingsStore settingsStore;
+  private final LocaleCatalog locales;
 
   private final Map<UUID, MenuType> openSessions = new ConcurrentHashMap<>();
 
@@ -55,7 +58,8 @@ public final class AdminGuiController implements Listener {
       IntegrationRegistry integrationRegistry,
       UpdateService updateService,
       EventOrchestrationService orchestrationService,
-      PaperEventSettingsStore settingsStore) {
+      PaperEventSettingsStore settingsStore,
+      LocaleCatalog locales) {
     this.definitionRegistry = Objects.requireNonNull(definitionRegistry, "definitionRegistry");
     this.instanceRepository = Objects.requireNonNull(instanceRepository, "instanceRepository");
     this.integrationRegistry = Objects.requireNonNull(integrationRegistry, "integrationRegistry");
@@ -63,18 +67,19 @@ public final class AdminGuiController implements Listener {
     this.orchestrationService =
         Objects.requireNonNull(orchestrationService, "orchestrationService");
     this.settingsStore = Objects.requireNonNull(settingsStore, "settingsStore");
+    this.locales = Objects.requireNonNull(locales, "locales");
   }
 
   public void openMainMenu(Player player) {
     openSessions.put(player.getUniqueId(), MenuType.MAIN);
-    player.openInventory(MainScreen.createInventory());
+    player.openInventory(MainScreen.createInventory(locales));
   }
 
   private void openDashboard(Player player) {
     openSessions.put(player.getUniqueId(), MenuType.DASHBOARD);
     player.openInventory(
         DashboardScreen.createInventory(
-            definitionRegistry, instanceRepository, integrationRegistry));
+            definitionRegistry, instanceRepository, integrationRegistry, locales));
   }
 
   public void openActiveEventsMenu(Player player) {
@@ -83,7 +88,7 @@ public final class AdminGuiController implements Listener {
 
   private void openActiveEventsMenu(Player player, int page) {
     openSessions.put(player.getUniqueId(), MenuType.ACTIVE_EVENTS);
-    player.openInventory(ActiveEventsScreen.createInventory(instanceRepository, page));
+    player.openInventory(ActiveEventsScreen.createInventory(instanceRepository, locales, page));
   }
 
   public void openDefinitionsMenu(Player player) {
@@ -92,7 +97,7 @@ public final class AdminGuiController implements Listener {
 
   private void openDefinitionsMenu(Player player, int page) {
     openSessions.put(player.getUniqueId(), MenuType.DEFINITIONS);
-    player.openInventory(DefinitionsScreen.createInventory(definitionRegistry, page));
+    player.openInventory(DefinitionsScreen.createInventory(definitionRegistry, locales, page));
   }
 
   public void openEventInstanceDetailMenu(Player player, String instanceId) {
@@ -102,16 +107,18 @@ public final class AdminGuiController implements Listener {
       player.openInventory(
           EventInstanceDetailScreen.createInventory(
               instance,
-              Objects.requireNonNull(orchestrationService.executionEngine(), "executionEngine")));
+              Objects.requireNonNull(orchestrationService.executionEngine(), "executionEngine"),
+              locales));
     } catch (IllegalArgumentException exception) {
-      player.sendMessage(Component.text("Event instance no longer exists.", NamedTextColor.RED));
+      player.sendMessage(
+          GuiText.component(locales, "admin.messages.instance-missing", NamedTextColor.RED));
       openActiveEventsMenu(player);
     }
   }
 
   private void openEventCancellationConfirmation(Player player, String instanceId) {
     openSessions.put(player.getUniqueId(), MenuType.EVENT_CANCEL_CONFIRMATION);
-    player.openInventory(EventCancelConfirmationScreen.createInventory(instanceId));
+    player.openInventory(EventCancelConfirmationScreen.createInventory(instanceId, locales));
   }
 
   public void openConfigurationMenu(Player player) {
@@ -121,14 +128,14 @@ public final class AdminGuiController implements Listener {
   private void openConfigurationMenu(Player player, int page) {
     openSessions.put(player.getUniqueId(), MenuType.EVENT_CONFIGURATION);
     player.openInventory(
-        EventConfigurationScreen.createInventory(definitionRegistry, settingsStore, page));
+        EventConfigurationScreen.createInventory(definitionRegistry, settingsStore, locales, page));
   }
 
   private void openConfigurationDetailMenu(Player player, String definitionId) {
     openSessions.put(player.getUniqueId(), MenuType.EVENT_CONFIGURATION_DETAIL);
     player.openInventory(
         EventConfigurationDetailScreen.createInventory(
-            definitionId, definitionRegistry, settingsStore));
+            definitionId, definitionRegistry, settingsStore, locales));
   }
 
   public void openLocationsMenu(Player player) {
@@ -137,7 +144,7 @@ public final class AdminGuiController implements Listener {
 
   private void openLocationsMenu(Player player, int page) {
     openSessions.put(player.getUniqueId(), MenuType.LOCATIONS);
-    player.openInventory(LocationsScreen.createInventory(settingsStore, page));
+    player.openInventory(LocationsScreen.createInventory(settingsStore, locales, page));
   }
 
   /**
@@ -147,10 +154,14 @@ public final class AdminGuiController implements Listener {
    * @param definitionId the definition to display
    */
   public void openDefinitionDetailMenu(Player player, String definitionId) {
-    var inv = DefinitionDetailScreen.createInventory(definitionId, definitionRegistry);
+    var inv = DefinitionDetailScreen.createInventory(definitionId, definitionRegistry, locales);
     if (inv == null) {
       player.sendMessage(
-          Component.text("Definition not found: " + definitionId, NamedTextColor.RED));
+          GuiText.component(
+              locales,
+              "admin.messages.definition-missing",
+              NamedTextColor.RED,
+              Map.of("definition", definitionId)));
       return;
     }
     openSessions.put(player.getUniqueId(), MenuType.DEFINITION_DETAIL);
@@ -159,12 +170,12 @@ public final class AdminGuiController implements Listener {
 
   public void openIntegrationsMenu(Player player) {
     openSessions.put(player.getUniqueId(), MenuType.INTEGRATIONS);
-    player.openInventory(IntegrationsScreen.createInventory(integrationRegistry));
+    player.openInventory(IntegrationsScreen.createInventory(integrationRegistry, locales));
   }
 
   public void openUpdatesMenu(Player player) {
     openSessions.put(player.getUniqueId(), MenuType.UPDATES);
-    player.openInventory(UpdatesScreen.createInventory(updateService));
+    player.openInventory(UpdatesScreen.createInventory(updateService, locales));
   }
 
   @EventHandler
@@ -318,7 +329,8 @@ public final class AdminGuiController implements Listener {
 
   private void startEventFromGui(Player player, String definitionId) {
     if (definitionId == null || definitionId.isBlank()) {
-      player.sendMessage(Component.text("No definition selected.", NamedTextColor.RED));
+      player.sendMessage(
+          GuiText.component(locales, "admin.messages.no-definition-selected", NamedTextColor.RED));
       return;
     }
     try {
@@ -349,7 +361,11 @@ public final class AdminGuiController implements Listener {
       player.closeInventory();
     } catch (Exception e) {
       player.sendMessage(
-          Component.text("Failed to start event: " + e.getMessage(), NamedTextColor.RED));
+          GuiText.component(
+              locales,
+              "admin.messages.start-failed",
+              NamedTextColor.RED,
+              Map.of("reason", e.getMessage())));
     }
   }
 
@@ -375,12 +391,18 @@ public final class AdminGuiController implements Listener {
       settingsStore.setParameter(definitionId, parameter, adjusted);
       player.sendMessage(
           Component.text(
-              "Saved " + parameter + " for " + definitionId + ": " + adjusted + ".",
+              locales.message(
+                  "admin.configuration.saved",
+                  Map.of("parameter", parameter, "event", definitionId, "value", adjusted)),
               NamedTextColor.GREEN));
       openConfigurationDetailMenu(player, definitionId);
     } catch (IllegalArgumentException | IllegalStateException exception) {
       player.sendMessage(
-          Component.text("Setting was not saved: " + exception.getMessage(), NamedTextColor.RED));
+          GuiText.component(
+              locales,
+              "admin.messages.setting-not-saved",
+              NamedTextColor.RED,
+              Map.of("reason", exception.getMessage())));
     }
   }
 
@@ -390,13 +412,15 @@ public final class AdminGuiController implements Listener {
       boolean decrease) {
     if (declaration.type()
         == io.github.kizio806.spectraevents.application.config.spec.EventParameterType.DURATION) {
-      long seconds = durationSeconds(String.valueOf(value));
+      long milliseconds = DurationText.parse(value).toMillis();
       long adjusted =
           Math.max(
               1L,
-              seconds
-                  + (decrease ? -declaration.step().longValue() : declaration.step().longValue()));
-      return adjusted + "s";
+              milliseconds
+                  + (decrease
+                      ? -declaration.step().longValue() * 1_000L
+                      : declaration.step().longValue() * 1_000L));
+      return DurationText.format(java.time.Duration.ofMillis(adjusted));
     }
     java.math.BigDecimal adjusted =
         new java.math.BigDecimal(String.valueOf(value))
@@ -411,30 +435,19 @@ public final class AdminGuiController implements Listener {
     return adjusted.stripTrailingZeros().toPlainString();
   }
 
-  private long durationSeconds(String value) {
-    if (value.endsWith("ms")) {
-      return Math.max(1L, Long.parseLong(value.substring(0, value.length() - 2)) / 1_000L);
-    }
-    if (value.endsWith("m")) {
-      return Long.parseLong(value.substring(0, value.length() - 1)) * 60L;
-    }
-    if (value.endsWith("h")) {
-      return Long.parseLong(value.substring(0, value.length() - 1)) * 3_600L;
-    }
-    if (value.endsWith("s")) {
-      return Long.parseLong(value.substring(0, value.length() - 1));
-    }
-    throw new IllegalArgumentException("Saved duration is invalid.");
-  }
-
   private void cancelEventFromGui(Player player, String instanceId) {
     try {
       orchestrationService.cancelEvent(Objects.requireNonNull(instanceId, "instanceId"));
-      player.sendMessage(Component.text("Event cancelled and cleaned up.", NamedTextColor.GREEN));
+      player.sendMessage(
+          GuiText.component(locales, "admin.messages.event-cancelled", NamedTextColor.GREEN));
       openActiveEventsMenu(player);
     } catch (IllegalArgumentException | IllegalStateException exception) {
       player.sendMessage(
-          Component.text("Could not cancel event: " + exception.getMessage(), NamedTextColor.RED));
+          GuiText.component(
+              locales,
+              "admin.messages.cancel-failed",
+              NamedTextColor.RED,
+              Map.of("reason", exception.getMessage())));
       openActiveEventsMenu(player);
     }
   }
@@ -452,20 +465,26 @@ public final class AdminGuiController implements Listener {
             location.getYaw(),
             location.getPitch()));
     player.sendMessage(
-        Component.text("Saved current location as " + name + ".", NamedTextColor.GREEN));
+        GuiText.component(
+            locales,
+            "admin.messages.location-saved",
+            NamedTextColor.GREEN,
+            Map.of("location", name)));
     openLocationsMenu(player);
   }
 
   private void openLocationRemovalConfirmation(Player player, String locationName) {
     openSessions.put(player.getUniqueId(), MenuType.LOCATION_REMOVE_CONFIRMATION);
-    player.openInventory(LocationRemoveConfirmationScreen.createInventory(locationName));
+    player.openInventory(LocationRemoveConfirmationScreen.createInventory(locationName, locales));
   }
 
   private void removeLocationFromGui(Player player, String locationName) {
     if (locationName == null || !settingsStore.removeLocation(locationName)) {
-      player.sendMessage(Component.text("That location no longer exists.", NamedTextColor.RED));
+      player.sendMessage(
+          GuiText.component(locales, "admin.messages.location-missing", NamedTextColor.RED));
     } else {
-      player.sendMessage(Component.text("Event location removed.", NamedTextColor.GREEN));
+      player.sendMessage(
+          GuiText.component(locales, "admin.messages.location-removed", NamedTextColor.GREEN));
     }
     openLocationsMenu(player);
   }

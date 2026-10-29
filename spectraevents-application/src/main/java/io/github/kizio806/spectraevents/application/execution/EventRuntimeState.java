@@ -20,7 +20,8 @@ public final class EventRuntimeState {
   private final AtomicReference<Health> health = new AtomicReference<>(null);
   private final AtomicReference<HitCounter> hitCounter = new AtomicReference<>(null);
   private final AtomicLong lockedUntilMillis = new AtomicLong(0L);
-  private final AtomicLong timerDeadlineMillis = new AtomicLong(0L);
+  private final AtomicLong legacyTimerDeadlineMillis = new AtomicLong(0L);
+  private final Map<String, Long> timerDeadlines = new ConcurrentHashMap<>();
   private final AtomicLong encounterDeadlineMillis = new AtomicLong(0L);
   private final java.util.concurrent.atomic.AtomicInteger minimumContribution =
       new java.util.concurrent.atomic.AtomicInteger(0);
@@ -94,12 +95,59 @@ public final class EventRuntimeState {
     return System.currentTimeMillis() < lockedUntilMillis.get();
   }
 
+  public Map<String, Long> timerDeadlines() {
+    return Map.copyOf(timerDeadlines);
+  }
+
+  public long timerDeadlineMillis(String timerKey) {
+    Objects.requireNonNull(timerKey, "timerKey");
+    Long val = timerDeadlines.get(timerKey);
+    return val != null ? val : 0L;
+  }
+
+  public void setTimerDeadlineMillis(String timerKey, long millis) {
+    Objects.requireNonNull(timerKey, "timerKey");
+    if (millis <= 0L) {
+      timerDeadlines.remove(timerKey);
+    } else {
+      timerDeadlines.put(timerKey, millis);
+    }
+  }
+
+  public void removeTimerDeadline(String timerKey) {
+    if (timerKey != null) {
+      timerDeadlines.remove(timerKey);
+    }
+  }
+
+  public void clearTimerDeadlines() {
+    timerDeadlines.clear();
+    legacyTimerDeadlineMillis.set(0L);
+  }
+
   public long timerDeadlineMillis() {
-    return timerDeadlineMillis.get();
+    long earliest = 0L;
+    for (Long deadline : timerDeadlines.values()) {
+      long d = deadline != null ? deadline : 0L;
+      if (d > 0L) {
+        if (earliest == 0L || d < earliest) {
+          earliest = d;
+        }
+      }
+    }
+    if (earliest > 0L) {
+      return earliest;
+    }
+    return legacyTimerDeadlineMillis.get();
   }
 
   public void setTimerDeadlineMillis(long millis) {
-    this.timerDeadlineMillis.set(millis);
+    legacyTimerDeadlineMillis.set(millis);
+    if (millis > 0L) {
+      timerDeadlines.put("0", millis);
+    } else {
+      timerDeadlines.remove("0");
+    }
   }
 
   public long encounterDeadlineMillis() {
@@ -272,6 +320,11 @@ public final class EventRuntimeState {
   /** Atomically removes a slot. A caller must durably persist the changed state before delivery. */
   public synchronized Optional<CoreActions.LootStack> takeSharedLootSlot(int slot) {
     return Optional.ofNullable(sharedLoot.remove(slot));
+  }
+
+  public synchronized boolean restoreSharedLootSlot(int slot, CoreActions.LootStack loot) {
+    Objects.requireNonNull(loot, "loot");
+    return sharedLoot.putIfAbsent(slot, loot) == null;
   }
 
   public Map<Integer, CoreActions.LootStack> sharedLootSnapshot() {

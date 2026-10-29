@@ -69,6 +69,7 @@ class MetinConfigDrivenIntegrationTest {
     assertTrue(state.health().isPresent());
     assertEquals(1000, state.health().get().current());
     assertTrue(actionPort.containsAction("spawn_model"));
+    assertTrue(actionPort.containsAction("play_sound"));
 
     // 2. Protected manifestation -> dominance.
     boolean handled1 =
@@ -89,6 +90,7 @@ class MetinConfigDrivenIntegrationTest {
     }
     EventInstance afterFracture = repository.findById(instance.id()).orElseThrow();
     assertEquals(new PhaseId("fracture"), afterFracture.currentPhase().orElseThrow());
+    assertTrue(actionPort.containsAction("play_animation"));
     assertTrue(actionPort.containsAction("spawn_particles"));
     assertTrue(
         engine.evaluateTrigger(
@@ -121,6 +123,7 @@ class MetinConfigDrivenIntegrationTest {
 
     EventInstance afterVictory = repository.findById(instance.id()).orElseThrow();
     assertEquals(EventLifecycleState.COMPLETED, afterVictory.state());
+    assertEquals(1, actionPort.podiumAnnouncements);
     assertTrue(actionPort.containsAction("remove_model"));
   }
 
@@ -138,11 +141,19 @@ class MetinConfigDrivenIntegrationTest {
 
   private static class RecordingPlatformActionPort implements PlatformActionPort {
     List<ActionDefinition> actions = new ArrayList<>();
+    int podiumAnnouncements;
 
     @Override
     public java.util.concurrent.CompletableFuture<Boolean> executeAction(
         EventInstance instance, EventRuntimeState state, ActionDefinition action) {
       actions.add(action);
+      return java.util.concurrent.CompletableFuture.completedFuture(true);
+    }
+
+    @Override
+    public java.util.concurrent.CompletableFuture<Boolean> announcePodium(
+        EventInstanceId instanceId, List<java.util.UUID> rankedPlayerIds) {
+      podiumAnnouncements++;
       return java.util.concurrent.CompletableFuture.completedFuture(true);
     }
 

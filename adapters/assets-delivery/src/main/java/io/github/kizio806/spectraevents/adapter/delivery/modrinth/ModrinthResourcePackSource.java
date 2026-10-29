@@ -13,7 +13,7 @@ public final class ModrinthResourcePackSource implements ResourcePackSourcePort 
 
   private final ModrinthApiClient apiClient;
   private final String projectId;
-  private final String gameVersion; // Resolved from server env, e.g. "26.3"
+  private final AssetTargetProfile serverProfile;
   private final String versionId;
 
   public ModrinthResourcePackSource(
@@ -21,30 +21,36 @@ public final class ModrinthResourcePackSource implements ResourcePackSourcePort 
     this(apiClient, projectId, gameVersion, "");
   }
 
-  /** Resolves a server-approved Modrinth version when {@code versionId} is configured. */
+  /** Resolves the automatic release version, or an explicit configured rollback version ID. */
   public ModrinthResourcePackSource(
       ModrinthApiClient apiClient, String projectId, String gameVersion, String versionId) {
     if (projectId == null || projectId.isBlank() || projectId.startsWith("<")) {
       throw new IllegalArgumentException(
-          "Modrinth project-id is missing or unconfigured. Please specify a valid Modrinth Project ID (e.g. 'Rg1nw8IW') in resource-pack configuration.");
+          "Modrinth project-id is missing or unconfigured. Specify the real project ID in resource-pack configuration.");
     }
     this.apiClient = apiClient;
     this.projectId = projectId;
-    this.gameVersion = gameVersion;
+    this.serverProfile = AssetTargetProfile.forMinecraftVersion(gameVersion);
     this.versionId = versionId == null ? "" : versionId.trim();
   }
 
   @Override
   public CompletableFuture<ResourcePackDescriptor> resolve(
       String pluginVersion, AssetTargetProfile profile) {
+    if (profile != serverProfile) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException(
+              "Server resource-pack profile "
+                  + serverProfile
+                  + " does not match requested profile "
+                  + profile));
+    }
+    String expectedVersion = profile.resourcePackVersion(pluginVersion);
     return apiClient
-        .getProjectVersions(projectId, "minecraft", gameVersion)
+        .getProjectVersions(projectId, "minecraft", profile.minecraftReleaseLine())
         .thenApply(
             jsonResponse -> {
               JsonArray versions = JsonParser.parseString(jsonResponse).getAsJsonArray();
-
-              String expectedVersion =
-                  pluginVersion + "+" + profile.name().replace("PROFILE_", "").replace("_", ".");
 
               JsonObject selectedVersion = null;
               for (JsonElement el : versions) {
@@ -115,7 +121,7 @@ public final class ModrinthResourcePackSource implements ResourcePackSourcePort 
 
               return new ResourcePackDescriptor(
                   selectedVersion.get("id").getAsString(),
-                  expectedVersion,
+                  selectedVersion.get("version_number").getAsString(),
                   url,
                   sha1,
                   sha512,

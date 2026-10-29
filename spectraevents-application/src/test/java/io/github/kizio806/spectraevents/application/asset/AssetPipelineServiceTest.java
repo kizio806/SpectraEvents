@@ -52,4 +52,13 @@ public class AssetPipelineServiceTest {
 
     Assertions.assertTrue(service.listModels().isEmpty());
   }
+
+  @Test
+  void importsFileAsynchronously() throws Exception {
+    Files.writeString(tempDir.resolve(TEST_MODEL), "bundle");
+
+    service.importFileAsync(TEST_MODEL).join();
+
+    Assertions.assertTrue(service.listModels().contains("test"));
+  }
 }

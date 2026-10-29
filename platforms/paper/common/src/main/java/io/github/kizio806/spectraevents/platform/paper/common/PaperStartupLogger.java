@@ -15,7 +15,7 @@ public final class PaperStartupLogger {
     this.logger = plugin.getLogger();
   }
 
-  public void printBanner(String version, String apiVersion) {
+  public void printBanner(String version, String platformName, String minecraftVersion) {
     line("");
     line("  ____                  _              _____                 _");
     line(" / ___| _ __   ___  ___| |_ _ __ __ _| ____|_   _____ _ __ | |_ ___");
@@ -25,7 +25,7 @@ public final class PaperStartupLogger {
     line("       |_|");
     line("");
     line("  Version:   " + version);
-    line("  Platform:  Paper " + apiVersion);
+    line("  Platform:  " + platformDescription(platformName, minecraftVersion));
     line("  Website:   https://github.com/kizio806/SpectraEvents");
     line("  Modrinth:  https://modrinth.com/plugin/spectraevents");
     line("");
@@ -76,11 +76,17 @@ public final class PaperStartupLogger {
     line("--- " + name + " ---");
   }
 
+  static String platformDescription(String platformName, String minecraftVersion) {
+    return platformName + " " + minecraftVersion;
+  }
+
   private String integrationState(IntegrationRegistry.IntegrationInfo info) {
     return switch (info.state()) {
-      case ENABLED -> "ACTIVE";
-      case DISABLED -> "DISABLED";
-      case MISSING -> "NOT INSTALLED";
+      case ACTIVE -> "ACTIVE";
+      case AVAILABLE -> "AVAILABLE";
+      case DEGRADED -> "DEGRADED";
+      case FAILED -> "FAILED";
+      case ABSENT -> "NOT INSTALLED";
     };
   }
 

@@ -18,7 +18,7 @@ SpectraEvents favors a **Compatibility Band** approach over per-minor-version mo
 | Platform Family | Target Artifact | Compatibility Band | Loaders | Baseline API | Strategy |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Paper/Purpur** | `SpectraEvents-<ver>-paper.jar` | `26.1` – `26.3` | `paper`, `purpur` | Paper `26.1` | Compatibility Band (Single JAR) |
-| **Folia** | `SpectraEvents-<ver>-paper.jar` | `26.1` – `26.2` | `folia` | Paper `26.1` | Explicitly guarded; 26.3+ is refused until real-server verified |
+| **Folia** | `SpectraEvents-<ver>-paper.jar` | `26.1` – `26.2` | `folia` | Paper `26.1` | Explicitly guarded; 26.3 and newer are refused before initialization |
 | **Spigot Family** | `SpectraEvents-<ver>-spigot.jar` | `26.1` – `26.3` | `spigot`, `bukkit` | Spigot `26.1` | Compatibility Band (Single JAR) |
 
 ## Workflow for New Minecraft Versions (e.g. `26.4`)
@@ -28,7 +28,7 @@ When a new minor or patch version of Minecraft is released:
 2. **Add Candidate Version**: Add `26.4` to candidate metadata in `gradle.properties` / `compatibility.versions.toml`.
 3. **Build & Static Verification**: Compile against current baseline (`26.1`).
 4. **Runtime Workflow Verification**: Run start, phase transition, cleanup, restart, and recovery on
-   every newly declared row. Keep Folia fail-closed until the exact new Folia runtime has passed.
+   every newly declared row. Add a Folia version only after its exact runtime has passed.
 5. **If Tests Pass**: Update supported metadata list. The SAME public JAR serves `26.4`.
 6. **If API Incompatibility Discovered**:
    - Determine if a narrow adapter or capability query solves it.

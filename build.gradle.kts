@@ -1,9 +1,12 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
 import org.gradle.api.GradleException
+import org.gradle.testing.jacoco.tasks.JacocoReport
 
 plugins {
     base
+    jacoco
     alias(libs.plugins.spotless)
+    alias(libs.plugins.sonarqube)
 }
 
 group = providers.gradleProperty("spectraevents.group").get()
@@ -193,8 +196,83 @@ val verifyDistributionArtifacts =
         }
     }
 
+val validateStructure =
+    tasks.register<Exec>("validateStructure") {
+        group = "verification"
+        description = "Validates the source layout, package structure, and documentation expectations."
+        commandLine("bash", "scripts/verification/validate-structure.sh")
+    }
+
+val validateSourceHygiene =
+    tasks.register<Exec>("validateSourceHygiene") {
+        group = "verification"
+        description = "Fails build on source hygiene violations in Java sources."
+        commandLine("bash", "scripts/verification/validate-source-hygiene.sh")
+    }
+
+val jacocoRootReport =
+    tasks.register<JacocoReport>("jacocoRootReport") {
+        group = "verification"
+        description = "Generates aggregated JaCoCo coverage report across all tested subprojects."
+        val testedProjects = subprojects.filter { it.pluginManager.hasPlugin("jacoco") }
+        dependsOn(testedProjects.map { it.tasks.named("jacocoTestReport") })
+
+        val allExecutionData =
+            files(
+                testedProjects.map { testedProject ->
+                    testedProject.fileTree(testedProject.layout.buildDirectory.dir("jacoco")) {
+                        include("*.exec")
+                    }
+                },
+            )
+        executionData.setFrom(allExecutionData)
+
+        val allSourceSets =
+            testedProjects.mapNotNull { testedProject ->
+                testedProject.extensions.findByType<SourceSetContainer>()?.findByName("main")
+            }
+        sourceDirectories.setFrom(allSourceSets.map { it.allSource.srcDirs })
+        classDirectories.setFrom(allSourceSets.map { it.output })
+
+        reports {
+            xml.required.set(true)
+            html.required.set(true)
+            xml.outputLocation.set(layout.buildDirectory.file("reports/jacoco/jacocoRootReport/jacocoRootReport.xml"))
+            html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/jacocoRootReport/html"))
+        }
+    }
+
+sonar {
+    properties {
+        property("sonar.projectKey", "kizio806_SpectraEvents")
+        property("sonar.organization", "kizio806")
+        property("sonar.host.url", "https://sonarcloud.io")
+        property(
+            "sonar.coverage.jacoco.xmlReportPaths",
+            listOf(
+                layout.buildDirectory
+                    .file("reports/jacoco/jacocoRootReport/jacocoRootReport.xml")
+                    .get()
+                    .asFile.absolutePath,
+                "$projectDir/build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml",
+                "**/build/reports/jacoco/test/jacocoTestReport.xml",
+            ).joinToString(","),
+        )
+        property("sonar.exclusions", "distributions/**,server/**")
+        property("sonar.coverage.exclusions", "distributions/**,server/**,build-logic/**")
+        property("sonar.cpd.exclusions", "distributions/**,server/**,build-logic/**")
+    }
+}
+
 tasks.named("check") {
-    dependsOn(verifyPlatformBoundaries, verifyCompatibilityMatrix, verifyDistributionArtifacts)
+    dependsOn(
+        verifyPlatformBoundaries,
+        verifyCompatibilityMatrix,
+        verifyDistributionArtifacts,
+        validateStructure,
+        validateSourceHygiene,
+        jacocoRootReport,
+    )
 }
 
 tasks.register("runServer") {

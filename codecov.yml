@@ -1,0 +1,37 @@
+coverage:
+  precision: 2
+  round: down
+  range: "50...90"
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: auto
+        threshold: 2%
+
+comment:
+  layout: "header, diff, flags, components"
+  behavior: default
+  require_changes: false
+
+component_management:
+  individual_components:
+    - component_id: core
+      name: Core Domain
+      paths:
+        - spectraevents-core/**
+    - component_id: application
+      name: Application Layer
+      paths:
+        - spectraevents-application/**
+    - component_id: adapters
+      name: Adapters
+      paths:
+        - adapters/**
+    - component_id: platforms
+      name: Platform Adapters
+      paths:
+        - platforms/**

@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.application.service;
 
+import io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompiler;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.registry.RegisteredEventDefinition;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
@@ -13,6 +14,7 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleTransition;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
 /** Orchestrates event instance lifecycle operations for the application. */
@@ -84,6 +86,57 @@ public final class EventOrchestrationService {
             + " in phase "
             + running.currentPhase().orElseThrow());
     return running;
+  }
+
+  /**
+   * Starts a definition after durable acceptance without blocking a platform-owned calling thread.
+   */
+  public CompletableFuture<EventInstance> startDefinitionAsync(
+      String definitionId, Object platformLocationReference) {
+    if (executionEngine != null) {
+      return executionEngine.startEventAsync(definitionId, platformLocationReference);
+    }
+    try {
+      return CompletableFuture.completedFuture(
+          startDefinition(definitionId, platformLocationReference));
+    } catch (RuntimeException exception) {
+      return CompletableFuture.failedFuture(exception);
+    }
+  }
+
+  /**
+   * Starts a definition with validated scalar parameter overrides from a platform-neutral caller.
+   */
+  public CompletableFuture<EventInstance> startDefinitionAsync(
+      String definitionId,
+      Object platformLocationReference,
+      java.util.Map<String, Object> overrides) {
+    java.util.Map<String, Object> nonNullOverrides =
+        java.util.Map.copyOf(Objects.requireNonNull(overrides, "overrides"));
+    if (nonNullOverrides.isEmpty()) {
+      return startDefinitionAsync(definitionId, platformLocationReference);
+    }
+    if (executionEngine == null) {
+      return CompletableFuture.failedFuture(
+          new IllegalStateException("Parameter overrides require the event execution engine"));
+    }
+    try {
+      RegisteredEventDefinition registered =
+          definitionRegistry
+              .findById(definitionId)
+              .orElseThrow(
+                  () ->
+                      new IllegalArgumentException("Event definition not found: " + definitionId));
+      EventDefinition compiled =
+          new EventDefinitionCompiler()
+              .compile(
+                  Objects.requireNonNull(
+                      registered.sourceSpec(), "Definition source is unavailable"),
+                  nonNullOverrides);
+      return executionEngine.startEventAsync(compiled, platformLocationReference);
+    } catch (RuntimeException exception) {
+      return CompletableFuture.failedFuture(exception);
+    }
   }
 
   /**

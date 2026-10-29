@@ -15,14 +15,26 @@ public final class SpectraEventsPlugin extends JavaPlugin {
           .severe(
               "REFUSING TO ENABLE: Folia for Minecraft "
                   + buildInfo.minecraftVersionId()
-                  + " is not supported. Verified Folia versions: 26.1 and 26.2. "
-                  + "Install a supported Folia server, or use Paper/Purpur for Minecraft 26.3."
-                  + " No event data was changed.");
+                  + " is not supported. "
+                  + "This SpectraEvents version supports Folia 26.1 and 26.2 only. "
+                  + "Download the newest SpectraEvents release when Folia support for this Minecraft "
+                  + "version is restored. No event data was changed.");
       getServer().getPluginManager().disablePlugin(this);
       return;
     }
     bootstrap = new PaperBootstrap(this);
-    bootstrap.enable();
+    try {
+      bootstrap.enable();
+    } catch (RuntimeException exception) {
+      getLogger()
+          .log(
+              java.util.logging.Level.SEVERE,
+              "SpectraEvents was not enabled because startup validation failed. No success banner was emitted.",
+              exception);
+      bootstrap.disable();
+      bootstrap = null;
+      getServer().getPluginManager().disablePlugin(this);
+    }
   }
 
   @Override

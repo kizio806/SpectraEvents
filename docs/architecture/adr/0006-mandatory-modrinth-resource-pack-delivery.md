@@ -1,10 +1,13 @@
-# 6. Mandatory Modrinth Resource-Pack Delivery
+# ADR 0006: Mandatory Modrinth Resource-Pack Delivery
 
 Date: 2026-09-28
 
 ## Status
 
-Accepted (Supercedes docs/architecture/modrinth-delivery.md)
+Superseded by [ADR 0007](0007-defer-default-resource-pack-delivery.md).
+
+This document records a historical decision only. It does not describe the current default or
+startup behavior.
 
 ## Context
 

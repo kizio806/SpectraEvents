@@ -1,0 +1,18 @@
+schema-version: 1
+id: boss-portal
+version: 1.0.0
+minimum-spectraevents-version: 0.1.1-beta.2
+event-definitions:
+  - event.yml
+assets:
+  - models/boss_portal.bbmodel
+dependencies: []
+compatibility:
+  paper: ["26.1", "26.2", "26.3"]
+  purpur: ["26.1", "26.2", "26.3"]
+  folia: ["26.1", "26.2"]
+  spigot: ["26.1", "26.2", "26.3"]
+  bukkit: ["26.1", "26.2", "26.3"]
+checksums:
+  event.yml: 98ff4aa31b2e8427267b3b80156c19900cb65aaa35e3a11b72098be28d9f51f0
+  models/boss_portal.bbmodel: 41a0c7e38a59254ab643db33b32150f97b798b25babe79da18c18943a4ec211a
