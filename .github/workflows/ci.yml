@@ -101,7 +101,7 @@ jobs:
 
       - name: Upload Application test reports
         if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-reports-application
           path: spectraevents-application/build/reports/tests/
@@ -131,7 +131,7 @@ jobs:
 
       - name: Upload Adapter test reports
         if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-reports-adapters
           path: adapters/*/build/reports/tests/
@@ -193,7 +193,7 @@ jobs:
         run: ./gradlew :distributions:${{ matrix.platform }}:build
 
       - name: Upload distribution artifact
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: spectraevents-${{ matrix.platform }}
           path: distributions/${{ matrix.platform }}/build/libs/SpectraEvents-*.jar
@@ -242,7 +242,7 @@ jobs:
         run: ./gradlew :distributions:${{ matrix.family }}:build
 
       - name: Cache runtime server binaries
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.0.4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .gradle/runtime-server-cache
           key: runtime-${{ matrix.server }}-${{ matrix.version }}-java25
@@ -290,7 +290,7 @@ jobs:
           slug: ${{ github.repository }}
 
       - name: Scan locked dependencies for known vulnerabilities
-        uses: google/osv-scanner-action/osv-scanner-action@8dc09193bb540e09b23da07ad7e30bd33bf87018 # v2.3.8
+        uses: google/osv-scanner-action/osv-scanner-action@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
         with:
           scan-args: |-
             --config=osv-scanner.toml
