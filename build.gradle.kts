@@ -254,10 +254,11 @@ sonar {
 }
 
 subprojects {
+    val isContainer = subprojects.isNotEmpty()
     val isDistribution = project.path.startsWith(":distributions")
     sonar {
         properties {
-            if (isDistribution) {
+            if (isContainer || isDistribution) {
                 property("sonar.skip", "true")
             } else {
                 val subprojectReport =
