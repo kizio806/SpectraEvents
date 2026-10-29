@@ -21,6 +21,7 @@ separate `MeteorHealthManager`, `PinataHealthManager`, and `MetinHealthManager` 
 
 ## Comments & Documentation
 
+- All repository documentation must adhere to the editorial and formatting standards in `docs/ai/DOCUMENTATION_STYLE.md`.
 - Comments explain WHY, constraints, invariants, security or compatibility decisions. They must not narrate obvious code.
 - Do not add comments that simply restate the following line of code.
 - Do not leave comments describing what was changed, fixed, refactored, or implemented during the current task. Git history belongs in Git.

@@ -5,8 +5,9 @@ Before modifying this repository, read:
 1. `docs/ai/PROJECT_CONTEXT.md`
 2. `docs/ai/ARCHITECTURE.md`
 3. `docs/ai/ENGINEERING_RULES.md`
-4. `docs/ai/TESTING.md`
-5. `docs/ai/PROJECT_STATE.md`
+4. `docs/ai/DOCUMENTATION_STYLE.md`
+5. `docs/ai/TESTING.md`
+6. `docs/ai/PROJECT_STATE.md`
 
 Then inspect the relevant module and its tests before editing code. A task name alone is not
 sufficient context for implementation.

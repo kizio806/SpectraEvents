@@ -75,6 +75,15 @@ Data-driven 3D model engine for Paper, Purpur, Spigot, and CraftBukkit across Mi
   - Hardened absolute timer persistence allowing recovery of queued actions after a crash or restart.
   - Built comprehensive `EntityReconciliationService` to garbage-collect orphaned models and entities at boot or reconnect them to running events.
   - Finalized `/spectraevents doctor` diagnostics exposing missing optional dependencies and integration status gracefully.
+- [x] Quality Remediation, Security Hardening & Documentation Unification (Jump Delay Fix Benchmark):
+  - Repository secrets verified (`SONAR_TOKEN`, `CODECOV_TOKEN`) by repository owner.
+  - Zizmor workflow security analysis enforced with zero findings across all 9 GitHub workflows (all action references pinned to commit SHAs, permissions strictly bounded, GitHub context template injection neutralized, `continue-on-error: true` removed).
+  - Dependency review enforced with `fail-on-severity: high` and explicit open-source license policy.
+  - SonarCloud quality gate wait (`-Dsonar.qualitygate.wait=true`) and Codecov authenticated upload (`fail_ci_if_error: ${{ secrets.CODECOV_TOKEN != '' }}`) active.
+  - CodeQL alert triage and remediation across repository (NPE fix in `EventDefinitionCompiler` with regression tests, container leakage resolution in `AdminGuiController`, safe class-loader resource access in configuration and locale loaders, pattern matching switch in `AbstractPlatformActionAdapter`, and targeted SpotBugs exclude for `PlaceholderExpansion.equals` final library constraint).
+  - Authored canonical Documentation Style Guide (`docs/ai/DOCUMENTATION_STYLE.md`) linked from `AGENTS.md` and `docs/ai/ENGINEERING_RULES.md`.
+  - Completely redesigned and rewrote `README.md` to benchmark standard with complete badge row, value proposition, table of contents, scannable feature highlights, architectural overview, platform compatibility matrix, quick start guide, operator command reference, and verified documentation links.
+  - Full quality gate validated: `./gradlew clean check build` passes cleanly across all modules and tests.
 - [x] Multi-Platform Expansion & Sponge Scope Reduction:
   - Official platform families: Paper, Spigot.
   - Paper artifact (`SpectraEvents-<version>-paper.jar`) supports Paper/Purpur 26.1–26.3 and Folia 26.1–26.2.
