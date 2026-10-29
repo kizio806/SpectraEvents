@@ -261,4 +261,41 @@ class EventDefinitionCompilerTest {
 
     assertEquals(java.time.Duration.ofMillis(500), trigger.duration());
   }
+
+  @Test
+  void testCompileEncounterWithoutLimits() {
+    EventSpec spec =
+        new EventSpec(
+            "encounter_only",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of("zone-radius", 30.0, "deadline", "5m"),
+            null,
+            Map.of());
+
+    EventDefinition def = compiler.compile(spec);
+    assertEquals("encounter_only", def.id().value());
+    assertEquals(30.0, def.encounterSettings().zoneRadius());
+    assertEquals(java.time.Duration.ofMinutes(5), def.encounterSettings().deadline());
+    assertEquals(1, def.encounterSettings().maxActivePerWorld());
+  }
+
+  @Test
+  void testCompileLimitsWithoutEncounter() {
+    EventSpec spec =
+        new EventSpec(
+            "limits_only",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            null,
+            Map.of("max-active-per-world", 3),
+            Map.of());
+
+    EventDefinition def = compiler.compile(spec);
+    assertEquals("limits_only", def.id().value());
+    assertEquals(0.0, def.encounterSettings().zoneRadius());
+    assertEquals(3, def.encounterSettings().maxActivePerWorld());
+  }
 }

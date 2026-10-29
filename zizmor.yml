@@ -1,0 +1,6 @@
+rules:
+  cache-poisoning:
+    ignore:
+      - ci.yml
+      - release.yml
+      - sonarcloud.yml

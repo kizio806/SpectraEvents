@@ -63,7 +63,7 @@ public final class FileSystemDefinitionLoader {
       Path targetPath = presetsDir.resolve(fileName);
       if (!Files.exists(targetPath)) {
         String resourcePath = "/events/" + fileName;
-        try (InputStream in = getClass().getResourceAsStream(resourcePath)) {
+        try (InputStream in = FileSystemDefinitionLoader.class.getResourceAsStream(resourcePath)) {
           if (in != null) {
             String content = new String(in.readAllBytes(), StandardCharsets.UTF_8);
             Files.writeString(targetPath, content, StandardCharsets.UTF_8);

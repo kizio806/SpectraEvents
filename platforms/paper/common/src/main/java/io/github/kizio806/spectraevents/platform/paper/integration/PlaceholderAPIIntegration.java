@@ -5,7 +5,6 @@ import io.github.kizio806.spectraevents.application.integration.PlatformIntegrat
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import java.util.List;
-import java.util.Objects;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.OfflinePlayer;
 import org.jetbrains.annotations.NotNull;
@@ -51,16 +50,6 @@ public class PlaceholderAPIIntegration implements PlatformIntegrationModule {
     @Override
     public @NotNull String getVersion() {
       return "1.0.0";
-    }
-
-    /**
-     * PlaceholderAPI defines final equality from these three values but omits the matching hash
-     * code implementation.
-     */
-    @Override
-    @SuppressWarnings({"checkstyle:EqualsHashCode", "PMD.OverrideBothEqualsAndHashcode"})
-    public int hashCode() {
-      return Objects.hash(getIdentifier(), getAuthor(), getVersion());
     }
 
     @Override

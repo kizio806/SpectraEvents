@@ -34,6 +34,8 @@ public final class HttpUpdateAdapter implements UpdatePort {
 
   @Override
   public CompletableFuture<UpdateInfo> checkUpdate(String currentVersion, String channel) {
+    Objects.requireNonNull(currentVersion, "currentVersion");
+    Objects.requireNonNull(channel, "channel");
     return CompletableFuture.supplyAsync(
         () -> {
           try {
@@ -79,6 +81,8 @@ public final class HttpUpdateAdapter implements UpdatePort {
 
   @Override
   public CompletableFuture<Boolean> downloadUpdate(String downloadUrl, String targetFileName) {
+    Objects.requireNonNull(downloadUrl, "downloadUrl");
+    Objects.requireNonNull(targetFileName, "targetFileName");
     LOGGER.warning(
         "Automatic update downloads are disabled until signed checksums and bounded, allowlisted redirects are implemented");
     return CompletableFuture.completedFuture(false);
