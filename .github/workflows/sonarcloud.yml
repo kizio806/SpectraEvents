@@ -54,7 +54,7 @@ jobs:
           if [ -n "${SONAR_TOKEN:-}" ]; then
             # Ensure SonarCloud's default branch matches GitHub's 'main' branch
             curl -s -X POST 'https://sonarcloud.io/api/project_branches/rename' \
-              -u "${SONAR_TOKEN}:" \
+              -H "Authorization: Bearer ${SONAR_TOKEN}" \
               -d "project=kizio806_SpectraEvents" \
               -d "name=main" || true
 
