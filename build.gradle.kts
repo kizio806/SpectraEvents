@@ -255,12 +255,32 @@ sonar {
                     .get()
                     .asFile.absolutePath,
                 "$projectDir/build/reports/jacoco/jacocoRootReport/jacocoRootReport.xml",
-                "**/build/reports/jacoco/test/jacocoTestReport.xml",
             ).joinToString(","),
         )
         property("sonar.exclusions", "distributions/**,server/**")
         property("sonar.coverage.exclusions", "distributions/**,server/**,build-logic/**")
         property("sonar.cpd.exclusions", "distributions/**,server/**,build-logic/**")
+    }
+}
+
+subprojects {
+    sonar {
+        properties {
+            val subprojectReport =
+                layout.buildDirectory
+                    .file("reports/jacoco/test/jacocoTestReport.xml")
+                    .get()
+                    .asFile
+            val rootReport =
+                rootProject.layout.buildDirectory
+                    .file("reports/jacoco/jacocoRootReport/jacocoRootReport.xml")
+                    .get()
+                    .asFile
+            property(
+                "sonar.coverage.jacoco.xmlReportPaths",
+                listOf(subprojectReport.absolutePath, rootReport.absolutePath).joinToString(","),
+            )
+        }
     }
 }
 
