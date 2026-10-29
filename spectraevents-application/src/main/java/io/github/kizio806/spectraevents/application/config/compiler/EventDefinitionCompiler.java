@@ -383,43 +383,38 @@ public class EventDefinitionCompiler {
       Map<String, Object> encounter,
       Map<String, Object> limits,
       List<ValidationDiagnostic> diagnostics) {
-    if ((encounter == null || encounter.isEmpty()) && (limits == null || limits.isEmpty())) {
+    if (encounter.isEmpty() && limits.isEmpty()) {
       return EventEncounterSettings.NONE;
     }
-    if (encounter != null) {
-      Set<String> supported = Set.of("zone-radius", "deadline", "minimum-contribution");
-      for (String key : encounter.keySet()) {
-        if (!supported.contains(key)) {
-          diagnostics.add(
-              new ValidationDiagnostic(
-                  ValidationDiagnostic.Severity.ERROR,
-                  "SE-DEF-ENC-001",
-                  "encounter." + key,
-                  "Unknown encounter setting: " + key));
-        }
+
+    Set<String> supported = Set.of("zone-radius", "deadline", "minimum-contribution");
+    for (String key : encounter.keySet()) {
+      if (!supported.contains(key)) {
+        diagnostics.add(
+            new ValidationDiagnostic(
+                ValidationDiagnostic.Severity.ERROR,
+                "SE-DEF-ENC-001",
+                "encounter." + key,
+                "Unknown encounter setting: " + key));
       }
     }
-    if (limits != null) {
-      Set<String> supportedLimits = Set.of("max-active-per-world");
-      for (String key : limits.keySet()) {
-        if (!supportedLimits.contains(key)) {
-          diagnostics.add(
-              new ValidationDiagnostic(
-                  ValidationDiagnostic.Severity.ERROR,
-                  "SE-DEF-LIMIT-001",
-                  "limits." + key,
-                  "Unknown event limit: " + key));
-        }
+    Set<String> supportedLimits = Set.of("max-active-per-world");
+    for (String key : limits.keySet()) {
+      if (!supportedLimits.contains(key)) {
+        diagnostics.add(
+            new ValidationDiagnostic(
+                ValidationDiagnostic.Severity.ERROR,
+                "SE-DEF-LIMIT-001",
+                "limits." + key,
+                "Unknown event limit: " + key));
       }
     }
-    double radius = encounter != null ? getDouble(encounter, "zone-radius", 0.0d) : 0.0d;
-    int minimumContribution = encounter != null ? getInt(encounter, "minimum-contribution", 0) : 0;
-    int maxActivePerWorld =
-        limits != null
-            ? getInt(limits, "max-active-per-world", radius > 0.0d ? 1 : 0)
-            : (radius > 0.0d ? 1 : 0);
+    double radius = getDouble(encounter, "zone-radius", 0.0d);
+    int minimumContribution = getInt(encounter, "minimum-contribution", 0);
+    int defaultMaxActive = radius > 0.0d ? 1 : 0;
+    int maxActivePerWorld = getInt(limits, "max-active-per-world", defaultMaxActive);
     Duration deadline =
-        encounter != null && encounter.containsKey("deadline")
+        encounter.containsKey("deadline")
             ? parseDuration(encounter.get("deadline"))
             : Duration.ZERO;
     try {
@@ -763,7 +758,6 @@ public class EventDefinitionCompiler {
   }
 
   private int getInt(Map<String, Object> params, String key, int defaultValue) {
-    if (params == null) return defaultValue;
     Object val = params.get(key);
     if (val == null) return defaultValue;
     if (val instanceof Number n) {
@@ -789,7 +783,6 @@ public class EventDefinitionCompiler {
   }
 
   private float getFloat(Map<String, Object> params, String key, float defaultValue) {
-    if (params == null) return defaultValue;
     Object val = params.get(key);
     if (val == null) return defaultValue;
     if (val instanceof Number n) {
@@ -811,7 +804,6 @@ public class EventDefinitionCompiler {
   }
 
   private double getDouble(Map<String, Object> params, String key, double defaultValue) {
-    if (params == null) return defaultValue;
     Object value = params.get(key);
     if (value == null) return defaultValue;
     if (value instanceof Number number) {
