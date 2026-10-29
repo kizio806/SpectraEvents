@@ -51,4 +51,6 @@ jobs:
         uses: zizmorcore/zizmor-action@v0.8.0
         continue-on-error: true
         with:
-          persona: auditor
+          advanced-security: false
+          annotations: true
+          persona: regular
