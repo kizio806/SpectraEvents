@@ -211,7 +211,7 @@ command:
     instances-action: "Action: inspect each active instance before a restart; back up spectraevents.db before manual recovery."
     instance-entry: " - %id% definition=%definition% claim=%claim%"
     unclaimed: "unclaimed"
-    complete: "Doctor check finished. See docs/operations/release-and-recovery.md for upgrade and reward reconciliation."
+    complete: "Doctor check finished. See docs/wiki/Operations-and-Recovery.md for upgrade and reward reconciliation."
   models:
     list-title: "SpectraEvents 3D models (%count% loaded):"
     entry: " - %id% (%parts% parts, %hitboxes% hitboxes)"

@@ -196,9 +196,12 @@ public record DataDirectoryLayout(Path root) {
   }
 
   private static void writeAtomically(Path target, String content) throws IOException {
-    Files.createDirectories(target.getParent());
-    Path temporary =
-        Files.createTempFile(target.getParent(), target.getFileName().toString(), ".tmp");
+    Path parent = target.getParent();
+    Path directory = parent != null ? parent : Path.of(".");
+    Files.createDirectories(directory);
+    Path fileName = target.getFileName();
+    String prefix = fileName != null ? fileName.toString() : "data";
+    Path temporary = Files.createTempFile(directory, prefix, ".tmp");
     try {
       Files.writeString(temporary, content, StandardCharsets.UTF_8);
       moveAtomically(temporary, target);

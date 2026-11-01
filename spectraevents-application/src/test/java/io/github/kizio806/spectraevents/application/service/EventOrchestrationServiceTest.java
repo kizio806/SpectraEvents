@@ -59,6 +59,26 @@ class EventOrchestrationServiceTest {
   }
 
   @Test
+  void cancelsEvent() {
+    EventInstance instance = service.startDefinition("test_event");
+    EventInstance cancelled = service.cancelEvent(instance.id().toString());
+    assertEquals(EventLifecycleState.CANCELLED, cancelled.state());
+  }
+
+  @Test
+  void startsDefinitionAsync() {
+    EventInstance instance = service.startDefinitionAsync("test_event", null).join();
+    assertNotNull(instance);
+    assertEquals(EventLifecycleState.RUNNING, instance.state());
+  }
+
+  @Test
+  void rejectsBlankDefinitionId() {
+    assertThrows(IllegalArgumentException.class, () -> service.startDefinition(""));
+    assertThrows(IllegalArgumentException.class, () -> service.startDefinition(null));
+  }
+
+  @Test
   void rejectsUnknownInstance() {
     assertThrows(
         IllegalArgumentException.class,

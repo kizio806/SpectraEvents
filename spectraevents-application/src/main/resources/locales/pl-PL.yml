@@ -210,7 +210,7 @@ command:
     instances-action: "Działanie: sprawdź każdą aktywną instancję przed restartem; wykonaj kopię spectraevents.db przed ręcznym odzyskiwaniem."
     instance-entry: " - %id% definicja=%definition% odbierający=%claim%"
     unclaimed: "nieodebrana"
-    complete: "Diagnostyka zakończona. Zobacz docs/operations/release-and-recovery.md, aby poznać proces aktualizacji i uzgadniania nagród."
+    complete: "Diagnostyka zakończona. Zobacz docs/wiki/Operations-and-Recovery.md, aby poznać proces aktualizacji i uzgadniania nagród."
   models:
     list-title: "Modele 3D SpectraEvents (wczytano: %count%):"
     entry: " - %id% (%parts% części, %hitboxes% hitboxów)"

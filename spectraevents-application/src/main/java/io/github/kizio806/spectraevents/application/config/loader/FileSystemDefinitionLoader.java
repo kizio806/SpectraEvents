@@ -69,7 +69,7 @@ public final class FileSystemDefinitionLoader {
             Files.writeString(targetPath, content, StandardCharsets.UTF_8);
             LOGGER.fine("Extracted bundled event preset to " + targetPath);
           }
-        } catch (Exception e) {
+        } catch (IOException e) {
           LOGGER.log(
               Level.WARNING,
               "Failed to extract default resource " + resourcePath + ": " + e.getMessage());
@@ -107,7 +107,11 @@ public final class FileSystemDefinitionLoader {
               .filter(Files::isRegularFile)
               .filter(
                   path -> {
-                    String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
+                    Path fileName = path.getFileName();
+                    if (fileName == null) {
+                      return false;
+                    }
+                    String name = fileName.toString().toLowerCase(Locale.ROOT);
                     if (name.equals("example.yml")
                         || name.equals("example.yaml")
                         || name.startsWith("example-")

@@ -578,4 +578,147 @@ class EventDefinitionCompilerTest {
     assertThrows(
         EventDefinitionCompilerException.class, () -> compiler.compile(invalidDoubleStringSpec));
   }
+
+  @Test
+  void testCompileAllActionAndConditionTypes() {
+    List<ActionSpec> actions =
+        List.of(
+            new ActionSpec("initialize_health", Map.of("max", 100)),
+            new ActionSpec("initialize_hit_counter", Map.of("max", 50)),
+            new ActionSpec("set_locked", Map.of("duration", "5s")),
+            new ActionSpec("try_claim", Map.of()),
+            new ActionSpec(
+                "initialize_shared_loot",
+                Map.of("items", List.of(Map.of("material", "minecraft:diamond", "amount", 3)))),
+            new ActionSpec(
+                "initialize_ground_loot",
+                Map.of(
+                    "items",
+                    List.of(
+                        Map.of("material", "minecraft:gold_ingot", "amount", 5, "chance", 80)))),
+            new ActionSpec(
+                "create_participant_reward_claims",
+                Map.of(
+                    "items",
+                    List.of(Map.of("material", "minecraft:emerald", "amount", 2, "chance", 100)))),
+            new ActionSpec("apply_damage", Map.of("amount", 10)),
+            new ActionSpec("increment_hits", Map.of("amount", 2)),
+            new ActionSpec("fail_event", Map.of()),
+            new ActionSpec("cancel_event", Map.of()),
+            new ActionSpec("give_item", Map.of("material", "minecraft:apple", "amount", 1)),
+            new ActionSpec("open_shared_loot", Map.of("title", "Airdrop Chest")),
+            new ActionSpec(
+                "drop_loot",
+                Map.of(
+                    "radius",
+                    3.0f,
+                    "items",
+                    List.of(
+                        Map.of("material", "minecraft:iron_ingot", "amount", 4, "chance", 90)))),
+            new ActionSpec("release_ground_loot", Map.of("radius", 4.0f)),
+            new ActionSpec(
+                "award_podium",
+                Map.of(
+                    "pools",
+                    List.of(
+                        Map.of(
+                            "items",
+                            List.of(
+                                Map.of(
+                                    "material", "minecraft:diamond", "amount", 3, "chance", 100))),
+                        Map.of(
+                            "items",
+                            List.of(
+                                Map.of(
+                                    "material",
+                                    "minecraft:gold_ingot",
+                                    "amount",
+                                    2,
+                                    "chance",
+                                    100))),
+                        Map.of(
+                            "items",
+                            List.of(
+                                Map.of(
+                                    "material",
+                                    "minecraft:iron_ingot",
+                                    "amount",
+                                    1,
+                                    "chance",
+                                    100)))))),
+            new ActionSpec("broadcast", Map.of("message", "Attention!")),
+            new ActionSpec(
+                "show_title",
+                Map.of(
+                    "title",
+                    "VICTORY",
+                    "subtitle",
+                    "Event completed",
+                    "fade-in",
+                    10,
+                    "stay",
+                    40,
+                    "fade-out",
+                    10)),
+            new ActionSpec(
+                "spawn_wave",
+                Map.of(
+                    "wave-id",
+                    "wave_1",
+                    "mobs",
+                    List.of(
+                        Map.of(
+                            "entity_type",
+                            "minecraft:zombie",
+                            "name",
+                            "Undead",
+                            "amount",
+                            3,
+                            "radius",
+                            2.5f)))),
+            new ActionSpec(
+                "show_bossbar",
+                Map.of(
+                    "color",
+                    "PURPLE",
+                    "style",
+                    "NOTCHED_10",
+                    "title",
+                    "Boss Health",
+                    "progress",
+                    "0.8")),
+            new ActionSpec("update_bossbar", Map.of("title", "Enraged Boss", "progress", "0.5")),
+            new ActionSpec("remove_bossbar", Map.of()),
+            new ActionSpec(
+                "show_scoreboard",
+                Map.of("title", "Event Stats", "lines", List.of("Line 1", "Line 2"))),
+            new ActionSpec("update_scoreboard", Map.of("lines", List.of("Line A", "Line B"))),
+            new ActionSpec("remove_scoreboard", Map.of()));
+
+    List<TransitionSpec> transitions =
+        List.of(
+            new TransitionSpec(
+                new TriggerSpec("timer_elapsed", Map.of("duration", "5s")),
+                List.of(
+                    new ConditionSpec("health_below", Map.of("value", 50)),
+                    new ConditionSpec("health_at_least", Map.of("value", 20)),
+                    new ConditionSpec("hits_below", Map.of("value", 30)),
+                    new ConditionSpec("hits_at_least", Map.of("value", 10))),
+                "finish",
+                List.of()));
+
+    EventSpec spec =
+        new EventSpec(
+            "comprehensive_actions",
+            "1.0",
+            "active",
+            Map.of(
+                "active", new PhaseSpec(Set.of("finish"), transitions, actions),
+                "finish", new PhaseSpec(Set.of(), List.of(), List.of())));
+
+    EventDefinition def = compiler.compile(spec);
+    assertEquals("comprehensive_actions", def.id().value());
+    var phase = def.phase(new PhaseId("active")).orElseThrow();
+    assertEquals(actions.size(), phase.onEnterActions().size());
+  }
 }

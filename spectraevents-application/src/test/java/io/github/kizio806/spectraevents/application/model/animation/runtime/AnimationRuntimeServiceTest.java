@@ -167,6 +167,92 @@ class AnimationRuntimeServiceTest {
     assertTrue(cueFired.get());
   }
 
+  @Test
+  void testDeterministicConflictPolicyAndStopAll() {
+    AnimationPlaybackId id1 = service.play(mockHandle, animId);
+    assertEquals(1, activeRegistry.count());
+
+    // Playing same animation again stops id1
+    AnimationPlaybackId id2 = service.play(mockHandle, animId);
+    assertFalse(service.getPlaybackState(id1).isPresent());
+    assertTrue(service.getPlaybackState(id2).isPresent());
+    assertEquals(1, activeRegistry.count());
+
+    assertEquals(1, service.getPlaybackStatesForModel(mockHandle).size());
+    assertEquals(1, service.getActivePlaybacks().size());
+
+    service.stopAll(mockHandle);
+    assertEquals(0, activeRegistry.count());
+    assertTrue(service.getActivePlaybacks().isEmpty());
+  }
+
+  @Test
+  void testRestorePlayback() {
+    AnimationPlaybackState snapshot =
+        new AnimationPlaybackState(
+            AnimationPlaybackId.random(),
+            mockHandle,
+            animId,
+            PlaybackState.PLAYING,
+            AnimationTime.fromMillis(250),
+            1.0f,
+            io.github.kizio806.spectraevents.core.visual.animation.LoopMode.ONCE,
+            0,
+            io.github.kizio806.spectraevents.core.visual.animation.RecoveryPolicy.STOP);
+
+    AnimationPlaybackId restoredId = service.restorePlayback(snapshot);
+    assertNotNull(restoredId);
+    assertEquals(1, activeRegistry.count());
+    assertEquals(
+        AnimationTime.fromMillis(250), service.getPlaybackState(restoredId).get().currentTime());
+  }
+
+  @Test
+  void testComposedAnimationLifecycle() {
+    io.github.kizio806.spectraevents.application.model.registry.ModelDefinitionRegistry modelReg =
+        new io.github.kizio806.spectraevents.application.model.registry.ModelDefinitionRegistry();
+
+    io.github.kizio806.spectraevents.core.visual.model.ModelPartDefinition part =
+        new io.github.kizio806.spectraevents.core.visual.model.ModelPartDefinition(
+            ModelPartId.of("part1"),
+            null,
+            io.github.kizio806.spectraevents.core.visual.model.ModelPartType.ITEM_DISPLAY,
+            ModelTransform.IDENTITY,
+            ModelTransform.IDENTITY,
+            io.github.kizio806.spectraevents.core.visual.model.ModelRenderProperties.DEFAULT,
+            new io.github.kizio806.spectraevents.core.visual.model.ItemAssetRef(
+                "minecraft:diamond_helmet",
+                io.github.kizio806.spectraevents.core.visual.model.DisplayTransformMode.HEAD));
+
+    ModelDefinition modelDef =
+        new ModelDefinition(new ModelId("test_model"), List.of(part), List.of(), Map.of());
+    modelReg.register(modelDef);
+
+    AnimationRuntimeService composedService =
+        new AnimationRuntimeService(
+            definitionRegistry, modelReg, activeRegistry, modelRenderer, scheduler);
+
+    definitionRegistry.register(new ModelId("test_model"), compiledAnim);
+
+    AnimationPlaybackId playbackId = composedService.play(mockHandle, animId);
+    assertNotNull(playbackId);
+    assertFalse(modelRenderer.updateCalls.isEmpty());
+
+    // Run scheduler pending task
+    scheduler.runPending();
+
+    // Pause, Resume, Stop
+    assertTrue(composedService.pause(playbackId));
+    assertFalse(composedService.pause(playbackId)); // Already paused
+
+    assertTrue(composedService.resume(playbackId));
+    assertFalse(composedService.resume(playbackId)); // Already playing
+
+    assertTrue(composedService.seek(playbackId, AnimationTime.fromMillis(500)));
+    assertTrue(composedService.stop(playbackId));
+    assertFalse(composedService.stop(playbackId)); // Already stopped
+  }
+
   // --- Test Helpers ---
 
   private static class TestScheduler implements AnimationSchedulerPort {

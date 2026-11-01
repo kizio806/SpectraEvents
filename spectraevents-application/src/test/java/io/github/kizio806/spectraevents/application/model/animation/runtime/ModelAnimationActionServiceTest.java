@@ -93,6 +93,43 @@ class ModelAnimationActionServiceTest {
     assertEquals(0, activeAnimationRegistry.count());
   }
 
+  @Test
+  void testsValidationOfParameters() {
+    // Missing animation parameter
+    assertThrows(FatalActionException.class, () -> service.play(eventId, Map.of()));
+
+    // Invalid model parameter
+    assertThrows(
+        FatalActionException.class,
+        () -> service.play(eventId, Map.of("animation", "hover", "model", "   ")));
+
+    // Invalid speed
+    assertThrows(
+        FatalActionException.class,
+        () -> service.play(eventId, Map.of("animation", "hover", "speed", -1.0f)));
+    assertThrows(
+        FatalActionException.class,
+        () -> service.play(eventId, Map.of("animation", "hover", "speed", "not-a-number")));
+
+    // Invalid max-loops
+    assertThrows(
+        FatalActionException.class,
+        () -> service.play(eventId, Map.of("animation", "hover", "max-loops", -2)));
+
+    // String loop modes: valid and invalid
+    int p1 = service.play(eventId, Map.of("animation", "hover", "loop", "ping-pong"));
+    assertEquals(1, p1);
+
+    assertThrows(
+        FatalActionException.class,
+        () -> service.play(eventId, Map.of("animation", "hover", "loop", "unknown_mode")));
+
+    // stopForModel
+    var handle = modelRuntimeService.getActiveInstances().iterator().next();
+    service.stopForModel(handle);
+    assertEquals(0, activeAnimationRegistry.count());
+  }
+
   private ModelDefinition modelDefinition() {
     ModelPartDefinition part =
         new ModelPartDefinition(

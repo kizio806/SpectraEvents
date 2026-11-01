@@ -210,7 +210,7 @@ command:
     instances-action: "Aktion: Prüfe jede aktive Instanz vor einem Neustart; sichere spectraevents.db vor manueller Wiederherstellung."
     instance-entry: " - %id% Definition=%definition% Anspruch=%claim%"
     unclaimed: "nicht beansprucht"
-    complete: "Diagnose abgeschlossen. Siehe docs/operations/release-and-recovery.md für Upgrade und Belohnungsabstimmung."
+    complete: "Diagnose abgeschlossen. Siehe docs/wiki/Operations-and-Recovery.md für Upgrade und Belohnungsabstimmung."
   models:
     list-title: "SpectraEvents-3D-Modelle (%count% geladen):"
     entry: " - %id% (%parts% Teile, %hitboxes% Hitboxen)"

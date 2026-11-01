@@ -7,7 +7,6 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /** Strict five-field cron expression for server-local event schedules. */
-@SuppressWarnings("StringSplitter")
 public final class CronExpression {
   private static final Pattern WHITESPACE = Pattern.compile("\\s+");
   private static final Pattern LIST_SEPARATOR = Pattern.compile(",");
@@ -29,7 +28,10 @@ public final class CronExpression {
   }
 
   public static CronExpression parse(String source) {
-    String[] fields = WHITESPACE.split(Objects.requireNonNull(source, "source").trim());
+    String[] fields =
+        WHITESPACE
+            .splitAsStream(Objects.requireNonNull(source, "source").trim())
+            .toArray(String[]::new);
     if (fields.length != 5) {
       throw new IllegalArgumentException("Cron expression must contain exactly five fields");
     }
@@ -52,9 +54,7 @@ public final class CronExpression {
   private record Field(Set<Integer> allowed) {
     static Field parse(String source, int min, int max) {
       Set<Integer> allowed = new HashSet<>();
-      for (String part : LIST_SEPARATOR.split(source)) {
-        parsePart(part, min, max, allowed);
-      }
+      LIST_SEPARATOR.splitAsStream(source).forEach(part -> parsePart(part, min, max, allowed));
       if (allowed.isEmpty()) {
         throw new IllegalArgumentException("Cron field must not be empty");
       }

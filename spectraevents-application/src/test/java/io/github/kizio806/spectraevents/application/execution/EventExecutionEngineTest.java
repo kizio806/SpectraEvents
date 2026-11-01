@@ -524,6 +524,151 @@ class EventExecutionEngineTest {
         repository.findById(instance.id()).orElseThrow().currentPhase().orElseThrow());
   }
 
+  @Test
+  void testEngineWiringAndResolvers() {
+    assertEquals(stateStore, engine.stateStore());
+    engine.registerConditionResolver(
+        new IntegrationConditionResolver() {
+          @Override
+          public boolean resolve(
+              io.github.kizio806.spectraevents.core.event.execution.condition.ConditionDefinition
+                  condition,
+              EventInstance instance,
+              EventRuntimeState state,
+              ExecutionContext context) {
+            return true;
+          }
+
+          @Override
+          public boolean supports(String conditionType) {
+            return "custom_cond".equals(conditionType);
+          }
+        });
+    engine.registerActionResolver(
+        new IntegrationActionResolver() {
+          @Override
+          public CompletableFuture<Boolean> execute(
+              ActionDefinition action,
+              EventInstance instance,
+              EventRuntimeState state,
+              ExecutionContext context) {
+            return CompletableFuture.completedFuture(true);
+          }
+
+          @Override
+          public boolean supports(String actionType) {
+            return "custom_act".equals(actionType);
+          }
+        });
+
+    // Fatal action handler callback
+    EventDefinition def =
+        new EventDefinition(
+            new EventDefinitionId("fatal_test"),
+            new PhaseId("p1"),
+            Map.of(new PhaseId("p1"), new PhaseDefinition(new PhaseId("p1"), Set.of())));
+    registry.register(def, "fatal_test.yml");
+    EventInstance instance = engine.startEvent("fatal_test", null);
+    assertEquals(EventLifecycleState.RUNNING, instance.state());
+
+    actionPort.fatalActionHandler.accept(instance.id(), new RuntimeException("Fatal failure"));
+    assertEquals(
+        EventLifecycleState.FAILED, repository.findById(instance.id()).orElseThrow().state());
+  }
+
+  @Test
+  void testStartEventDirectAndAsync() {
+    EventDefinition def =
+        new EventDefinition(
+            new EventDefinitionId("direct_test"),
+            new PhaseId("p1"),
+            Map.of(new PhaseId("p1"), new PhaseDefinition(new PhaseId("p1"), Set.of())));
+    registry.register(def, "direct_test.yml");
+
+    EventInstance inst1 = engine.startEvent(def, "loc1");
+    assertEquals(EventLifecycleState.RUNNING, inst1.state());
+
+    EventInstance inst2 = engine.startEventAsync("direct_test", "loc2").join();
+    assertEquals(EventLifecycleState.RUNNING, inst2.state());
+
+    EventInstance inst3 = engine.startEventAsync(def, "loc3").join();
+    assertEquals(EventLifecycleState.RUNNING, inst3.state());
+  }
+
+  @Test
+  void testManualTransition() {
+    EventDefinition def =
+        new EventDefinition(
+            new EventDefinitionId("manual_event"),
+            new PhaseId("phase_a"),
+            Map.of(
+                new PhaseId("phase_a"),
+                new PhaseDefinition(
+                    new PhaseId("phase_a"),
+                    Set.of(new PhaseId("phase_b")),
+                    List.of(
+                        new TransitionRule(
+                            new ConfiguredTriggerDefinition("manual"),
+                            List.of(),
+                            Optional.of(new PhaseId("phase_b")),
+                            List.of())),
+                    List.of()),
+                new PhaseId("phase_b"),
+                new PhaseDefinition(new PhaseId("phase_b"), Set.of())));
+    registry.register(def, "manual_event.yml");
+
+    EventInstance instance = engine.startEvent("manual_event", null);
+    assertEquals(new PhaseId("phase_a"), instance.currentPhase().orElseThrow());
+
+    EventInstance transitioned = engine.triggerManualTransition(instance.id());
+    assertEquals(new PhaseId("phase_b"), transitioned.currentPhase().orElseThrow());
+
+    // Second manual transition throws IllegalStateException because phase_b has no manual
+    // transition rule
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalStateException.class, () -> engine.triggerManualTransition(instance.id()));
+  }
+
+  @Test
+  void testRecordWaveEntityDeathAndExternalContribution() {
+    EventInstanceId id = EventInstanceId.generate();
+    UUID entityId = UUID.randomUUID();
+    UUID playerId = UUID.randomUUID();
+
+    // When state does not exist
+    assertFalse(engine.recordWaveEntityDeath(id, "wave1", entityId, ExecutionContext.EMPTY));
+
+    // When state exists
+    EventRuntimeState state = stateStore.getOrCreate(id);
+    state.beginWave("wave1");
+    state.trackWaveEntity("wave1", entityId);
+
+    // Valid death returns true when trigger matches or false
+    assertFalse(engine.recordWaveEntityDeath(id, "wave1", entityId, ExecutionContext.EMPTY));
+
+    // External contribution
+    engine.recordExternalContribution(id, null, 10.0);
+    engine.recordExternalContribution(id, playerId, -5.0);
+    assertEquals(0, state.contribution().contributions().getOrDefault(playerId, 0));
+
+    engine.recordExternalContribution(id, playerId, 15.4);
+    assertEquals(16, state.contribution().contributions().get(playerId)); // ceil(15.4) = 16
+  }
+
+  @Test
+  void testExecutePhaseEntry() {
+    EventDefinition def =
+        new EventDefinition(
+            new EventDefinitionId("entry_test"),
+            new PhaseId("p1"),
+            Map.of(new PhaseId("p1"), new PhaseDefinition(new PhaseId("p1"), Set.of())));
+    registry.register(def, "entry_test.yml");
+    EventInstance instance = engine.startEvent("entry_test", null);
+
+    engine.executePhaseEntry(instance, def, new PhaseId("p1"));
+    engine.executePhaseEntry(instance, def, new PhaseId("p1"), ExecutionContext.EMPTY);
+  }
+
   private boolean successful(java.util.concurrent.Future<Boolean> future) {
     try {
       return future.get();
@@ -556,6 +701,13 @@ class EventExecutionEngineTest {
     List<ActionDefinition> executedActions = new ArrayList<>();
     Map<String, CompletableFuture<Boolean>> results = new java.util.HashMap<>();
     EventInstanceId cleanedInstance;
+    java.util.function.BiConsumer<EventInstanceId, Throwable> fatalActionHandler = (id, ex) -> {};
+
+    @Override
+    public void setFatalActionHandler(
+        java.util.function.BiConsumer<EventInstanceId, Throwable> handler) {
+      this.fatalActionHandler = handler;
+    }
 
     @Override
     public java.util.concurrent.CompletableFuture<Boolean> executeAction(

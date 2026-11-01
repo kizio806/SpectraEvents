@@ -75,4 +75,49 @@ class ScheduleYamlLoaderTest {
     assertEquals(1, result.failures().size());
     assertTrue(result.failures().getFirst().path().contains("schedules.yml:schedules[1]"));
   }
+
+  @Test
+  void testLoadFailures() {
+    // 1. Invalid YAML
+    var r1 = loader.loadResilient("key: \"unclosed string", "schedules.yml");
+    assertEquals(1, r1.failures().size());
+    assertTrue(r1.failures().getFirst().message().contains("invalid YAML"));
+
+    // 2. Root not a mapping
+    var r2 = loader.loadResilient("- item1\n- item2", "schedules.yml");
+    assertEquals("schedules.yml:root", r2.failures().getFirst().path());
+    assertTrue(r2.failures().getFirst().message().contains("must be a YAML mapping"));
+
+    // 3. Schema version not 1
+    var r3 = loader.loadResilient("schema-version: 2\nschedules: []", "schedules.yml");
+    assertEquals("schedules.yml:schema-version", r3.failures().getFirst().path());
+
+    // 4. Schedules not a list
+    var r4 = loader.loadResilient("schema-version: 1\nschedules: not_a_list", "schedules.yml");
+    assertEquals("schedules.yml:schedules", r4.failures().getFirst().path());
+
+    // 5. Entry not a mapping
+    var r5 =
+        loader.loadResilient("schema-version: 1\nschedules:\n  - just_a_string\n", "schedules.yml");
+    assertEquals("schedules.yml:schedules[0]", r5.failures().getFirst().path());
+    assertTrue(r5.failures().getFirst().message().contains("must be a mapping"));
+
+    // 6. Non-numeric coordinates
+    var r6 =
+        loader.loadResilient(
+            """
+            schema-version: 1
+            schedules:
+              - id: test
+                definition: test
+                cron: "0 * * * *"
+                timezone: UTC
+                world: world
+                x: not_a_number
+                y: 64
+                z: 0
+            """,
+            "schedules.yml");
+    assertTrue(r6.failures().getFirst().message().contains("must be numeric"));
+  }
 }
