@@ -1,7 +1,6 @@
 # Known Limitations
 
-The current beta is intentionally release-blocked. The canonical, evidence-backed list is
-[`docs/audit/BUG_AUDIT.md`](https://github.com/kizio806/SpectraEvents/blob/main/docs/audit/BUG_AUDIT.md).
+The current beta has several active operational items being tracked toward 1.0.0.
 
 The release-critical themes are:
 

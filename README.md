@@ -151,9 +151,9 @@ SpectraEvents supports delivering custom 3D models and textures through client r
 
 - **Modrinth Asset CDN:** Official resource packs are published to Modrinth project [`spectraevents-assets`](https://modrinth.com/resourcepack/spectraevents-assets) (ID: `Rg1nw8IW`).
 - **Private Server Hosting:** Operators hosting custom Blockbench models can configure direct HTTP URLs (`ManualUrlResourcePackSource`).
-- **Default Delivery:** In accordance with [ADR 0007](docs/architecture/adr/0007-defer-default-resource-pack-delivery.md), automatic resource-pack prompt delivery is **disabled by default** (`enabled: false`) until configured by an administrator.
+- **Default Delivery:** Automatic resource-pack prompt delivery is **disabled by default** (`enabled: false`) until configured by an administrator.
 
-For complete setup instructions, see the [Resource Pack Guide](docs/config/resource-pack.md).
+For complete setup instructions, see the [Assets & Resource Packs Guide](docs/wiki/Assets-and-Resource-Packs.md).
 
 ---
 
@@ -185,32 +185,29 @@ Compiled JARs will be located in:
 
 ---
 
-## 📚 Documentation & Wiki
+## 📚 Wiki & Documentation
 
-Explore our comprehensive documentation suite:
+For in-depth guides and developer documentation, visit our wiki and reference docs:
 
-### Guides & Operations
-- [Installation Guide](docs/guides/installation.md)
-- [Getting Started & First Event](docs/guides/getting-started.md)
-- [Operator & Admin Workflow](docs/product/admin-workflow.md)
-- [Commands Reference](docs/product/commands.md) & [Permissions Reference](docs/product/permissions.md)
-- [Release and Recovery Procedures](docs/operations/release-and-recovery.md)
-
-### Configuration & Event Authoring
-- [Event Definition Format](docs/config/event-definition.md)
-- [Phases & Transitions](docs/config/phases.md)
-- [Triggers](docs/config/triggers.md) & [Conditions](docs/config/conditions.md)
-- [Actions Reference](docs/config/actions.md)
-- [Rewards & Mailbox Persistence](docs/config/rewards.md)
-- [Automated Schedules](docs/config/schedules.md)
-- [Blockbench Authoring Guide](docs/authoring/blockbench.md) & [Asset Pipeline](docs/authoring/asset-pipeline.md)
-
-### Architecture & Standards
-- [Target Architecture Overview](docs/architecture/target-architecture.md)
-- [Platform Compatibility Matrix](docs/architecture/platform-compatibility.md)
-- [Architectural Decision Records (ADRs)](docs/architecture/adr/0001-hexagonal-core.md)
-- [Documentation Style Guide](docs/ai/DOCUMENTATION_STYLE.md)
-- [GitHub Wiki](wiki/Home.md)
+- **[GitHub Wiki](https://github.com/kizio806/SpectraEvents/wiki)**
+  - [Wiki Home](docs/wiki/Home.md)
+  - [Installation Guide](docs/wiki/Installation.md)
+  - [Platform Compatibility](docs/wiki/Compatibility.md)
+  - [Commands & Permissions](docs/wiki/Commands-and-Permissions.md)
+  - [Official Events Guide](docs/wiki/Official-Events.md)
+  - [Event Authoring Guide](docs/wiki/Event-Authoring.md)
+  - [Assets & Resource Packs](docs/wiki/Assets-and-Resource-Packs.md)
+  - [Operations & Recovery](docs/wiki/Operations-and-Recovery.md)
+  - [Known Limitations](docs/wiki/Known-Limitations.md)
+- **Technical Documentation:**
+  - [Architecture Assessment](docs/architecture.md)
+  - [Development Guidelines](docs/development.md)
+  - [Installation Guide](docs/installation.md)
+  - [Full Compatibility Matrix](docs/compatibility-matrix.md)
+  - [Releases Guide](docs/releases.md)
+  - [Modrinth Publishing Guide](docs/modrinth.md)
+  - [Troubleshooting & FAQ](docs/troubleshooting.md)
+  - [Changelog](CHANGELOG.md)
 
 ---
 

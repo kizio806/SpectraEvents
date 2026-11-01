@@ -60,15 +60,31 @@ if mismatches:
     sys.exit(1)
 "
 
+if [[ -d "docs/ai" ]]; then
+    echo "Disallowed obsolete docs/ai directory detected. AI guidelines and rules must reside in .agents/."
+    exit 1
+fi
+
 required_docs=(
     "CHANGELOG.md"
     "CONTRIBUTING.md"
     "SECURITY.md"
     "README.md"
-    "docs/ai/ARCHITECTURE.md"
-    "docs/ai/ENGINEERING_RULES.md"
-    "docs/ai/PROJECT_STATE.md"
-    "docs/ai/TESTING.md"
+    "AGENTS.md"
+    "docs/architecture.md"
+    "docs/compatibility-matrix.md"
+    "docs/development.md"
+    "docs/installation.md"
+    "docs/modrinth.md"
+    "docs/releases.md"
+    "docs/troubleshooting.md"
+    "docs/wiki/README.md"
+    "docs/wiki/Home.md"
+    ".agents/AGENTS.md"
+    ".agents/rules/architecture-and-boundaries.md"
+    ".agents/rules/quality-gates-and-testing.md"
+    ".agents/rules/source-hygiene-and-comments.md"
+    ".agents/workflows/release.md"
 )
 
 missing_docs=()

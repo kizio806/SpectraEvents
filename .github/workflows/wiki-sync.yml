@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'wiki/**'
+      - 'docs/wiki/**'
       - '.github/workflows/wiki-sync.yml'
   workflow_dispatch:
 
@@ -31,9 +31,9 @@ jobs:
 
       - name: Validate wiki source files
         run: |
-          test -d wiki || { echo "::error::Missing wiki directory"; exit 1; }
-          test -f wiki/Home.md || { echo "::error::Missing wiki/Home.md"; exit 1; }
-          test -f wiki/_Sidebar.md || { echo "::error::Missing wiki/_Sidebar.md"; exit 1; }
+          test -d docs/wiki || { echo "::error::Missing docs/wiki directory"; exit 1; }
+          test -f docs/wiki/Home.md || { echo "::error::Missing docs/wiki/Home.md"; exit 1; }
+          test -f docs/wiki/_Sidebar.md || { echo "::error::Missing docs/wiki/_Sidebar.md"; exit 1; }
           echo "Wiki source files validated successfully."
 
       - name: Clone wiki repository
@@ -49,7 +49,7 @@ jobs:
       - name: Sync wiki content
         run: |
           if [ -d wiki-repo ]; then
-            rsync -av --delete --exclude='.git' wiki/ wiki-repo/
+            rsync -av --delete --exclude='.git' docs/wiki/ wiki-repo/
           fi
 
       - name: Commit and push changes

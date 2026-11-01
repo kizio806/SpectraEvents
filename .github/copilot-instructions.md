@@ -1,7 +1,7 @@
 # SpectraEvents Copilot Instructions
 
 Canonical repository instructions are defined in `/AGENTS.md`. Before substantial changes, read
-`/AGENTS.md` and its required documents under `/docs/ai/`.
+`/AGENTS.md` and its required rules under `/.agents/rules/`.
 
 - The project is a modular event engine, not a set of hardcoded events.
 - Core, application, and API never import Bukkit or Paper.

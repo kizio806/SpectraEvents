@@ -12,7 +12,7 @@ entries so every download has one exact platform contract.
 | `SpectraEvents <version> — Folia` | `<version>+folia` | `folia` | `26.1`, `26.2` | `SpectraEvents-<version>-paper.jar` |
 
 Environment: dedicated server only. Version type follows SemVer suffix: `alpha` for alpha,
-`beta` for beta/RC, otherwise `release`. Use the matching `docs/releases/<version>.md` as changelog
+`beta` for beta/RC, otherwise `release`. Use the matching `CHANGELOG.md` entry as changelog
 only after reconciling it with the exact candidate diff and known limitations.
 
 ## Resource-pack entries
