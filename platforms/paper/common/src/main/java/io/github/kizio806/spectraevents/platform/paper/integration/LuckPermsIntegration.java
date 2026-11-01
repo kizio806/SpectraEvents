@@ -47,8 +47,9 @@ public class LuckPermsIntegration
         user = api.getUserManager().getUser(uuid);
         if (user == null) {
           OfflinePlayer op = org.bukkit.Bukkit.getOfflinePlayer(uuid);
-          if (op.isOnline()) {
-            user = api.getUserManager().getUser(op.getName());
+          String name = op.getName();
+          if (op.isOnline() && name != null) {
+            user = api.getUserManager().getUser(name);
           }
         }
       } else if (context.actor() instanceof Player p) {

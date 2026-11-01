@@ -14,6 +14,7 @@ import io.github.kizio806.spectraevents.platform.paper.asset.delivery.PaperResou
 import io.github.kizio806.spectraevents.platform.paper.config.PaperDefinitionConfigBootstrap;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Locale;
@@ -135,7 +136,7 @@ public final class DefinitionCommandHandler {
               result.failures().isEmpty() ? NamedTextColor.GREEN : NamedTextColor.YELLOW,
               java.util.Map.of(
                   "loaded", result.loaded().size(), "failed", result.failures().size())));
-    } catch (Exception e) {
+    } catch (RuntimeException | IOException e) {
       sender.sendMessage(
           messages.component(
               "command.definitions.reload-failed",
@@ -197,7 +198,7 @@ public final class DefinitionCommandHandler {
                 color(diagnostic.severity()),
                 java.util.Map.of("code", diagnostic.code(), "message", diagnostic.message())));
       }
-    } catch (Exception e) {
+    } catch (RuntimeException | IOException e) {
       sender.sendMessage(
           messages.component(
               "command.definitions.validation-error",

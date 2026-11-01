@@ -160,9 +160,12 @@ public final class PaperEventSettingsStore {
 
   private void save(YamlConfiguration yaml, Path target) {
     try {
-      Files.createDirectories(target.getParent());
-      Path temporary =
-          Files.createTempFile(target.getParent(), target.getFileName().toString(), ".tmp");
+      Path parent = target.getParent();
+      Path dir = parent != null ? parent : Path.of(".");
+      Files.createDirectories(dir);
+      Path fileName = target.getFileName();
+      String prefix = fileName != null ? fileName.toString() : "settings";
+      Path temporary = Files.createTempFile(dir, prefix, ".tmp");
       try {
         yaml.save(temporary.toFile());
         moveAtomically(temporary, target);

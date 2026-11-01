@@ -87,7 +87,6 @@ public final class AssetCommandHandler {
         || sender.isOp();
   }
 
-  @SuppressWarnings("FutureReturnValueIgnored")
   private int buildAssets(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
     if (assetPipelineService == null) {
@@ -97,18 +96,20 @@ public final class AssetCommandHandler {
 
     sender.sendMessage(messages.component("command.assets.build-started", NamedTextColor.YELLOW));
 
-    assetPipelineService
-        .buildAssetsAsync()
-        .whenComplete(
-            (ignored, failure) ->
-                replyLater(
-                    sender,
-                    failure == null
-                        ? messages.component("command.assets.build-complete", NamedTextColor.GREEN)
-                        : messages.component(
-                            "command.assets.build-failed",
-                            NamedTextColor.RED,
-                            Map.of("reason", messageFor(failure)))));
+    var _ =
+        assetPipelineService
+            .buildAssetsAsync()
+            .whenComplete(
+                (ignored, failure) ->
+                    replyLater(
+                        sender,
+                        failure == null
+                            ? messages.component(
+                                "command.assets.build-complete", NamedTextColor.GREEN)
+                            : messages.component(
+                                "command.assets.build-failed",
+                                NamedTextColor.RED,
+                                Map.of("reason", messageFor(failure)))));
     return 1;
   }
 
@@ -127,24 +128,26 @@ public final class AssetCommandHandler {
     return 1;
   }
 
-  @SuppressWarnings("FutureReturnValueIgnored")
   private int importAsset(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
     if (assetPipelineService == null) return unavailable(sender);
     String file = StringArgumentType.getString(ctx, "file");
-    assetPipelineService
-        .importFileAsync(file)
-        .whenComplete(
-            (ignored, failure) ->
-                replyLater(
-                    sender,
-                    failure == null
-                        ? messages.component(
-                            "command.assets.imported", NamedTextColor.GREEN, Map.of("file", file))
-                        : messages.component(
-                            "command.assets.import-failed",
-                            NamedTextColor.RED,
-                            Map.of("reason", messageFor(failure)))));
+    var _ =
+        assetPipelineService
+            .importFileAsync(file)
+            .whenComplete(
+                (ignored, failure) ->
+                    replyLater(
+                        sender,
+                        failure == null
+                            ? messages.component(
+                                "command.assets.imported",
+                                NamedTextColor.GREEN,
+                                Map.of("file", file))
+                            : messages.component(
+                                "command.assets.import-failed",
+                                NamedTextColor.RED,
+                                Map.of("reason", messageFor(failure)))));
     return 1;
   }
 

@@ -238,8 +238,6 @@ public final class SpectraMainCommand {
                                                 .RETURN_TO_PENDING)))));
   }
 
-  @SuppressWarnings(
-      "FutureReturnValueIgnored") // Completion is returned to the player's owning region.
   private int listRewards(CommandContext<CommandSourceStack> context) {
     CommandSender sender = context.getSource().getSender();
     if (!(sender instanceof Player player)) {
@@ -247,38 +245,38 @@ public final class SpectraMainCommand {
           messages.component("command.paper.rewards-player-only", NamedTextColor.RED));
       return 0;
     }
-    rewardMailboxService
-        .pendingClaims(player.getUniqueId())
-        .whenComplete(
-            (claims, failure) ->
-                regionScheduler.executeFor(
-                    player,
-                    () -> {
-                      if (failure != null) {
-                        player.sendMessage(
-                            messages.component(
-                                "command.spigot.failed",
-                                NamedTextColor.RED,
-                                Map.of("reason", messageFor(failure))));
-                        return;
-                      }
-                      player.sendMessage(
-                          messages.component(
-                              "command.spigot.rewards-title",
-                              NamedTextColor.AQUA,
-                              Map.of("count", claims.size())));
-                      for (var claim : claims) {
-                        player.sendMessage(
-                            messages.component(
-                                "command.spigot.reward-entry",
-                                NamedTextColor.GRAY,
-                                Map.of("id", claim.id(), "count", claim.items().size())));
-                      }
-                    }));
+    var _ =
+        rewardMailboxService
+            .pendingClaims(player.getUniqueId())
+            .whenComplete(
+                (claims, failure) ->
+                    regionScheduler.executeFor(
+                        player,
+                        () -> {
+                          if (failure != null) {
+                            player.sendMessage(
+                                messages.component(
+                                    "command.spigot.failed",
+                                    NamedTextColor.RED,
+                                    Map.of("reason", messageFor(failure))));
+                            return;
+                          }
+                          player.sendMessage(
+                              messages.component(
+                                  "command.spigot.rewards-title",
+                                  NamedTextColor.AQUA,
+                                  Map.of("count", claims.size())));
+                          for (var claim : claims) {
+                            player.sendMessage(
+                                messages.component(
+                                    "command.spigot.reward-entry",
+                                    NamedTextColor.GRAY,
+                                    Map.of("id", claim.id(), "count", claim.items().size())));
+                          }
+                        }));
     return 1;
   }
 
-  @SuppressWarnings("FutureReturnValueIgnored")
   private int claimReward(CommandContext<CommandSourceStack> context) {
     CommandSender sender = context.getSource().getSender();
     if (!(sender instanceof Player player)) {
@@ -293,61 +291,59 @@ public final class SpectraMainCommand {
       sender.sendMessage(messages.component("command.paper.invalid-reward-id", NamedTextColor.RED));
       return 0;
     }
-    rewardMailboxService
-        .claim(
-            player.getUniqueId(),
-            claimId,
-            (ignored, items) -> actionAdapter.deliverRewardItems(player, items))
-        .whenComplete(
-            (result, failure) ->
-                regionScheduler.executeFor(
-                    player,
-                    () -> {
-                      if (failure != null) {
-                        player.sendMessage(
-                            messages.component(
-                                "command.spigot.failed",
-                                NamedTextColor.RED,
-                                Map.of("reason", messageFor(failure))));
-                        return;
-                      }
-                      NamedTextColor color =
-                          result.status()
-                                  == io.github.kizio806.spectraevents.application.service
-                                      .RewardMailboxService.ClaimDeliveryResult.Status.DELIVERED
-                              ? NamedTextColor.GREEN
-                              : NamedTextColor.YELLOW;
-                      String key =
-                          switch (result.status()) {
-                            case DELIVERED -> "messages.reward-delivered";
-                            case RETAINED -> "messages.reward-retained";
-                            case BUSY -> "command.spigot.reward-busy";
-                            case NOT_AVAILABLE -> "command.spigot.reward-unavailable";
-                          };
-                      player.sendMessage(messages.component(key, color));
-                    }));
+    var _ =
+        rewardMailboxService
+            .claim(
+                player.getUniqueId(),
+                claimId,
+                (ignored, items) -> actionAdapter.deliverRewardItems(player, items))
+            .whenComplete(
+                (result, failure) ->
+                    regionScheduler.executeFor(
+                        player,
+                        () -> {
+                          if (failure != null) {
+                            player.sendMessage(
+                                messages.component(
+                                    "command.spigot.failed",
+                                    NamedTextColor.RED,
+                                    Map.of("reason", messageFor(failure))));
+                            return;
+                          }
+                          NamedTextColor color =
+                              result.status()
+                                      == io.github.kizio806.spectraevents.application.service
+                                          .RewardMailboxService.ClaimDeliveryResult.Status.DELIVERED
+                                  ? NamedTextColor.GREEN
+                                  : NamedTextColor.YELLOW;
+                          String key =
+                              switch (result.status()) {
+                                case DELIVERED -> "messages.reward-delivered";
+                                case RETAINED -> "messages.reward-retained";
+                                case BUSY -> "command.spigot.reward-busy";
+                                case NOT_AVAILABLE -> "command.spigot.reward-unavailable";
+                              };
+                          player.sendMessage(messages.component(key, color));
+                        }));
     return 1;
   }
 
-  @SuppressWarnings(
-      "FutureReturnValueIgnored") // Completion is returned to the command sender on its region.
   private int listDeliveringClaims(CommandContext<CommandSourceStack> context) {
     CommandSender sender = context.getSource().getSender();
-    rewardMailboxService
-        .deliveringClaims()
-        .whenComplete(
-            (claims, failure) ->
-                sendRewardReconciliationResult(
-                    sender,
-                    claims,
-                    failure,
-                    "command.rewards.reconcile-title",
-                    "command.rewards.reconcile-entry"));
+    var _ =
+        rewardMailboxService
+            .deliveringClaims()
+            .whenComplete(
+                (claims, failure) ->
+                    sendRewardReconciliationResult(
+                        sender,
+                        claims,
+                        failure,
+                        "command.rewards.reconcile-title",
+                        "command.rewards.reconcile-entry"));
     return 1;
   }
 
-  @SuppressWarnings(
-      "FutureReturnValueIgnored") // Completion is returned to the command sender on its region.
   private int reconcileClaim(
       CommandContext<CommandSourceStack> context,
       io.github.kizio806.spectraevents.application.service.RewardMailboxService
@@ -361,28 +357,29 @@ public final class SpectraMainCommand {
       sender.sendMessage(messages.component("command.paper.invalid-reward-id", NamedTextColor.RED));
       return 0;
     }
-    rewardMailboxService
-        .reconcile(claimId, decision)
-        .whenComplete(
-            (resolved, failure) ->
-                regionScheduler.executeGlobal(
-                    () -> {
-                      if (failure != null) {
-                        sender.sendMessage(
-                            messages.component(
-                                "command.spigot.failed",
-                                NamedTextColor.RED,
-                                Map.of("reason", messageFor(failure))));
-                        return;
-                      }
-                      sender.sendMessage(
-                          messages.component(
-                              resolved
-                                  ? "command.rewards.reconcile-resolved"
-                                  : "command.rewards.reconcile-not-found",
-                              resolved ? NamedTextColor.GREEN : NamedTextColor.YELLOW,
-                              Map.of("id", claimId, "decision", decision.name())));
-                    }));
+    var _ =
+        rewardMailboxService
+            .reconcile(claimId, decision)
+            .whenComplete(
+                (resolved, failure) ->
+                    regionScheduler.executeGlobal(
+                        () -> {
+                          if (failure != null) {
+                            sender.sendMessage(
+                                messages.component(
+                                    "command.spigot.failed",
+                                    NamedTextColor.RED,
+                                    Map.of("reason", messageFor(failure))));
+                            return;
+                          }
+                          sender.sendMessage(
+                              messages.component(
+                                  resolved
+                                      ? "command.rewards.reconcile-resolved"
+                                      : "command.rewards.reconcile-not-found",
+                                  resolved ? NamedTextColor.GREEN : NamedTextColor.YELLOW,
+                                  Map.of("id", claimId, "decision", decision.name())));
+                        }));
     return 1;
   }
 

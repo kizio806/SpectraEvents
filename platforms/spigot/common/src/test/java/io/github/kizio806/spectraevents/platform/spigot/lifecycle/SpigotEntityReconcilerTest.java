@@ -19,7 +19,6 @@ class SpigotEntityReconcilerTest {
   @TempDir Path temporaryDirectory;
 
   @Test
-  @SuppressWarnings("PMD.CompareObjectsWithEquals")
   void validatesConstructorArgumentsAndExposesPlugin() throws Exception {
     Plugin dummyPlugin =
         (Plugin)
@@ -28,7 +27,9 @@ class SpigotEntityReconcilerTest {
                 new Class<?>[] {Plugin.class},
                 (proxy, method, args) -> {
                   if ("equals".equals(method.getName())) {
-                    return proxy == args[0];
+                    return args != null
+                        && args.length > 0
+                        && System.identityHashCode(proxy) == System.identityHashCode(args[0]);
                   }
                   if ("hashCode".equals(method.getName())) {
                     return 42;

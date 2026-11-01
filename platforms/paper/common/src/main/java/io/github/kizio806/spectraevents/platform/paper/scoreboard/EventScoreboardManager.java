@@ -3,7 +3,7 @@ package io.github.kizio806.spectraevents.platform.paper.scoreboard;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
-import io.github.kizio806.spectraevents.platform.paper.common.EventDisplayPlaceholders;
+import io.github.kizio806.spectraevents.platform.bukkit.common.EventDisplayPlaceholders;
 import io.github.kizio806.spectraevents.platform.paper.integration.MiniPlaceholdersIntegration;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import java.util.ArrayList;
@@ -33,17 +33,11 @@ public final class EventScoreboardManager implements Listener {
     final Scoreboard scoreboard;
     final Objective objective;
     final List<String> renderedEntries = new ArrayList<>();
-    String titleTemplate;
     List<String> lineTemplates;
 
-    ScoreboardHolder(
-        Scoreboard scoreboard,
-        Objective objective,
-        String titleTemplate,
-        List<String> lineTemplates) {
+    ScoreboardHolder(Scoreboard scoreboard, Objective objective, List<String> lineTemplates) {
       this.scoreboard = scoreboard;
       this.objective = objective;
-      this.titleTemplate = titleTemplate;
       this.lineTemplates = lineTemplates;
     }
   }
@@ -60,7 +54,7 @@ public final class EventScoreboardManager implements Listener {
   }
 
   public void showScoreboard(
-      EventInstance instance, EventRuntimeState state, Map<String, Object> params) {
+      EventInstance instance, EventRuntimeState state, String title, List<String> lines) {
     Objects.requireNonNull(instance, "instance");
     Objects.requireNonNull(state, "state");
 
@@ -74,8 +68,10 @@ public final class EventScoreboardManager implements Listener {
           "A Minecraft client can display only one sidebar; another event already owns it");
     }
     String titleTemplate =
-        getString(params, "title", locales.message("messages.default-scoreboard-title"));
-    List<String> lineTemplates = getList(params, "lines");
+        (title != null && !title.isBlank())
+            ? title
+            : locales.message("messages.default-scoreboard-title");
+    List<String> lineTemplates = lines != null ? lines : List.of();
 
     Scoreboard scoreboard;
     Objective objective;
@@ -96,8 +92,7 @@ public final class EventScoreboardManager implements Listener {
     }
     objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 
-    ScoreboardHolder holder =
-        new ScoreboardHolder(scoreboard, objective, titleTemplate, lineTemplates);
+    ScoreboardHolder holder = new ScoreboardHolder(scoreboard, objective, lineTemplates);
     activeScoreboards.put(instanceId, holder);
 
     renderLines(holder, instance, state);
@@ -108,23 +103,19 @@ public final class EventScoreboardManager implements Listener {
   }
 
   public void updateScoreboard(
-      EventInstance instance, EventRuntimeState state, Map<String, Object> params) {
+      EventInstance instance, EventRuntimeState state, List<String> lines) {
     Objects.requireNonNull(instance, "instance");
     Objects.requireNonNull(state, "state");
 
     UUID instanceId = instance.id().value();
     ScoreboardHolder holder = activeScoreboards.get(instanceId);
     if (holder == null) {
-      showScoreboard(instance, state, params);
+      showScoreboard(instance, state, null, lines);
       return;
     }
 
-    if (params.containsKey("title")) {
-      holder.titleTemplate = getString(params, "title", holder.titleTemplate);
-      holder.objective.displayName(renderComponent(holder.titleTemplate, instance, state));
-    }
-    if (params.containsKey("lines")) {
-      holder.lineTemplates = getList(params, "lines");
+    if (lines != null) {
+      holder.lineTemplates = lines;
     }
 
     renderLines(holder, instance, state);
@@ -222,23 +213,5 @@ public final class EventScoreboardManager implements Listener {
         "Scoreboard action is unsupported by this server implementation; event "
             + instanceId
             + " continues without a scoreboard. Use a bossbar for Folia-compatible UI.");
-  }
-
-  private String getString(Map<String, Object> params, String key, String defaultValue) {
-    Object val = params.get(key);
-    return val != null ? String.valueOf(val) : defaultValue;
-  }
-
-  @SuppressWarnings("unchecked")
-  private List<String> getList(Map<String, Object> params, String key) {
-    Object val = params.get(key);
-    if (val instanceof List<?> l) {
-      List<String> list = new ArrayList<>();
-      for (Object o : l) {
-        list.add(String.valueOf(o));
-      }
-      return list;
-    }
-    return List.of();
   }
 }

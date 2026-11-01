@@ -2,7 +2,7 @@ package io.github.kizio806.spectraevents.platform.paper.lifecycle;
 
 import io.github.kizio806.spectraevents.application.port.PlatformEntityReconcilerPort;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
-import io.github.kizio806.spectraevents.platform.paper.metadata.SpectraPdcKeys;
+import io.github.kizio806.spectraevents.platform.bukkit.metadata.BukkitPdcKeys;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -31,14 +31,14 @@ public class PaperEntityReconciler implements PlatformEntityReconcilerPort {
           String instanceIdStr =
               entity
                   .getPersistentDataContainer()
-                  .get(SpectraPdcKeys.INSTANCE_ID, PersistentDataType.STRING);
+                  .get(BukkitPdcKeys.EVENT_INSTANCE_ID, PersistentDataType.STRING);
           if (instanceIdStr != null) {
             try {
               EventInstanceId instanceId = new EventInstanceId(UUID.fromString(instanceIdStr));
               String partId =
                   entity
                       .getPersistentDataContainer()
-                      .get(SpectraPdcKeys.partId(plugin), PersistentDataType.STRING);
+                      .get(BukkitPdcKeys.partId(plugin), PersistentDataType.STRING);
 
               String role =
                   entity

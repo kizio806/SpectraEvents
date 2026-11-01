@@ -7,12 +7,12 @@ import io.github.kizio806.spectraevents.application.config.loader.DefinitionLoad
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.service.EntityReconciliationReport;
+import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootListener;
 import io.github.kizio806.spectraevents.platform.spigot.action.SpigotActionAdapter;
 import io.github.kizio806.spectraevents.platform.spigot.command.SpigotMainCommand;
 import io.github.kizio806.spectraevents.platform.spigot.config.SpigotDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.spigot.interaction.SpigotEventRouter;
 import io.github.kizio806.spectraevents.platform.spigot.lifecycle.SpigotEntityReconciler;
-import io.github.kizio806.spectraevents.platform.spigot.loot.SpigotSharedLootListener;
 import io.github.kizio806.spectraevents.platform.spigot.render.SpigotModelRenderer;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -23,7 +23,6 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /** Composition root for the Spigot/Bukkit distribution. */
-@SuppressWarnings("StringConcatToTextBlock")
 public final class SpigotBootstrap {
   private final JavaPlugin plugin;
   private final BukkitAudiences adventure;
@@ -158,7 +157,11 @@ public final class SpigotBootstrap {
         .getServer()
         .getPluginManager()
         .registerEvents(
-            new SpigotSharedLootListener(plugin, repository, application.executionEngine()),
+            new BukkitSharedLootListener(
+                plugin,
+                repository,
+                application.executionEngine(),
+                (player, task) -> org.bukkit.Bukkit.getScheduler().runTask(plugin, task)),
             plugin);
 
     PluginCommand eventCommand = plugin.getCommand("spectraevents");

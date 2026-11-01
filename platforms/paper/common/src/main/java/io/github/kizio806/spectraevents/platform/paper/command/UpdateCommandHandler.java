@@ -38,22 +38,22 @@ public final class UpdateCommandHandler {
                 .executes(this::updateInfo));
   }
 
-  @SuppressWarnings("FutureReturnValueIgnored")
   private int updateCheck(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
     sender.sendMessage(messages.component("command.update.checking", NamedTextColor.GRAY));
-    updateService
-        .checkNow("stable")
-        .whenComplete(
-            (info, failure) ->
-                replyLater(
-                    sender,
-                    failure != null
-                        ? messages.component(
-                            "command.update.failed",
-                            NamedTextColor.RED,
-                            java.util.Map.of("reason", safeMessage(failure)))
-                        : updateResult(info)));
+    var _ =
+        updateService
+            .checkNow("stable")
+            .whenComplete(
+                (info, failure) ->
+                    replyLater(
+                        sender,
+                        failure != null
+                            ? messages.component(
+                                "command.update.failed",
+                                NamedTextColor.RED,
+                                java.util.Map.of("reason", safeMessage(failure)))
+                            : updateResult(info)));
     return 1;
   }
 
