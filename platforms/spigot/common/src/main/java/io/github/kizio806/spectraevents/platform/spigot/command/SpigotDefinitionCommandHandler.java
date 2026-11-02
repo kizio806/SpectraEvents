@@ -34,17 +34,19 @@ public final class SpigotDefinitionCommandHandler implements SpigotSubcommandHan
   }
 
   @Override
-  public boolean execute(CommandSender sender, String[] arguments) {
+  public void execute(CommandSender sender, String[] arguments) {
     if (arguments.length == 0 || "list".equalsIgnoreCase(arguments[0])) {
-      return list(sender);
+      list(sender);
+      return;
     }
     if ("reload".equalsIgnoreCase(arguments[0]) || "validate".equalsIgnoreCase(arguments[0])) {
-      return reloadOrValidate(sender, "validate".equalsIgnoreCase(arguments[0]));
+      reloadOrValidate(sender, "validate".equalsIgnoreCase(arguments[0]));
+      return;
     }
     throw new IllegalArgumentException("Unknown definition subcommand: " + arguments[0]);
   }
 
-  private boolean list(CommandSender sender) {
+  private void list(CommandSender sender) {
     helper.require(sender, "spectraevents.definition.list");
     helper.send(
         sender,
@@ -56,10 +58,9 @@ public final class SpigotDefinitionCommandHandler implements SpigotSubcommandHan
           "command.spigot.definition-entry",
           Map.of("definition", registered.definition().id().value()));
     }
-    return true;
   }
 
-  public boolean reloadOrValidate(CommandSender sender, boolean validateOnly) {
+  public void reloadOrValidate(CommandSender sender, boolean validateOnly) {
     try {
       helper.require(
           sender,
@@ -97,7 +98,6 @@ public final class SpigotDefinitionCommandHandler implements SpigotSubcommandHan
       throw new IllegalStateException(
           "Cannot read definitions: " + exception.getMessage(), exception);
     }
-    return true;
   }
 
   private List<ValidationDiagnostic> readinessDiagnostics(boolean validateOnly) throws IOException {

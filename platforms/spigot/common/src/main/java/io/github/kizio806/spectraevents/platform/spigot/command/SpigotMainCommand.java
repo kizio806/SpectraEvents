@@ -64,7 +64,7 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
     }
     String sub = arguments[0].toLowerCase(Locale.ROOT);
     try {
-      return switch (sub) {
+      switch (sub) {
         case "version" -> diagnosticsHandler.version(sender);
         case "status" -> diagnosticsHandler.status(sender);
         case "doctor" -> diagnosticsHandler.doctor(sender);
@@ -76,12 +76,13 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
           SpigotSubcommandHandler handler = subcommands.get(sub);
           if (handler != null) {
             String[] subArgs = Arrays.copyOfRange(arguments, 1, arguments.length);
-            yield handler.execute(sender, subArgs);
+            handler.execute(sender, subArgs);
+          } else {
+            help(sender);
           }
-          help(sender);
-          yield true;
         }
-      };
+      }
+      return true;
     } catch (RuntimeException exception) {
       helper.send(sender, "command.spigot.failed", Map.of("reason", exception.getMessage()));
       plugin.getLogger().warning("Command failed: " + exception.getMessage());
@@ -118,17 +119,15 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
     return List.of();
   }
 
-  private boolean unavailableAssets(CommandSender sender) {
+  private void unavailableAssets(CommandSender sender) {
     helper.send(sender, "command.spigot.assets-unavailable");
-    return true;
   }
 
-  private boolean unsupported(CommandSender sender, String feature, String supportedPlatform) {
+  private void unsupported(CommandSender sender, String feature, String supportedPlatform) {
     helper.send(
         sender,
         "command.spigot.unsupported",
         Map.of("feature", feature, "platform", supportedPlatform));
-    return true;
   }
 
   private void help(CommandSender sender) {

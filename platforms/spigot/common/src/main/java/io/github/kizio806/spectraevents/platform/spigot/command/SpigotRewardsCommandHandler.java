@@ -34,9 +34,10 @@ public final class SpigotRewardsCommandHandler implements SpigotSubcommandHandle
   }
 
   @Override
-  public boolean execute(CommandSender sender, String[] arguments) {
+  public void execute(CommandSender sender, String[] arguments) {
     if (arguments.length > 0 && "reconcile".equalsIgnoreCase(arguments[0])) {
-      return reconcileRewards(sender, Arrays.copyOfRange(arguments, 1, arguments.length));
+      reconcileRewards(sender, Arrays.copyOfRange(arguments, 1, arguments.length));
+      return;
     }
     helper.require(sender, "spectraevents.rewards.claim");
     if (!(sender instanceof Player player)) {
@@ -71,7 +72,7 @@ public final class SpigotRewardsCommandHandler implements SpigotSubcommandHandle
                                       Map.of("id", claim.id(), "count", claim.items().size()));
                                 }
                               })));
-      return true;
+      return;
     }
     if (!"claim".equalsIgnoreCase(arguments[0])) {
       throw new IllegalArgumentException("Unknown rewards subcommand: " + arguments[0]);
@@ -107,10 +108,9 @@ public final class SpigotRewardsCommandHandler implements SpigotSubcommandHandle
                                     case NOT_AVAILABLE -> "command.spigot.reward-unavailable";
                                   });
                             })));
-    return true;
   }
 
-  private boolean reconcileRewards(CommandSender sender, String[] arguments) {
+  private void reconcileRewards(CommandSender sender, String[] arguments) {
     helper.require(sender, "spectraevents.rewards.reconcile");
     if (arguments.length == 0 || "list".equalsIgnoreCase(arguments[0])) {
       AsyncFutures.discard(
@@ -147,7 +147,7 @@ public final class SpigotRewardsCommandHandler implements SpigotSubcommandHandle
                                           claim.items().size()));
                                 }
                               })));
-      return true;
+      return;
     }
     if (arguments.length != 2
         || (!"mark-delivered".equalsIgnoreCase(arguments[0])
@@ -184,7 +184,6 @@ public final class SpigotRewardsCommandHandler implements SpigotSubcommandHandle
                                       : "command.rewards.reconcile-not-found",
                                   Map.of("id", claimId, "decision", decision.name()));
                             })));
-    return true;
   }
 
   @Override

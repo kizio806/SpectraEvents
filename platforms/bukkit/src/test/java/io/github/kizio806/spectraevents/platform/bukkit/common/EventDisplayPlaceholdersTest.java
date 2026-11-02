@@ -41,7 +41,7 @@ class EventDisplayPlaceholdersTest {
     assertTrue(resolved.contains("at world_nether 10, 64, -21"));
     assertTrue(resolved.contains("HP 75/100 (75%)"));
     assertTrue(resolved.contains("Hits 5/10"));
-    assertTrue(resolved.matches(".*Time (59|60)s.*"));
+    assertTrue(resolved.contains("Time 59s") || resolved.contains("Time 60s"));
   }
 
   @Test

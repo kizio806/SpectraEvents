@@ -51,8 +51,14 @@ class RewardClaimRepositoryTest {
     assertEquals(claim.items(), pending.getFirst().items());
     assertTrue(reader.beginDelivery(claim.id()));
     assertFalse(reader.beginDelivery(claim.id()));
-    assertTrue(reader.markDelivered(claim.id()));
+    assertTrue(reader.returnToPending(claim.id()));
+    assertEquals(1, reader.findPending(playerId).size());
+
+    assertTrue(reader.beginDeliveryAsync(claim.id()).join());
+    assertTrue(reader.returnToPendingAsync(claim.id()).join());
+    assertTrue(reader.beginDelivery(claim.id()));
+    assertTrue(reader.markDeliveredAsync(claim.id()).join());
     assertTrue(reader.findPending(playerId).isEmpty());
-    reader.shutdown();
+    reader.close();
   }
 }

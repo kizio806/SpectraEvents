@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.execution.EventZone;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
+import io.github.kizio806.spectraevents.core.event.execution.action.CoreActions;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
@@ -15,6 +16,7 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
 import io.github.kizio806.spectraevents.core.gameplay.health.Health;
 import io.github.kizio806.spectraevents.core.gameplay.hits.HitCounter;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -109,6 +111,47 @@ class SQLiteEventInstanceRepositoryTest {
 
     assertTrue(repository.remove(id));
     assertFalse(repository.findById(id).isPresent());
+  }
+
+  @Test
+  void testRestartLoadsAllStateAndLoot() {
+    Path dbFile = tempDir.resolve("test-restart.db");
+    SQLiteEventInstanceRepository repo1 = new SQLiteEventInstanceRepository(dbFile);
+    repo1.initialize();
+
+    EventInstanceId id = new EventInstanceId(UUID.randomUUID());
+    EventDefinitionId defId = new EventDefinitionId("meteor");
+    EventInstance instance =
+        EventInstance.reconstitute(id, defId, EventLifecycleState.RUNNING, new PhaseId("fight"));
+    EventRuntimeState state = new EventRuntimeState(id);
+    state.setHealth(new Health(100, 100));
+    state.setHitCounter(new HitCounter(0, 10));
+    state.setEventZone(new EventZone("world", 100.0, 200.0, 30.0));
+    state.tryClaim("worker-node-1");
+    UUID playerId = UUID.randomUUID();
+    state.recordParticipant(playerId);
+    state.recordDamage(playerId, 25);
+    state.initializeSharedLoot(List.of(new CoreActions.LootStack("minecraft:diamond", 5)));
+
+    repo1.saveWithStateDurably(instance, state);
+    repo1.close();
+
+    SQLiteEventInstanceRepository repo2 = new SQLiteEventInstanceRepository(dbFile);
+    repo2.initialize();
+
+    var reloadedInstance = repo2.findById(id);
+    assertTrue(reloadedInstance.isPresent());
+    assertEquals(EventLifecycleState.RUNNING, reloadedInstance.get().state());
+
+    var reloadedState = repo2.findState(id);
+    assertTrue(reloadedState.isPresent());
+    assertEquals("worker-node-1", reloadedState.get().claimant());
+    assertTrue(reloadedState.get().participants().contains(playerId));
+    assertEquals(25, reloadedState.get().contribution().contributions().get(playerId));
+    assertTrue(reloadedState.get().sharedLootInitialized());
+    assertEquals("minecraft:diamond", reloadedState.get().sharedLootSnapshot().get(0).material());
+
+    repo2.close();
   }
 
   @Test

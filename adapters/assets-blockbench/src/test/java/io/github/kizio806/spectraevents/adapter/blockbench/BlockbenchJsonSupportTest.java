@@ -192,4 +192,45 @@ class BlockbenchJsonSupportTest {
     assertThrows(
         IllegalArgumentException.class, () -> BlockbenchJsonSupport.vector(shortVec, "short"));
   }
+
+  @Test
+  void testDataPointComponentBranches() {
+    JsonObject point = new JsonObject();
+    point.addProperty("x", 1.0f);
+    assertEquals(1.0f, BlockbenchJsonSupport.dataPointComponent(point, "x", "path"), 0.001f);
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BlockbenchJsonSupport.dataPointComponent(point, "missing", "path"));
+
+    JsonObject infinitePoint = new JsonObject();
+    infinitePoint.addProperty("x", Float.POSITIVE_INFINITY);
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BlockbenchJsonSupport.dataPointComponent(infinitePoint, "x", "path"));
+
+    JsonObject nonNumericPoint = new JsonObject();
+    nonNumericPoint.addProperty("x", "not_a_number");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BlockbenchJsonSupport.dataPointComponent(nonNumericPoint, "x", "path"));
+  }
+
+  @Test
+  void testAdditionalLoopModesAndPrimitives() {
+    assertEquals(LoopMode.ONCE, BlockbenchJsonSupport.parseLoopMode(""));
+    assertEquals(LoopMode.PING_PONG, BlockbenchJsonSupport.parseLoopMode("ping-pong"));
+
+    JsonObject obj = new JsonObject();
+    obj.addProperty("str", "hello");
+    obj.addProperty("num", 123);
+    obj.addProperty("nan", Double.NaN);
+
+    assertEquals("hello", BlockbenchJsonSupport.optionalString(obj, "str", "default"));
+    assertEquals(123, BlockbenchJsonSupport.optionalInt(obj, "num", 0, "path"));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BlockbenchJsonSupport.requiredFiniteDouble(obj, "nan", "path"));
+  }
 }

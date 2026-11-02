@@ -43,20 +43,21 @@ public final class SpigotEventCommandHandler implements SpigotSubcommandHandler 
   }
 
   @Override
-  public boolean execute(CommandSender sender, String[] arguments) {
+  public void execute(CommandSender sender, String[] arguments) {
     if (arguments.length == 0 || "list".equalsIgnoreCase(arguments[0])) {
-      return list(sender);
+      list(sender);
+      return;
     }
-    return switch (arguments[0].toLowerCase(Locale.ROOT)) {
+    switch (arguments[0].toLowerCase(Locale.ROOT)) {
       case "start" -> start(sender, arguments);
       case "cancel" -> cancel(sender, arguments);
       case "trigger" -> trigger(sender, arguments);
       case "inspect" -> inspect(sender, arguments);
       default -> throw new IllegalArgumentException("Unknown event subcommand: " + arguments[0]);
-    };
+    }
   }
 
-  private boolean list(CommandSender sender) {
+  private void list(CommandSender sender) {
     helper.require(sender, "spectraevents.event.list");
     List<EventInstance> running =
         repository.findAll().stream()
@@ -72,10 +73,9 @@ public final class SpigotEventCommandHandler implements SpigotSubcommandHandler 
               "definition", instance.definitionId().value(),
               "phase", instance.currentPhase().map(phase -> phase.value()).orElse("none")));
     }
-    return true;
   }
 
-  private boolean start(CommandSender sender, String[] arguments) {
+  private void start(CommandSender sender, String[] arguments) {
     helper.require(sender, "spectraevents.event.start");
     helper.requireArguments(arguments, 2, "/spectraevents event start <definition>");
     Location bukkitLocation = helper.eventLocation(sender);
@@ -108,18 +108,16 @@ public final class SpigotEventCommandHandler implements SpigotSubcommandHandler 
                                   "command.spigot.event-started",
                                   Map.of("id", started.id()));
                             })));
-    return true;
   }
 
-  private boolean cancel(CommandSender sender, String[] arguments) {
+  private void cancel(CommandSender sender, String[] arguments) {
     helper.require(sender, "spectraevents.event.cancel");
     helper.requireArguments(arguments, 2, "/spectraevents event cancel <instance>");
     EventInstance cancelled = orchestrationService.cancelEvent(arguments[1]);
     helper.send(sender, "command.spigot.event-cancelled", Map.of("id", cancelled.id()));
-    return true;
   }
 
-  private boolean trigger(CommandSender sender, String[] arguments) {
+  private void trigger(CommandSender sender, String[] arguments) {
     helper.require(sender, "spectraevents.event.trigger");
     helper.requireArguments(arguments, 3, "/spectraevents event trigger <instance> <trigger>");
     EventInstanceId id = new EventInstanceId(UUID.fromString(arguments[1]));
@@ -135,10 +133,9 @@ public final class SpigotEventCommandHandler implements SpigotSubcommandHandler 
         sender,
         "command.spigot.trigger-result",
         Map.of("trigger", arguments[2], "handled", handled));
-    return true;
   }
 
-  private boolean inspect(CommandSender sender, String[] arguments) {
+  private void inspect(CommandSender sender, String[] arguments) {
     helper.require(sender, "spectraevents.event.inspect");
     helper.requireArguments(arguments, 2, "/spectraevents event inspect <instance>");
     EventInstanceId id = new EventInstanceId(UUID.fromString(arguments[1]));
@@ -161,7 +158,6 @@ public final class SpigotEventCommandHandler implements SpigotSubcommandHandler 
     } else if (diagnostics.claimant() != null) {
       helper.send(sender, "command.spigot.inspect-claim-guidance");
     }
-    return true;
   }
 
   @Override

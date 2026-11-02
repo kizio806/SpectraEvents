@@ -26,7 +26,7 @@ public final class SpigotScheduleCommandHandler implements SpigotSubcommandHandl
   }
 
   @Override
-  public boolean execute(CommandSender sender, String[] arguments) {
+  public void execute(CommandSender sender, String[] arguments) {
     helper.require(sender, "spectraevents.schedule");
     if (arguments.length == 0 || "list".equalsIgnoreCase(arguments[0])) {
       EventScheduleService service = requireScheduleService();
@@ -44,7 +44,7 @@ public final class SpigotScheduleCommandHandler implements SpigotSubcommandHandl
                 "zone",
                 schedule.zoneId()));
       }
-      return true;
+      return;
     }
     if (!"reload".equalsIgnoreCase(arguments[0])) {
       throw new IllegalArgumentException("Unknown schedule subcommand: " + arguments[0]);
@@ -62,7 +62,6 @@ public final class SpigotScheduleCommandHandler implements SpigotSubcommandHandl
             "command.spigot.diagnostic-entry",
             Map.of("path", failure.path(), "message", failure.message()));
       }
-      return true;
     } catch (IOException exception) {
       throw new IllegalStateException(
           "Cannot read schedules.yml: " + exception.getMessage(), exception);

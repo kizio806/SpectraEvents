@@ -664,9 +664,12 @@ class EventExecutionEngineTest {
             Map.of(new PhaseId("p1"), new PhaseDefinition(new PhaseId("p1"), Set.of())));
     registry.register(def, "entry_test.yml");
     EventInstance instance = engine.startEvent("entry_test", null);
+    assertTrue(instance != null);
+    assertEquals(Optional.of(new PhaseId("p1")), instance.currentPhase());
 
     engine.executePhaseEntry(instance, def, new PhaseId("p1"));
     engine.executePhaseEntry(instance, def, new PhaseId("p1"), ExecutionContext.EMPTY);
+    assertEquals(EventLifecycleState.RUNNING, instance.state());
   }
 
   private boolean successful(java.util.concurrent.Future<Boolean> future) {

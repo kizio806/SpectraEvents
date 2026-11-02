@@ -6,7 +6,7 @@ import org.bukkit.command.CommandSender;
 /** Contract for modular Spigot subcommand execution and completion. */
 public interface SpigotSubcommandHandler {
 
-  boolean execute(CommandSender sender, String[] arguments);
+  void execute(CommandSender sender, String[] arguments);
 
   List<String> tabComplete(CommandSender sender, String[] arguments);
 }

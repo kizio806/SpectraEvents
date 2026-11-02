@@ -32,26 +32,26 @@ public final class SpigotDiagnosticsCommandHandler implements SpigotSubcommandHa
   }
 
   @Override
-  public boolean execute(CommandSender sender, String[] arguments) {
+  public void execute(CommandSender sender, String[] arguments) {
     if (arguments.length == 0) {
-      return status(sender);
+      status(sender);
+      return;
     }
-    return switch (arguments[0].toLowerCase(java.util.Locale.ROOT)) {
+    switch (arguments[0].toLowerCase(java.util.Locale.ROOT)) {
       case "status" -> status(sender);
       case "doctor" -> doctor(sender);
       case "version" -> version(sender);
       default ->
           throw new IllegalArgumentException("Unknown diagnostics subcommand: " + arguments[0]);
-    };
+    }
   }
 
-  public boolean status(CommandSender sender) {
+  public void status(CommandSender sender) {
     helper.require(sender, "spectraevents.status");
     sendStatus(sender);
-    return true;
   }
 
-  public boolean doctor(CommandSender sender) {
+  public void doctor(CommandSender sender) {
     helper.require(sender, "spectraevents.doctor");
     sendStatus(sender);
     for (EventInstance instance : repository.findAll()) {
@@ -70,16 +70,14 @@ public final class SpigotDiagnosticsCommandHandler implements SpigotSubcommandHa
     }
     helper.send(sender, "command.spigot.reward-guarantee");
     helper.send(sender, "command.spigot.recovery-guidance");
-    return true;
   }
 
-  public boolean version(CommandSender sender) {
+  public void version(CommandSender sender) {
     String version = plugin.getClass().getPackage().getImplementationVersion();
     if (version == null || version.isBlank()) {
       version = plugin.getDescription().getVersion();
     }
     helper.send(sender, "command.spigot.version", Map.of("version", version));
-    return true;
   }
 
   private void sendStatus(CommandSender sender) {

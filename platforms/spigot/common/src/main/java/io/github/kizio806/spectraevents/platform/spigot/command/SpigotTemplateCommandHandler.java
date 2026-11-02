@@ -31,11 +31,11 @@ public final class SpigotTemplateCommandHandler implements SpigotSubcommandHandl
   }
 
   @Override
-  public boolean execute(CommandSender sender, String[] arguments) {
+  public void execute(CommandSender sender, String[] arguments) {
     helper.require(sender, "spectraevents.template");
     if (arguments.length == 0 || "list".equalsIgnoreCase(arguments[0])) {
       sender.sendMessage("Bundled templates: metin");
-      return true;
+      return;
     }
     if (arguments.length != 2 || !"install".equalsIgnoreCase(arguments[0])) {
       throw new IllegalArgumentException("Usage: /spectraevents template <list|install metin>");
@@ -62,7 +62,6 @@ public final class SpigotTemplateCommandHandler implements SpigotSubcommandHandl
     } catch (IOException exception) {
       throw new IllegalStateException("Could not install template metin", exception);
     }
-    return true;
   }
 
   @Override

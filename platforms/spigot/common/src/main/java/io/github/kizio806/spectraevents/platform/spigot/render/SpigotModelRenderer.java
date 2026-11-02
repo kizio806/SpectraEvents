@@ -90,10 +90,6 @@ public class SpigotModelRenderer implements ModelRendererPort {
       for (ModelPartDefinition part : definition.parts()) {
         Entity partEntity =
             spawnPartEntity(world, rootLoc, runtimeId, definition.id(), ownerEventId, part);
-        if (partEntity == null) {
-          throw new IllegalStateException(
-              "Failed to spawn part entity for " + part.partId().value());
-        }
         spawnedBatch.add(partEntity);
         spawnedParts.put(
             part.partId(), new RenderedPartHandle(part.partId(), partEntity.getUniqueId()));
@@ -137,10 +133,6 @@ public class SpigotModelRenderer implements ModelRendererPort {
                   }
                 });
 
-        if (interactionEntity == null) {
-          throw new IllegalStateException(
-              "Failed to spawn interaction hitbox " + interaction.interactionId().value());
-        }
         spawnedBatch.add(interactionEntity);
         spawnedInteractions.put(interaction.interactionId(), interactionEntity.getUniqueId());
       }
