@@ -5,13 +5,20 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
+import io.github.kizio806.spectraevents.application.execution.EventExecutionEngine;
+import io.github.kizio806.spectraevents.application.execution.EventRuntimeStateStore;
+import io.github.kizio806.spectraevents.application.port.EventTaskScheduler;
+import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
 import io.github.kizio806.spectraevents.application.repository.InMemoryEventInstanceRepository;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
+import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseDefinition;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
+import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -99,6 +106,64 @@ class EventOrchestrationServiceTest {
     // No more transitions
     assertThrows(
         IllegalStateException.class, () -> service.transitionPhase(instance.id().toString()));
+  }
+
+  @Test
+  void testServiceWithExecutionEngine() {
+    InMemoryEventInstanceRepository repo = new InMemoryEventInstanceRepository();
+    EventDefinitionRegistry reg = new EventDefinitionRegistry();
+    reg.register(threePhaseDefinition(), "test-event.yml");
+    EventExecutionEngine engine =
+        new EventExecutionEngine(
+            repo, reg, new StubScheduler(), new StubActionPort(), new EventRuntimeStateStore());
+    EventOrchestrationService engineService = new EventOrchestrationService(repo, reg, engine);
+
+    assertEquals(engine, engineService.executionEngine());
+
+    EventInstance inst = engineService.startDefinition("test_event");
+    assertNotNull(inst);
+    assertEquals(EventLifecycleState.RUNNING, inst.state());
+
+    assertThrows(
+        IllegalStateException.class, () -> engineService.transitionPhase(inst.id().toString()));
+
+    EventInstance completed = engineService.completeEvent(inst.id().toString());
+    assertEquals(EventLifecycleState.COMPLETED, completed.state());
+
+    assertThrows(
+        IllegalStateException.class, () -> engineService.completeEvent(inst.id().toString()));
+    assertThrows(
+        IllegalStateException.class, () -> engineService.cancelEvent(inst.id().toString()));
+
+    EventInstance inst2 = engineService.startDefinition("test_event");
+    EventInstance cancelled = engineService.cancelEvent(inst2.id().toString());
+    assertEquals(EventLifecycleState.CANCELLED, cancelled.state());
+  }
+
+  private static final class StubScheduler implements EventTaskScheduler {
+    @Override
+    public void schedule(EventInstanceId eventId, Duration delay, Runnable task) {
+      task.run();
+    }
+
+    @Override
+    public void cancelAll(EventInstanceId eventId) {}
+
+    @Override
+    public void cancelAll() {}
+  }
+
+  private static final class StubActionPort implements PlatformActionPort {
+    @Override
+    public java.util.concurrent.CompletableFuture<Boolean> executeAction(
+        EventInstance instance,
+        io.github.kizio806.spectraevents.application.execution.EventRuntimeState state,
+        ActionDefinition action) {
+      return java.util.concurrent.CompletableFuture.completedFuture(true);
+    }
+
+    @Override
+    public void cleanupEvent(EventInstanceId instanceId) {}
   }
 
   private EventDefinition threePhaseDefinition() {

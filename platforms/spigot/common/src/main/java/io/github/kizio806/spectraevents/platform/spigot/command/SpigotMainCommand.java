@@ -79,14 +79,18 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
             handler.execute(sender, subArgs);
           } else {
             help(sender);
+            return false;
           }
         }
       }
       return true;
+    } catch (IllegalArgumentException exception) {
+      helper.send(sender, "command.spigot.failed", Map.of("reason", exception.getMessage()));
+      return false;
     } catch (RuntimeException exception) {
       helper.send(sender, "command.spigot.failed", Map.of("reason", exception.getMessage()));
       plugin.getLogger().warning("Command failed: " + exception.getMessage());
-      return true;
+      return false;
     }
   }
 

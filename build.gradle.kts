@@ -214,7 +214,12 @@ val jacocoRootReport =
     tasks.register<JacocoReport>("jacocoRootReport") {
         group = "verification"
         description = "Generates aggregated JaCoCo coverage report across all tested subprojects."
-        val testedProjects = subprojects.filter { it.pluginManager.hasPlugin("jacoco") }
+        val testedProjects =
+            subprojects.filter {
+                it.pluginManager.hasPlugin("jacoco") &&
+                    !it.path.startsWith(":platforms") &&
+                    !it.path.startsWith(":distributions")
+            }
         dependsOn(testedProjects.map { it.tasks.named("jacocoTestReport") })
 
         val allExecutionData =
@@ -247,6 +252,13 @@ sonar {
         property("sonar.projectKey", "kizio806_SpectraEvents")
         property("sonar.organization", "kizio806")
         property("sonar.host.url", "https://sonarcloud.io")
+        property(
+            "sonar.coverage.jacoco.xmlReportPaths",
+            layout.buildDirectory
+                .file("reports/jacoco/jacocoRootReport/jacocoRootReport.xml")
+                .get()
+                .asFile.absolutePath,
+        )
         property(
             "sonar.coverage.exclusions",
             "**/platforms/**,**/platforms/**/*,platforms/**,platforms/**/*,**/distributions/**,**/distributions/**/*,distributions/**,distributions/**/*,**/build-logic/**,build-logic/**",
