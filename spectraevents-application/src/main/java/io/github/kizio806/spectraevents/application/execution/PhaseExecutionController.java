@@ -143,54 +143,60 @@ final class PhaseExecutionController {
             return;
           }
 
-          context.withInstanceLock(
-              instance.id(),
-              () -> {
-                Optional<EventInstance> currentInstance =
-                    context.repository().findById(instance.id());
-                if (currentInstance.isEmpty()
-                    || currentInstance.get().state() != EventLifecycleState.RUNNING) {
-                  return;
-                }
-                EventRuntimeState latestState = context.stateStore().getOrCreate(instance.id());
-                latestState.clearTimerDeadlines();
-                int ruleIndex = 0;
-                for (TransitionRule rule : phaseDef.rules()) {
-                  String timerKey = String.valueOf(ruleIndex++);
-                  if (rule.trigger() instanceof CoreTriggers.TimerElapsedTrigger timerTriggerRule) {
-                    Duration duration = timerTriggerRule.duration();
-                    if (duration == null || duration.isZero() || duration.isNegative()) {
-                      throw new FatalActionException(
-                          "timer_elapsed.duration must be a positive duration");
-                    }
-                    if (duration.compareTo(MAX_TIMER_DURATION) > 0) {
-                      throw new FatalActionException(
-                          "timer_elapsed.duration must not exceed " + MAX_TIMER_DURATION);
-                    }
-
-                    TriggerDefinition timerTrigger = rule.trigger();
-                    long deadline = Math.addExact(System.currentTimeMillis(), duration.toMillis());
-                    latestState.setTimerDeadlineMillis(timerKey, deadline);
-
-                    context
-                        .scheduler()
-                        .schedule(
-                            instance.id(),
-                            duration,
-                            () -> {
-                              try {
-                                evaluateTrigger(instance.id(), timerTrigger, execContext);
-                              } catch (RuntimeException e) {
-                                LOGGER.log(
-                                    Level.SEVERE,
-                                    "Error executing timer trigger for event " + instance.id(),
-                                    e);
-                              }
-                            });
+          try {
+            context.withInstanceLock(
+                instance.id(),
+                () -> {
+                  Optional<EventInstance> currentInstance =
+                      context.repository().findById(instance.id());
+                  if (currentInstance.isEmpty()
+                      || currentInstance.get().state() != EventLifecycleState.RUNNING) {
+                    return;
                   }
-                }
-                context.repository().saveState(latestState);
-              });
+                  EventRuntimeState latestState = context.stateStore().getOrCreate(instance.id());
+                  latestState.clearTimerDeadlines();
+                  int ruleIndex = 0;
+                  for (TransitionRule rule : phaseDef.rules()) {
+                    String timerKey = String.valueOf(ruleIndex++);
+                    if (rule.trigger()
+                        instanceof CoreTriggers.TimerElapsedTrigger timerTriggerRule) {
+                      Duration duration = timerTriggerRule.duration();
+                      if (duration == null || duration.isZero() || duration.isNegative()) {
+                        throw new FatalActionException(
+                            "timer_elapsed.duration must be a positive duration");
+                      }
+                      if (duration.compareTo(MAX_TIMER_DURATION) > 0) {
+                        throw new FatalActionException(
+                            "timer_elapsed.duration must not exceed " + MAX_TIMER_DURATION);
+                      }
+
+                      TriggerDefinition timerTrigger = rule.trigger();
+                      long deadline =
+                          Math.addExact(System.currentTimeMillis(), duration.toMillis());
+                      latestState.setTimerDeadlineMillis(timerKey, deadline);
+
+                      context
+                          .scheduler()
+                          .schedule(
+                              instance.id(),
+                              duration,
+                              () -> {
+                                try {
+                                  evaluateTrigger(instance.id(), timerTrigger, execContext);
+                                } catch (RuntimeException e) {
+                                  LOGGER.log(
+                                      Level.SEVERE,
+                                      "Error executing timer trigger for event " + instance.id(),
+                                      e);
+                                }
+                              });
+                    }
+                  }
+                  context.repository().saveState(latestState);
+                });
+          } catch (Exception e) {
+            lifecycleManager.failEvent(instance.id(), e);
+          }
         });
   }
 
