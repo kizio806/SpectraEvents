@@ -1,7 +1,9 @@
 package io.github.kizio806.spectraevents.application.execution;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
@@ -189,5 +191,44 @@ class PhaseExecutionControllerTest {
 
     EventInstance updated = context.repository().findById(unknownId).orElseThrow();
     assertEquals(EventLifecycleState.FAILED, updated.state());
+  }
+
+  @Test
+  void testTimerExceedingMaxDurationFailsEvent() {
+    PhaseId invalidPhase = new PhaseId("huge_timer");
+    TransitionRule hugeTimerRule =
+        new TransitionRule(
+            new CoreTriggers.TimerElapsedTrigger(Duration.ofDays(400)),
+            List.of(),
+            Optional.empty(),
+            List.of());
+
+    EventDefinition defWithHugeTimer =
+        new EventDefinition(
+            new EventDefinitionId("huge_timer"),
+            invalidPhase,
+            Map.of(
+                invalidPhase,
+                new PhaseDefinition(invalidPhase, Set.of(), List.of(hugeTimerRule), List.of())),
+            new EventEncounterSettings(10.0, Duration.ofMinutes(1), 5, 1));
+
+    EventInstance instance =
+        EventInstance.create(EventInstanceId.generate(), defWithHugeTimer.id());
+    instance = instance.start(defWithHugeTimer).eventInstance();
+    context.repository().save(instance);
+
+    controller.executePhaseEntry(instance, defWithHugeTimer, invalidPhase, ExecutionContext.EMPTY);
+    EventInstance updated = context.repository().findById(instance.id()).orElseThrow();
+    assertEquals(EventLifecycleState.FAILED, updated.state());
+  }
+
+  @Test
+  void testScheduledTimerExecutionAndSafeErrorHandling() {
+    EventInstance instance =
+        lifecycleManager.startEvent(sampleDef, new EventLocation("world", 0, 0, 0, 0, 0));
+    assertNotNull(instance);
+    assertFalse(scheduledTasks.isEmpty());
+    Runnable task = scheduledTasks.getFirst();
+    assertDoesNotThrow(task::run);
   }
 }
