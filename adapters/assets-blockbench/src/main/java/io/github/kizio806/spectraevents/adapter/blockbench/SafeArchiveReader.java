@@ -66,14 +66,16 @@ final class SafeArchiveReader {
   }
 
   static void validateSafeEntryName(String name) {
-    if (name == null
-        || name.isBlank()
-        || name.startsWith("/")
+    if (name == null || name.isBlank()) {
+      throw new IllegalArgumentException("Asset bundle contains empty ZIP entry name");
+    }
+    String checkPath = name.endsWith("/") ? name.substring(0, name.length() - 1) : name;
+    if (name.startsWith("/")
         || name.startsWith("\\")
         || name.contains("\\")
         || name.contains("..")
-        || Path.of(name).isAbsolute()
-        || !Path.of(name).normalize().toString().replace('\\', '/').equals(name)) {
+        || Path.of(checkPath).isAbsolute()
+        || !Path.of(checkPath).normalize().toString().replace('\\', '/').equals(checkPath)) {
       throw new IllegalArgumentException("Asset bundle contains unsafe ZIP entry: " + name);
     }
   }

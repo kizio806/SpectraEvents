@@ -423,7 +423,7 @@ public final class SQLiteEventInstanceRepository
     }
   }
 
-  private StateSnapshot snapshot(EventRuntimeState state) {
+  StateSnapshot snapshot(EventRuntimeState state) {
     return new StateSnapshot(
         state.instanceId().toString(),
         state.health().map(Health::current).orElse(null),

@@ -5,22 +5,31 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 /** Minimal HTTP client for reading public data from Modrinth API. */
 public class ModrinthApiClient {
 
-  private static final String API_BASE = "https://api.modrinth.com/v2";
+  private static final String DEFAULT_API_BASE = "https://api.modrinth.com/v2";
+  private final String apiBase;
   private final HttpClient httpClient;
   private final String userAgent;
 
   public ModrinthApiClient(String pluginVersion) {
-    this.userAgent = "SpectraEvents/" + pluginVersion;
-    this.httpClient =
+    this(
+        DEFAULT_API_BASE,
         HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .followRedirects(HttpClient.Redirect.NORMAL)
-            .build();
+            .build(),
+        "SpectraEvents/" + pluginVersion);
+  }
+
+  ModrinthApiClient(String apiBase, HttpClient httpClient, String userAgent) {
+    this.apiBase = Objects.requireNonNull(apiBase, "apiBase");
+    this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
+    this.userAgent = Objects.requireNonNull(userAgent, "userAgent");
   }
 
   /** Fetch project versions matching loaders and game_versions. */
@@ -37,7 +46,7 @@ public class ModrinthApiClient {
           String url =
               String.format(
                   "%s/project/%s/version?loaders=%s&game_versions=%s",
-                  API_BASE,
+                  apiBase,
                   java.net.URLEncoder.encode(projectId, java.nio.charset.StandardCharsets.UTF_8),
                   encodedLoader,
                   encodedGameVersion);

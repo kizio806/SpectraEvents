@@ -241,6 +241,32 @@ class BlockbenchProjectReaderTest {
     return result.toString();
   }
 
+  @Test
+  void readsDirectBbmodelFile() throws Exception {
+    Path bbmodelFile = tempDirectory.resolve("gem.bbmodel");
+    Files.writeString(bbmodelFile, projectJson("free"), StandardCharsets.UTF_8);
+
+    SpectraAssetDocument document = reader.read(bbmodelFile);
+    Assertions.assertEquals("gem", document.modelId());
+    Assertions.assertEquals(1, document.nodes().size());
+  }
+
+  @Test
+  void rejectsInvalidSourceFileTypes() {
+    Assertions.assertThrows(NullPointerException.class, () -> reader.read(null));
+
+    Path missing = tempDirectory.resolve("missing.bbmodel");
+    Assertions.assertThrows(IllegalArgumentException.class, () -> reader.read(missing));
+
+    Path badExtension = tempDirectory.resolve("model.txt");
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          Files.writeString(badExtension, "content");
+          reader.read(badExtension);
+        });
+  }
+
   private static String projectJson(String modelFormat) {
     return """
         {
