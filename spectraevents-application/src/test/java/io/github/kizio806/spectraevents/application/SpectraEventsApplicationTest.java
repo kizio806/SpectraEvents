@@ -16,8 +16,14 @@ import io.github.kizio806.spectraevents.application.port.PlatformCapabilityQuery
 import io.github.kizio806.spectraevents.application.port.PlatformEntityReconcilerPort;
 import io.github.kizio806.spectraevents.application.repository.InMemoryEventInstanceRepository;
 import io.github.kizio806.spectraevents.application.service.EntityReconciliationReport;
+import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
+import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
+import io.github.kizio806.spectraevents.core.event.phase.PhaseDefinition;
+import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
 
@@ -105,6 +111,9 @@ class SpectraEventsApplicationTest {
     assertNotNull(app.modelDefinitionRegistry());
     assertNotNull(app.modelCompiler());
     assertNull(app.modelRuntimeService());
+    assertNull(app.assetPipelineService());
+    app.setAssetPipelineService(null);
+    assertNull(app.assetPipelineService());
     assertNotNull(app.animationDefinitionRegistry());
     assertNotNull(app.activeAnimationRegistry());
     assertNull(app.animationRuntimeService());
@@ -144,6 +153,16 @@ class SpectraEventsApplicationTest {
     var diagnostics = app.validateEventReadiness("non_existent_event");
     assertEquals(1, diagnostics.size());
     assertEquals("SE-READY-DEF-001", diagnostics.getFirst().code());
+
+    PhaseId phase = new PhaseId("waiting");
+    EventDefinition sampleDef =
+        new EventDefinition(
+            new EventDefinitionId("meteor"),
+            phase,
+            Map.of(phase, new PhaseDefinition(phase, Set.of())));
+    app.definitionRegistry().register(sampleDef, "events/meteor.yml");
+    var meteorDiagnostics = app.validateEventReadiness("meteor");
+    assertNotNull(meteorDiagnostics);
   }
 
   @Test

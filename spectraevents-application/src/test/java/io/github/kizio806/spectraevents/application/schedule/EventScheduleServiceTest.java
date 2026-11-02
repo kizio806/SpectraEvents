@@ -41,10 +41,26 @@ class EventScheduleServiceTest {
 
     service.start(List.of(matching));
     assertEquals(1, scheduler.globalTasks.size());
+    assertEquals(1, service.schedules().size());
+
+    // Starting again when already running updates schedules without re-scheduling
+    service.start(List.of(matching));
+    assertEquals(1, scheduler.globalTasks.size());
+
+    service.replace(List.of());
+    assertTrue(service.schedules().isEmpty());
+
+    service.replace(List.of(matching));
     scheduler.globalTasks.removeFirst().run();
 
     assertTrue(diagnostics.getFirst().contains("nightly-metin skipped"));
     assertEquals(1, scheduler.globalTasks.size());
+
+    service.stop();
+    assertTrue(service.schedules().isEmpty());
+
+    // Run callback when stopped
+    scheduler.globalTasks.removeFirst().run();
   }
 
   private static final class FakeScheduler implements EventTaskScheduler {
