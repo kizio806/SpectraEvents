@@ -396,7 +396,7 @@ public class PaperModelRenderer implements ModelRendererPort {
   @Override
   public boolean removeModel(RenderedModelHandle handle) {
     Objects.requireNonNull(handle, "handle cannot be null");
-    activeHandles.remove(handle.runtimeId());
+    boolean removed = activeHandles.remove(handle.runtimeId()) != null;
     inFlightTransforms.remove(handle.runtimeId());
 
     World world = Bukkit.getWorld(handle.anchor().worldName());
@@ -405,11 +405,12 @@ public class PaperModelRenderer implements ModelRendererPort {
           new Location(world, handle.anchor().x(), handle.anchor().y(), handle.anchor().z());
       if (!plugin.isEnabled()) {
         removeEntities(handle);
-        return true;
+        return removed;
       }
       Bukkit.getRegionScheduler().execute(plugin, loc, () -> removeEntities(handle));
+      return removed;
     }
-    return true;
+    return false;
   }
 
   private static void removeEntities(RenderedModelHandle handle) {

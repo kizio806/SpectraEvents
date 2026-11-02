@@ -36,6 +36,9 @@ public final class SpectraBundleInstaller {
   private static final Pattern BUNDLE_ID = Pattern.compile("[a-z0-9][a-z0-9_-]{0,63}");
   private static final Pattern ASSET_PATH =
       Pattern.compile("models/[a-z0-9][a-z0-9._-]{0,63}\\.(bbmodel|spectra\\.zip)");
+  private static final Pattern SEMVER_PATTERN =
+      Pattern.compile(
+          "^v?(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$");
   private static final Set<String> MANIFEST_KEYS =
       Set.of(
           "schema-version",
@@ -210,8 +213,7 @@ public final class SpectraBundleInstaller {
 
   private static String requireSemanticVersion(String version, String field) {
     String value = version.trim();
-    if (!value.matches(
-        "v?(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?")) {
+    if (!SEMVER_PATTERN.matcher(value).matches()) {
       throw new IllegalArgumentException(field + " must be a semantic version");
     }
     return value;
