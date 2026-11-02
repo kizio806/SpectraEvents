@@ -43,11 +43,16 @@ jobs:
         with:
           validate-wrappers: true
 
-      - name: Ensure SonarCloud Main Branch is main
+      - name: Configure SonarCloud Project Settings
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           if [ -n "${SONAR_TOKEN:-}" ]; then
+            echo "Ensuring Automatic Analysis is disabled for CI analysis..."
+            curl -s -u "${SONAR_TOKEN}:" -X POST "https://sonarcloud.io/api/autoscan/activation" \
+              -d "projectKey=kizio806_SpectraEvents" \
+              -d "enable=false" || true
+
             BRANCHES=$(curl -s -u "${SONAR_TOKEN}:" "https://sonarcloud.io/api/project_branches/list?project=kizio806_SpectraEvents" || true)
             if echo "$BRANCHES" | grep -q '"name":"master","isMain":true'; then
               echo "SonarCloud main branch is configured as 'master'. Switching to 'main'..."
