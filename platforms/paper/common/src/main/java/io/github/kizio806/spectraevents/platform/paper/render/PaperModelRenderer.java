@@ -25,8 +25,8 @@ import io.github.kizio806.spectraevents.core.visual.model.Quaternion;
 import io.github.kizio806.spectraevents.core.visual.model.TextAlignment;
 import io.github.kizio806.spectraevents.core.visual.model.TextAssetRef;
 import io.github.kizio806.spectraevents.core.visual.model.Vector3;
-import io.github.kizio806.spectraevents.platform.paper.integration.item.CustomItemProvider;
-import io.github.kizio806.spectraevents.platform.paper.metadata.SpectraPdcKeys;
+import io.github.kizio806.spectraevents.platform.bukkit.integration.item.CustomItemProvider;
+import io.github.kizio806.spectraevents.platform.bukkit.metadata.BukkitPdcKeys;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -103,10 +103,6 @@ public class PaperModelRenderer implements ModelRendererPort {
       for (ModelPartDefinition part : definition.parts()) {
         Entity partEntity =
             spawnPartEntity(world, rootLoc, runtimeId, definition.id(), ownerEventId, part);
-        if (partEntity == null) {
-          throw new IllegalStateException(
-              "Failed to spawn part entity for " + part.partId().value());
-        }
         spawnedBatch.add(partEntity);
         spawnedParts.put(
             part.partId(), new RenderedPartHandle(part.partId(), partEntity.getUniqueId()));
@@ -128,33 +124,29 @@ public class PaperModelRenderer implements ModelRendererPort {
 
                   PersistentDataContainer pdc = entity.getPersistentDataContainer();
                   pdc.set(
-                      SpectraPdcKeys.MODEL_INSTANCE_ID,
+                      BukkitPdcKeys.MODEL_INSTANCE_ID,
                       PersistentDataType.STRING,
                       runtimeId.value());
                   pdc.set(
-                      SpectraPdcKeys.MODEL_DEFINITION_ID,
+                      BukkitPdcKeys.MODEL_DEFINITION_ID,
                       PersistentDataType.STRING,
                       definition.id().value());
                   pdc.set(
-                      SpectraPdcKeys.MODEL_PART_ID,
+                      BukkitPdcKeys.MODEL_PART_ID,
                       PersistentDataType.STRING,
                       interaction.interactionId().value());
                   pdc.set(
-                      SpectraPdcKeys.RESOURCE_ROLE,
+                      BukkitPdcKeys.RESOURCE_ROLE,
                       PersistentDataType.STRING,
                       ResourceRole.INTERACTION_HITBOX.name());
                   if (ownerEventId != null) {
                     pdc.set(
-                        SpectraPdcKeys.EVENT_INSTANCE_ID,
+                        BukkitPdcKeys.EVENT_INSTANCE_ID,
                         PersistentDataType.STRING,
                         ownerEventId.toString());
                   }
                 });
 
-        if (interactionEntity == null) {
-          throw new IllegalStateException(
-              "Failed to spawn interaction hitbox " + interaction.interactionId().value());
-        }
         spawnedBatch.add(interactionEntity);
         spawnedInteractions.put(interaction.interactionId(), interactionEntity.getUniqueId());
       }
@@ -165,7 +157,7 @@ public class PaperModelRenderer implements ModelRendererPort {
       activeHandles.put(runtimeId, handle);
       return handle;
 
-    } catch (Exception e) {
+    } catch (RuntimeException e) {
       plugin
           .getLogger()
           .log(
@@ -283,7 +275,7 @@ public class PaperModelRenderer implements ModelRendererPort {
       try {
         display.setGlowColorOverride(
             Color.fromRGB(Integer.parseInt(props.glowColor().replace("#", ""), 16)));
-      } catch (Exception ignored) {
+      } catch (IllegalArgumentException ignored) {
         plugin.getLogger().warning("Failed to parse glow color: " + ignored.getMessage());
       }
     }
@@ -303,12 +295,12 @@ public class PaperModelRenderer implements ModelRendererPort {
       String partId,
       ResourceRole role,
       EventInstanceId ownerEventId) {
-    pdc.set(SpectraPdcKeys.MODEL_INSTANCE_ID, PersistentDataType.STRING, runtimeId.value());
-    pdc.set(SpectraPdcKeys.MODEL_DEFINITION_ID, PersistentDataType.STRING, definitionId.value());
-    pdc.set(SpectraPdcKeys.MODEL_PART_ID, PersistentDataType.STRING, partId);
-    pdc.set(SpectraPdcKeys.RESOURCE_ROLE, PersistentDataType.STRING, role.name());
+    pdc.set(BukkitPdcKeys.MODEL_INSTANCE_ID, PersistentDataType.STRING, runtimeId.value());
+    pdc.set(BukkitPdcKeys.MODEL_DEFINITION_ID, PersistentDataType.STRING, definitionId.value());
+    pdc.set(BukkitPdcKeys.MODEL_PART_ID, PersistentDataType.STRING, partId);
+    pdc.set(BukkitPdcKeys.RESOURCE_ROLE, PersistentDataType.STRING, role.name());
     if (ownerEventId != null) {
-      pdc.set(SpectraPdcKeys.EVENT_INSTANCE_ID, PersistentDataType.STRING, ownerEventId.toString());
+      pdc.set(BukkitPdcKeys.EVENT_INSTANCE_ID, PersistentDataType.STRING, ownerEventId.toString());
     }
   }
 
@@ -466,13 +458,12 @@ public class PaperModelRenderer implements ModelRendererPort {
     for (World world : Bukkit.getWorlds()) {
       for (Entity entity : world.getEntities()) {
         PersistentDataContainer pdc = entity.getPersistentDataContainer();
-        if (pdc.has(SpectraPdcKeys.MODEL_INSTANCE_ID, PersistentDataType.STRING)) {
-          String runtimeIdStr =
-              pdc.get(SpectraPdcKeys.MODEL_INSTANCE_ID, PersistentDataType.STRING);
-          String defIdStr = pdc.get(SpectraPdcKeys.MODEL_DEFINITION_ID, PersistentDataType.STRING);
-          String partIdStr = pdc.get(SpectraPdcKeys.MODEL_PART_ID, PersistentDataType.STRING);
-          String roleStr = pdc.get(SpectraPdcKeys.RESOURCE_ROLE, PersistentDataType.STRING);
-          String eventIdStr = pdc.get(SpectraPdcKeys.EVENT_INSTANCE_ID, PersistentDataType.STRING);
+        if (pdc.has(BukkitPdcKeys.MODEL_INSTANCE_ID, PersistentDataType.STRING)) {
+          String runtimeIdStr = pdc.get(BukkitPdcKeys.MODEL_INSTANCE_ID, PersistentDataType.STRING);
+          String defIdStr = pdc.get(BukkitPdcKeys.MODEL_DEFINITION_ID, PersistentDataType.STRING);
+          String partIdStr = pdc.get(BukkitPdcKeys.MODEL_PART_ID, PersistentDataType.STRING);
+          String roleStr = pdc.get(BukkitPdcKeys.RESOURCE_ROLE, PersistentDataType.STRING);
+          String eventIdStr = pdc.get(BukkitPdcKeys.EVENT_INSTANCE_ID, PersistentDataType.STRING);
 
           if (runtimeIdStr != null && defIdStr != null && partIdStr != null && roleStr != null) {
             ResourceRole role = ResourceRole.valueOf(roleStr);
@@ -526,7 +517,7 @@ public class PaperModelRenderer implements ModelRendererPort {
   private org.bukkit.block.data.BlockData resolveBlockData(String blockStateRef) {
     try {
       return Bukkit.createBlockData(blockStateRef);
-    } catch (Exception e) {
+    } catch (IllegalArgumentException e) {
       Material mat = Material.matchMaterial(blockStateRef);
       if (mat != null && mat.isBlock()) {
         return mat.createBlockData();

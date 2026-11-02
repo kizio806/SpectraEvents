@@ -16,16 +16,11 @@ import io.github.kizio806.spectraevents.core.gameplay.health.Health;
 import io.github.kizio806.spectraevents.core.gameplay.hits.HitCounter;
 import io.github.kizio806.spectraevents.core.gameplay.reward.RewardClaim;
 import io.github.kizio806.spectraevents.core.gameplay.reward.RewardClaimStatus;
-import io.github.kizio806.spectraevents.core.gameplay.reward.RewardItem;
 import java.nio.file.Path;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,231 +34,56 @@ import java.util.logging.Logger;
 
 /**
  * SQLite implementation of EventInstanceRepository with schema migration and write-through cache.
- * Fully platform-neutral, depending only on Java SQL APIs and SpectraEvents domain ports.
- * Implements a Single-Writer Persistent Connection design to maximize concurrency.
+ * Fully platform-neutral, depending only on Java SQL APIs and SpectraEvents domain ports. Delegates
+ * database lifecycle to {@link SQLiteDatabaseManager} and reward claims to {@link
+ * SQLiteRewardClaimRepository}.
  */
-@SuppressWarnings("PMD.AvoidCatchingGenericException")
 public final class SQLiteEventInstanceRepository
     implements EventInstanceRepository, RewardClaimRepository {
   private static final Logger LOGGER =
       Logger.getLogger(SQLiteEventInstanceRepository.class.getName());
 
-  private final Path dbPath;
+  private final SQLiteDatabaseManager database;
+  private final SQLiteRewardClaimRepository rewardClaimRepository;
   private final Map<EventInstanceId, EventInstance> cache = new ConcurrentHashMap<>();
   private final Map<EventInstanceId, EventRuntimeState> stateCache = new ConcurrentHashMap<>();
-  private final String jdbcUrl;
-
-  private Connection writerConnection;
-  private SingleWriterPersistenceExecutor executor;
 
   public SQLiteEventInstanceRepository(Path dbPath) {
-    this.dbPath = dbPath;
-    this.jdbcUrl = "jdbc:sqlite:" + dbPath.toAbsolutePath();
-    Path parent = dbPath.getParent();
-    if (parent != null) {
-      try {
-        java.nio.file.Files.createDirectories(parent);
-      } catch (java.io.IOException e) {
-        throw new java.io.UncheckedIOException(e);
-      }
-    }
+    this(new SQLiteDatabaseManager(dbPath));
+  }
+
+  public SQLiteEventInstanceRepository(SQLiteDatabaseManager database) {
+    this.database = Objects.requireNonNull(database, "database");
+    this.rewardClaimRepository = new SQLiteRewardClaimRepository(database);
+  }
+
+  public SQLiteDatabaseManager databaseManager() {
+    return database;
+  }
+
+  public SQLiteRewardClaimRepository rewardClaimRepository() {
+    return rewardClaimRepository;
   }
 
   public void initialize() {
-    try {
-      Class.forName("org.sqlite.JDBC");
-    } catch (ClassNotFoundException ignored) {
-      // Driver auto-registers on modern JVMs
-    }
+    database.initialize();
 
-    try (Connection conn = getConnection()) {
-      try (Statement stmt = conn.createStatement()) {
-        stmt.execute("PRAGMA journal_mode=WAL;");
-        stmt.execute("PRAGMA synchronous=NORMAL;");
-        stmt.execute("PRAGMA busy_timeout=5000;");
-      }
-    } catch (SQLException e) {
-      LOGGER.log(Level.WARNING, "Failed to apply PRAGMAs: " + e.getMessage());
-    }
+    loadAllFromDb();
+    loadAllStatesFromDb();
+    loadAllContributionsFromDb();
+    loadAllParticipantsFromDb();
+    loadAllSharedLoot();
 
-    try {
-      writerConnection = getConnection();
-      writerConnection.setAutoCommit(false); // Using explicit transactions
-
-      try (Statement stmt = writerConnection.createStatement()) {
-        stmt.execute("PRAGMA busy_timeout=5000;"); // Set on writer too
-        stmt.execute(
-            "CREATE TABLE IF NOT EXISTS spectra_schema_version (version INTEGER PRIMARY KEY);");
-        stmt.execute(
-            """
-            CREATE TABLE IF NOT EXISTS spectra_instances (
-              instance_id TEXT PRIMARY KEY,
-              definition_id TEXT NOT NULL,
-              state TEXT NOT NULL,
-              phase TEXT,
-              created_at INTEGER NOT NULL,
-              last_updated INTEGER NOT NULL
-            );
-            """);
-
-        int currentVer = 0;
-        try (ResultSet rs = stmt.executeQuery("SELECT MAX(version) FROM spectra_schema_version")) {
-          if (rs.next()) {
-            currentVer = rs.getInt(1);
-          }
-        }
-
-        final int v2 = 2;
-        if (currentVer < v2) {
-          stmt.execute(
-              """
-              CREATE TABLE IF NOT EXISTS spectra_instance_state (
-                instance_id TEXT PRIMARY KEY,
-                health_current INTEGER,
-                health_max INTEGER,
-                locked_until INTEGER,
-                claimant TEXT,
-                platform_location TEXT,
-                boss_entity_id TEXT,
-                last_updated INTEGER NOT NULL
-              );
-              """);
-          stmt.executeUpdate("INSERT OR REPLACE INTO spectra_schema_version (version) VALUES (2);");
-        }
-
-        final int v3 = 3;
-        if (currentVer < v3) {
-          stmt.execute("ALTER TABLE spectra_instance_state ADD COLUMN timer_deadline INTEGER;");
-          stmt.executeUpdate("INSERT OR REPLACE INTO spectra_schema_version (version) VALUES (3);");
-        }
-
-        final int v4 = 4;
-        if (currentVer < v4) {
-          stmt.execute(
-              """
-              CREATE TABLE IF NOT EXISTS spectra_active_animations (
-                playback_id TEXT PRIMARY KEY,
-                model_runtime_id TEXT NOT NULL,
-                model_definition_id TEXT NOT NULL,
-                animation_id TEXT NOT NULL,
-                state TEXT NOT NULL,
-                current_time_nanos INTEGER NOT NULL,
-                speed REAL NOT NULL,
-                loop_mode TEXT NOT NULL,
-                current_loop INTEGER NOT NULL,
-                recovery_policy TEXT NOT NULL,
-                last_updated INTEGER NOT NULL
-              );
-              """);
-          stmt.executeUpdate("INSERT OR REPLACE INTO spectra_schema_version (version) VALUES (4);");
-        }
-
-        final int v5 = 5;
-        if (currentVer < v5) {
-          stmt.execute("ALTER TABLE spectra_instance_state ADD COLUMN hit_count INTEGER;");
-          stmt.execute("ALTER TABLE spectra_instance_state ADD COLUMN hit_max INTEGER;");
-          stmt.executeUpdate("INSERT OR REPLACE INTO spectra_schema_version (version) VALUES (5);");
-        }
-
-        final int v6 = 6;
-        if (currentVer < v6) {
-          stmt.execute("ALTER TABLE spectra_instance_state ADD COLUMN encounter_deadline INTEGER;");
-          stmt.execute("ALTER TABLE spectra_instance_state ADD COLUMN zone_radius REAL;");
-          stmt.execute(
-              "ALTER TABLE spectra_instance_state ADD COLUMN minimum_contribution INTEGER;");
-          stmt.execute(
-              """
-              CREATE TABLE IF NOT EXISTS spectra_contributions (
-                instance_id TEXT NOT NULL,
-                player_uuid TEXT NOT NULL,
-                damage INTEGER NOT NULL,
-                threshold_attained INTEGER,
-                PRIMARY KEY (instance_id, player_uuid)
-              );
-              """);
-          stmt.executeUpdate("INSERT OR REPLACE INTO spectra_schema_version (version) VALUES (6);");
-        }
-        final int v7 = 7;
-        if (currentVer < v7) {
-          stmt.execute(
-              "CREATE TABLE IF NOT EXISTS spectra_shared_loot (instance_id TEXT NOT NULL, slot INTEGER NOT NULL, material TEXT NOT NULL, amount INTEGER NOT NULL, PRIMARY KEY (instance_id, slot));");
-          stmt.executeUpdate("INSERT OR REPLACE INTO spectra_schema_version (version) VALUES (7);");
-        }
-        final int v8 = 8;
-        if (currentVer < v8) {
-          stmt.execute(
-              """
-              CREATE TABLE IF NOT EXISTS spectra_reward_claims (
-                claim_id TEXT PRIMARY KEY,
-                instance_id TEXT NOT NULL,
-                player_uuid TEXT NOT NULL,
-                status TEXT NOT NULL,
-                created_at INTEGER NOT NULL,
-                delivered_at INTEGER
-              );
-              """);
-          stmt.execute(
-              """
-              CREATE TABLE IF NOT EXISTS spectra_reward_items (
-                claim_id TEXT NOT NULL,
-                slot INTEGER NOT NULL,
-                material TEXT NOT NULL,
-                amount INTEGER NOT NULL,
-                PRIMARY KEY (claim_id, slot),
-                FOREIGN KEY (claim_id) REFERENCES spectra_reward_claims(claim_id) ON DELETE CASCADE
-              );
-              """);
-          stmt.execute(
-              "CREATE INDEX IF NOT EXISTS spectra_reward_claims_player_status ON spectra_reward_claims(player_uuid, status, created_at);");
-          stmt.executeUpdate("INSERT OR REPLACE INTO spectra_schema_version (version) VALUES (8);");
-        }
-        final int v9 = 9;
-        if (currentVer < v9) {
-          stmt.execute(
-              "CREATE TABLE IF NOT EXISTS spectra_participants (instance_id TEXT NOT NULL, player_uuid TEXT NOT NULL, PRIMARY KEY (instance_id, player_uuid));");
-          stmt.executeUpdate("INSERT OR REPLACE INTO spectra_schema_version (version) VALUES (9);");
-        }
-        writerConnection.commit();
-      } catch (SQLException e) {
-        writerConnection.rollback();
-        throw e;
-      }
-
-      loadAllFromDb();
-      loadAllStatesFromDb();
-      loadAllContributionsFromDb();
-      loadAllParticipantsFromDb();
-      loadAllSharedLoot();
-
-      executor = new SingleWriterPersistenceExecutor(10000);
-      executor.start();
-
-      LOGGER.fine(
-          "SQLite storage initialized at " + dbPath + " (Loaded " + cache.size() + " instances)");
-    } catch (SQLException e) {
-      LOGGER.log(Level.SEVERE, "Failed to initialize SQLite storage: " + e.getMessage(), e);
-      shutdown();
-      throw new IllegalStateException("Failed to initialize SQLite storage", e);
-    }
+    LOGGER.fine(
+        "SQLite storage initialized at "
+            + database.dbPath()
+            + " (Loaded "
+            + cache.size()
+            + " instances)");
   }
 
   public void shutdown() {
-    if (executor != null) {
-      try {
-        executor.shutdown();
-      } catch (RuntimeException exception) {
-        LOGGER.log(
-            Level.SEVERE, "Persistence writes did not drain; keeping SQLite open", exception);
-        return;
-      }
-    }
-    if (writerConnection != null) {
-      try {
-        writerConnection.close();
-      } catch (SQLException e) {
-        LOGGER.log(Level.WARNING, "Failed to close persistent connection", e);
-      }
-    }
+    database.shutdown();
   }
 
   @Override
@@ -271,13 +91,9 @@ public final class SQLiteEventInstanceRepository
     shutdown();
   }
 
-  private Connection getConnection() throws SQLException {
-    return DriverManager.getConnection(jdbcUrl);
-  }
-
   private void loadAllFromDb() {
     String sql = "SELECT instance_id, definition_id, state, phase FROM spectra_instances";
-    try (Connection conn = getConnection();
+    try (Connection conn = database.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql);
         ResultSet rs = stmt.executeQuery()) {
       while (rs.next()) {
@@ -290,7 +106,7 @@ public final class SQLiteEventInstanceRepository
 
           EventInstance restored = EventInstance.reconstitute(id, defId, state, phaseId);
           cache.put(id, restored);
-        } catch (Exception e) {
+        } catch (SQLException | IllegalArgumentException | IllegalStateException e) {
           LOGGER.warning("Failed to reconstitute instance row: " + e.getMessage());
         }
       }
@@ -302,7 +118,7 @@ public final class SQLiteEventInstanceRepository
   private void loadAllStatesFromDb() {
     String sql =
         "SELECT instance_id, health_current, health_max, hit_count, hit_max, locked_until, claimant, platform_location, boss_entity_id, timer_deadline, encounter_deadline, zone_radius, minimum_contribution FROM spectra_instance_state";
-    try (Connection conn = getConnection();
+    try (Connection conn = database.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql);
         ResultSet rs = stmt.executeQuery()) {
       while (rs.next()) {
@@ -368,7 +184,7 @@ public final class SQLiteEventInstanceRepository
           }
 
           stateCache.put(id, state);
-        } catch (Exception e) {
+        } catch (SQLException | IllegalArgumentException | IllegalStateException e) {
           LOGGER.warning("Failed to reconstitute state row: " + e.getMessage());
         }
       }
@@ -382,7 +198,7 @@ public final class SQLiteEventInstanceRepository
         "SELECT instance_id, player_uuid, damage, threshold_attained FROM spectra_contributions";
     Map<EventInstanceId, Map<UUID, Integer>> damage = new HashMap<>();
     Map<EventInstanceId, Map<UUID, Long>> thresholds = new HashMap<>();
-    try (Connection conn = getConnection();
+    try (Connection conn = database.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql);
         ResultSet rs = stmt.executeQuery()) {
       while (rs.next()) {
@@ -413,7 +229,7 @@ public final class SQLiteEventInstanceRepository
   private void loadAllSharedLoot() {
     String sql = "SELECT instance_id, slot, material, amount FROM spectra_shared_loot";
     Map<EventInstanceId, Map<Integer, CoreActions.LootStack>> all = new HashMap<>();
-    try (Connection conn = getConnection();
+    try (Connection conn = database.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql);
         ResultSet rs = stmt.executeQuery()) {
       while (rs.next()) {
@@ -439,7 +255,7 @@ public final class SQLiteEventInstanceRepository
   private void loadAllParticipantsFromDb() {
     String sql = "SELECT instance_id, player_uuid FROM spectra_participants";
     Map<EventInstanceId, java.util.Set<UUID>> participants = new HashMap<>();
-    try (Connection conn = getConnection();
+    try (Connection conn = database.getConnection();
         PreparedStatement statement = conn.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery()) {
       while (resultSet.next()) {
@@ -464,28 +280,28 @@ public final class SQLiteEventInstanceRepository
   @Override
   public void save(EventInstance eventInstance) {
     cache.put(eventInstance.id(), eventInstance);
-    executor.enqueue(() -> persistInstance(eventInstance, true));
+    database.executor().enqueue(() -> persistInstance(eventInstance, true));
   }
 
   @Override
   public void saveState(EventRuntimeState state) {
     stateCache.put(state.instanceId(), state);
     StateSnapshot snapshot = snapshot(state);
-    executor.enqueue(() -> persistState(snapshot, true));
+    database.executor().enqueue(() -> persistState(snapshot, true));
   }
 
   @Override
   public void saveStateDurably(EventRuntimeState state) {
     stateCache.put(state.instanceId(), state);
     StateSnapshot snapshot = snapshot(state);
-    executor.executeAndWait(() -> persistState(snapshot, true));
+    database.executor().executeAndWait(() -> persistState(snapshot, true));
   }
 
   @Override
   public CompletableFuture<Void> saveStateDurablyAsync(EventRuntimeState state) {
     stateCache.put(state.instanceId(), state);
     StateSnapshot snapshot = snapshot(state);
-    return executor.executeAsync(() -> persistState(snapshot, true));
+    return database.executor().executeAsync(() -> persistState(snapshot, true));
   }
 
   @Override
@@ -493,17 +309,19 @@ public final class SQLiteEventInstanceRepository
     cache.put(eventInstance.id(), eventInstance);
     stateCache.put(state.instanceId(), state);
     StateSnapshot snapshot = snapshot(state);
-    executor.executeAndWait(
-        () -> {
-          try {
-            persistInstance(eventInstance, false);
-            persistState(snapshot, false);
-            commitOrThrow();
-          } catch (RuntimeException exception) {
-            rollbackQuietly();
-            throw exception;
-          }
-        });
+    database
+        .executor()
+        .executeAndWait(
+            () -> {
+              try {
+                persistInstance(eventInstance, false);
+                persistState(snapshot, false);
+                database.commitOrThrow();
+              } catch (RuntimeException exception) {
+                database.rollbackQuietly();
+                throw exception;
+              }
+            });
   }
 
   @Override
@@ -512,17 +330,19 @@ public final class SQLiteEventInstanceRepository
     cache.put(eventInstance.id(), eventInstance);
     stateCache.put(state.instanceId(), state);
     StateSnapshot snapshot = snapshot(state);
-    return executor.executeAsync(
-        () -> {
-          try {
-            persistInstance(eventInstance, false);
-            persistState(snapshot, false);
-            commitOrThrow();
-          } catch (RuntimeException exception) {
-            rollbackQuietly();
-            throw exception;
-          }
-        });
+    return database
+        .executor()
+        .executeAsync(
+            () -> {
+              try {
+                persistInstance(eventInstance, false);
+                persistState(snapshot, false);
+                database.commitOrThrow();
+              } catch (RuntimeException exception) {
+                database.rollbackQuietly();
+                throw exception;
+              }
+            });
   }
 
   private void persistInstance(EventInstance eventInstance, boolean commit) {
@@ -536,6 +356,7 @@ public final class SQLiteEventInstanceRepository
           last_updated = excluded.last_updated;
         """;
     long now = System.currentTimeMillis();
+    Connection writerConnection = database.writerConnection();
     try (PreparedStatement stmt = writerConnection.prepareStatement(sql)) {
       stmt.setString(1, eventInstance.id().toString());
       stmt.setString(2, eventInstance.definitionId().value());
@@ -545,10 +366,10 @@ public final class SQLiteEventInstanceRepository
       stmt.setLong(6, now);
       stmt.executeUpdate();
       if (commit) {
-        writerConnection.commit();
+        database.commitOrThrow();
       }
     } catch (SQLException exception) {
-      rollbackQuietly();
+      database.rollbackQuietly();
       throw new IllegalStateException("Failed to save event instance", exception);
     }
   }
@@ -573,6 +394,7 @@ public final class SQLiteEventInstanceRepository
           minimum_contribution = excluded.minimum_contribution,
           last_updated = excluded.last_updated;
         """;
+    Connection writerConnection = database.writerConnection();
     try (PreparedStatement stmt = writerConnection.prepareStatement(sql)) {
       stmt.setString(1, state.instanceId());
       setNullableInteger(stmt, 2, state.healthCurrent());
@@ -593,15 +415,15 @@ public final class SQLiteEventInstanceRepository
       persistParticipants(state);
       persistSharedLoot(state);
       if (commit) {
-        writerConnection.commit();
+        database.commitOrThrow();
       }
     } catch (SQLException exception) {
-      rollbackQuietly();
+      database.rollbackQuietly();
       throw new IllegalStateException("Failed to save event runtime state", exception);
     }
   }
 
-  private StateSnapshot snapshot(EventRuntimeState state) {
+  StateSnapshot snapshot(EventRuntimeState state) {
     return new StateSnapshot(
         state.instanceId().toString(),
         state.health().map(Health::current).orElse(null),
@@ -635,6 +457,7 @@ public final class SQLiteEventInstanceRepository
     String delete = "DELETE FROM spectra_contributions WHERE instance_id = ?";
     String insert =
         "INSERT INTO spectra_contributions (instance_id, player_uuid, damage, threshold_attained) VALUES (?, ?, ?, ?)";
+    Connection writerConnection = database.writerConnection();
     try (PreparedStatement deleteStatement = writerConnection.prepareStatement(delete);
         PreparedStatement insertStatement = writerConnection.prepareStatement(insert)) {
       deleteStatement.setString(1, state.instanceId());
@@ -656,6 +479,7 @@ public final class SQLiteEventInstanceRepository
     String delete = "DELETE FROM spectra_shared_loot WHERE instance_id = ?";
     String insert =
         "INSERT INTO spectra_shared_loot (instance_id, slot, material, amount) VALUES (?, ?, ?, ?)";
+    Connection writerConnection = database.writerConnection();
     try (PreparedStatement deleteStatement = writerConnection.prepareStatement(delete);
         PreparedStatement insertStatement = writerConnection.prepareStatement(insert)) {
       deleteStatement.setString(1, state.instanceId());
@@ -683,6 +507,7 @@ public final class SQLiteEventInstanceRepository
   private void persistParticipants(StateSnapshot state) {
     String delete = "DELETE FROM spectra_participants WHERE instance_id = ?";
     String insert = "INSERT INTO spectra_participants (instance_id, player_uuid) VALUES (?, ?)";
+    Connection writerConnection = database.writerConnection();
     try (PreparedStatement deleteStatement = writerConnection.prepareStatement(delete);
         PreparedStatement insertStatement = writerConnection.prepareStatement(insert)) {
       deleteStatement.setString(1, state.instanceId());
@@ -725,22 +550,6 @@ public final class SQLiteEventInstanceRepository
     }
   }
 
-  private void rollbackQuietly() {
-    try {
-      writerConnection.rollback();
-    } catch (SQLException ignored) {
-      // Preserve the original persistence failure.
-    }
-  }
-
-  private void commitOrThrow() {
-    try {
-      writerConnection.commit();
-    } catch (SQLException exception) {
-      throw new IllegalStateException("Failed to commit SQLite transaction", exception);
-    }
-  }
-
   private record StateSnapshot(
       String instanceId,
       Integer healthCurrent,
@@ -777,255 +586,61 @@ public final class SQLiteEventInstanceRepository
     return List.copyOf(cache.values());
   }
 
+  // --- RewardClaimRepository Delegation ---
+
   @Override
   public void savePendingDurably(RewardClaim claim) {
-    Objects.requireNonNull(claim, "claim");
-    if (claim.status() != RewardClaimStatus.PENDING) {
-      throw new IllegalArgumentException("Only pending reward claims may be created");
-    }
-    executor.executeAndWait(() -> persistPendingClaim(claim));
+    rewardClaimRepository.savePendingDurably(claim);
   }
 
   @Override
   public CompletableFuture<Void> savePendingDurablyAsync(RewardClaim claim) {
-    Objects.requireNonNull(claim, "claim");
-    if (claim.status() != RewardClaimStatus.PENDING) {
-      return CompletableFuture.failedFuture(
-          new IllegalArgumentException("Only pending reward claims may be created"));
-    }
-    return executor.executeAsync(
-        () -> {
-          persistPendingClaim(claim);
-        });
-  }
-
-  private void persistPendingClaim(RewardClaim claim) {
-    String claimSql =
-        "INSERT OR IGNORE INTO spectra_reward_claims (claim_id, instance_id, player_uuid, status, created_at, delivered_at) VALUES (?, ?, ?, ?, ?, ?)";
-    String itemSql =
-        "INSERT INTO spectra_reward_items (claim_id, slot, material, amount) VALUES (?, ?, ?, ?)";
-    try (PreparedStatement claimStatement = writerConnection.prepareStatement(claimSql);
-        PreparedStatement itemStatement = writerConnection.prepareStatement(itemSql)) {
-      claimStatement.setString(1, claim.id().toString());
-      claimStatement.setString(2, claim.instanceId().toString());
-      claimStatement.setString(3, claim.playerId().toString());
-      claimStatement.setString(4, claim.status().name());
-      claimStatement.setLong(5, claim.createdAt().toEpochMilli());
-      setNullableLong(
-          claimStatement,
-          6,
-          claim.deliveredAt() == null ? null : claim.deliveredAt().toEpochMilli());
-      if (claimStatement.executeUpdate() == 0) {
-        commitOrThrow();
-        return;
-      }
-      int slot = 0;
-      for (RewardItem item : claim.items()) {
-        itemStatement.setString(1, claim.id().toString());
-        itemStatement.setInt(2, slot++);
-        itemStatement.setString(3, item.material());
-        itemStatement.setInt(4, item.amount());
-        itemStatement.addBatch();
-      }
-      itemStatement.executeBatch();
-      commitOrThrow();
-    } catch (SQLException exception) {
-      rollbackQuietly();
-      throw new IllegalStateException("Failed to persist reward claim", exception);
-    }
+    return rewardClaimRepository.savePendingDurablyAsync(claim);
   }
 
   @Override
   public List<RewardClaim> findPending(UUID playerId) {
-    Objects.requireNonNull(playerId, "playerId");
-    return readRewardClaims(
-        "SELECT claim_id, instance_id, player_uuid, status, created_at, delivered_at FROM spectra_reward_claims WHERE player_uuid = ? AND status = ? ORDER BY created_at",
-        statement -> {
-          statement.setString(1, playerId.toString());
-          statement.setString(2, RewardClaimStatus.PENDING.name());
-        });
+    return rewardClaimRepository.findPending(playerId);
   }
 
   @Override
   public CompletableFuture<List<RewardClaim>> findPendingAsync(UUID playerId) {
-    UUID nonNullPlayerId = Objects.requireNonNull(playerId, "playerId");
-    return CompletableFuture.supplyAsync(() -> findPending(nonNullPlayerId));
+    return rewardClaimRepository.findPendingAsync(playerId);
   }
 
   @Override
   public CompletableFuture<List<RewardClaim>> findByStatusAsync(RewardClaimStatus status) {
-    RewardClaimStatus nonNullStatus = Objects.requireNonNull(status, "status");
-    return CompletableFuture.supplyAsync(
-        () ->
-            readRewardClaims(
-                "SELECT claim_id, instance_id, player_uuid, status, created_at, delivered_at FROM spectra_reward_claims WHERE status = ? ORDER BY created_at",
-                statement -> statement.setString(1, nonNullStatus.name())));
-  }
-
-  private List<RewardClaim> readRewardClaims(String sql, SqlStatementBinder binder) {
-    List<RewardClaim> claims = new ArrayList<>();
-    try (Connection connection = getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-      binder.bind(statement);
-      try (ResultSet resultSet = statement.executeQuery()) {
-        while (resultSet.next()) {
-          claims.add(readRewardClaim(connection, resultSet));
-        }
-      }
-      return List.copyOf(claims);
-    } catch (SQLException exception) {
-      throw new IllegalStateException("Failed to load pending reward claims", exception);
-    }
+    return rewardClaimRepository.findByStatusAsync(status);
   }
 
   @Override
   public boolean beginDelivery(UUID claimId) {
-    return transitionRewardClaim(
-        Objects.requireNonNull(claimId, "claimId"),
-        RewardClaimStatus.PENDING,
-        RewardClaimStatus.DELIVERING);
+    return rewardClaimRepository.beginDelivery(claimId);
   }
 
   @Override
   public CompletableFuture<Boolean> beginDeliveryAsync(UUID claimId) {
-    UUID nonNullClaimId = Objects.requireNonNull(claimId, "claimId");
-    return transitionRewardClaimAsync(
-        nonNullClaimId, RewardClaimStatus.PENDING, RewardClaimStatus.DELIVERING);
+    return rewardClaimRepository.beginDeliveryAsync(claimId);
   }
 
   @Override
   public boolean returnToPending(UUID claimId) {
-    return transitionRewardClaim(
-        Objects.requireNonNull(claimId, "claimId"),
-        RewardClaimStatus.DELIVERING,
-        RewardClaimStatus.PENDING);
+    return rewardClaimRepository.returnToPending(claimId);
   }
 
   @Override
   public CompletableFuture<Boolean> returnToPendingAsync(UUID claimId) {
-    UUID nonNullClaimId = Objects.requireNonNull(claimId, "claimId");
-    return transitionRewardClaimAsync(
-        nonNullClaimId, RewardClaimStatus.DELIVERING, RewardClaimStatus.PENDING);
+    return rewardClaimRepository.returnToPendingAsync(claimId);
   }
 
   @Override
   public boolean markDelivered(UUID claimId) {
-    UUID nonNullClaimId = Objects.requireNonNull(claimId, "claimId");
-    java.util.concurrent.atomic.AtomicBoolean updated =
-        new java.util.concurrent.atomic.AtomicBoolean();
-    executor.executeAndWait(
-        () -> {
-          String sql =
-              "UPDATE spectra_reward_claims SET status = ?, delivered_at = ? WHERE claim_id = ? AND status = ?";
-          try (PreparedStatement statement = writerConnection.prepareStatement(sql)) {
-            statement.setString(1, RewardClaimStatus.DELIVERED.name());
-            statement.setLong(2, System.currentTimeMillis());
-            statement.setString(3, nonNullClaimId.toString());
-            statement.setString(4, RewardClaimStatus.DELIVERING.name());
-            updated.set(statement.executeUpdate() == 1);
-            commitOrThrow();
-          } catch (SQLException exception) {
-            rollbackQuietly();
-            throw new IllegalStateException("Failed to mark reward claim delivered", exception);
-          }
-        });
-    return updated.get();
+    return rewardClaimRepository.markDelivered(claimId);
   }
 
   @Override
   public CompletableFuture<Boolean> markDeliveredAsync(UUID claimId) {
-    UUID nonNullClaimId = Objects.requireNonNull(claimId, "claimId");
-    return executor.supplyAsync(
-        () -> {
-          String sql =
-              "UPDATE spectra_reward_claims SET status = ?, delivered_at = ? WHERE claim_id = ? AND status = ?";
-          try (PreparedStatement statement = writerConnection.prepareStatement(sql)) {
-            statement.setString(1, RewardClaimStatus.DELIVERED.name());
-            statement.setLong(2, System.currentTimeMillis());
-            statement.setString(3, nonNullClaimId.toString());
-            statement.setString(4, RewardClaimStatus.DELIVERING.name());
-            boolean updated = statement.executeUpdate() == 1;
-            commitOrThrow();
-            return updated;
-          } catch (SQLException exception) {
-            rollbackQuietly();
-            throw new IllegalStateException("Failed to mark reward claim delivered", exception);
-          }
-        });
-  }
-
-  private boolean transitionRewardClaim(
-      UUID claimId, RewardClaimStatus expected, RewardClaimStatus next) {
-    java.util.concurrent.atomic.AtomicBoolean updated =
-        new java.util.concurrent.atomic.AtomicBoolean();
-    executor.executeAndWait(
-        () -> {
-          String sql =
-              "UPDATE spectra_reward_claims SET status = ? WHERE claim_id = ? AND status = ?";
-          try (PreparedStatement statement = writerConnection.prepareStatement(sql)) {
-            statement.setString(1, next.name());
-            statement.setString(2, claimId.toString());
-            statement.setString(3, expected.name());
-            updated.set(statement.executeUpdate() == 1);
-            commitOrThrow();
-          } catch (SQLException exception) {
-            rollbackQuietly();
-            throw new IllegalStateException("Failed to transition reward claim", exception);
-          }
-        });
-    return updated.get();
-  }
-
-  private CompletableFuture<Boolean> transitionRewardClaimAsync(
-      UUID claimId, RewardClaimStatus expected, RewardClaimStatus next) {
-    return executor.supplyAsync(
-        () -> {
-          String sql =
-              "UPDATE spectra_reward_claims SET status = ? WHERE claim_id = ? AND status = ?";
-          try (PreparedStatement statement = writerConnection.prepareStatement(sql)) {
-            statement.setString(1, next.name());
-            statement.setString(2, claimId.toString());
-            statement.setString(3, expected.name());
-            boolean updated = statement.executeUpdate() == 1;
-            commitOrThrow();
-            return updated;
-          } catch (SQLException exception) {
-            rollbackQuietly();
-            throw new IllegalStateException("Failed to transition reward claim", exception);
-          }
-        });
-  }
-
-  @FunctionalInterface
-  private interface SqlStatementBinder {
-    void bind(PreparedStatement statement) throws SQLException;
-  }
-
-  private RewardClaim readRewardClaim(Connection connection, ResultSet resultSet)
-      throws SQLException {
-    UUID claimId = UUID.fromString(resultSet.getString("claim_id"));
-    List<RewardItem> items = new ArrayList<>();
-    try (PreparedStatement itemStatement =
-        connection.prepareStatement(
-            "SELECT material, amount FROM spectra_reward_items WHERE claim_id = ? ORDER BY slot")) {
-      itemStatement.setString(1, claimId.toString());
-      try (ResultSet itemResults = itemStatement.executeQuery()) {
-        while (itemResults.next()) {
-          items.add(
-              new RewardItem(itemResults.getString("material"), itemResults.getInt("amount")));
-        }
-      }
-    }
-    long deliveredAt = resultSet.getLong("delivered_at");
-    boolean deliveredAtMissing = resultSet.wasNull();
-    return new RewardClaim(
-        claimId,
-        new EventInstanceId(UUID.fromString(resultSet.getString("instance_id"))),
-        UUID.fromString(resultSet.getString("player_uuid")),
-        items,
-        RewardClaimStatus.valueOf(resultSet.getString("status")),
-        Instant.ofEpochMilli(resultSet.getLong("created_at")),
-        deliveredAtMissing ? null : Instant.ofEpochMilli(deliveredAt));
+    return rewardClaimRepository.markDeliveredAsync(claimId);
   }
 
   @Override
@@ -1039,27 +654,27 @@ public final class SQLiteEventInstanceRepository
       String sql3 = "DELETE FROM spectra_shared_loot WHERE instance_id = ?";
       String idStr = eventInstanceId.toString();
 
-      executor.enqueue(
-          () -> {
-            try (PreparedStatement stmt1 = writerConnection.prepareStatement(sql1);
-                PreparedStatement stmt2 = writerConnection.prepareStatement(sql2);
-                PreparedStatement stmt3 = writerConnection.prepareStatement(sql3)) {
-              stmt1.setString(1, idStr);
-              stmt1.executeUpdate();
-              stmt2.setString(1, idStr);
-              stmt2.executeUpdate();
-              stmt3.setString(1, idStr);
-              stmt3.executeUpdate();
-              writerConnection.commit();
-            } catch (SQLException e) {
-              try {
-                writerConnection.rollback();
-              } catch (SQLException e2) {
-                LOGGER.log(Level.WARNING, "Failed to rollback: " + e2.getMessage(), e2);
-              }
-              LOGGER.log(Level.SEVERE, "Failed to remove instance from DB: " + e.getMessage(), e);
-            }
-          });
+      database
+          .executor()
+          .enqueue(
+              () -> {
+                Connection writerConnection = database.writerConnection();
+                try (PreparedStatement stmt1 = writerConnection.prepareStatement(sql1);
+                    PreparedStatement stmt2 = writerConnection.prepareStatement(sql2);
+                    PreparedStatement stmt3 = writerConnection.prepareStatement(sql3)) {
+                  stmt1.setString(1, idStr);
+                  stmt1.executeUpdate();
+                  stmt2.setString(1, idStr);
+                  stmt2.executeUpdate();
+                  stmt3.setString(1, idStr);
+                  stmt3.executeUpdate();
+                  database.commitOrThrow();
+                } catch (SQLException e) {
+                  database.rollbackQuietly();
+                  LOGGER.log(
+                      Level.SEVERE, "Failed to remove instance from DB: " + e.getMessage(), e);
+                }
+              });
     }
     return removed;
   }

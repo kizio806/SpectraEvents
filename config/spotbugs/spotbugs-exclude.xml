@@ -1,27 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <FindBugsFilter>
-    <!-- Exclude malicious code reporting for DTOs returning arrays or lists -->
+    <!-- Exclude internal representations exposed via immutable/record-like structures -->
     <Match>
-        <Bug pattern="EI_EXPOSE_REP" />
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2" />
     </Match>
+
+    <!-- Constructor validation in modern Java (finalizer attacks are obsolete in Java 18+) -->
     <Match>
-        <Bug pattern="EI_EXPOSE_REP2" />
+        <Bug pattern="CT_CONSTRUCTOR_THROW" />
     </Match>
+
+    <!-- Domain exception classes have transient diagnostic fields not restored via native Java serialization -->
     <Match>
-        <Bug pattern="REC_CATCH_EXCEPTION" />
+        <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED" />
     </Match>
+
+    <!-- SpotBugs 4.9.4 false positive on Lock acquired via map and released in finally block -->
+    <Match>
+        <Bug pattern="CWO_CLOSED_WITHOUT_OPENED" />
+    </Match>
+
+    <!-- Idiomatic throwing of RuntimeException for domain/lifecycle control -->
     <Match>
         <Bug pattern="THROWS_METHOD_THROWS_RUNTIMEEXCEPTION" />
     </Match>
+
+    <!-- Javac on Java 21+ generates synthetic null checks for records, pattern matching, and try-with-resources -->
     <Match>
-        <Bug pattern="THROWS_METHOD_THROWS_CLAUSE_BASIC_EXCEPTION" />
+        <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE" />
     </Match>
+
+    <!-- Bukkit / Spigot API return values lacking nullability annotations in platform adapters -->
     <Match>
+        <Package name="~io\.github\.kizio806\.spectraevents\.platform\..*" />
         <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" />
     </Match>
+
+    <!-- JUnit test methods and test fixtures intentionally declaring throws Exception -->
     <Match>
-        <Bug pattern="CT_CONSTRUCTOR_THROW,SE_TRANSIENT_FIELD_NOT_RESTORED,SE_BAD_FIELD,CWO_CLOSED_WITHOUT_OPENED,NP_BOOLEAN_RETURN_NULL,SE_BAD_FIELD_STORE,UCF_USELESS_CONTROL_FLOW,RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE" />
+        <Class name="~.*Test(\$.*)?" />
+        <Bug pattern="THROWS_METHOD_THROWS_CLAUSE_BASIC_EXCEPTION" />
     </Match>
+
     <!-- PlaceholderExpansion declares final equals(Object) without hashCode in third-party PlaceholderAPI library -->
     <Match>
         <Class name="io.github.kizio806.spectraevents.platform.paper.integration.PlaceholderAPIIntegration$SpectraExpansion" />

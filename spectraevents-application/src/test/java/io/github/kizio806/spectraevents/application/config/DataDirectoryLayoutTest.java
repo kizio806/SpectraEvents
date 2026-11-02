@@ -35,5 +35,9 @@ class DataDirectoryLayoutTest {
     assertTrue(Files.readString(layout.configFile()).contains("locale: en-US"));
     assertTrue(Files.readString(layout.schedulesFile()).contains("schema-version: 1"));
     assertTrue(Files.readString(layout.locationsFile()).contains("locations: {}"));
+
+    // Prepare again when files already exist
+    DataDirectoryLayout layoutAgain = DataDirectoryLayout.prepare(root);
+    assertEquals(layout.root(), layoutAgain.root());
   }
 }

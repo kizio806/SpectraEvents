@@ -1,9 +1,33 @@
 package io.github.kizio806.spectraevents.adapter.blockbench;
 
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.MAX_JSON_DEPTH;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.assertJsonDepth;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.dataPointVector;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.decodeUtf8;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.optionalFiniteFloat;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.optionalInt;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.optionalString;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.optionalVector;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.parseEasing;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.parseLoopMode;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.parseObject;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.requireObject;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.requiredArray;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.requiredFiniteDouble;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.requiredInt;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.requiredObject;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.requiredString;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.requiredUv;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.requiredVector;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.sha256;
+import static io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchJsonSupport.toEuler;
+import static io.github.kizio806.spectraevents.adapter.blockbench.SafeArchiveReader.MAX_ENTRY_BYTES;
+import static io.github.kizio806.spectraevents.adapter.blockbench.SafeArchiveReader.readArchive;
+import static io.github.kizio806.spectraevents.adapter.blockbench.SafeArchiveReader.requiredEntry;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import io.github.kizio806.spectraevents.application.port.AssetImportPort;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationDuration;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationTime;
@@ -25,14 +49,9 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.CharacterCodingException;
-import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -47,8 +66,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
@@ -56,10 +73,6 @@ import javax.imageio.stream.ImageInputStream;
 /** Imports a validated Blockbench project or signed Spectra bundle into the asset model. */
 public final class BlockbenchProjectReader implements AssetImportPort {
   private static final long MAX_ARCHIVE_BYTES = 25_000_000L;
-  private static final int MAX_ARCHIVE_ENTRIES = 18;
-  private static final int MAX_ENTRY_BYTES = 24_000_000;
-  private static final int MAX_TOTAL_UNCOMPRESSED_BYTES = 32_000_000;
-  private static final int MAX_JSON_DEPTH = 64;
   private static final int MAX_TEXTURES = 16;
   private static final int MAX_NODES = 128;
   private static final int MAX_CUBES = 512;
@@ -82,7 +95,11 @@ public final class BlockbenchProjectReader implements AssetImportPort {
     if (!Files.isRegularFile(sourceFile)) {
       throw new IllegalArgumentException("Asset source must be a regular file");
     }
-    String fileName = sourceFile.getFileName().toString();
+    Path namePath = sourceFile.getFileName();
+    if (namePath == null) {
+      throw new IllegalArgumentException("Asset source has no filename");
+    }
+    String fileName = namePath.toString();
     if (fileName.endsWith(".bbmodel")) {
       if (Files.size(sourceFile) > MAX_ENTRY_BYTES) {
         throw new IllegalArgumentException(
@@ -113,47 +130,6 @@ public final class BlockbenchProjectReader implements AssetImportPort {
     }
     return parseProject(
         decodeUtf8(requiredEntry(entries, MODEL_FILE), MODEL_FILE), manifest.modelId(), textures);
-  }
-
-  private Map<String, byte[]> readArchive(Path sourceFile) throws IOException {
-    Map<String, byte[]> entries = new LinkedHashMap<>();
-    Set<String> names = new HashSet<>();
-    long totalBytes = 0L;
-    int entryCount = 0;
-
-    try (InputStream input = Files.newInputStream(sourceFile);
-        ZipInputStream zip = new ZipInputStream(input, StandardCharsets.UTF_8)) {
-      ZipEntry entry;
-      while ((entry = zip.getNextEntry()) != null) {
-        entryCount++;
-        if (entryCount > MAX_ARCHIVE_ENTRIES) {
-          throw new IllegalArgumentException("Asset bundle contains more than 18 ZIP entries");
-        }
-        String name = entry.getName();
-        validateSafeEntryName(name);
-        if (!names.add(name)) {
-          throw new IllegalArgumentException("Asset bundle contains duplicate ZIP entry: " + name);
-        }
-        if (entry.isDirectory()) {
-          if (!"textures/".equals(name)) {
-            throw new IllegalArgumentException(
-                "Asset bundle contains unsupported directory: " + name);
-          }
-          continue;
-        }
-
-        byte[] bytes = readBoundedEntry(zip, name);
-        totalBytes += bytes.length;
-        if (totalBytes > MAX_TOTAL_UNCOMPRESSED_BYTES) {
-          throw new IllegalArgumentException(
-              "Asset bundle exceeds expanded size limit of "
-                  + MAX_TOTAL_UNCOMPRESSED_BYTES
-                  + " bytes");
-        }
-        entries.put(name, bytes);
-      }
-    }
-    return Map.copyOf(entries);
   }
 
   private BundleManifest parseManifest(byte[] manifestBytes) {
@@ -617,33 +593,6 @@ public final class BlockbenchProjectReader implements AssetImportPort {
     return nodeId;
   }
 
-  private static void validateSafeEntryName(String name) {
-    if (name == null
-        || name.isBlank()
-        || name.startsWith("/")
-        || name.startsWith("\\")
-        || name.contains("\\")
-        || name.contains("..")
-        || Path.of(name).isAbsolute()
-        || !Path.of(name).normalize().toString().replace('\\', '/').equals(name)) {
-      throw new IllegalArgumentException("Asset bundle contains unsafe ZIP entry: " + name);
-    }
-  }
-
-  private static byte[] readBoundedEntry(InputStream input, String name) throws IOException {
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
-    byte[] buffer = new byte[8192];
-    int read;
-    while ((read = input.read(buffer)) != -1) {
-      if (output.size() > MAX_ENTRY_BYTES - read) {
-        throw new IllegalArgumentException(
-            "Asset bundle entry exceeds " + MAX_ENTRY_BYTES + " bytes: " + name);
-      }
-      output.write(buffer, 0, read);
-    }
-    return output.toByteArray();
-  }
-
   private static byte[] decodeEmbeddedTexture(String source) {
     try {
       return Base64.getDecoder().decode(source.substring(source.indexOf(',') + 1));
@@ -691,264 +640,6 @@ public final class BlockbenchProjectReader implements AssetImportPort {
     } catch (IOException exception) {
       throw new IllegalArgumentException("Could not inspect texture " + textureName, exception);
     }
-  }
-
-  private static String decodeUtf8(byte[] bytes, String path) {
-    try {
-      return StandardCharsets.UTF_8
-          .newDecoder()
-          .onMalformedInput(CodingErrorAction.REPORT)
-          .onUnmappableCharacter(CodingErrorAction.REPORT)
-          .decode(java.nio.ByteBuffer.wrap(bytes))
-          .toString();
-    } catch (CharacterCodingException exception) {
-      throw new IllegalArgumentException("Bundle entry is not valid UTF-8: " + path, exception);
-    }
-  }
-
-  private static String sha256(byte[] bytes) {
-    try {
-      byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
-      StringBuilder result = new StringBuilder(digest.length * 2);
-      for (byte value : digest) {
-        result.append(String.format(Locale.ROOT, "%02x", value));
-      }
-      return result.toString();
-    } catch (NoSuchAlgorithmException exception) {
-      throw new IllegalStateException("SHA-256 is required by the Java runtime", exception);
-    }
-  }
-
-  private static void assertJsonDepth(String json, int maxDepth) {
-    int depth = 0;
-    boolean inString = false;
-    boolean escaping = false;
-    for (int index = 0; index < json.length(); index++) {
-      char value = json.charAt(index);
-      if (inString) {
-        if (escaping) {
-          escaping = false;
-        } else if (value == '\\') {
-          escaping = true;
-        } else if (value == '"') {
-          inString = false;
-        }
-      } else if (value == '"') {
-        inString = true;
-      } else if (value == '{' || value == '[') {
-        depth++;
-        if (depth > maxDepth) {
-          throw new IllegalArgumentException("JSON nesting exceeds maximum depth of " + maxDepth);
-        }
-      } else if (value == '}' || value == ']') {
-        depth--;
-      }
-    }
-  }
-
-  private static JsonObject parseObject(String json, String path) {
-    try {
-      return requireObject(JsonParser.parseString(json), path);
-    } catch (RuntimeException exception) {
-      throw new IllegalArgumentException("Invalid JSON in " + path, exception);
-    }
-  }
-
-  private static JsonObject requiredObject(JsonObject parent, String name, String path) {
-    if (!parent.has(name)) {
-      throw new IllegalArgumentException(path + " is missing required field " + name);
-    }
-    return requireObject(parent.get(name), path + "." + name);
-  }
-
-  private static JsonArray requiredArray(JsonObject parent, String name, String path) {
-    if (!parent.has(name) || !parent.get(name).isJsonArray()) {
-      throw new IllegalArgumentException(path + "." + name + " must be an array");
-    }
-    return parent.getAsJsonArray(name);
-  }
-
-  private static JsonObject requireObject(JsonElement element, String path) {
-    if (element == null || !element.isJsonObject()) {
-      throw new IllegalArgumentException(path + " must be an object");
-    }
-    return element.getAsJsonObject();
-  }
-
-  private static String requiredString(JsonObject object, String name, String path) {
-    if (!object.has(name)
-        || !object.get(name).isJsonPrimitive()
-        || !object.get(name).getAsJsonPrimitive().isString()
-        || object.get(name).getAsString().isBlank()) {
-      throw new IllegalArgumentException(path + "." + name + " must be a non-empty string");
-    }
-    return object.get(name).getAsString();
-  }
-
-  private static String optionalString(JsonObject object, String name, String defaultValue) {
-    if (!object.has(name)) {
-      return defaultValue;
-    }
-    if (!object.get(name).isJsonPrimitive() || !object.get(name).getAsJsonPrimitive().isString()) {
-      throw new IllegalArgumentException(name + " must be a string");
-    }
-    return object.get(name).getAsString();
-  }
-
-  private static int requiredInt(JsonObject object, String name, String path) {
-    if (!object.has(name)) {
-      throw new IllegalArgumentException(path + "." + name + " must be an integer");
-    }
-    return optionalInt(object, name, 0, path);
-  }
-
-  private static int optionalInt(JsonObject object, String name, int defaultValue, String path) {
-    if (!object.has(name)) {
-      return defaultValue;
-    }
-    try {
-      return object.get(name).getAsInt();
-    } catch (RuntimeException exception) {
-      throw new IllegalArgumentException(path + "." + name + " must be an integer", exception);
-    }
-  }
-
-  private static double requiredFiniteDouble(JsonObject object, String name, String path) {
-    if (!object.has(name)) {
-      throw new IllegalArgumentException(path + "." + name + " must be a number");
-    }
-    try {
-      double value = object.get(name).getAsDouble();
-      if (!Double.isFinite(value)) {
-        throw new IllegalArgumentException(path + "." + name + " must be finite");
-      }
-      return value;
-    } catch (RuntimeException exception) {
-      throw new IllegalArgumentException(path + "." + name + " must be a number", exception);
-    }
-  }
-
-  private static float optionalFiniteFloat(
-      JsonObject object, String name, float defaultValue, String path) {
-    if (!object.has(name)) {
-      return defaultValue;
-    }
-    double value = requiredFiniteDouble(object, name, path);
-    if (value < -16.0 || value > 16.0) {
-      throw new IllegalArgumentException(path + "." + name + " is outside supported range");
-    }
-    return (float) value;
-  }
-
-  private static Vector3 requiredVector(JsonObject object, String name, String path) {
-    if (!object.has(name)) {
-      throw new IllegalArgumentException(path + "." + name + " must be a three-number array");
-    }
-    return vector(object.get(name), path + "." + name);
-  }
-
-  private static Vector3 optionalVector(
-      JsonObject object, String name, Vector3 defaultValue, String path) {
-    return object.has(name) ? vector(object.get(name), path + "." + name) : defaultValue;
-  }
-
-  private static Vector3 vector(JsonElement element, String path) {
-    if (!element.isJsonArray() || element.getAsJsonArray().size() != 3) {
-      throw new IllegalArgumentException(path + " must be a three-number array");
-    }
-    JsonArray values = element.getAsJsonArray();
-    try {
-      float x = values.get(0).getAsFloat();
-      float y = values.get(1).getAsFloat();
-      float z = values.get(2).getAsFloat();
-      if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)) {
-        throw new IllegalArgumentException(path + " must contain finite numbers");
-      }
-      return new Vector3(x, y, z);
-    } catch (RuntimeException exception) {
-      throw new IllegalArgumentException(path + " must be a three-number array", exception);
-    }
-  }
-
-  private static EulerRotation toEuler(Vector3 vector) {
-    return new EulerRotation(vector.x(), vector.y(), vector.z());
-  }
-
-  private static List<Double> requiredUv(JsonObject face, String path) {
-    if (!face.has("uv") || !face.get("uv").isJsonArray() || face.getAsJsonArray("uv").size() != 4) {
-      throw new IllegalArgumentException(path + ".uv must be a four-number array");
-    }
-    List<Double> uv = new ArrayList<>(4);
-    for (JsonElement value : face.getAsJsonArray("uv")) {
-      try {
-        double coordinate = value.getAsDouble();
-        if (!Double.isFinite(coordinate)) {
-          throw new IllegalArgumentException(path + ".uv must contain finite numbers");
-        }
-        uv.add(coordinate);
-      } catch (RuntimeException exception) {
-        throw new IllegalArgumentException(path + ".uv must be a four-number array", exception);
-      }
-    }
-    return List.copyOf(uv);
-  }
-
-  private static Vector3 dataPointVector(JsonObject keyframe, String path) {
-    JsonArray points = requiredArray(keyframe, "data_points", path);
-    if (points.isEmpty()) {
-      throw new IllegalArgumentException(path + ".data_points must not be empty");
-    }
-    JsonObject point = requireObject(points.get(0), path + ".data_points[0]");
-    return new Vector3(
-        dataPointComponent(point, "x", path),
-        dataPointComponent(point, "y", path),
-        dataPointComponent(point, "z", path));
-  }
-
-  private static float dataPointComponent(JsonObject point, String component, String path) {
-    if (!point.has(component)) {
-      throw new IllegalArgumentException(path + ".data_points[0]." + component + " is required");
-    }
-    try {
-      float value = point.get(component).getAsFloat();
-      if (!Float.isFinite(value)) {
-        throw new IllegalArgumentException(
-            path + ".data_points[0]." + component + " must be finite");
-      }
-      return value;
-    } catch (RuntimeException exception) {
-      throw new IllegalArgumentException(
-          path + ".data_points[0]." + component + " must be numeric", exception);
-    }
-  }
-
-  private static LoopMode parseLoopMode(String value) {
-    return switch (value.toLowerCase(Locale.ROOT)) {
-      case "once", "" -> LoopMode.ONCE;
-      case "loop" -> LoopMode.LOOP;
-      case "pingpong", "ping_pong", "ping-pong" -> LoopMode.PING_PONG;
-      default ->
-          throw new IllegalArgumentException(
-              "Unsupported Blockbench animation loop mode: " + value);
-    };
-  }
-
-  private static Easing parseEasing(String value) {
-    return switch (value.toLowerCase(Locale.ROOT)) {
-      case "linear" -> Easing.LINEAR;
-      case "step" -> Easing.STEP;
-      case "catmullrom" -> Easing.EASE_IN_OUT_CUBIC;
-      default ->
-          throw new IllegalArgumentException("Unsupported Blockbench interpolation: " + value);
-    };
-  }
-
-  private static byte[] requiredEntry(Map<String, byte[]> entries, String path) {
-    byte[] bytes = entries.get(path);
-    if (bytes == null) {
-      throw new IllegalArgumentException("Asset bundle is missing required entry: " + path);
-    }
-    return bytes;
   }
 
   private record ParsedOutliner(

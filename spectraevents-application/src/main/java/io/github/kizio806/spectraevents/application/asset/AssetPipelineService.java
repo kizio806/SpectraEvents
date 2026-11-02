@@ -127,9 +127,7 @@ public final class AssetPipelineService {
   public synchronized void importFile(String filename) {
     Objects.requireNonNull(filename, "filename");
     Path path = sourceDirectory.resolve(filename).toAbsolutePath().normalize();
-    if (!path.startsWith(sourceDirectory)
-        || path.getParent() == null
-        || !path.getParent().equals(sourceDirectory)) {
+    if (!path.startsWith(sourceDirectory) || !Objects.equals(path.getParent(), sourceDirectory)) {
       throw new SecurityException("Path traversal attempt detected: " + filename);
     }
 
@@ -140,7 +138,7 @@ public final class AssetPipelineService {
     try {
       importSource(path);
       rebuildResourcePackIfDirty();
-    } catch (Exception e) {
+    } catch (IOException e) {
       throw new RuntimeException("Import failed: " + e.getMessage(), e);
     }
   }
@@ -150,8 +148,8 @@ public final class AssetPipelineService {
     return CompletableFuture.runAsync(() -> importFile(filename));
   }
 
-  private boolean importSource(Path source) throws Exception {
-    String cacheKey = source.getFileName().toString();
+  private boolean importSource(Path source) throws IOException {
+    String cacheKey = String.valueOf(source.getFileName());
     String currentHash = computeSha256(source);
     if (currentHash.equals(sourceCache.get(cacheKey))) {
       LOGGER.fine("Skipping unchanged asset source: " + cacheKey);
@@ -169,7 +167,7 @@ public final class AssetPipelineService {
   }
 
   private boolean isSupportedSource(Path path) {
-    String filename = path.getFileName().toString();
+    String filename = String.valueOf(path.getFileName());
     return filename.endsWith(SPECTRA_BUNDLE_EXTENSION) || filename.endsWith(BLOCKBENCH_EXTENSION);
   }
 
@@ -206,8 +204,13 @@ public final class AssetPipelineService {
     LOGGER.fine("Asset Pipeline build complete. Resource pack generated.");
   }
 
-  private String computeSha256(Path path) throws IOException, NoSuchAlgorithmException {
-    MessageDigest digest = MessageDigest.getInstance("SHA-256");
+  private String computeSha256(Path path) throws IOException {
+    MessageDigest digest;
+    try {
+      digest = MessageDigest.getInstance("SHA-256");
+    } catch (NoSuchAlgorithmException e) {
+      throw new AssertionError("SHA-256 algorithm must be supported by the JVM", e);
+    }
     try (java.io.InputStream input = Files.newInputStream(path)) {
       byte[] buffer = new byte[8192];
       int read;

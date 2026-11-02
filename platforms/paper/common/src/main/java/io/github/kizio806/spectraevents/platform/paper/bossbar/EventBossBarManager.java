@@ -3,7 +3,7 @@ package io.github.kizio806.spectraevents.platform.paper.bossbar;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
-import io.github.kizio806.spectraevents.platform.paper.common.EventDisplayPlaceholders;
+import io.github.kizio806.spectraevents.platform.bukkit.common.EventDisplayPlaceholders;
 import io.github.kizio806.spectraevents.platform.paper.integration.MiniPlaceholdersIntegration;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import java.util.Map;
@@ -45,7 +45,12 @@ public final class EventBossBarManager implements Listener {
   }
 
   public void showBossBar(
-      EventInstance instance, EventRuntimeState state, Map<String, Object> params) {
+      EventInstance instance,
+      EventRuntimeState state,
+      String title,
+      String color,
+      String style,
+      String progress) {
     Objects.requireNonNull(instance, "instance");
     Objects.requireNonNull(state, "state");
 
@@ -55,15 +60,17 @@ public final class EventBossBarManager implements Listener {
       return;
     }
     String titleTemplate =
-        getString(params, "title", locales.message("messages.default-bossbar-title"));
-    BossBar.Color color = parseColor(getString(params, "color", "PURPLE"));
-    BossBar.Overlay overlay = parseOverlay(getString(params, "style", "PROGRESS"));
-    String progressMode = getString(params, "progress", "1.0");
+        (title != null && !title.isBlank())
+            ? title
+            : locales.message("messages.default-bossbar-title");
+    BossBar.Color bossColor = parseColor(color);
+    BossBar.Overlay overlay = parseOverlay(style);
+    String progressMode = (progress != null && !progress.isBlank()) ? progress : "1.0";
 
-    float progress = calculateProgress(state, params);
+    float progressValue = calculateProgress(state, progressMode);
     Component titleComponent = renderTitle(titleTemplate, instance, state);
 
-    BossBar bossBar = BossBar.bossBar(titleComponent, progress, color, overlay);
+    BossBar bossBar = BossBar.bossBar(titleComponent, progressValue, bossColor, overlay);
     BossBarHolder holder = new BossBarHolder(bossBar, titleTemplate, progressMode);
     activeBossBars.put(instanceId, holder);
 
@@ -73,32 +80,26 @@ public final class EventBossBarManager implements Listener {
   }
 
   public void updateBossBar(
-      EventInstance instance, EventRuntimeState state, Map<String, Object> params) {
+      EventInstance instance, EventRuntimeState state, String title, String progress) {
     Objects.requireNonNull(instance, "instance");
     Objects.requireNonNull(state, "state");
 
     UUID instanceId = instance.id().value();
     BossBarHolder holder = activeBossBars.get(instanceId);
     if (holder == null) {
-      showBossBar(instance, state, params);
+      showBossBar(instance, state, title, null, null, progress);
       return;
     }
 
-    if (params.containsKey("title")) {
-      holder.titleTemplate = getString(params, "title", holder.titleTemplate);
+    if (title != null && !title.isBlank()) {
+      holder.titleTemplate = title;
     }
-    if (params.containsKey("progress")) {
-      holder.progressMode = getString(params, "progress", holder.progressMode);
-    }
-    if (params.containsKey("color")) {
-      holder.bossBar.color(parseColor(getString(params, "color", "PURPLE")));
-    }
-    if (params.containsKey("style")) {
-      holder.bossBar.overlay(parseOverlay(getString(params, "style", "PROGRESS")));
+    if (progress != null && !progress.isBlank()) {
+      holder.progressMode = progress;
     }
 
-    float progress = calculateProgress(state, params);
-    holder.bossBar.progress(Math.max(0.0f, Math.min(1.0f, progress)));
+    float progressValue = calculateProgress(state, holder.progressMode);
+    holder.bossBar.progress(Math.max(0.0f, Math.min(1.0f, progressValue)));
     holder.bossBar.name(renderTitle(holder.titleTemplate, instance, state));
   }
 
@@ -110,7 +111,7 @@ public final class EventBossBarManager implements Listener {
     if (holder == null) {
       return;
     }
-    holder.bossBar.progress(calculateProgress(state, Map.of("progress", holder.progressMode)));
+    holder.bossBar.progress(calculateProgress(state, holder.progressMode));
     holder.bossBar.name(renderTitle(holder.titleTemplate, instance, state));
   }
 
@@ -157,15 +158,14 @@ public final class EventBossBarManager implements Listener {
             EventDisplayPlaceholders.resolve(locales.resolveTemplate(template), instance, state));
   }
 
-  private float calculateProgress(EventRuntimeState state, Map<String, Object> params) {
-    if ("hits".equalsIgnoreCase(String.valueOf(params.get("progress")))
-        && state.hitCounter() != null) {
+  private float calculateProgress(EventRuntimeState state, String progressMode) {
+    if ("hits".equalsIgnoreCase(progressMode) && state.hitCounter() != null) {
       var counter = state.hitCounter();
       return (float) counter.current() / (float) counter.maximum();
     }
-    if (params.containsKey("progress")) {
+    if (progressMode != null) {
       try {
-        return Float.parseFloat(String.valueOf(params.get("progress")));
+        return Float.parseFloat(progressMode);
       } catch (NumberFormatException ignored) {
         // Ignored, fallback to health calculation
       }
@@ -177,27 +177,28 @@ public final class EventBossBarManager implements Listener {
   }
 
   private BossBar.Color parseColor(String colorStr) {
+    if (colorStr == null) {
+      return BossBar.Color.PURPLE;
+    }
     try {
       return BossBar.Color.valueOf(colorStr.toUpperCase(java.util.Locale.ROOT));
-    } catch (Exception e) {
+    } catch (IllegalArgumentException e) {
       return BossBar.Color.PURPLE;
     }
   }
 
   private BossBar.Overlay parseOverlay(String styleStr) {
+    if (styleStr == null) {
+      return BossBar.Overlay.PROGRESS;
+    }
     try {
       String upper = styleStr.toUpperCase(java.util.Locale.ROOT);
       if (upper.startsWith("NOTCH")) {
         return BossBar.Overlay.valueOf(upper.replace("NOTCH_", "NOTCHES_"));
       }
       return BossBar.Overlay.valueOf(upper);
-    } catch (Exception e) {
+    } catch (IllegalArgumentException e) {
       return BossBar.Overlay.PROGRESS;
     }
-  }
-
-  private String getString(Map<String, Object> params, String key, String defaultValue) {
-    Object val = params.get(key);
-    return val != null ? String.valueOf(val) : defaultValue;
   }
 }

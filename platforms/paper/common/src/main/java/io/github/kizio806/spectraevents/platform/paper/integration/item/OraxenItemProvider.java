@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.paper.integration.item;
 
+import io.github.kizio806.spectraevents.platform.bukkit.integration.item.CustomItemProvider;
 import io.th0rgal.oraxen.api.OraxenItems;
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.ItemStack;

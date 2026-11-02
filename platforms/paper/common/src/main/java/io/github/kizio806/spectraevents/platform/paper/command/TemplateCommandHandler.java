@@ -5,10 +5,12 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
 import io.github.kizio806.spectraevents.application.template.SpectraBundleInstaller;
+import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -61,7 +63,6 @@ final class TemplateCommandHandler {
     return 1;
   }
 
-  @SuppressWarnings("FutureReturnValueIgnored")
   private int install(CommandContext<CommandSourceStack> context) {
     CommandSender sender = context.getSource().getSender();
     String id = StringArgumentType.getString(context, "id");
@@ -70,39 +71,41 @@ final class TemplateCommandHandler {
       return 0;
     }
     sender.sendMessage(Component.text("Installing template " + id + "…", NamedTextColor.YELLOW));
-    CompletableFuture.runAsync(
-            () -> {
-              try {
-                Path archive =
-                    plugin
-                        .getDataFolder()
-                        .toPath()
-                        .resolve("templates")
-                        .resolve(id + ".spectra.zip");
-                new SpectraBundleInstaller(
-                        plugin.getDataFolder().toPath(), plugin.getPluginMeta().getVersion())
-                    .install(archive);
-                application.assetPipelineService().buildAssets();
-                var result = definitions.reloadFromDisk();
-                if (!result.failures().isEmpty()) {
-                  throw new IllegalStateException("Definition reload failed: " + result.failures());
-                }
-              } catch (Exception exception) {
-                throw new IllegalStateException("Could not install template " + id, exception);
-              }
-            })
-        .whenComplete(
-            (ignored, failure) ->
-                scheduler.executeGlobal(
-                    () ->
-                        sender.sendMessage(
-                            failure == null
-                                ? Component.text(
-                                    "Template " + id + " is installed and validated.",
-                                    NamedTextColor.GREEN)
-                                : Component.text(
-                                    "Template installation failed: " + message(failure),
-                                    NamedTextColor.RED))));
+    AsyncFutures.discard(
+        CompletableFuture.runAsync(
+                () -> {
+                  try {
+                    Path archive =
+                        plugin
+                            .getDataFolder()
+                            .toPath()
+                            .resolve("templates")
+                            .resolve(id + ".spectra.zip");
+                    new SpectraBundleInstaller(
+                            plugin.getDataFolder().toPath(), plugin.getPluginMeta().getVersion())
+                        .install(archive);
+                    application.assetPipelineService().buildAssets();
+                    var result = definitions.reloadFromDisk();
+                    if (!result.failures().isEmpty()) {
+                      throw new IllegalStateException(
+                          "Definition reload failed: " + result.failures());
+                    }
+                  } catch (IOException | RuntimeException exception) {
+                    throw new IllegalStateException("Could not install template " + id, exception);
+                  }
+                })
+            .whenComplete(
+                (ignored, failure) ->
+                    scheduler.executeGlobal(
+                        () ->
+                            sender.sendMessage(
+                                failure == null
+                                    ? Component.text(
+                                        "Template " + id + " is installed and validated.",
+                                        NamedTextColor.GREEN)
+                                    : Component.text(
+                                        "Template installation failed: " + message(failure),
+                                        NamedTextColor.RED)))));
     return 1;
   }
 

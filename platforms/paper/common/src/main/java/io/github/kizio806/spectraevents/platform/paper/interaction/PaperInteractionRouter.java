@@ -6,7 +6,7 @@ import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
-import io.github.kizio806.spectraevents.platform.paper.metadata.SpectraPdcKeys;
+import io.github.kizio806.spectraevents.platform.bukkit.metadata.BukkitPdcKeys;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -66,7 +66,7 @@ public final class PaperInteractionRouter implements Listener {
       return handleEntityEvent(player, target);
     }
     PersistentDataContainer pdc = target.getPersistentDataContainer();
-    String instanceIdStr = pdc.get(SpectraPdcKeys.INSTANCE_ID, PersistentDataType.STRING);
+    String instanceIdStr = pdc.get(BukkitPdcKeys.EVENT_INSTANCE_ID, PersistentDataType.STRING);
     if (instanceIdStr == null) {
       return false;
     }
@@ -88,7 +88,7 @@ public final class PaperInteractionRouter implements Listener {
 
   private boolean handleEntityEvent(Player player, Entity clicked) {
     PersistentDataContainer pdc = clicked.getPersistentDataContainer();
-    String instanceIdStr = pdc.get(SpectraPdcKeys.INSTANCE_ID, PersistentDataType.STRING);
+    String instanceIdStr = pdc.get(BukkitPdcKeys.EVENT_INSTANCE_ID, PersistentDataType.STRING);
     if (instanceIdStr == null) {
       return false;
     }
@@ -97,7 +97,7 @@ public final class PaperInteractionRouter implements Listener {
       EventInstanceId instanceId = new EventInstanceId(UUID.fromString(instanceIdStr));
       EventInstance instance = orchestrationService.getEventInfo(instanceId.toString());
 
-      String modelIdStr = pdc.get(SpectraPdcKeys.MODEL_ID, PersistentDataType.STRING);
+      String modelIdStr = pdc.get(BukkitPdcKeys.MODEL_DEFINITION_ID, PersistentDataType.STRING);
       String phase = instance.currentPhase().map(p -> p.value()).orElse("none");
 
       EventInteractionDelegate delegate = delegates.get(instance.definitionId().value());

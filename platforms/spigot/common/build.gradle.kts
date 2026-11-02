@@ -5,6 +5,7 @@ plugins {
 }
 
 dependencies {
+    api(project(":platforms:bukkit"))
     api(project(":spectraevents-core"))
     api(project(":spectraevents-application"))
     api(project(":adapters:storage-sqlite"))

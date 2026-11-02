@@ -290,7 +290,6 @@ public class EventDefinitionCompiler {
     return resolved;
   }
 
-  @SuppressWarnings("unchecked")
   private Object resolveValue(Object value, Map<String, Object> values) {
     if (value instanceof String text) {
       Matcher matcher = PARAMETER_REFERENCE.matcher(text);
@@ -556,13 +555,11 @@ public class EventDefinitionCompiler {
         if (params.get("items") instanceof List<?> list) {
           for (Object obj : list) {
             if (obj instanceof Map<?, ?> m) {
-              @SuppressWarnings("unchecked")
-              Map<String, Object> map = (Map<String, Object>) m;
               items.add(
                   new PlatformActions.LootItem(
-                      String.valueOf(map.getOrDefault("material", "minecraft:diamond")),
-                      getInt(map, "amount", 1),
-                      getInt(map, "chance", 100)));
+                      getString(m, "material", "minecraft:diamond"),
+                      getInt(m, "amount", 1),
+                      getInt(m, "chance", 100)));
             }
           }
         }
@@ -580,13 +577,11 @@ public class EventDefinitionCompiler {
                 && pool.get("items") instanceof List<?> rawItems) {
               for (Object rawItem : rawItems) {
                 if (rawItem instanceof Map<?, ?> item) {
-                  @SuppressWarnings("unchecked")
-                  Map<String, Object> values = (Map<String, Object>) item;
                   items.add(
                       new PlatformActions.LootItem(
-                          String.valueOf(values.getOrDefault("material", "minecraft:diamond")),
-                          getInt(values, "amount", 1),
-                          getInt(values, "chance", 100)));
+                          getString(item, "material", "minecraft:diamond"),
+                          getInt(item, "amount", 1),
+                          getInt(item, "chance", 100)));
                 }
               }
             }
@@ -603,8 +598,8 @@ public class EventDefinitionCompiler {
       }
       case "show_title" -> {
         return new PlatformActions.ShowTitleAction(
-            String.valueOf(params.getOrDefault("title", "")),
-            String.valueOf(params.getOrDefault("subtitle", "")),
+            getString(params, "title", ""),
+            getString(params, "subtitle", ""),
             getInt(params, "fade-in", 10),
             getInt(params, "stay", 50),
             getInt(params, "fade-out", 10));
@@ -622,14 +617,12 @@ public class EventDefinitionCompiler {
         if (params.get("mobs") instanceof List<?> list) {
           for (Object obj : list) {
             if (obj instanceof Map<?, ?> m) {
-              @SuppressWarnings("unchecked")
-              Map<String, Object> map = (Map<String, Object>) m;
               mobs.add(
                   new PlatformActions.MobSpawn(
-                      String.valueOf(map.getOrDefault("entity_type", "minecraft:zombie")),
-                      String.valueOf(map.getOrDefault("name", "<red>Mob")),
-                      getInt(map, "amount", 1),
-                      getFloat(map, "radius", 3.0f)));
+                      getString(m, "entity_type", "minecraft:zombie"),
+                      getString(m, "name", "<red>Mob"),
+                      getInt(m, "amount", 1),
+                      getFloat(m, "radius", 3.0f)));
             }
           }
         }
@@ -757,7 +750,7 @@ public class EventDefinitionCompiler {
     }
   }
 
-  private int getInt(Map<String, Object> params, String key, int defaultValue) {
+  private int getInt(Map<?, ?> params, String key, int defaultValue) {
     Object val = params.get(key);
     if (val == null) return defaultValue;
     if (val instanceof Number n) {
@@ -774,7 +767,7 @@ public class EventDefinitionCompiler {
     }
   }
 
-  private String requiredString(Map<String, Object> params, String key) {
+  private String requiredString(Map<?, ?> params, String key) {
     Object value = params.get(key);
     if (value == null || String.valueOf(value).isBlank()) {
       throw new IllegalArgumentException("action parameter '" + key + "' is required");
@@ -782,7 +775,7 @@ public class EventDefinitionCompiler {
     return String.valueOf(value);
   }
 
-  private float getFloat(Map<String, Object> params, String key, float defaultValue) {
+  private float getFloat(Map<?, ?> params, String key, float defaultValue) {
     Object val = params.get(key);
     if (val == null) return defaultValue;
     if (val instanceof Number n) {
@@ -803,7 +796,7 @@ public class EventDefinitionCompiler {
     }
   }
 
-  private double getDouble(Map<String, Object> params, String key, double defaultValue) {
+  private double getDouble(Map<?, ?> params, String key, double defaultValue) {
     Object value = params.get(key);
     if (value == null) return defaultValue;
     if (value instanceof Number number) {
@@ -824,12 +817,17 @@ public class EventDefinitionCompiler {
     }
   }
 
-  private String getString(Map<String, Object> params, String key) {
+  private String getString(Map<?, ?> params, String key) {
     Object value = params.get(key);
     if (value == null || String.valueOf(value).isBlank()) {
       throw new IllegalArgumentException(key + " must not be blank");
     }
     return String.valueOf(value);
+  }
+
+  private String getString(Map<?, ?> params, String key, String defaultValue) {
+    Object value = params.get(key);
+    return value == null ? defaultValue : String.valueOf(value);
   }
 
   private Duration parseDuration(Object obj) {

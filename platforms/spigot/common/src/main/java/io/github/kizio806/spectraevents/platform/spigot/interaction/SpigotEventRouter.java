@@ -5,7 +5,7 @@ import io.github.kizio806.spectraevents.application.execution.EventExecutionEngi
 import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
-import io.github.kizio806.spectraevents.platform.spigot.metadata.SpigotPdcKeys;
+import io.github.kizio806.spectraevents.platform.bukkit.metadata.BukkitPdcKeys;
 import java.util.Map;
 import java.util.UUID;
 import org.bukkit.entity.Entity;
@@ -80,7 +80,7 @@ public final class SpigotEventRouter implements Listener {
           event
               .getEntity()
               .getPersistentDataContainer()
-              .get(SpigotPdcKeys.WAVE_ID, PersistentDataType.STRING);
+              .get(BukkitPdcKeys.WAVE_ID, PersistentDataType.STRING);
       if (waveId != null) {
         executionEngine.recordWaveEntityDeath(
             instanceId, waveId, event.getEntity().getUniqueId(), context);
@@ -113,7 +113,7 @@ public final class SpigotEventRouter implements Listener {
     String raw =
         entity
             .getPersistentDataContainer()
-            .get(SpigotPdcKeys.EVENT_INSTANCE_ID, PersistentDataType.STRING);
+            .get(BukkitPdcKeys.EVENT_INSTANCE_ID, PersistentDataType.STRING);
     if (raw == null) {
       return null;
     }

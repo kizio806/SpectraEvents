@@ -39,6 +39,7 @@ include(
     "adapters:update-http",
     "adapters:assets-blockbench",
     "adapters:assets-delivery",
+    "platforms:bukkit",
     "platforms:paper:common",
     "platforms:spigot:common",
     "distributions:paper",

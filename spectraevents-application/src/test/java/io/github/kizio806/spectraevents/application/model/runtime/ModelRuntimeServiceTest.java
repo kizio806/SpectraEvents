@@ -108,6 +108,39 @@ class ModelRuntimeServiceTest {
     assertEquals(sampleDefinition.id(), activeHandle.get().definitionId());
   }
 
+  @Test
+  void testUpdateTransformsAndRemoveAll() {
+    ModelAnchor anchor = ModelAnchor.of("world", 10.0, 64.0, 10.0);
+    RenderedModelHandle handle = service.spawnModel(sampleDefinition.id(), anchor, null);
+
+    // Update model transform
+    ModelAnchor newAnchor = ModelAnchor.of("world", 20.0, 65.0, 20.0);
+    assertTrue(service.updateModelTransform(handle.runtimeId(), newAnchor));
+    assertEquals(newAnchor, service.getHandle(handle.runtimeId()).get().anchor());
+
+    // Update non-existent model transform
+    assertFalse(service.updateModelTransform(ModelRuntimeId.generate(), newAnchor));
+
+    // Update part transform
+    assertTrue(
+        service.updatePartTransform(
+            handle.runtimeId(), ModelPartId.of("core"), ModelTransform.IDENTITY));
+    assertFalse(
+        service.updatePartTransform(
+            ModelRuntimeId.generate(), ModelPartId.of("core"), ModelTransform.IDENTITY));
+
+    // Restore handle
+    ModelRuntimeId fakeId = ModelRuntimeId.generate();
+    RenderedModelHandle restoredHandle =
+        new RenderedModelHandle(fakeId, sampleDefinition.id(), null, anchor, Map.of(), Map.of());
+    service.restoreHandle(restoredHandle);
+    assertTrue(service.getHandle(fakeId).isPresent());
+
+    // Remove all
+    service.removeAll();
+    assertEquals(0, service.getActiveInstances().size());
+  }
+
   private static class FakeModelRendererPort implements ModelRendererPort {
     private boolean shouldFailSpawn = false;
     private boolean rollbackPerformed = false;

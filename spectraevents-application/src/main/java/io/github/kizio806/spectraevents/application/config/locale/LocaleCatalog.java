@@ -19,6 +19,10 @@ public final class LocaleCatalog {
     this.selected = Map.copyOf(new LinkedHashMap<>(selected));
   }
 
+  public static LocaleCatalog of(Map<String, String> messages) {
+    return new LocaleCatalog(ENGLISH, messages, messages);
+  }
+
   public String selectedLocale() {
     return selectedLocale;
   }

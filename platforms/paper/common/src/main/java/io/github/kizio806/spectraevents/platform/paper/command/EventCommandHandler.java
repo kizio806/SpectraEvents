@@ -14,6 +14,7 @@ import io.github.kizio806.spectraevents.application.port.EventInstanceRepository
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
+import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -232,8 +233,6 @@ public final class EventCommandHandler {
     return 1;
   }
 
-  @SuppressWarnings(
-      "FutureReturnValueIgnored") // Completion sends the platform-thread command reply.
   private int eventStart(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
     String defIdStr = StringArgumentType.getString(ctx, "definition");
@@ -278,40 +277,41 @@ public final class EventCommandHandler {
                       new IllegalArgumentException("Event '" + defIdStr + "' is not registered."));
       Map<String, Object> settings =
           settingsStore == null ? Map.of() : settingsStore.overridesFor(defIdStr);
-      orchestrationService
-          .executionEngine()
-          .startEventAsync(
-              new EventDefinitionCompiler()
-                  .compile(
-                      java.util.Objects.requireNonNull(
-                          registered.sourceSpec(), "Definition source is unavailable"),
-                      settings),
-              platformLocation)
-          .whenComplete(
-              (instance, failure) ->
-                  replyLater(
-                      sender,
-                      failure == null
-                          ? messages.component(
-                              "command.events.started",
-                              NamedTextColor.GREEN,
-                              Map.of(
-                                  "event",
-                                  defIdStr,
-                                  "world",
-                                  platformLocation.world(),
-                                  "id",
-                                  instance.id()))
-                          : messages.component(
-                              "command.events.start-failed",
-                              NamedTextColor.RED,
-                              Map.of(
-                                  "reason",
-                                  safeMessage(
-                                      failure.getCause() == null
-                                          ? failure
-                                          : failure.getCause())))));
-    } catch (Exception e) {
+      AsyncFutures.discard(
+          orchestrationService
+              .executionEngine()
+              .startEventAsync(
+                  new EventDefinitionCompiler()
+                      .compile(
+                          java.util.Objects.requireNonNull(
+                              registered.sourceSpec(), "Definition source is unavailable"),
+                          settings),
+                  platformLocation)
+              .whenComplete(
+                  (instance, failure) ->
+                      replyLater(
+                          sender,
+                          failure == null
+                              ? messages.component(
+                                  "command.events.started",
+                                  NamedTextColor.GREEN,
+                                  Map.of(
+                                      "event",
+                                      defIdStr,
+                                      "world",
+                                      platformLocation.world(),
+                                      "id",
+                                      instance.id()))
+                              : messages.component(
+                                  "command.events.start-failed",
+                                  NamedTextColor.RED,
+                                  Map.of(
+                                      "reason",
+                                      safeMessage(
+                                          failure.getCause() == null
+                                              ? failure
+                                              : failure.getCause()))))));
+    } catch (RuntimeException e) {
       sender.sendMessage(
           messages.component(
               "command.events.start-failed", NamedTextColor.RED, Map.of("reason", e.getMessage())));
@@ -406,7 +406,7 @@ public final class EventCommandHandler {
       sender.sendMessage(
           messages.component(
               "command.events.cancelled", NamedTextColor.GREEN, Map.of("id", instIdStr)));
-    } catch (Exception e) {
+    } catch (RuntimeException e) {
       sender.sendMessage(
           messages.component(
               "command.events.cancel-failed",

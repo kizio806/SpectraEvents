@@ -68,8 +68,8 @@ public final class SpectraBundleInstaller {
    */
   public InstallResult install(Path archive) throws IOException {
     Objects.requireNonNull(archive, "archive");
-    if (!Files.isRegularFile(archive)
-        || !archive.getFileName().toString().endsWith(".spectra.zip")) {
+    String archiveName = String.valueOf(archive.getFileName());
+    if (!Files.isRegularFile(archive) || !archiveName.endsWith(".spectra.zip")) {
       throw new IllegalArgumentException("Bundle must be a regular .spectra.zip file");
     }
     if (Files.size(archive) > MAX_ARCHIVE_BYTES) {
@@ -288,9 +288,10 @@ public final class SpectraBundleInstaller {
   }
 
   private static void writeAtomically(Path target, byte[] content) throws IOException {
-    Files.createDirectories(target.getParent());
-    Path temporary =
-        Files.createTempFile(target.getParent(), target.getFileName().toString(), ".tmp");
+    Path absoluteTarget = target.toAbsolutePath().normalize();
+    Path directory = Objects.requireNonNull(absoluteTarget.getParent(), "directory");
+    Files.createDirectories(directory);
+    Path temporary = Files.createTempFile(directory, String.valueOf(target.getFileName()), ".tmp");
     try {
       Files.write(temporary, content);
       try {

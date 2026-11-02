@@ -10,11 +10,13 @@ class FoliaCompatibilityGuardTest {
   void acceptsTheVerifiedFoliaMinecraftBand() {
     assertTrue(FoliaCompatibilityGuard.isSupportedFoliaMinecraftVersion("26.1.2"));
     assertTrue(FoliaCompatibilityGuard.isSupportedFoliaMinecraftVersion("26.2"));
+    assertTrue(FoliaCompatibilityGuard.isSupportedFoliaMinecraftVersion("26.3"));
+    assertTrue(FoliaCompatibilityGuard.isSupportedFoliaMinecraftVersion("26.3.1"));
   }
 
   @Test
   void rejectsTheUnavailableAndFutureFoliaMinecraftBands() {
-    assertFalse(FoliaCompatibilityGuard.isSupportedFoliaMinecraftVersion("26.3"));
+    assertFalse(FoliaCompatibilityGuard.isSupportedFoliaMinecraftVersion("26.0"));
     assertFalse(FoliaCompatibilityGuard.isSupportedFoliaMinecraftVersion("26.4"));
   }
 }

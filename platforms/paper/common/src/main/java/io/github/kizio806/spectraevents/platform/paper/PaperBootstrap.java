@@ -8,6 +8,7 @@ import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
+import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootListener;
 import io.github.kizio806.spectraevents.platform.paper.action.PaperActionAdapter;
 import io.github.kizio806.spectraevents.platform.paper.command.SpectraMainCommand;
 import io.github.kizio806.spectraevents.platform.paper.common.PaperCapabilityQuery;
@@ -21,7 +22,6 @@ import io.github.kizio806.spectraevents.platform.paper.interaction.PaperEntityDe
 import io.github.kizio806.spectraevents.platform.paper.interaction.PaperInteractionRouter;
 import io.github.kizio806.spectraevents.platform.paper.lifecycle.PaperEntityReconciler;
 import io.github.kizio806.spectraevents.platform.paper.lifecycle.PaperResourceCleaner;
-import io.github.kizio806.spectraevents.platform.paper.loot.PaperSharedLootListener;
 import io.github.kizio806.spectraevents.platform.paper.render.PaperModelRenderer;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.PaperEventTaskScheduler;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.PaperRegionTaskScheduler;
@@ -289,7 +289,11 @@ public final class PaperBootstrap {
     org.bukkit.Bukkit.getPluginManager().registerEvents(interactionRouter, plugin);
     org.bukkit.Bukkit.getPluginManager()
         .registerEvents(
-            new PaperSharedLootListener(plugin, sqliteRepository, application.executionEngine()),
+            new BukkitSharedLootListener(
+                plugin,
+                sqliteRepository,
+                application.executionEngine(),
+                (player, task) -> player.getScheduler().execute(plugin, task, null, 1)),
             plugin);
     org.bukkit.Bukkit.getPluginManager().registerEvents(entityDeathRouter, plugin);
     org.bukkit.Bukkit.getPluginManager().registerEvents(actionAdapter.bossBarManager(), plugin);

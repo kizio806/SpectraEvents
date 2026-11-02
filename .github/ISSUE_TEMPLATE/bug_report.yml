@@ -15,7 +15,7 @@ body:
       options:
         - "Paper"
         - "Purpur"
-        - "Folia (26.1–26.2 only)"
+        - "Folia (26.1–26.3)"
         - "Spigot"
         - "CraftBukkit"
     validations:

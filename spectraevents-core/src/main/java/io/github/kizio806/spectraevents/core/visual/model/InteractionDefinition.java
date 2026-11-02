@@ -16,10 +16,10 @@ public record InteractionDefinition(
     Objects.requireNonNull(interactionId, "interactionId cannot be null");
     Objects.requireNonNull(localOffset, "localOffset cannot be null");
     Objects.requireNonNull(composedOffset, "composedOffset cannot be null");
-    if (width <= 0.0f) {
+    if (!Float.isFinite(width) || width <= 0.0f) {
       throw new IllegalArgumentException("Interaction width must be positive: " + width);
     }
-    if (height <= 0.0f) {
+    if (!Float.isFinite(height) || height <= 0.0f) {
       throw new IllegalArgumentException("Interaction height must be positive: " + height);
     }
   }

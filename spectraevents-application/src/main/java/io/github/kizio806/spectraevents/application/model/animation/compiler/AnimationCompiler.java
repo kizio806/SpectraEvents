@@ -38,7 +38,6 @@ import java.util.Set;
  * Validates and compiles animation DTO specs into immutable, pre-calculated CompiledAnimation
  * instances.
  */
-@SuppressWarnings("StringConcatToTextBlock")
 public class AnimationCompiler {
 
   public static final long MAX_ANIMATION_DURATION_NANOS = 3600L * 1_000_000_000L; // 1 hour
@@ -264,7 +263,7 @@ public class AnimationCompiler {
         double sec = Double.parseDouble(s);
         return AnimationTime.fromSeconds(sec);
       }
-    } catch (Exception e) {
+    } catch (IllegalArgumentException e) {
       diagnostics.add(
           new ValidationDiagnostic(
               Severity.ERROR,

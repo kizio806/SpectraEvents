@@ -214,7 +214,12 @@ val jacocoRootReport =
     tasks.register<JacocoReport>("jacocoRootReport") {
         group = "verification"
         description = "Generates aggregated JaCoCo coverage report across all tested subprojects."
-        val testedProjects = subprojects.filter { it.pluginManager.hasPlugin("jacoco") }
+        val testedProjects =
+            subprojects.filter {
+                it.pluginManager.hasPlugin("jacoco") &&
+                    !it.path.startsWith(":platforms") &&
+                    !it.path.startsWith(":distributions")
+            }
         dependsOn(testedProjects.map { it.tasks.named("jacocoTestReport") })
 
         val allExecutionData =
@@ -247,34 +252,33 @@ sonar {
         property("sonar.projectKey", "kizio806_SpectraEvents")
         property("sonar.organization", "kizio806")
         property("sonar.host.url", "https://sonarcloud.io")
-        property("sonar.exclusions", "distributions/**,server/**")
-        property("sonar.coverage.exclusions", "distributions/**,server/**,build-logic/**")
-        property("sonar.cpd.exclusions", "distributions/**,server/**,build-logic/**")
+        property(
+            "sonar.coverage.exclusions",
+            "**/platforms/**,**/platforms/**/*,platforms/**,platforms/**/*,**/distributions/**,**/distributions/**/*,distributions/**,distributions/**/*,**/build-logic/**,build-logic/**",
+        )
+        property(
+            "sonar.cpd.exclusions",
+            "**/platforms/**,**/platforms/**/*,platforms/**,platforms/**/*,**/distributions/**,**/distributions/**/*,distributions/**,distributions/**/*,**/build-logic/**,build-logic/**",
+        )
     }
 }
 
 subprojects {
     val isContainer = subprojects.isNotEmpty()
     val isDistribution = project.path.startsWith(":distributions")
+    val isPlatform = project.path.startsWith(":platforms")
     sonar {
         properties {
-            if (isContainer || isDistribution) {
-                property("sonar.skip", "true")
+            if (isContainer || isDistribution || isPlatform) {
+                property("sonar.coverage.exclusions", "**/*,**/*.*,**")
+                property("sonar.cpd.exclusions", "**/*,**/*.*,**")
             } else {
                 val subprojectReport =
                     layout.buildDirectory
                         .file("reports/jacoco/test/jacocoTestReport.xml")
                         .get()
                         .asFile
-                val rootReport =
-                    rootProject.layout.buildDirectory
-                        .file("reports/jacoco/jacocoRootReport/jacocoRootReport.xml")
-                        .get()
-                        .asFile
-                property(
-                    "sonar.coverage.jacoco.xmlReportPaths",
-                    listOf(subprojectReport.absolutePath, rootReport.absolutePath).joinToString(","),
-                )
+                property("sonar.coverage.jacoco.xmlReportPaths", subprojectReport.absolutePath)
             }
         }
     }

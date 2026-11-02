@@ -17,6 +17,7 @@ configurations.configureEach {
 }
 
 dependencies {
+    api(project(":platforms:bukkit"))
     api(project(":spectraevents-application"))
     api(project(":adapters:storage-sqlite"))
     api(project(":adapters:update-http"))

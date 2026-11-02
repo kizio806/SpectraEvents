@@ -18,7 +18,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
 /** Orchestrates event instance lifecycle operations for the application. */
-@SuppressWarnings("PMD.AvoidFieldNameMatchingMethodName")
 public final class EventOrchestrationService {
   private static final Logger LOGGER = Logger.getLogger(EventOrchestrationService.class.getName());
   private static final String MANUAL_TRIGGER_TYPE = "manual";

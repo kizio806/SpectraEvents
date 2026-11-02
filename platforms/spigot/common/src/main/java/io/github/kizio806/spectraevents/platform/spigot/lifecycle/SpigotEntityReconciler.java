@@ -2,8 +2,8 @@ package io.github.kizio806.spectraevents.platform.spigot.lifecycle;
 
 import io.github.kizio806.spectraevents.application.port.PlatformEntityReconcilerPort;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
+import io.github.kizio806.spectraevents.platform.bukkit.metadata.BukkitPdcKeys;
 import io.github.kizio806.spectraevents.platform.spigot.action.SpigotActionAdapter;
-import io.github.kizio806.spectraevents.platform.spigot.metadata.SpigotPdcKeys;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -37,7 +37,7 @@ public class SpigotEntityReconciler implements PlatformEntityReconcilerPort {
           String raw =
               entity
                   .getPersistentDataContainer()
-                  .get(SpigotPdcKeys.EVENT_INSTANCE_ID, PersistentDataType.STRING);
+                  .get(BukkitPdcKeys.EVENT_INSTANCE_ID, PersistentDataType.STRING);
           if (raw == null) {
             continue;
           }
@@ -45,11 +45,11 @@ public class SpigotEntityReconciler implements PlatformEntityReconcilerPort {
             String role =
                 entity
                     .getPersistentDataContainer()
-                    .get(SpigotPdcKeys.RESOURCE_ROLE, PersistentDataType.STRING);
+                    .get(BukkitPdcKeys.RESOURCE_ROLE, PersistentDataType.STRING);
             String part =
                 entity
                     .getPersistentDataContainer()
-                    .get(SpigotPdcKeys.MODEL_PART_ID, PersistentDataType.STRING);
+                    .get(BukkitPdcKeys.MODEL_PART_ID, PersistentDataType.STRING);
             discovered.add(
                 new DiscoveredEntity(
                     entity.getUniqueId(),

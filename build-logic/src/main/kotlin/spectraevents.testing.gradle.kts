@@ -1,5 +1,6 @@
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.tasks.testing.Test
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
 plugins {
@@ -41,6 +42,20 @@ tasks.named<JacocoReport>("jacocoTestReport") {
 
 tasks.named<Test>("test") {
     finalizedBy(tasks.named("jacocoTestReport"))
+}
+
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    dependsOn(tasks.named("jacocoTestReport"))
+    executionData.setFrom(
+        layout.buildDirectory.file("jacoco/test.exec"),
+        layout.buildDirectory.file("jacoco/integrationTest.exec"),
+    )
+    sourceDirectories.setFrom(
+        sourceSets.main
+            .get()
+            .allSource.srcDirs,
+    )
+    classDirectories.setFrom(sourceSets.main.get().output)
 }
 
 val integrationTestSourceSet = sourceSets.create("integrationTest")

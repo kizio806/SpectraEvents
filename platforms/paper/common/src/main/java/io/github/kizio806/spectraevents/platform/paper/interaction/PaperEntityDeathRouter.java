@@ -6,7 +6,7 @@ import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
-import io.github.kizio806.spectraevents.platform.paper.metadata.SpectraPdcKeys;
+import io.github.kizio806.spectraevents.platform.bukkit.metadata.BukkitPdcKeys;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,7 +44,7 @@ public final class PaperEntityDeathRouter implements Listener {
     LivingEntity entity = event.getEntity();
     PersistentDataContainer pdc = entity.getPersistentDataContainer();
 
-    String instanceIdStr = pdc.get(SpectraPdcKeys.INSTANCE_ID, PersistentDataType.STRING);
+    String instanceIdStr = pdc.get(BukkitPdcKeys.EVENT_INSTANCE_ID, PersistentDataType.STRING);
     if (instanceIdStr == null) {
       return;
     }
@@ -53,7 +53,7 @@ public final class PaperEntityDeathRouter implements Listener {
       EventInstanceId instanceId = new EventInstanceId(UUID.fromString(instanceIdStr));
       EventInstance instance = orchestrationService.getEventInfo(instanceId.toString());
 
-      String waveId = pdc.get(SpectraPdcKeys.WAVE_ID, PersistentDataType.STRING);
+      String waveId = pdc.get(BukkitPdcKeys.WAVE_ID, PersistentDataType.STRING);
       if (waveId != null && executionEngine != null) {
         org.bukkit.entity.Player killer = entity.getKiller();
         ExecutionContext context =

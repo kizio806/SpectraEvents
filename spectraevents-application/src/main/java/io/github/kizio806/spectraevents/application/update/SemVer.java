@@ -7,7 +7,6 @@ import java.util.regex.Pattern;
  * Semantic Versioning (SemVer 2.0.0) parser and comparator. Handles major, minor, patch, and
  * prerelease identifiers (e.g. 0.1.0-beta.1 < 0.1.0-beta.2 < 0.1.0).
  */
-@SuppressWarnings("PMD.AvoidFieldNameMatchingMethodName")
 public final class SemVer implements Comparable<SemVer> {
   private static final Pattern DOT = Pattern.compile("\\.");
 

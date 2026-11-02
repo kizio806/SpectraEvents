@@ -1,6 +1,7 @@
 package io.github.kizio806.spectraevents.platform.paper.integration.item;
 
 import com.nexomc.nexo.api.NexoItems;
+import io.github.kizio806.spectraevents.platform.bukkit.integration.item.CustomItemProvider;
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.ItemStack;
 

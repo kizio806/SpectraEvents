@@ -55,7 +55,6 @@ public class SingleWriterPersistenceExecutor {
   }
 
   /** Executes a write on the single writer thread and waits for its actual result. */
-  @SuppressWarnings("PMD.AvoidCatchingGenericException")
   public void executeAndWait(Runnable writeOperation) {
     try {
       executeAsync(writeOperation).join();
@@ -69,7 +68,6 @@ public class SingleWriterPersistenceExecutor {
   }
 
   /** Queues a write and completes only after it has run on the single writer thread. */
-  @SuppressWarnings("PMD.AvoidCatchingGenericException")
   public CompletableFuture<Void> executeAsync(Runnable writeOperation) {
     if (Thread.currentThread().equals(workerThread)) {
       try {
@@ -106,7 +104,6 @@ public class SingleWriterPersistenceExecutor {
     return completion;
   }
 
-  @SuppressWarnings("PMD.AvoidCatchingGenericException")
   private void runLoop() {
     while (running.get() || !queue.isEmpty()) {
       try {
@@ -122,7 +119,7 @@ public class SingleWriterPersistenceExecutor {
         }
         // Shutdown interrupts the poll so the worker can drain the remaining queue immediately.
         // Keep the loop alive until all accepted writes have been processed.
-      } catch (Exception e) {
+      } catch (RuntimeException e) {
         totalErrors.incrementAndGet();
         LOGGER.log(Level.SEVERE, "Error in persistence writer thread", e);
       }

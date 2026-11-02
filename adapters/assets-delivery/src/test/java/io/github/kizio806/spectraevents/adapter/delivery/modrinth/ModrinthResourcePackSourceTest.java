@@ -85,7 +85,8 @@ class ModrinthResourcePackSourceTest {
   }
 
   @Test
-  void selectsThePinnedVersionIdInsteadOfTheReleaseVersionName() throws Exception {
+  void selectsThePinnedVersionIdInsteadOfTheReleaseVersionName()
+      throws InterruptedException, java.util.concurrent.ExecutionException {
     String fixture =
         """
         [
