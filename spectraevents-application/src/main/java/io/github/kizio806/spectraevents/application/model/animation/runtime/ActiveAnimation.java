@@ -86,6 +86,34 @@ public class ActiveAnimation {
     this.state = Objects.requireNonNull(state, "state cannot be null");
   }
 
+  public synchronized boolean isPlaying() {
+    return state == PlaybackState.PLAYING;
+  }
+
+  public synchronized boolean tryPause() {
+    if (state == PlaybackState.PLAYING) {
+      state = PlaybackState.PAUSED;
+      return true;
+    }
+    return false;
+  }
+
+  public synchronized boolean tryResume() {
+    if (state == PlaybackState.PAUSED) {
+      state = PlaybackState.PLAYING;
+      return true;
+    }
+    return false;
+  }
+
+  public synchronized boolean tryStop() {
+    if (state != PlaybackState.STOPPED) {
+      state = PlaybackState.STOPPED;
+      return true;
+    }
+    return false;
+  }
+
   public synchronized AnimationTime currentTime() {
     return currentTime;
   }

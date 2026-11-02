@@ -171,10 +171,7 @@ public class AnimationRuntimeService {
       Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
       if (animOpt.isPresent()) {
         ActiveAnimation anim = animOpt.get();
-        if (anim.state() == PlaybackState.PLAYING) {
-          anim.setState(PlaybackState.PAUSED);
-          return true;
-        }
+        return anim.tryPause();
       }
       return false;
     }
@@ -186,8 +183,7 @@ public class AnimationRuntimeService {
       Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
       if (animOpt.isPresent()) {
         ActiveAnimation anim = animOpt.get();
-        if (anim.state() == PlaybackState.PAUSED) {
-          anim.setState(PlaybackState.PLAYING);
+        if (anim.tryResume()) {
           stepAnimation(anim);
           return true;
         }
@@ -202,9 +198,10 @@ public class AnimationRuntimeService {
       Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
       if (animOpt.isPresent()) {
         ActiveAnimation anim = animOpt.get();
-        anim.setState(PlaybackState.STOPPED);
-        activeRegistry.remove(playbackId);
-        return true;
+        if (anim.tryStop()) {
+          activeRegistry.remove(playbackId);
+          return true;
+        }
       }
       return false;
     }
@@ -355,16 +352,19 @@ public class AnimationRuntimeService {
         () -> {
           synchronized (playbackLock) {
             Optional<ActiveAnimation> registered = activeRegistry.findById(activeAnim.playbackId());
-            if (registered.isEmpty()
-                || !registered.get().equals(activeAnim)
-                || activeAnim.state() != PlaybackState.PLAYING) {
+            if (registered.isEmpty() || !registered.get().equals(activeAnim)) {
               return;
             }
-            boolean completed = activeAnim.advanceTime(stepNanos);
-            if (completed) {
-              activeRegistry.remove(activeAnim.playbackId());
-            } else {
-              stepAnimation(activeAnim);
+            synchronized (activeAnim) {
+              if (!activeAnim.isPlaying()) {
+                return;
+              }
+              boolean completed = activeAnim.advanceTime(stepNanos);
+              if (completed) {
+                activeRegistry.remove(activeAnim.playbackId());
+              } else {
+                stepAnimation(activeAnim);
+              }
             }
           }
         });
