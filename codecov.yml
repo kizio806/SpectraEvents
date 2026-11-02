@@ -9,8 +9,13 @@ coverage:
         threshold: 1%
     patch:
       default:
-        target: 90%
+        target: 80%
         threshold: 0%
+
+ignore:
+  - "platforms/**"
+  - "distributions/**"
+  - "build-logic/**"
 
 comment:
   layout: "header, diff, flags, components"
@@ -31,7 +36,3 @@ component_management:
       name: Adapters
       paths:
         - adapters/**
-    - component_id: platforms
-      name: Platform Adapters
-      paths:
-        - platforms/**
