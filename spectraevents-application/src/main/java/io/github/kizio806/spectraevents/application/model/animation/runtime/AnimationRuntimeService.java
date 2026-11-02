@@ -171,7 +171,9 @@ public class AnimationRuntimeService {
       Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
       if (animOpt.isPresent()) {
         ActiveAnimation anim = animOpt.get();
-        return anim.tryPause();
+        synchronized (anim) {
+          return anim.tryPause();
+        }
       }
       return false;
     }
@@ -183,9 +185,11 @@ public class AnimationRuntimeService {
       Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
       if (animOpt.isPresent()) {
         ActiveAnimation anim = animOpt.get();
-        if (anim.tryResume()) {
-          stepAnimation(anim);
-          return true;
+        synchronized (anim) {
+          if (anim.tryResume()) {
+            stepAnimation(anim);
+            return true;
+          }
         }
       }
       return false;
@@ -198,9 +202,11 @@ public class AnimationRuntimeService {
       Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
       if (animOpt.isPresent()) {
         ActiveAnimation anim = animOpt.get();
-        if (anim.tryStop()) {
-          activeRegistry.remove(playbackId);
-          return true;
+        synchronized (anim) {
+          if (anim.tryStop()) {
+            activeRegistry.remove(playbackId);
+            return true;
+          }
         }
       }
       return false;
@@ -214,21 +220,23 @@ public class AnimationRuntimeService {
       Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
       if (animOpt.isPresent()) {
         ActiveAnimation anim = animOpt.get();
-        anim.setCurrentTime(targetTime);
-        if (applyComposedPose(anim, targetTime, 0)) {
-          return true;
-        }
-        // Instant update without interpolation duration
-        for (CompiledTrack track : anim.compiledAnimation().tracks()) {
-          if (!track.target().isRoot() && track.target().partId() != null) {
-            ModelTransform pose = track.evaluate(targetTime, ModelTransform.IDENTITY);
-            if (pose != null) {
-              modelRenderer.updatePartTransform(
-                  anim.modelHandle(), track.target().partId(), pose, 0);
+        synchronized (anim) {
+          anim.setCurrentTime(targetTime);
+          if (applyComposedPose(anim, targetTime, 0)) {
+            return true;
+          }
+          // Instant update without interpolation duration
+          for (CompiledTrack track : anim.compiledAnimation().tracks()) {
+            if (!track.target().isRoot() && track.target().partId() != null) {
+              ModelTransform pose = track.evaluate(targetTime, ModelTransform.IDENTITY);
+              if (pose != null) {
+                modelRenderer.updatePartTransform(
+                    anim.modelHandle(), track.target().partId(), pose, 0);
+              }
             }
           }
+          return true;
         }
-        return true;
       }
       return false;
     }
@@ -239,8 +247,10 @@ public class AnimationRuntimeService {
     synchronized (playbackLock) {
       List<ActiveAnimation> activeAnims = activeRegistry.findByModelHandle(handle);
       for (ActiveAnimation anim : activeAnims) {
-        anim.setState(PlaybackState.STOPPED);
-        activeRegistry.remove(anim.playbackId());
+        synchronized (anim) {
+          anim.tryStop();
+          activeRegistry.remove(anim.playbackId());
+        }
       }
     }
   }
@@ -271,61 +281,63 @@ public class AnimationRuntimeService {
 
   private void stepAnimation(ActiveAnimation activeAnim) {
     synchronized (playbackLock) {
-      if (activeAnim.state() != PlaybackState.PLAYING) {
-        return;
-      }
+      synchronized (activeAnim) {
+        if (!activeAnim.isPlaying()) {
+          return;
+        }
 
-      if (stepComposedAnimation(activeAnim)) {
-        return;
-      }
+        if (stepComposedAnimation(activeAnim)) {
+          return;
+        }
 
-      int minStepTicks = Integer.MAX_VALUE;
+        int minStepTicks = Integer.MAX_VALUE;
 
-      for (CompiledTrack track : activeAnim.compiledAnimation().tracks()) {
-        CompiledSegment segment = activeAnim.getActiveSegment(track);
-        if (segment != null) {
-          int durationTicks = segment.interpolationDurationTicks();
-          minStepTicks = Math.min(minStepTicks, Math.max(1, durationTicks));
+        for (CompiledTrack track : activeAnim.compiledAnimation().tracks()) {
+          CompiledSegment segment = activeAnim.getActiveSegment(track);
+          if (segment != null) {
+            int durationTicks = segment.interpolationDurationTicks();
+            minStepTicks = Math.min(minStepTicks, Math.max(1, durationTicks));
 
-          if (!track.target().isRoot() && track.target().partId() != null) {
-            modelRenderer.updatePartTransform(
-                activeAnim.modelHandle(),
-                track.target().partId(),
-                segment.targetTransform(),
-                durationTicks);
+            if (!track.target().isRoot() && track.target().partId() != null) {
+              modelRenderer.updatePartTransform(
+                  activeAnim.modelHandle(),
+                  track.target().partId(),
+                  segment.targetTransform(),
+                  durationTicks);
+            }
           }
         }
+
+        if (minStepTicks == Integer.MAX_VALUE) {
+          minStepTicks = 1;
+        }
+
+        final long stepTicks = minStepTicks;
+        Duration stepDuration = Duration.ofMillis(stepTicks * 50);
+
+        scheduler.schedule(
+            stepDuration,
+            () -> {
+              synchronized (playbackLock) {
+                Optional<ActiveAnimation> registered =
+                    activeRegistry.findById(activeAnim.playbackId());
+                if (registered.isEmpty() || !registered.get().equals(activeAnim)) {
+                  return;
+                }
+                synchronized (activeAnim) {
+                  if (!activeAnim.isPlaying()) {
+                    return;
+                  }
+                  boolean completed = activeAnim.advanceStep(stepTicks * 50_000_000L);
+                  if (completed) {
+                    activeRegistry.remove(activeAnim.playbackId());
+                  } else {
+                    stepAnimation(activeAnim);
+                  }
+                }
+              }
+            });
       }
-
-      if (minStepTicks == Integer.MAX_VALUE) {
-        minStepTicks = 1;
-      }
-
-      final long stepTicks = minStepTicks;
-      Duration stepDuration = Duration.ofMillis(stepTicks * 50);
-
-      scheduler.schedule(
-          stepDuration,
-          () -> {
-            synchronized (playbackLock) {
-              Optional<ActiveAnimation> registered =
-                  activeRegistry.findById(activeAnim.playbackId());
-              if (registered.isEmpty()
-                  || !registered.get().equals(activeAnim)
-                  || activeAnim.state() != PlaybackState.PLAYING) {
-                return;
-              }
-              boolean completed = activeAnim.advanceTime(stepTicks * 50_000_000L);
-              for (CompiledTrack track : activeAnim.compiledAnimation().tracks()) {
-                activeAnim.advanceTrackSegment(track);
-              }
-              if (completed) {
-                activeRegistry.remove(activeAnim.playbackId());
-              } else {
-                stepAnimation(activeAnim);
-              }
-            }
-          });
     }
   }
 

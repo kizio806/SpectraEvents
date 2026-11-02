@@ -114,6 +114,23 @@ public class ActiveAnimation {
     return false;
   }
 
+  /**
+   * Atomically advances the playback playhead and current track segments if currently playing.
+   *
+   * @param deltaNanos nanoseconds elapsed in the step
+   * @return true if the animation completed, false otherwise
+   */
+  public synchronized boolean advanceStep(long deltaNanos) {
+    if (state != PlaybackState.PLAYING) {
+      return false;
+    }
+    boolean completed = advanceTime(deltaNanos);
+    for (CompiledTrack track : compiledAnimation.tracks()) {
+      advanceTrackSegment(track);
+    }
+    return completed;
+  }
+
   public synchronized AnimationTime currentTime() {
     return currentTime;
   }

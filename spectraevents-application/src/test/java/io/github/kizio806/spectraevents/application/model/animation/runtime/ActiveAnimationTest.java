@@ -209,4 +209,38 @@ class ActiveAnimationTest {
     anim.advanceTrackSegment(track);
     assertNull(anim.getActiveSegment(track)); // reached end of single segment
   }
+
+  @Test
+  void testAdvanceStepAndAtomicTransitions() {
+    ActiveAnimation anim =
+        new ActiveAnimation(
+            AnimationPlaybackId.random(),
+            handle,
+            compiledAnim,
+            1.0f,
+            LoopMode.ONCE,
+            1,
+            RecoveryPolicy.STOP,
+            null);
+
+    assertTrue(anim.isPlaying());
+    assertTrue(anim.tryPause());
+    assertFalse(anim.isPlaying());
+    assertEquals(PlaybackState.PAUSED, anim.state());
+    assertFalse(anim.tryPause());
+
+    assertFalse(anim.advanceStep(500_000_000L));
+
+    assertTrue(anim.tryResume());
+    assertTrue(anim.isPlaying());
+    assertEquals(PlaybackState.PLAYING, anim.state());
+    assertFalse(anim.tryResume());
+
+    boolean completed = anim.advanceStep(1_200_000_000L);
+    assertTrue(completed);
+    assertEquals(PlaybackState.COMPLETED, anim.state());
+
+    assertTrue(anim.tryStop());
+    assertEquals(PlaybackState.STOPPED, anim.state());
+  }
 }
