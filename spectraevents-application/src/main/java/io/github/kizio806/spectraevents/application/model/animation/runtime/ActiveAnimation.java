@@ -78,19 +78,19 @@ public class ActiveAnimation {
     return compiledAnimation;
   }
 
-  public synchronized PlaybackState state() {
+  public PlaybackState state() {
     return state;
   }
 
-  public synchronized void setState(PlaybackState state) {
+  public void setState(PlaybackState state) {
     this.state = Objects.requireNonNull(state, "state cannot be null");
   }
 
-  public synchronized boolean isPlaying() {
+  public boolean isPlaying() {
     return state == PlaybackState.PLAYING;
   }
 
-  public synchronized boolean tryPause() {
+  public boolean tryPause() {
     if (state == PlaybackState.PLAYING) {
       state = PlaybackState.PAUSED;
       return true;
@@ -98,7 +98,7 @@ public class ActiveAnimation {
     return false;
   }
 
-  public synchronized boolean tryResume() {
+  public boolean tryResume() {
     if (state == PlaybackState.PAUSED) {
       state = PlaybackState.PLAYING;
       return true;
@@ -106,7 +106,7 @@ public class ActiveAnimation {
     return false;
   }
 
-  public synchronized boolean tryStop() {
+  public boolean tryStop() {
     if (state != PlaybackState.STOPPED) {
       state = PlaybackState.STOPPED;
       return true;
@@ -120,7 +120,7 @@ public class ActiveAnimation {
    * @param deltaNanos nanoseconds elapsed in the step
    * @return true if the animation completed, false otherwise
    */
-  public synchronized boolean advanceStep(long deltaNanos) {
+  public boolean advanceStep(long deltaNanos) {
     if (state != PlaybackState.PLAYING) {
       return false;
     }
@@ -131,18 +131,18 @@ public class ActiveAnimation {
     return completed;
   }
 
-  public synchronized AnimationTime currentTime() {
+  public AnimationTime currentTime() {
     return currentTime;
   }
 
-  public synchronized void setCurrentTime(AnimationTime currentTime) {
+  public void setCurrentTime(AnimationTime currentTime) {
     seekTo(currentTime);
   }
 
   /**
    * Seeks the playhead to a specific target time, aligning track segment indices and timeline cues.
    */
-  public synchronized void seekTo(AnimationTime targetTime) {
+  public void seekTo(AnimationTime targetTime) {
     this.currentTime = Objects.requireNonNull(targetTime, "targetTime cannot be null");
 
     // Align segment indices for each track to match targetTime playhead
@@ -171,26 +171,26 @@ public class ActiveAnimation {
     }
   }
 
-  public synchronized float speed() {
+  public float speed() {
     return speed;
   }
 
-  public synchronized void setSpeed(float speed) {
+  public void setSpeed(float speed) {
     if (speed <= 0.0f) {
       throw new IllegalArgumentException("Speed must be positive");
     }
     this.speed = speed;
   }
 
-  public synchronized LoopMode loopMode() {
+  public LoopMode loopMode() {
     return loopMode;
   }
 
-  public synchronized int currentLoop() {
+  public int currentLoop() {
     return currentLoop;
   }
 
-  public synchronized RecoveryPolicy recoveryPolicy() {
+  public RecoveryPolicy recoveryPolicy() {
     return recoveryPolicy;
   }
 
@@ -201,7 +201,7 @@ public class ActiveAnimation {
    * @param deltaNanos time elapsed in nanoseconds
    * @return true if the animation reached its end and completed; false if active/looping
    */
-  public synchronized boolean advanceTime(long deltaNanos) {
+  public boolean advanceTime(long deltaNanos) {
     if (state != PlaybackState.PLAYING) {
       return false;
     }
@@ -264,7 +264,7 @@ public class ActiveAnimation {
     }
   }
 
-  public synchronized CompiledSegment getActiveSegment(CompiledTrack track) {
+  public CompiledSegment getActiveSegment(CompiledTrack track) {
     Integer idx = trackSegmentIndices.get(track);
     if (idx == null || idx >= track.segments().size()) {
       return null;
@@ -272,11 +272,11 @@ public class ActiveAnimation {
     return track.segments().get(idx);
   }
 
-  public synchronized void advanceTrackSegment(CompiledTrack track) {
+  public void advanceTrackSegment(CompiledTrack track) {
     trackSegmentIndices.compute(track, (k, current) -> (current == null) ? 0 : current + 1);
   }
 
-  public synchronized AnimationPlaybackState toSnapshotState() {
+  public AnimationPlaybackState toSnapshotState() {
     return new AnimationPlaybackState(
         playbackId,
         modelHandle,
