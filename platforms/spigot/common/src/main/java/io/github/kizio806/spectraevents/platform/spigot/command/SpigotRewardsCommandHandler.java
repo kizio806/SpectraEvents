@@ -2,6 +2,7 @@ package io.github.kizio806.spectraevents.platform.spigot.command;
 
 import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
 import io.github.kizio806.spectraevents.application.service.RewardMailboxService.ReconciliationDecision;
+import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
 import io.github.kizio806.spectraevents.platform.spigot.action.SpigotActionAdapter;
 import java.util.Arrays;
 import java.util.List;
@@ -42,7 +43,7 @@ public final class SpigotRewardsCommandHandler implements SpigotSubcommandHandle
       throw new IllegalStateException("Rewards are available to in-game players only");
     }
     if (arguments.length == 0 || "list".equalsIgnoreCase(arguments[0])) {
-      var _ =
+      AsyncFutures.discard(
           application
               .rewardMailboxService()
               .pendingClaims(player.getUniqueId())
@@ -69,7 +70,7 @@ public final class SpigotRewardsCommandHandler implements SpigotSubcommandHandle
                                       "command.spigot.reward-entry",
                                       Map.of("id", claim.id(), "count", claim.items().size()));
                                 }
-                              }));
+                              })));
       return true;
     }
     if (!"claim".equalsIgnoreCase(arguments[0])) {
@@ -77,7 +78,7 @@ public final class SpigotRewardsCommandHandler implements SpigotSubcommandHandle
     }
     helper.requireArguments(arguments, 2, "/spectraevents rewards claim <claim-id>");
     UUID claimId = UUID.fromString(arguments[1]);
-    var _ =
+    AsyncFutures.discard(
         application
             .rewardMailboxService()
             .claim(
@@ -105,14 +106,14 @@ public final class SpigotRewardsCommandHandler implements SpigotSubcommandHandle
                                     case BUSY -> "command.spigot.reward-busy";
                                     case NOT_AVAILABLE -> "command.spigot.reward-unavailable";
                                   });
-                            }));
+                            })));
     return true;
   }
 
   private boolean reconcileRewards(CommandSender sender, String[] arguments) {
     helper.require(sender, "spectraevents.rewards.reconcile");
     if (arguments.length == 0 || "list".equalsIgnoreCase(arguments[0])) {
-      var _ =
+      AsyncFutures.discard(
           application
               .rewardMailboxService()
               .deliveringClaims()
@@ -145,7 +146,7 @@ public final class SpigotRewardsCommandHandler implements SpigotSubcommandHandle
                                           "count",
                                           claim.items().size()));
                                 }
-                              }));
+                              })));
       return true;
     }
     if (arguments.length != 2
@@ -159,7 +160,7 @@ public final class SpigotRewardsCommandHandler implements SpigotSubcommandHandle
         "mark-delivered".equalsIgnoreCase(arguments[0])
             ? ReconciliationDecision.MARK_DELIVERED
             : ReconciliationDecision.RETURN_TO_PENDING;
-    var _ =
+    AsyncFutures.discard(
         application
             .rewardMailboxService()
             .reconcile(claimId, decision)
@@ -182,7 +183,7 @@ public final class SpigotRewardsCommandHandler implements SpigotSubcommandHandle
                                       ? "command.rewards.reconcile-resolved"
                                       : "command.rewards.reconcile-not-found",
                                   Map.of("id", claimId, "decision", decision.name()));
-                            }));
+                            })));
     return true;
   }
 

@@ -17,6 +17,7 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.core.gameplay.contribution.ContributionRanking;
 import io.github.kizio806.spectraevents.core.gameplay.reward.RewardItem;
 import io.github.kizio806.spectraevents.core.visual.model.ModelId;
+import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
 import io.github.kizio806.spectraevents.platform.bukkit.integration.item.CustomItemProvider;
 import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootHolder;
 import io.github.kizio806.spectraevents.platform.bukkit.metadata.BukkitPdcKeys;
@@ -354,10 +355,14 @@ public abstract class AbstractBukkitActionAdapter extends AbstractPlatformAction
         instance.id(),
         baseLoc,
         () -> {
-          if (sound != null) {
-            world.playSound(baseLoc, sound, action.volume(), action.pitch());
-          } else {
-            world.playSound(baseLoc, action.sound(), action.volume(), action.pitch());
+          try {
+            if (sound != null) {
+              world.playSound(baseLoc, sound, action.volume(), action.pitch());
+            } else {
+              world.playSound(baseLoc, action.sound(), action.volume(), action.pitch());
+            }
+          } catch (Exception e) {
+            logger.log(Level.WARNING, "Failed to play sound: " + action.sound(), e);
           }
         });
   }
@@ -381,8 +386,12 @@ public abstract class AbstractBukkitActionAdapter extends AbstractPlatformAction
         instance.id(),
         baseLoc,
         () -> {
-          if (particle != null) {
-            world.spawnParticle(particle, baseLoc, action.count());
+          try {
+            if (particle != null) {
+              world.spawnParticle(particle, baseLoc, action.count());
+            }
+          } catch (Exception e) {
+            logger.log(Level.WARNING, "Failed to spawn particle: " + action.particle(), e);
           }
         });
   }
@@ -627,9 +636,9 @@ public abstract class AbstractBukkitActionAdapter extends AbstractPlatformAction
                   eligible,
                   state.minimumContribution(),
                   state.contributionThresholdMillis());
-          var _ = executeGlobal(instance.id(), () -> broadcastPodium(podium));
+          AsyncFutures.discard(executeGlobal(instance.id(), () -> broadcastPodium(podium)));
           List<CompletableFuture<Boolean>> deliveries = new ArrayList<>();
-          for (int place = 0; place < podium.size(); place++) {
+          for (int place = 0; place < podium.size() && place < action.pools().size(); place++) {
             Player winner = Bukkit.getPlayer(podium.get(place));
             if (winner == null) {
               continue;
@@ -888,28 +897,61 @@ public abstract class AbstractBukkitActionAdapter extends AbstractPlatformAction
   }
 
   protected Sound resolveSound(String name) {
-    String clean = name.toLowerCase(Locale.ROOT);
+    if (name == null || name.isBlank()) {
+      return null;
+    }
+    String raw = name.trim();
+    String clean = raw.toLowerCase(Locale.ROOT);
     if (clean.startsWith("minecraft:")) {
       clean = clean.substring("minecraft:".length());
     }
-    String dotted = clean.replace('_', '.');
-    Sound sound = org.bukkit.Registry.SOUNDS.get(org.bukkit.NamespacedKey.minecraft(dotted));
-    if (sound != null) {
-      return sound;
+    if (org.bukkit.Bukkit.getServer() != null) {
+      try {
+        org.bukkit.NamespacedKey key =
+            org.bukkit.NamespacedKey.fromString(raw.toLowerCase(Locale.ROOT));
+        if (key != null && org.bukkit.Registry.SOUNDS != null) {
+          Sound sound = org.bukkit.Registry.SOUNDS.get(key);
+          if (sound != null) {
+            return sound;
+          }
+        }
+      } catch (IllegalArgumentException ignored) {
+        // Fall through
+      }
+      try {
+        if (org.bukkit.Registry.SOUNDS != null) {
+          Sound sound = org.bukkit.Registry.SOUNDS.get(org.bukkit.NamespacedKey.minecraft(clean));
+          if (sound != null) {
+            return sound;
+          }
+        }
+      } catch (IllegalArgumentException ignored) {
+        // Fall through
+      }
     }
-    String underscored = clean.replace('.', '_');
-    sound = org.bukkit.Registry.SOUNDS.get(org.bukkit.NamespacedKey.minecraft(underscored));
-    if (sound != null) {
-      return sound;
+    String fieldName = clean.replace('.', '_').toUpperCase(Locale.ROOT);
+    try {
+      java.lang.reflect.Field field = Sound.class.getField(fieldName);
+      Object value = field.get(null);
+      if (value instanceof Sound sound) {
+        return sound;
+      }
+    } catch (ReflectiveOperationException | SecurityException | LinkageError ignored) {
+      // Fall through
     }
-    throw new FatalActionException("Unknown sound: " + name);
+    return null;
   }
 
   protected Particle resolveParticle(String name) {
+    if (name == null || name.isBlank()) {
+      return Particle.FLAME;
+    }
+    String clean = name.replace("minecraft:", "").replace('.', '_').toUpperCase(Locale.ROOT);
     try {
-      return Particle.valueOf(name.replace("minecraft:", "").toUpperCase(Locale.ROOT));
-    } catch (IllegalArgumentException e) {
-      throw new FatalActionException("Unknown particle: " + name, e);
+      return Particle.valueOf(clean);
+    } catch (IllegalArgumentException ignored) {
+      logger.log(Level.WARNING, "Unknown particle: {0}, falling back to FLAME", name);
+      return Particle.FLAME;
     }
   }
 

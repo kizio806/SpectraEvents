@@ -15,6 +15,6 @@ final class FoliaCompatibilityGuard {
   }
 
   static boolean isSupportedFoliaMinecraftVersion(String minecraftVersion) {
-    return minecraftVersion.matches("26\\.(1|2)(?:\\.\\d+)?");
+    return minecraftVersion.matches("26\\.(1|2|3)(?:\\.\\d+)?");
   }
 }

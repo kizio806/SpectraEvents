@@ -9,6 +9,7 @@ import io.github.kizio806.spectraevents.application.service.EventOrchestrationSe
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
+import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -86,7 +87,7 @@ public final class SpigotEventCommandHandler implements SpigotSubcommandHandler 
             bukkitLocation.getZ(),
             bukkitLocation.getYaw(),
             bukkitLocation.getPitch());
-    var _ =
+    AsyncFutures.discard(
         orchestrationService
             .startDefinitionAsync(arguments[1], location)
             .whenComplete(
@@ -106,7 +107,7 @@ public final class SpigotEventCommandHandler implements SpigotSubcommandHandler 
                                   sender,
                                   "command.spigot.event-started",
                                   Map.of("id", started.id()));
-                            }));
+                            })));
     return true;
   }
 

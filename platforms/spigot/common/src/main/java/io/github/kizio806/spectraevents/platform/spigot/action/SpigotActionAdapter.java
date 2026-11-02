@@ -9,6 +9,7 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.platform.bukkit.action.AbstractBukkitActionAdapter;
 import io.github.kizio806.spectraevents.platform.bukkit.common.EventDisplayPlaceholders;
+import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
 import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootHolder;
 import java.time.Duration;
 import java.util.List;
@@ -143,7 +144,7 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
 
   @Override
   public void refreshHud(EventInstance instance, EventRuntimeState state) {
-    var _ =
+    AsyncFutures.discard(
         executeSync(
             () -> {
               BossBar bar = bossBars.get(instance.id());
@@ -161,7 +162,7 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
                             calculateProgress(
                                 state, bossBarProgressModes.getOrDefault(instance.id(), "1.0")))));
               }
-            });
+            }));
   }
 
   private String resolveDisplayTemplate(

@@ -5,6 +5,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
 import io.github.kizio806.spectraevents.application.template.SpectraBundleInstaller;
+import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -70,7 +71,7 @@ final class TemplateCommandHandler {
       return 0;
     }
     sender.sendMessage(Component.text("Installing template " + id + "…", NamedTextColor.YELLOW));
-    var _ =
+    AsyncFutures.discard(
         CompletableFuture.runAsync(
                 () -> {
                   try {
@@ -104,7 +105,7 @@ final class TemplateCommandHandler {
                                         NamedTextColor.GREEN)
                                     : Component.text(
                                         "Template installation failed: " + message(failure),
-                                        NamedTextColor.RED))));
+                                        NamedTextColor.RED)))));
     return 1;
   }
 

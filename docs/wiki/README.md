@@ -12,7 +12,7 @@ All files here are automatically mirrored to the GitHub Wiki repository on every
 | :--- | :--- | :--- |
 | **[`Home.md`](Home.md)** | [Home](https://github.com/kizio806/SpectraEvents/wiki) | Overview, feature summary, status, and navigation hub. |
 | **[`Installation.md`](Installation.md)** | [Installation](https://github.com/kizio806/SpectraEvents/wiki/Installation) | Prerequisites, Java 25 requirement, artifact choice, and first boot. |
-| **[`Compatibility.md`](Compatibility.md)** | [Compatibility](https://github.com/kizio806/SpectraEvents/wiki/Compatibility) | Supported server platforms (Paper, Purpur, Spigot, CraftBukkit) and Folia opt-out. |
+| **[`Compatibility.md`](Compatibility.md)** | [Compatibility](https://github.com/kizio806/SpectraEvents/wiki/Compatibility) | Supported server platforms (Paper, Purpur, Spigot, CraftBukkit, Folia). |
 | **[`Commands-and-Permissions.md`](Commands-and-Permissions.md)** | [Commands and Permissions](https://github.com/kizio806/SpectraEvents/wiki/Commands-and-Permissions) | Command reference (`/spectraevents`), permissions tree, and operator diagnostics. |
 | **[`Official-Events.md`](Official-Events.md)** | [Official Events](https://github.com/kizio806/SpectraEvents/wiki/Official-Events) | Pre-packaged event definitions: Airdrop, Meteor, Metin, Piñata, Boss Portal. |
 | **[`Event-Authoring.md`](Event-Authoring.md)** | [Event Authoring](https://github.com/kizio806/SpectraEvents/wiki/Event-Authoring) | Data-driven YAML definition guide, phases, triggers, conditions, and actions. |

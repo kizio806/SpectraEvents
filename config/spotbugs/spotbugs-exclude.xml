@@ -30,11 +30,6 @@
         <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE" />
     </Match>
 
-    <!-- Unnamed variables (var _ = future) generate dead local stores for intentionally ignored futures in Java 22+ -->
-    <Match>
-        <Bug pattern="DLS_DEAD_LOCAL_STORE" />
-    </Match>
-
     <!-- Bukkit / Spigot API return values lacking nullability annotations in platform adapters -->
     <Match>
         <Package name="~io\.github\.kizio806\.spectraevents\.platform\..*" />

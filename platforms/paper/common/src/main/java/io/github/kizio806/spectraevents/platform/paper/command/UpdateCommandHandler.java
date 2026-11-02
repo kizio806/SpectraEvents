@@ -5,6 +5,7 @@ import com.mojang.brigadier.context.CommandContext;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.update.UpdateInfo;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
+import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
@@ -41,7 +42,7 @@ public final class UpdateCommandHandler {
   private int updateCheck(CommandContext<CommandSourceStack> ctx) {
     CommandSender sender = ctx.getSource().getSender();
     sender.sendMessage(messages.component("command.update.checking", NamedTextColor.GRAY));
-    var _ =
+    AsyncFutures.discard(
         updateService
             .checkNow("stable")
             .whenComplete(
@@ -53,7 +54,7 @@ public final class UpdateCommandHandler {
                                 "command.update.failed",
                                 NamedTextColor.RED,
                                 java.util.Map.of("reason", safeMessage(failure)))
-                            : updateResult(info)));
+                            : updateResult(info))));
     return 1;
   }
 

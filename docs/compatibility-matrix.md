@@ -14,8 +14,7 @@ Last verified: **2026-11-01** | Verification toolchain: Gradle 9.7.1, OpenJDK 25
 | **Purpur** | `SpectraEvents-<version>-paper.jar` | **26.1 – 26.3** | Paper 26.2 | **Java 25** | **Active** |
 | **Spigot** | `SpectraEvents-<version>-spigot.jar` | **26.1 – 26.3** | Spigot 26.2 | **Java 25** | **Active** |
 | **CraftBukkit** | `SpectraEvents-<version>-spigot.jar` | **26.1 – 26.3** | Spigot 26.2 | **Java 25** | **Active** |
-| **Folia (26.1–26.2)** | `SpectraEvents-<version>-paper.jar` | **26.1 – 26.2** | Paper 26.2 | **Java 25** | **Supported** |
-| **Folia (26.3)** | `SpectraEvents-<version>-paper.jar` | **26.3** | Paper 26.2 | **Java 25** | **Opt-Out (ADR 0009)** |
+| **Folia** | `SpectraEvents-<version>-paper.jar` | **26.1 – 26.3** | Paper 26.2 | **Java 25** | **Supported** |
 
 ---
 
@@ -26,8 +25,6 @@ Last verified: **2026-11-01** | Verification toolchain: Gradle 9.7.1, OpenJDK 25
 
 ---
 
-## 3. Folia Compatibility Note (ADR 0009)
+## 3. Folia Compatibility Note
 
-In accordance with Architectural Decision Record 0009:
-- Folia builds for Minecraft 26.1 and 26.2 are supported using `RegionTaskScheduler` for region-threaded execution.
-- Folia 26.3 is explicitly refused before plugin startup at bootstrap. This prevents silent thread-safety violations until Folia 26.3 entity thread boundaries and region schedulers are fully certified.
+Folia builds for Minecraft 26.1–26.3 are supported using `RegionTaskScheduler` for region-threaded execution. SpectraEvents automatically detects Folia at bootstrap and delegates all tick-bound operations through the region scheduler, avoiding global main-thread assumptions.

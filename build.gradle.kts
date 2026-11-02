@@ -248,18 +248,22 @@ sonar {
         property("sonar.organization", "kizio806")
         property("sonar.host.url", "https://sonarcloud.io")
         property("sonar.exclusions", "distributions/**,server/**")
-        property("sonar.coverage.exclusions", "distributions/**,server/**,build-logic/**")
-        property("sonar.cpd.exclusions", "distributions/**,server/**,build-logic/**")
+        property("sonar.coverage.exclusions", "distributions/**,server/**,build-logic/**,platforms/**,**/platforms/**")
+        property("sonar.cpd.exclusions", "distributions/**,server/**,build-logic/**,platforms/**,**/platforms/**")
     }
 }
 
 subprojects {
     val isContainer = subprojects.isNotEmpty()
     val isDistribution = project.path.startsWith(":distributions")
+    val isPlatform = project.path.startsWith(":platforms")
     sonar {
         properties {
             if (isContainer || isDistribution) {
                 property("sonar.skip", "true")
+            } else if (isPlatform) {
+                property("sonar.coverage.exclusions", "**/*")
+                property("sonar.cpd.exclusions", "**/*")
             } else {
                 val subprojectReport =
                     layout.buildDirectory

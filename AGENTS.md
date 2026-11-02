@@ -47,7 +47,7 @@ Before touching any code, an AI agent must complete four distinct analysis steps
 ### Step 2: Inspect Existing Patterns & Caveats
 - **Single-Writer SQLite Persistence:** All database write operations must execute asynchronously via `SingleWriterPersistenceExecutor`. Never perform blocking database writes on server tick threads.
 - **Durable Mailbox Claims:** Reward claims follow strict three-state lifecycle transitions: `PENDING -> DELIVERING -> DELIVERED`. Claims must survive unexpected server terminations without loss or duplication.
-- **Folia 26.3 Opt-Out:** Per ADR 0009, Folia 26.3 is explicitly blocked at bootstrap until the server implementation's scheduler and entity threading are verified.
+- **Folia Support:** Folia 26.1–26.3 is supported via `RegionTaskScheduler` with region-bound task delegation.
 
 ### Step 3: Check Documentation & Repository Guidelines
 - Read `docs/architecture.md`, `docs/development.md`, and `docs/releases.md`.

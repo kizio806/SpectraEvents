@@ -14,6 +14,7 @@ import io.github.kizio806.spectraevents.application.port.EventInstanceRepository
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
+import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -276,7 +277,7 @@ public final class EventCommandHandler {
                       new IllegalArgumentException("Event '" + defIdStr + "' is not registered."));
       Map<String, Object> settings =
           settingsStore == null ? Map.of() : settingsStore.overridesFor(defIdStr);
-      var _ =
+      AsyncFutures.discard(
           orchestrationService
               .executionEngine()
               .startEventAsync(
@@ -309,7 +310,7 @@ public final class EventCommandHandler {
                                       safeMessage(
                                           failure.getCause() == null
                                               ? failure
-                                              : failure.getCause())))));
+                                              : failure.getCause()))))));
     } catch (RuntimeException e) {
       sender.sendMessage(
           messages.component(

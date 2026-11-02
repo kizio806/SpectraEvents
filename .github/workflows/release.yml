@@ -145,6 +145,7 @@ jobs:
           - { server: purpur, family: paper, version: '26.3' }
           - { server: folia, family: paper, version: '26.1' }
           - { server: folia, family: paper, version: '26.2' }
+          - { server: folia, family: paper, version: '26.3' }
           - { server: spigot, family: spigot, version: '26.1' }
           - { server: spigot, family: spigot, version: '26.2' }
           - { server: spigot, family: spigot, version: '26.3' }

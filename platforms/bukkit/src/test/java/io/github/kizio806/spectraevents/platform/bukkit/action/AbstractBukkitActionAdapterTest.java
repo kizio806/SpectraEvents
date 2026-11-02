@@ -212,10 +212,18 @@ class AbstractBukkitActionAdapterTest {
   }
 
   @Test
-  void shouldFailOnUnknownParticle() {
-    assertThrows(
-        FatalActionException.class,
-        () -> adapter.resolveParticle("minecraft:invalid_particle_abc"));
+  void shouldFallbackOnUnknownParticle() {
+    assertEquals(Particle.FLAME, adapter.resolveParticle("minecraft:invalid_particle_abc"));
+  }
+
+  @Test
+  void shouldHandleSoundResolutionSafely() {
+    // In standalone unit tests without a loaded Bukkit server, resolution completes without
+    // throwing
+    adapter.resolveSound("minecraft:block.end_portal.spawn");
+    org.junit.jupiter.api.Assertions.assertNull(adapter.resolveSound(null));
+    org.junit.jupiter.api.Assertions.assertNull(
+        adapter.resolveSound("minecraft:non_existent_sound_12345"));
   }
 
   @Test

@@ -6,6 +6,7 @@ import io.github.kizio806.spectraevents.application.port.EventInstanceRepository
 import io.github.kizio806.spectraevents.core.event.execution.action.CoreActions;
 import io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
+import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
 import io.github.kizio806.spectraevents.platform.bukkit.metadata.BukkitPdcKeys;
 import java.util.Objects;
 import java.util.UUID;
@@ -63,7 +64,7 @@ public final class BukkitSharedLootListener implements Listener {
       return;
     }
     var stack = taken.orElseThrow();
-    var _ =
+    AsyncFutures.discard(
         repository
             .saveStateDurablyAsync(state)
             .whenComplete(
@@ -89,7 +90,7 @@ public final class BukkitSharedLootListener implements Listener {
                                 new CoreTriggers.LootContainerEmptiedTrigger(),
                                 context);
                           }
-                        }));
+                        })));
   }
 
   @EventHandler(ignoreCancelled = true)
@@ -142,7 +143,7 @@ public final class BukkitSharedLootListener implements Listener {
       if (taken.isEmpty()) {
         return;
       }
-      var _ =
+      AsyncFutures.discard(
           repository
               .saveStateDurablyAsync(state)
               .whenComplete(
@@ -169,7 +170,7 @@ public final class BukkitSharedLootListener implements Listener {
                               new CoreTriggers.LootItemTakenTrigger(),
                               ExecutionContext.withActor(player, player.getUniqueId()));
                         });
-                  });
+                  }));
     } catch (IllegalArgumentException exception) {
       plugin
           .getLogger()

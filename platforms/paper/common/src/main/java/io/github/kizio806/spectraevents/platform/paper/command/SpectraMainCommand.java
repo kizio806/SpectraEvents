@@ -10,6 +10,7 @@ import io.github.kizio806.spectraevents.application.integration.IntegrationRegis
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
+import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
 import io.github.kizio806.spectraevents.platform.paper.action.PaperActionAdapter;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
@@ -245,7 +246,7 @@ public final class SpectraMainCommand {
           messages.component("command.paper.rewards-player-only", NamedTextColor.RED));
       return 0;
     }
-    var _ =
+    AsyncFutures.discard(
         rewardMailboxService
             .pendingClaims(player.getUniqueId())
             .whenComplete(
@@ -273,7 +274,7 @@ public final class SpectraMainCommand {
                                     NamedTextColor.GRAY,
                                     Map.of("id", claim.id(), "count", claim.items().size())));
                           }
-                        }));
+                        })));
     return 1;
   }
 
@@ -291,7 +292,7 @@ public final class SpectraMainCommand {
       sender.sendMessage(messages.component("command.paper.invalid-reward-id", NamedTextColor.RED));
       return 0;
     }
-    var _ =
+    AsyncFutures.discard(
         rewardMailboxService
             .claim(
                 player.getUniqueId(),
@@ -324,13 +325,13 @@ public final class SpectraMainCommand {
                                 case NOT_AVAILABLE -> "command.spigot.reward-unavailable";
                               };
                           player.sendMessage(messages.component(key, color));
-                        }));
+                        })));
     return 1;
   }
 
   private int listDeliveringClaims(CommandContext<CommandSourceStack> context) {
     CommandSender sender = context.getSource().getSender();
-    var _ =
+    AsyncFutures.discard(
         rewardMailboxService
             .deliveringClaims()
             .whenComplete(
@@ -340,7 +341,7 @@ public final class SpectraMainCommand {
                         claims,
                         failure,
                         "command.rewards.reconcile-title",
-                        "command.rewards.reconcile-entry"));
+                        "command.rewards.reconcile-entry")));
     return 1;
   }
 
@@ -357,7 +358,7 @@ public final class SpectraMainCommand {
       sender.sendMessage(messages.component("command.paper.invalid-reward-id", NamedTextColor.RED));
       return 0;
     }
-    var _ =
+    AsyncFutures.discard(
         rewardMailboxService
             .reconcile(claimId, decision)
             .whenComplete(
@@ -379,7 +380,7 @@ public final class SpectraMainCommand {
                                       : "command.rewards.reconcile-not-found",
                                   resolved ? NamedTextColor.GREEN : NamedTextColor.YELLOW,
                                   Map.of("id", claimId, "decision", decision.name())));
-                        }));
+                        })));
     return 1;
   }
 
