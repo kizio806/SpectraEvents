@@ -331,18 +331,19 @@ jobs:
           files: release-artifacts/SpectraEvents-*-spigot.jar
           changelog-file: release-notes.md
 
-      - name: Publish the Folia 26.1-26.2 distribution to Modrinth
+      - name: Publish the Folia 26.1-26.3 distribution to Modrinth
         id: modrinth_folia
         uses: Kir-Antipov/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          name: SpectraEvents ${{ needs.build.outputs.version }} — Folia 26.1-26.2
+          name: SpectraEvents ${{ needs.build.outputs.version }} — Folia 26.1-26.3
           version: ${{ needs.build.outputs.version }}+folia
           version-type: ${{ needs.build.outputs.modrinth_type }}
           game-versions: |
             26.1
             26.2
+            26.3
           game-version-filter: releases
           loaders: folia
           java: 25
@@ -423,6 +424,6 @@ jobs:
             echo "- Modrinth resource packs (26.1/26.2/26.3): $PACK_OUTCOMES"
             echo "- Modrinth Paper/Purpur distribution: $PAPER_OUTCOME"
             echo "- Modrinth Spigot/CraftBukkit distribution: $SPIGOT_OUTCOME"
-            echo "- Modrinth Folia distribution (26.1/26.2): $FOLIA_OUTCOME"
+            echo "- Modrinth Folia distribution (26.1/26.2/26.3): $FOLIA_OUTCOME"
             echo "- GitHub Release: $RELEASE_OUTCOME"
           } >> "$GITHUB_STEP_SUMMARY"

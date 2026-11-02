@@ -17,8 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Release metadata**: GitHub Release notes and Modrinth metadata now describe the supported
-  server families, Java 25 requirement, Folia 26.3 refusal, and the exact matching resource-pack
-  profile for Minecraft 26.1, 26.2 and 26.3.
+  server families, Java 25 requirement, full Folia 26.1–26.3 region-scheduling support, and the
+  exact matching resource-pack profile for Minecraft 26.1, 26.2 and 26.3.
 
 ## [0.1.1-beta.1] - 2026-10-04
 
