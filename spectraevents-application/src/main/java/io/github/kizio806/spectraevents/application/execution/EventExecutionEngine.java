@@ -186,8 +186,7 @@ public final class EventExecutionEngine {
     context.scheduler().cancelAll();
     context.platformActionPort().cleanupAll();
     context.stateStore().clear();
-    context.instanceLocks().clear();
-    context.definitionSnapshots().clear();
+    context.clearRuntimeState();
   }
 
   public EventDefinition definitionForInstance(EventInstance instance) {

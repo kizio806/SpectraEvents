@@ -8,6 +8,7 @@ import io.github.kizio806.spectraevents.application.integration.PlatformIntegrat
 import io.github.kizio806.spectraevents.core.event.execution.condition.ConditionDefinition;
 import io.github.kizio806.spectraevents.core.event.execution.condition.IntegrationConditions;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
+import java.util.Objects;
 import java.util.UUID;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
@@ -39,6 +40,8 @@ public class LuckPermsIntegration
       EventInstance instance,
       EventRuntimeState state,
       ExecutionContext context) {
+    Objects.requireNonNull(instance, "instance");
+    Objects.requireNonNull(state, "state");
     if (context == null || context.actor() == null) return false;
     try {
       LuckPerms api = LuckPermsProvider.get();

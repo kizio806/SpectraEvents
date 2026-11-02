@@ -1,3 +1,5 @@
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
+
 plugins {
     id("spectraevents.java-library")
 }
@@ -35,4 +37,21 @@ tasks.register<JavaExec>("buildReleaseResourcePacks") {
     inputs.dir(bundledAssetSourceDirectory)
     outputs.dir(releaseResourcePackOutputDirectory)
     args(bundledAssetSourceDirectory.absolutePath, releaseResourcePackOutputDirectory.get().absolutePath)
+}
+
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    violationRules {
+        rule {
+            element = "BUNDLE"
+            limit {
+                counter = "INSTRUCTION"
+                value = "COVEREDRATIO"
+                minimum = "0.80".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn(tasks.named("jacocoTestCoverageVerification"))
 }

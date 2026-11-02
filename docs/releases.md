@@ -40,6 +40,11 @@ Verifies git tree cleanliness, branch consistency, source hygiene, repository st
 ```
 Creates the annotated release tag, pushes to origin, and triggers the GitHub Actions release workflow.
 
+The CI/CD pipeline automatically deploys the release to:
+1. **GitHub Releases:** Attaches both distribution JARs, checksum files, and curated release notes.
+2. **Modrinth:** Publishes Paper, Purpur, Folia, Spigot, and Bukkit distributions, plus client resource packs.
+3. **CurseForge:** Publishes server distribution packages for configured project IDs (`CURSEFORGE_PROJECT_ID`).
+
 ---
 
 ## 4. Release Qualification Gates

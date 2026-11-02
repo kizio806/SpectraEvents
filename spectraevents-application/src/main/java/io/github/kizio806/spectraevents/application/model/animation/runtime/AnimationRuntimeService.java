@@ -167,56 +167,52 @@ public class AnimationRuntimeService {
 
   public boolean pause(AnimationPlaybackId playbackId) {
     Objects.requireNonNull(playbackId, "playbackId cannot be null");
-    Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
-    if (animOpt.isPresent()) {
-      ActiveAnimation anim = animOpt.get();
-      synchronized (playbackLock) {
-        if (anim.state() == PlaybackState.PLAYING) {
-          anim.setState(PlaybackState.PAUSED);
-          return true;
-        }
+    synchronized (playbackLock) {
+      Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
+      if (animOpt.isPresent()) {
+        return animOpt.get().tryPause();
       }
+      return false;
     }
-    return false;
   }
 
   public boolean resume(AnimationPlaybackId playbackId) {
     Objects.requireNonNull(playbackId, "playbackId cannot be null");
-    Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
-    if (animOpt.isPresent()) {
-      ActiveAnimation anim = animOpt.get();
-      synchronized (playbackLock) {
-        if (anim.state() == PlaybackState.PAUSED) {
-          anim.setState(PlaybackState.PLAYING);
+    synchronized (playbackLock) {
+      Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
+      if (animOpt.isPresent()) {
+        ActiveAnimation anim = animOpt.get();
+        if (anim.tryResume()) {
           stepAnimation(anim);
           return true;
         }
       }
+      return false;
     }
-    return false;
   }
 
   public boolean stop(AnimationPlaybackId playbackId) {
     Objects.requireNonNull(playbackId, "playbackId cannot be null");
-    Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
-    if (animOpt.isPresent()) {
-      ActiveAnimation anim = animOpt.get();
-      synchronized (playbackLock) {
-        anim.setState(PlaybackState.STOPPED);
+    synchronized (playbackLock) {
+      Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
+      if (animOpt.isPresent()) {
+        ActiveAnimation anim = animOpt.get();
+        if (anim.tryStop()) {
+          activeRegistry.remove(playbackId);
+          return true;
+        }
       }
-      activeRegistry.remove(playbackId);
-      return true;
+      return false;
     }
-    return false;
   }
 
   public boolean seek(AnimationPlaybackId playbackId, AnimationTime targetTime) {
     Objects.requireNonNull(playbackId, "playbackId cannot be null");
     Objects.requireNonNull(targetTime, "targetTime cannot be null");
-    Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
-    if (animOpt.isPresent()) {
-      ActiveAnimation anim = animOpt.get();
-      synchronized (playbackLock) {
+    synchronized (playbackLock) {
+      Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
+      if (animOpt.isPresent()) {
+        ActiveAnimation anim = animOpt.get();
         anim.setCurrentTime(targetTime);
         if (applyComposedPose(anim, targetTime, 0)) {
           return true;
@@ -231,50 +227,56 @@ public class AnimationRuntimeService {
             }
           }
         }
+        return true;
       }
-      return true;
+      return false;
     }
-    return false;
   }
 
   public void stopAll(RenderedModelHandle handle) {
     Objects.requireNonNull(handle, "handle cannot be null");
-    List<ActiveAnimation> activeAnims = activeRegistry.findByModelHandle(handle);
-    for (ActiveAnimation anim : activeAnims) {
-      synchronized (playbackLock) {
-        anim.setState(PlaybackState.STOPPED);
+    synchronized (playbackLock) {
+      List<ActiveAnimation> activeAnims = activeRegistry.findByModelHandle(handle);
+      for (ActiveAnimation anim : activeAnims) {
+        anim.tryStop();
+        activeRegistry.remove(anim.playbackId());
       }
-      activeRegistry.remove(anim.playbackId());
     }
   }
 
   public Optional<AnimationPlaybackState> getPlaybackState(AnimationPlaybackId playbackId) {
     Objects.requireNonNull(playbackId, "playbackId cannot be null");
-    return activeRegistry.findById(playbackId).map(ActiveAnimation::toSnapshotState);
+    synchronized (playbackLock) {
+      return activeRegistry.findById(playbackId).map(ActiveAnimation::toSnapshotState);
+    }
   }
 
   public List<AnimationPlaybackState> getPlaybackStatesForModel(RenderedModelHandle handle) {
     Objects.requireNonNull(handle, "handle cannot be null");
-    List<ActiveAnimation> list = activeRegistry.findByModelHandle(handle);
-    List<AnimationPlaybackState> result = new ArrayList<>();
-    for (ActiveAnimation anim : list) {
-      result.add(anim.toSnapshotState());
+    synchronized (playbackLock) {
+      List<ActiveAnimation> list = activeRegistry.findByModelHandle(handle);
+      List<AnimationPlaybackState> result = new ArrayList<>(list.size());
+      for (ActiveAnimation anim : list) {
+        result.add(anim.toSnapshotState());
+      }
+      return result;
     }
-    return result;
   }
 
   public List<AnimationPlaybackState> getActivePlaybacks() {
-    List<ActiveAnimation> list = activeRegistry.getAll();
-    List<AnimationPlaybackState> result = new ArrayList<>();
-    for (ActiveAnimation anim : list) {
-      result.add(anim.toSnapshotState());
+    synchronized (playbackLock) {
+      List<ActiveAnimation> list = activeRegistry.getAll();
+      List<AnimationPlaybackState> result = new ArrayList<>(list.size());
+      for (ActiveAnimation anim : list) {
+        result.add(anim.toSnapshotState());
+      }
+      return result;
     }
-    return result;
   }
 
   private void stepAnimation(ActiveAnimation activeAnim) {
     synchronized (playbackLock) {
-      if (activeAnim.state() != PlaybackState.PLAYING) {
+      if (!activeAnim.isPlaying()) {
         return;
       }
 
@@ -311,16 +313,19 @@ public class AnimationRuntimeService {
           stepDuration,
           () -> {
             synchronized (playbackLock) {
-              if (activeAnim.state() == PlaybackState.PLAYING) {
-                boolean completed = activeAnim.advanceTime(stepTicks * 50_000_000L);
-                for (CompiledTrack track : activeAnim.compiledAnimation().tracks()) {
-                  activeAnim.advanceTrackSegment(track);
-                }
-                if (completed) {
-                  activeRegistry.remove(activeAnim.playbackId());
-                } else {
-                  stepAnimation(activeAnim);
-                }
+              Optional<ActiveAnimation> registered =
+                  activeRegistry.findById(activeAnim.playbackId());
+              if (registered.isEmpty() || !registered.get().equals(activeAnim)) {
+                return;
+              }
+              if (!activeAnim.isPlaying()) {
+                return;
+              }
+              boolean completed = activeAnim.advanceStep(stepTicks * 50_000_000L);
+              if (completed) {
+                activeRegistry.remove(activeAnim.playbackId());
+              } else {
+                stepAnimation(activeAnim);
               }
             }
           });
@@ -349,7 +354,11 @@ public class AnimationRuntimeService {
         Duration.ofNanos(stepNanos),
         () -> {
           synchronized (playbackLock) {
-            if (activeAnim.state() != PlaybackState.PLAYING) {
+            Optional<ActiveAnimation> registered = activeRegistry.findById(activeAnim.playbackId());
+            if (registered.isEmpty() || !registered.get().equals(activeAnim)) {
+              return;
+            }
+            if (!activeAnim.isPlaying()) {
               return;
             }
             boolean completed = activeAnim.advanceTime(stepNanos);

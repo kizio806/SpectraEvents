@@ -9,7 +9,6 @@ import java.util.Map;
 import java.util.UUID;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.Player;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -35,11 +34,6 @@ class EventBossBarManagerTest {
 
           @Override
           public void executeFor(Entity entity, Runnable task) {
-            task.run();
-          }
-
-          @Override
-          public void executeFor(Player player, Runnable task) {
             task.run();
           }
         };

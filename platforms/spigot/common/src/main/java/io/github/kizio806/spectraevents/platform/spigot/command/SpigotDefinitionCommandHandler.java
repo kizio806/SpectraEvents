@@ -4,8 +4,8 @@ import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
 import io.github.kizio806.spectraevents.application.config.loader.DefinitionLoadResult;
 import io.github.kizio806.spectraevents.application.config.validation.ValidationDiagnostic;
 import io.github.kizio806.spectraevents.application.validation.OperationalReadinessValidator;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.spigot.asset.delivery.SpigotResourcePackDeliveryBootstrap;
-import io.github.kizio806.spectraevents.platform.spigot.config.SpigotDefinitionConfigBootstrap;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,13 +19,13 @@ public final class SpigotDefinitionCommandHandler implements SpigotSubcommandHan
 
   private final Plugin plugin;
   private final SpectraEventsApplication application;
-  private final SpigotDefinitionConfigBootstrap definitions;
+  private final BukkitDefinitionConfigBootstrap definitions;
   private final SpigotCommandHelper helper;
 
   public SpigotDefinitionCommandHandler(
       Plugin plugin,
       SpectraEventsApplication application,
-      SpigotDefinitionConfigBootstrap definitions,
+      BukkitDefinitionConfigBootstrap definitions,
       SpigotCommandHelper helper) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.application = Objects.requireNonNull(application, "application");

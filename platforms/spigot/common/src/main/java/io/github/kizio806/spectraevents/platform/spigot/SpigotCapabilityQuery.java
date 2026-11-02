@@ -1,9 +1,14 @@
 package io.github.kizio806.spectraevents.platform.spigot;
 
 import io.github.kizio806.spectraevents.application.port.PlatformCapability;
-import io.github.kizio806.spectraevents.application.port.PlatformCapabilityQuery;
+import io.github.kizio806.spectraevents.platform.bukkit.common.BukkitCapabilityQuery;
 
-public final class SpigotCapabilityQuery implements PlatformCapabilityQuery {
+public final class SpigotCapabilityQuery extends BukkitCapabilityQuery {
+
+  public SpigotCapabilityQuery() {
+    super("Spigot");
+  }
+
   @Override
   public boolean hasCapability(PlatformCapability capability) {
     if (capability == PlatformCapability.REGION_SCHEDULING) {
@@ -15,15 +20,5 @@ public final class SpigotCapabilityQuery implements PlatformCapabilityQuery {
     // Assume other features (DISPLAY_ENTITIES, INTERACTION_ENTITIES, CUSTOM_ITEMS, GUI) are
     // supported on 1.21.3
     return true;
-  }
-
-  @Override
-  public io.github.kizio806.spectraevents.application.port.PlatformDescriptor platformDescriptor() {
-    String version = org.bukkit.Bukkit.getBukkitVersion();
-    int dashIndex = version.indexOf('-');
-    String shortVersion = dashIndex > 0 ? version.substring(0, dashIndex) : version;
-
-    return new io.github.kizio806.spectraevents.application.port.PlatformDescriptor(
-        "Spigot", org.bukkit.Bukkit.getServer().getName(), shortVersion, version);
   }
 }

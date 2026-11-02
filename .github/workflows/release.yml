@@ -222,17 +222,23 @@ jobs:
           }
           cp "$NOTES" release-notes.md
 
-      - name: Require both configured Modrinth projects
+      - name: Require configured publishing projects
         shell: bash
         env:
           PLUGIN_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
           RESOURCE_PACK_PROJECT_ID: ${{ secrets.MODRINTH_RESOURCE_PACK_PROJECT_ID || vars.MODRINTH_RESOURCE_PACK_PROJECT_ID }}
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
         run: |
           set -euo pipefail
           test -n "$PLUGIN_PROJECT_ID" || { echo "::error::Set MODRINTH_PROJECT_ID before release."; exit 1; }
           test -n "$RESOURCE_PACK_PROJECT_ID" || { echo "::error::Set MODRINTH_RESOURCE_PACK_PROJECT_ID before release."; exit 1; }
           test -n "$MODRINTH_TOKEN" || { echo "::error::Set MODRINTH_TOKEN before release."; exit 1; }
+          if [ -n "${CURSEFORGE_TOKEN:-}" ]; then
+            echo "CurseForge token is configured."
+          else
+            echo "CurseForge token is not configured (CurseForge publishing will be skipped)."
+          fi
 
       - name: Publish Modrinth resource pack for Minecraft 26.1
         id: modrinth_pack_26_1
@@ -285,12 +291,14 @@ jobs:
           files: release-artifacts/resource-packs/spectraevents-profile_26_3.zip
           changelog-file: release-notes.md
 
-      - name: Publish Paper and Purpur distribution to Modrinth
+      - name: Publish Paper and Purpur distribution to Modrinth & CurseForge
         id: modrinth_paper
         uses: Kir-Antipov/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID || vars.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           name: SpectraEvents ${{ needs.build.outputs.version }} — Paper and Purpur
           version: ${{ needs.build.outputs.version }}+paper
           version-type: ${{ needs.build.outputs.modrinth_type }}
@@ -308,12 +316,14 @@ jobs:
           files: release-artifacts/SpectraEvents-*-paper.jar
           changelog-file: release-notes.md
 
-      - name: Publish Spigot and CraftBukkit distribution to Modrinth
+      - name: Publish Spigot and CraftBukkit distribution to Modrinth & CurseForge
         id: modrinth_spigot
         uses: Kir-Antipov/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID || vars.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           name: SpectraEvents ${{ needs.build.outputs.version }} — Spigot and CraftBukkit
           version: ${{ needs.build.outputs.version }}+spigot
           version-type: ${{ needs.build.outputs.modrinth_type }}
@@ -331,12 +341,14 @@ jobs:
           files: release-artifacts/SpectraEvents-*-spigot.jar
           changelog-file: release-notes.md
 
-      - name: Publish the Folia 26.1-26.3 distribution to Modrinth
+      - name: Publish the Folia 26.1-26.3 distribution to Modrinth & CurseForge
         id: modrinth_folia
         uses: Kir-Antipov/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID || vars.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           name: SpectraEvents ${{ needs.build.outputs.version }} — Folia 26.1-26.3
           version: ${{ needs.build.outputs.version }}+folia
           version-type: ${{ needs.build.outputs.modrinth_type }}

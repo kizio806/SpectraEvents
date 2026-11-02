@@ -285,4 +285,44 @@ class AbstractBukkitActionAdapterTest {
     assertEquals(1, errors.size());
     assertEquals("Test action error", errors.getFirst().getMessage());
   }
+
+  @Test
+  void shouldValidateRemoveModelAndGiveItem() {
+    EventInstanceId id = EventInstanceId.generate();
+    EventInstance instance =
+        EventInstance.create(
+            id,
+            new io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId("test"));
+    EventRuntimeState state = new EventRuntimeState(id);
+
+    PlatformActions.RemoveModelAction removeModelAction = new PlatformActions.RemoveModelAction();
+    assertThrows(
+        NullPointerException.class,
+        () -> adapter.handleRemoveModel(null, state, removeModelAction, ExecutionContext.EMPTY));
+    assertThrows(
+        NullPointerException.class,
+        () -> adapter.handleRemoveModel(instance, null, removeModelAction, ExecutionContext.EMPTY));
+    assertThrows(
+        NullPointerException.class,
+        () -> adapter.handleRemoveModel(instance, state, null, ExecutionContext.EMPTY));
+    assertTrue(
+        adapter
+            .handleRemoveModel(instance, state, removeModelAction, ExecutionContext.EMPTY)
+            .join());
+
+    PlatformActions.GiveItemAction giveItemAction =
+        new PlatformActions.GiveItemAction("minecraft:diamond", 1);
+    assertThrows(
+        NullPointerException.class,
+        () -> adapter.handleGiveItem(null, state, giveItemAction, ExecutionContext.EMPTY));
+    assertThrows(
+        NullPointerException.class,
+        () -> adapter.handleGiveItem(instance, null, giveItemAction, ExecutionContext.EMPTY));
+    assertThrows(
+        NullPointerException.class,
+        () -> adapter.handleGiveItem(instance, state, null, ExecutionContext.EMPTY));
+    assertThrows(
+        FatalActionException.class,
+        () -> adapter.handleGiveItem(instance, state, giveItemAction, ExecutionContext.EMPTY));
+  }
 }

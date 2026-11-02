@@ -253,6 +253,36 @@ class AnimationRuntimeServiceTest {
     assertFalse(composedService.stop(playbackId)); // Already stopped
   }
 
+  @Test
+  void testQueriesAndBulkOperations() {
+    definitionRegistry.register(new ModelId("test_model"), compiledAnim);
+    AnimationPlaybackId id = service.play(mockHandle, animId);
+
+    assertTrue(service.getPlaybackState(id).isPresent());
+    assertFalse(service.getPlaybackState(AnimationPlaybackId.random()).isPresent());
+
+    assertEquals(1, service.getActivePlaybacks().size());
+    assertEquals(1, service.getPlaybackStatesForModel(mockHandle).size());
+
+    RenderedModelHandle otherHandle =
+        new RenderedModelHandle(
+            ModelRuntimeId.of("run_other"),
+            new ModelId("other_model"),
+            null,
+            new ModelAnchor("world", 0, 0, 0, 0, 0),
+            Map.of(),
+            Map.of());
+    assertTrue(service.getPlaybackStatesForModel(otherHandle).isEmpty());
+
+    assertFalse(service.pause(AnimationPlaybackId.random()));
+    assertFalse(service.resume(AnimationPlaybackId.random()));
+    assertFalse(service.stop(AnimationPlaybackId.random()));
+    assertFalse(service.seek(AnimationPlaybackId.random(), AnimationTime.ZERO));
+
+    service.stopAll(mockHandle);
+    assertTrue(service.getActivePlaybacks().isEmpty());
+  }
+
   // --- Test Helpers ---
 
   private static class TestScheduler implements AnimationSchedulerPort {

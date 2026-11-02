@@ -324,6 +324,9 @@ public abstract class AbstractBukkitActionAdapter extends AbstractPlatformAction
       EventRuntimeState state,
       PlatformActions.RemoveModelAction action,
       ExecutionContext context) {
+    Objects.requireNonNull(instance, "instance");
+    Objects.requireNonNull(state, "state");
+    Objects.requireNonNull(action, "action");
     if (modelRuntimeService != null) {
       for (RenderedModelHandle handle : List.copyOf(modelRuntimeService.getActiveInstances())) {
         if (instance.id().equals(handle.ownerEventId())) {
@@ -402,6 +405,9 @@ public abstract class AbstractBukkitActionAdapter extends AbstractPlatformAction
       EventRuntimeState state,
       PlatformActions.GiveItemAction action,
       ExecutionContext context) {
+    Objects.requireNonNull(instance, "instance");
+    Objects.requireNonNull(state, "state");
+    Objects.requireNonNull(action, "action");
     if (context == null || !(context.actor() instanceof Player player)) {
       throw new FatalActionException("give_item requires a player interaction context");
     }

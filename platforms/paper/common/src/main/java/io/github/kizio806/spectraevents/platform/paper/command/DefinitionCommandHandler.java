@@ -10,8 +10,8 @@ import io.github.kizio806.spectraevents.application.config.validation.Validation
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.validation.EventReferenceValidator;
 import io.github.kizio806.spectraevents.application.validation.OperationalReadinessValidator;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.paper.asset.delivery.PaperResourcePackDeliveryBootstrap;
-import io.github.kizio806.spectraevents.platform.paper.config.PaperDefinitionConfigBootstrap;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.io.IOException;
@@ -26,7 +26,7 @@ import org.bukkit.plugin.Plugin;
 /** Command handler for definition subcommands (list, reload, validate). */
 public final class DefinitionCommandHandler {
   private final EventDefinitionRegistry definitionRegistry;
-  private final PaperDefinitionConfigBootstrap configBootstrap;
+  private final BukkitDefinitionConfigBootstrap configBootstrap;
   private final io.github.kizio806.spectraevents.application.asset.AssetPipelineService
       assetPipeline;
   private final Plugin plugin;
@@ -36,7 +36,7 @@ public final class DefinitionCommandHandler {
 
   public DefinitionCommandHandler(
       EventDefinitionRegistry definitionRegistry,
-      PaperDefinitionConfigBootstrap configBootstrap,
+      BukkitDefinitionConfigBootstrap configBootstrap,
       io.github.kizio806.spectraevents.application.SpectraEventsApplication application,
       Plugin plugin,
       IntegrationRegistry integrations,

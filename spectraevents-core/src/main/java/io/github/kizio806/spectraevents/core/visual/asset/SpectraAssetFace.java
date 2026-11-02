@@ -15,4 +15,9 @@ public record SpectraAssetFace(List<Double> uv, String textureRef, int rotation)
     }
     uv = List.copyOf(uv);
   }
+
+  @Override
+  public List<Double> uv() {
+    return List.copyOf(uv);
+  }
 }

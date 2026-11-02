@@ -7,7 +7,7 @@ import io.github.kizio806.spectraevents.application.config.registry.EventDefinit
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
-import io.github.kizio806.spectraevents.platform.paper.config.PaperDefinitionConfigBootstrap;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.nio.file.Files;
@@ -19,7 +19,7 @@ import org.bukkit.command.CommandSender;
 public final class DiagnosticsCommandHandler {
   private final EventDefinitionRegistry definitionRegistry;
   private final EventInstanceRepository instanceRepository;
-  private final PaperDefinitionConfigBootstrap configBootstrap;
+  private final BukkitDefinitionConfigBootstrap configBootstrap;
   private final IntegrationRegistry integrationRegistry;
   private final io.github.kizio806.spectraevents.application.SpectraEventsApplication application;
   private final CommandText messages;
@@ -27,7 +27,7 @@ public final class DiagnosticsCommandHandler {
   public DiagnosticsCommandHandler(
       EventDefinitionRegistry definitionRegistry,
       EventInstanceRepository instanceRepository,
-      PaperDefinitionConfigBootstrap configBootstrap,
+      BukkitDefinitionConfigBootstrap configBootstrap,
       IntegrationRegistry integrationRegistry,
       io.github.kizio806.spectraevents.application.SpectraEventsApplication application,
       LocaleCatalog locales) {

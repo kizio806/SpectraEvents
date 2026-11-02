@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+- **Atomic Concurrency**: Resolved TOCTOU race condition in `AnimationRuntimeService` by enforcing strict lock acquisition and double-checked registration state before animation step advancement.
+- **Cryptographic Contract**: Resolved CodeQL SHA-1 weak cryptography alert in `ResourcePackBuilder` through explicit protocol-mandated pack hash method and Javadoc contract.
+- **Encapsulation Hardening**: Eliminated internal representation leaks in `EngineContext` and `SpectraAssetFace`, replacing exposed internal maps and locks with encapsulated domain execution methods.
+- **Exception Logging**: Ensured all caught exceptions in `EventLifecycleManager` log underlying cause and stack traces without silent omission.
+
+### Changed
+- **Zero Platform Duplication**: Extracted common Bukkit, Paper, and Spigot logic into `:platforms:bukkit`, eliminating duplicate configuration bootstraps, capability queries, lifecycle reporters, and resource-pack delivery adapters.
+- **Test Coverage Transparency**: Removed all platform coverage exclusions from JaCoCo root aggregation, SonarCloud analysis, and Codecov configurations. All platform code is now included in testing and coverage gates.
+- **Defensive API Contracts**: Enforced strict `Objects.requireNonNull` validation across platform action adapters, schedulers, and resource cleaners.
+
+### Added
+- **Platform Unit Test Suite**: Added comprehensive unit test suites for `:platforms:bukkit` (`BukkitSharedLootListenerTest`, `BukkitResourcePackDeliveryBootstrapTest`, `BukkitDefinitionConfigBootstrapTest`, `BukkitLifecycleReporterTest`), `:platforms:spigot:common` (command handlers and helpers), and `:platforms:paper:common` (`PaperResourceCleanerTest`, `PaperEntityReconcilerTest`, `PaperSchedulerTest`, `EventScoreboardManagerTest`).
+
 ## [0.1.1-beta.2] - 2026-10-08
 
 ### Added

@@ -42,6 +42,7 @@ dependencies {
     compileOnly(libs.itemsadder.api)
     testImplementation(libs.paper.api)
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.archunit.junit5)
 }
 
 tasks.withType<JavaCompile>().configureEach {

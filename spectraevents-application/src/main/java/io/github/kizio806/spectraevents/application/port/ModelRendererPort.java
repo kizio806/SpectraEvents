@@ -38,6 +38,9 @@ public interface ModelRendererPort {
   /** Updates the spatial anchor of a spawned model with smooth interpolation duration in ticks. */
   default boolean updateModelTransform(
       RenderedModelHandle handle, ModelAnchor newAnchor, int interpolationDurationTicks) {
+    if (interpolationDurationTicks < 0) {
+      throw new IllegalArgumentException("interpolationDurationTicks must be non-negative");
+    }
     return updateModelTransform(handle, newAnchor);
   }
 

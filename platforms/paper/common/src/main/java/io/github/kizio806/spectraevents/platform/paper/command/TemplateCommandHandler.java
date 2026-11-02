@@ -6,7 +6,7 @@ import com.mojang.brigadier.context.CommandContext;
 import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
 import io.github.kizio806.spectraevents.application.template.SpectraBundleInstaller;
 import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
-import io.github.kizio806.spectraevents.platform.paper.config.PaperDefinitionConfigBootstrap;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
@@ -25,13 +25,13 @@ final class TemplateCommandHandler {
 
   private final Plugin plugin;
   private final SpectraEventsApplication application;
-  private final PaperDefinitionConfigBootstrap definitions;
+  private final BukkitDefinitionConfigBootstrap definitions;
   private final RegionTaskScheduler scheduler;
 
   TemplateCommandHandler(
       Plugin plugin,
       SpectraEventsApplication application,
-      PaperDefinitionConfigBootstrap definitions,
+      BukkitDefinitionConfigBootstrap definitions,
       RegionTaskScheduler scheduler) {
     this.plugin = plugin;
     this.application = application;

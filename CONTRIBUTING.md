@@ -4,15 +4,18 @@ Thank you for contributing to SpectraEvents! Please follow these guidelines when
 
 ## Development Environment
 
-- **JDK Version**: Java 25 required for Paper platform compilation (`platforms/paper/v26_2`). Platform-neutral modules (`core`, `application`, `api`) target Java 21.
+- **JDK Version**: Java 25 required for platform compilation (`platforms/bukkit`, `platforms/paper/common`, `platforms/spigot/common`). Platform-neutral modules (`core`, `application`, `adapters/*`) target Java 21 baseline.
 - **Build System**: Use the repository's Gradle wrapper (`./gradlew`) and its pinned Gradle version.
 
 ## Architectural Invariants
 
 - **Dependency Flow**: Strictly `platform -> application -> core`.
 - **Core & Application Isolation**: Core domain, application services, and public API must **never** import Bukkit, Paper, Spigot, NMS, or CraftBukkit classes.
-- **Platform Code**: Minecraft API code belongs strictly inside platform modules (`platforms/paper/...`).
+- **Platform Code**: Minecraft API code belongs strictly inside platform modules (`platforms/bukkit`, `platforms/paper/common`, `platforms/spigot/common`). Shared presentation, listener, and adapter primitives belong in `:platforms:bukkit`.
 - **No Global Singletons**: Avoid global singletons, service locators, NMS hacks, or giant manager classes.
+- **Zero Duplication**: Code shared between Paper and Spigot platform layers belongs exclusively in `:platforms:bukkit`.
+- **Zero Suppressions**: `@SuppressWarnings` is strictly forbidden across all modules. Deprecations and warnings must be resolved cleanly at the source.
+- **Golden Packaging Invariant**: Every release produces exactly two distribution JARs: `SpectraEvents-<version>-paper.jar` and `SpectraEvents-<version>-spigot.jar`.
 
 ## Asset Contribution Rules
 

@@ -8,6 +8,7 @@ import io.github.kizio806.spectraevents.application.integration.PlatformIntegrat
 import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
 import io.github.kizio806.spectraevents.core.event.execution.action.IntegrationActions;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import net.milkbowl.vault.economy.Economy;
@@ -38,6 +39,8 @@ public class VaultIntegration implements IntegrationActionResolver, PlatformInte
       EventInstance instance,
       EventRuntimeState state,
       ExecutionContext context) {
+    Objects.requireNonNull(instance, "instance");
+    Objects.requireNonNull(state, "state");
     if (context == null || context.actor() == null) {
       return CompletableFuture.completedFuture(false);
     }

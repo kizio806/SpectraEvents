@@ -6,10 +6,13 @@ import io.github.kizio806.spectraevents.application.port.EventTaskScheduler;
 import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 final class EngineContext {
   private final EventInstanceRepository repository;
@@ -70,16 +73,71 @@ final class EngineContext {
     return checkpointService;
   }
 
-  public ConcurrentHashMap<EventInstanceId, ReentrantLock> instanceLocks() {
-    return instanceLocks;
+  public ReentrantLock getOrCreateInstanceLock(EventInstanceId instanceId) {
+    Objects.requireNonNull(instanceId, "instanceId");
+    return instanceLocks.computeIfAbsent(instanceId, ignored -> new ReentrantLock());
   }
 
-  public ConcurrentHashMap<EventInstanceId, EventDefinition> definitionSnapshots() {
-    return definitionSnapshots;
+  public <T> T withInstanceLock(EventInstanceId instanceId, Supplier<T> action) {
+    Objects.requireNonNull(action, "action");
+    ReentrantLock lock = getOrCreateInstanceLock(instanceId);
+    lock.lock();
+    try {
+      return action.get();
+    } finally {
+      lock.unlock();
+    }
   }
 
-  public ConcurrentHashMap<EventInstanceId, Set<CompletableFuture<Boolean>>>
-      observedActionCompletions() {
-    return observedActionCompletions;
+  public void withInstanceLock(EventInstanceId instanceId, Runnable action) {
+    Objects.requireNonNull(action, "action");
+    ReentrantLock lock = getOrCreateInstanceLock(instanceId);
+    lock.lock();
+    try {
+      action.run();
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  public EventDefinition getDefinitionSnapshot(EventInstanceId instanceId) {
+    Objects.requireNonNull(instanceId, "instanceId");
+    return definitionSnapshots.get(instanceId);
+  }
+
+  public EventDefinition computeDefinitionSnapshotIfAbsent(
+      EventInstanceId instanceId, Function<EventInstanceId, EventDefinition> mappingFunction) {
+    Objects.requireNonNull(instanceId, "instanceId");
+    Objects.requireNonNull(mappingFunction, "mappingFunction");
+    return definitionSnapshots.computeIfAbsent(instanceId, mappingFunction);
+  }
+
+  public void putDefinitionSnapshot(EventInstanceId instanceId, EventDefinition definition) {
+    Objects.requireNonNull(instanceId, "instanceId");
+    Objects.requireNonNull(definition, "definition");
+    definitionSnapshots.put(instanceId, definition);
+  }
+
+  public void removeDefinitionSnapshot(EventInstanceId instanceId) {
+    Objects.requireNonNull(instanceId, "instanceId");
+    definitionSnapshots.remove(instanceId);
+  }
+
+  public Set<CompletableFuture<Boolean>> getOrCreateObservedActionCompletions(
+      EventInstanceId instanceId) {
+    Objects.requireNonNull(instanceId, "instanceId");
+    return observedActionCompletions.computeIfAbsent(
+        instanceId, ignored -> ConcurrentHashMap.newKeySet());
+  }
+
+  public void removeObservedActionCompletions(EventInstanceId instanceId) {
+    Objects.requireNonNull(instanceId, "instanceId");
+    observedActionCompletions.remove(instanceId);
+  }
+
+  public void clearRuntimeState() {
+    instanceLocks.clear();
+    definitionSnapshots.clear();
+    observedActionCompletions.clear();
   }
 }

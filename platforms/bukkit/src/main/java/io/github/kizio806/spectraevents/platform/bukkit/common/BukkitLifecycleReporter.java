@@ -1,21 +1,22 @@
-package io.github.kizio806.spectraevents.platform.paper.common;
+package io.github.kizio806.spectraevents.platform.bukkit.common;
 
 import io.github.kizio806.spectraevents.application.port.LifecycleReporter;
 import java.util.Objects;
 import java.util.logging.Logger;
 import org.bukkit.plugin.Plugin;
 
-/** Paper platform implementation of LifecycleReporter. */
-public final class PaperLifecycleReporter implements LifecycleReporter {
+/** Shared Bukkit platform lifecycle reporter. */
+public class BukkitLifecycleReporter implements LifecycleReporter {
+
   private final Logger logger;
 
-  public PaperLifecycleReporter(Plugin plugin) {
+  public BukkitLifecycleReporter(Plugin plugin) {
     this.logger = Objects.requireNonNull(plugin, "plugin").getLogger();
   }
 
   @Override
   public void started() {
-    logger.info("Engine recovery started.");
+    logger.info("Engine started.");
   }
 
   @Override

@@ -15,8 +15,8 @@ public final class PaperResourceCleaner {
   private final Map<EventInstanceId, List<Runnable>> customCleanups = new ConcurrentHashMap<>();
 
   public PaperResourceCleaner(PaperModelRenderer renderer, EventTaskScheduler scheduler) {
-    this.renderer = renderer;
-    this.scheduler = scheduler;
+    this.renderer = java.util.Objects.requireNonNull(renderer, "renderer");
+    this.scheduler = java.util.Objects.requireNonNull(scheduler, "scheduler");
   }
 
   /** Registers a custom cleanup action for a specific instance. */

@@ -71,8 +71,8 @@ jobs:
         run: |
           if [ -n "${SONAR_TOKEN:-}" ]; then
             ./gradlew --no-daemon clean check jacocoRootReport sonar \
-              -Dsonar.coverage.exclusions="**/platforms/**,**/platforms/**/*,platforms/**,platforms/**/*,**/distributions/**,**/distributions/**/*,distributions/**,distributions/**/*,**/build-logic/**,build-logic/**" \
-              -Dsonar.cpd.exclusions="**/platforms/**,**/platforms/**/*,platforms/**,platforms/**/*,**/distributions/**,**/distributions/**/*,distributions/**,distributions/**/*,**/build-logic/**,build-logic/**"
+              -Dsonar.coverage.exclusions="**/distributions/**,**/distributions/**/*,distributions/**,distributions/**/*,**/build-logic/**,build-logic/**" \
+              -Dsonar.cpd.exclusions="**/distributions/**,**/distributions/**/*,distributions/**,distributions/**/*,**/build-logic/**,build-logic/**"
           else
             if [ "$EVENT_NAME" = "pull_request" ] && [ "$HEAD_REPO" != "$BASE_REPO" ]; then
               echo "::notice ::SONAR_TOKEN is unavailable for fork PR. Running clean check and JaCoCo coverage reports locally."

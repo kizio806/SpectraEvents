@@ -12,9 +12,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 final class EventLifecycleManager {
+  private static final Logger LOGGER = Logger.getLogger(EventLifecycleManager.class.getName());
   private static final int MAX_RUNNING_INSTANCES = 64;
 
   private final EngineContext context;
@@ -39,9 +41,8 @@ final class EventLifecycleManager {
   }
 
   public EventDefinition definitionForInstance(EventInstance instance) {
-    return context
-        .definitionSnapshots()
-        .computeIfAbsent(instance.id(), ignored -> getDefinition(instance.definitionId().value()));
+    return context.computeDefinitionSnapshotIfAbsent(
+        instance.id(), ignored -> getDefinition(instance.definitionId().value()));
   }
 
   public EventInstance startEvent(EventDefinition definition, Object platformLocationReference) {
@@ -73,7 +74,7 @@ final class EventLifecycleManager {
     }
 
     EventInstanceId id = EventInstanceId.generate();
-    context.definitionSnapshots().put(id, definition);
+    context.putDefinitionSnapshot(id, definition);
     EventInstance created = EventInstance.create(id, definition.id());
 
     EventLifecycleTransition transition = created.start(definition);
@@ -107,9 +108,9 @@ final class EventLifecycleManager {
         .whenComplete(
             (started, failure) -> {
               if (failure != null) {
-                context.observedActionCompletions().remove(id);
+                context.removeObservedActionCompletions(id);
                 context.stateStore().remove(id);
-                context.definitionSnapshots().remove(id);
+                context.removeDefinitionSnapshot(id);
                 context.zoneRegistry().release(id);
                 context.repository().remove(id);
               }
@@ -117,73 +118,73 @@ final class EventLifecycleManager {
   }
 
   public EventInstance cancelEvent(EventInstanceId instanceId) {
-    ReentrantLock lock =
-        context.instanceLocks().computeIfAbsent(instanceId, ignored -> new ReentrantLock());
-    lock.lock();
-    try {
-      Optional<EventInstance> instanceOpt = context.repository().findById(instanceId);
-      if (instanceOpt.isPresent()) {
-        EventInstance instance = instanceOpt.get();
-        if (instance.state() == EventLifecycleState.RUNNING) {
-          EventLifecycleTransition transition = instance.cancel();
-          EventInstance cancelled = transition.eventInstance();
-          context.repository().save(cancelled);
+    return context.withInstanceLock(
+        instanceId,
+        () -> {
+          Optional<EventInstance> instanceOpt = context.repository().findById(instanceId);
+          if (instanceOpt.isPresent()) {
+            EventInstance instance = instanceOpt.get();
+            if (instance.state() == EventLifecycleState.RUNNING) {
+              EventLifecycleTransition transition = instance.cancel();
+              EventInstance cancelled = transition.eventInstance();
+              context.repository().save(cancelled);
+              cleanupInstance(instanceId);
+              return cancelled;
+            }
+          }
           cleanupInstance(instanceId);
-          return cancelled;
-        }
-      }
-      cleanupInstance(instanceId);
-      return null;
-    } finally {
-      lock.unlock();
-    }
+          return null;
+        });
   }
 
   public EventInstance completeEvent(EventInstanceId instanceId) {
-    ReentrantLock lock =
-        context.instanceLocks().computeIfAbsent(instanceId, ignored -> new ReentrantLock());
-    lock.lock();
-    try {
-      Optional<EventInstance> instanceOpt = context.repository().findById(instanceId);
-      if (instanceOpt.isPresent()) {
-        EventInstance instance = instanceOpt.get();
-        if (instance.state() == EventLifecycleState.RUNNING) {
-          context.stateStore().get(instanceId).ifPresent(context.checkpointService()::flushDurably);
-          EventLifecycleTransition transition = instance.complete();
-          EventInstance completed = transition.eventInstance();
-          context.repository().save(completed);
+    return context.withInstanceLock(
+        instanceId,
+        () -> {
+          Optional<EventInstance> instanceOpt = context.repository().findById(instanceId);
+          if (instanceOpt.isPresent()) {
+            EventInstance instance = instanceOpt.get();
+            if (instance.state() == EventLifecycleState.RUNNING) {
+              context
+                  .stateStore()
+                  .get(instanceId)
+                  .ifPresent(context.checkpointService()::flushDurably);
+              EventLifecycleTransition transition = instance.complete();
+              EventInstance completed = transition.eventInstance();
+              context.repository().save(completed);
+              cleanupInstance(instanceId);
+              return completed;
+            }
+          }
           cleanupInstance(instanceId);
-          return completed;
-        }
-      }
-      cleanupInstance(instanceId);
-      return null;
-    } finally {
-      lock.unlock();
-    }
+          return null;
+        });
   }
 
   public EventInstance failEvent(EventInstanceId instanceId, Throwable cause) {
-    ReentrantLock lock =
-        context.instanceLocks().computeIfAbsent(instanceId, ignored -> new ReentrantLock());
-    lock.lock();
-    try {
-      Optional<EventInstance> instanceOpt = context.repository().findById(instanceId);
-      if (instanceOpt.isPresent()) {
-        EventInstance instance = instanceOpt.get();
-        if (instance.state() == EventLifecycleState.RUNNING) {
-          EventLifecycleTransition transition = instance.fail();
-          EventInstance failed = transition.eventInstance();
-          context.repository().save(failed);
-          cleanupInstance(instanceId);
-          return failed;
-        }
-      }
-      cleanupInstance(instanceId);
-      return null;
-    } finally {
-      lock.unlock();
+    if (cause != null) {
+      LOGGER.log(
+          Level.SEVERE,
+          cause,
+          () -> "Failing event instance " + instanceId + ": " + cause.getMessage());
     }
+    return context.withInstanceLock(
+        instanceId,
+        () -> {
+          Optional<EventInstance> instanceOpt = context.repository().findById(instanceId);
+          if (instanceOpt.isPresent()) {
+            EventInstance instance = instanceOpt.get();
+            if (instance.state() == EventLifecycleState.RUNNING) {
+              EventLifecycleTransition transition = instance.fail();
+              EventInstance failed = transition.eventInstance();
+              context.repository().save(failed);
+              cleanupInstance(instanceId);
+              return failed;
+            }
+          }
+          cleanupInstance(instanceId);
+          return null;
+        });
   }
 
   void recoverEncounter(EventInstance instance, EventRuntimeState state) {
@@ -224,9 +225,9 @@ final class EventLifecycleManager {
   private void cleanupInstance(EventInstanceId instanceId) {
     context.scheduler().cancelAll(instanceId);
     context.platformActionPort().cleanupEvent(instanceId);
-    context.observedActionCompletions().remove(instanceId);
+    context.removeObservedActionCompletions(instanceId);
     context.stateStore().remove(instanceId);
-    context.definitionSnapshots().remove(instanceId);
+    context.removeDefinitionSnapshot(instanceId);
     context.zoneRegistry().release(instanceId);
   }
 
