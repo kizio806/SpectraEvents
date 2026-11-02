@@ -247,34 +247,31 @@ sonar {
         property("sonar.projectKey", "kizio806_SpectraEvents")
         property("sonar.organization", "kizio806")
         property("sonar.host.url", "https://sonarcloud.io")
-        property("sonar.exclusions", "distributions/**,server/**,platforms/**,adapters/**")
         property(
             "sonar.coverage.exclusions",
-            "distributions/**,server/**,build-logic/**,platforms/**,**/platforms/**,adapters/**,**/adapters/**",
+            "**/platforms/**,**/platforms/**/*,platforms/**,platforms/**/*,**/distributions/**,**/distributions/**/*,distributions/**,distributions/**/*,**/adapters/**,**/adapters/**/*,adapters/**,adapters/**/*,**/build-logic/**,build-logic/**",
         )
         property(
             "sonar.cpd.exclusions",
-            "distributions/**,server/**,build-logic/**,platforms/**,**/platforms/**,adapters/**,**/adapters/**",
+            "**/platforms/**,**/platforms/**/*,platforms/**,platforms/**/*,**/distributions/**,**/distributions/**/*,distributions/**,distributions/**/*,**/adapters/**,**/adapters/**/*,adapters/**,adapters/**/*,**/build-logic/**,build-logic/**",
         )
     }
 }
 
 subprojects {
-    val isContainer = subprojects.isNotEmpty()
-    val isDistribution = project.path.startsWith(":distributions")
-    val isPlatform = project.path.startsWith(":platforms")
-    val isAdapter = project.path.startsWith(":adapters")
+    val isCoreModule = project.name == "spectraevents-core" || project.name == "spectraevents-application"
     sonar {
         properties {
-            if (isContainer || isDistribution || isPlatform || isAdapter) {
-                property("sonar.skip", "true")
-            } else {
+            if (isCoreModule) {
                 val subprojectReport =
                     layout.buildDirectory
                         .file("reports/jacoco/test/jacocoTestReport.xml")
                         .get()
                         .asFile
                 property("sonar.coverage.jacoco.xmlReportPaths", subprojectReport.absolutePath)
+            } else {
+                property("sonar.coverage.exclusions", "**/*,**/*.*,**")
+                property("sonar.cpd.exclusions", "**/*,**/*.*,**")
             }
         }
     }
