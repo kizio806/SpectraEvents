@@ -189,6 +189,9 @@ public final class SpigotRewardsCommandHandler implements SpigotSubcommandHandle
 
   @Override
   public List<String> tabComplete(CommandSender sender, String[] arguments) {
+    if (sender == null || !sender.hasPermission("spectraevents.rewards")) {
+      return List.of();
+    }
     if (arguments.length == 1) {
       return helper.matches(arguments[0], "list", "claim");
     }

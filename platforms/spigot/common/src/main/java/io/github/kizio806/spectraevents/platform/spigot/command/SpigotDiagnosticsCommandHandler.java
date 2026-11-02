@@ -74,8 +74,11 @@ public final class SpigotDiagnosticsCommandHandler implements SpigotSubcommandHa
   }
 
   public boolean version(CommandSender sender) {
-    helper.send(
-        sender, "command.spigot.version", Map.of("version", plugin.getDescription().getVersion()));
+    String version = plugin.getClass().getPackage().getImplementationVersion();
+    if (version == null || version.isBlank()) {
+      version = plugin.getDescription().getVersion();
+    }
+    helper.send(sender, "command.spigot.version", Map.of("version", version));
     return true;
   }
 
@@ -93,6 +96,9 @@ public final class SpigotDiagnosticsCommandHandler implements SpigotSubcommandHa
 
   @Override
   public List<String> tabComplete(CommandSender sender, String[] arguments) {
+    if (sender == null || !sender.hasPermission("spectraevents.status")) {
+      return List.of();
+    }
     return List.of();
   }
 }

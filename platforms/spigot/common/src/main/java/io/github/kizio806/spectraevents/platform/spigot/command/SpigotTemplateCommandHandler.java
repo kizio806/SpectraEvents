@@ -46,9 +46,11 @@ public final class SpigotTemplateCommandHandler implements SpigotSubcommandHandl
     try {
       Path archive =
           plugin.getDataFolder().toPath().resolve("templates").resolve("metin.spectra.zip");
-      new SpectraBundleInstaller(
-              plugin.getDataFolder().toPath(), plugin.getDescription().getVersion())
-          .install(archive);
+      String version = plugin.getClass().getPackage().getImplementationVersion();
+      if (version == null || version.isBlank()) {
+        version = plugin.getDescription().getVersion();
+      }
+      new SpectraBundleInstaller(plugin.getDataFolder().toPath(), version).install(archive);
       application.assetPipelineService().buildAssets();
       DefinitionLoadResult result = definitions.reloadFromDisk();
       definitions.logLoadResult(result);
@@ -65,6 +67,9 @@ public final class SpigotTemplateCommandHandler implements SpigotSubcommandHandl
 
   @Override
   public List<String> tabComplete(CommandSender sender, String[] arguments) {
+    if (sender == null || !sender.hasPermission("spectraevents.template")) {
+      return List.of();
+    }
     if (arguments.length == 1) {
       return helper.matches(arguments[0], "list", "install");
     }

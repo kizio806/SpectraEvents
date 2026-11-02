@@ -78,6 +78,9 @@ public final class SpigotScheduleCommandHandler implements SpigotSubcommandHandl
 
   @Override
   public List<String> tabComplete(CommandSender sender, String[] arguments) {
+    if (sender == null || !sender.hasPermission("spectraevents.schedule")) {
+      return List.of();
+    }
     if (arguments.length == 1) {
       return helper.matches(arguments[0], "list", "reload");
     }

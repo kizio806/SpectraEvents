@@ -155,6 +155,7 @@ class ActiveAnimationTest {
     // setCurrentTime
     anim.setCurrentTime(AnimationTime.fromMillis(400));
     assertEquals(AnimationTime.fromMillis(400), anim.currentTime());
+    assertTrue(cues.isEmpty());
   }
 
   @Test
