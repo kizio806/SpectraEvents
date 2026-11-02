@@ -277,15 +277,7 @@ subprojects {
                         .file("reports/jacoco/test/jacocoTestReport.xml")
                         .get()
                         .asFile
-                val rootReport =
-                    rootProject.layout.buildDirectory
-                        .file("reports/jacoco/jacocoRootReport/jacocoRootReport.xml")
-                        .get()
-                        .asFile
-                property(
-                    "sonar.coverage.jacoco.xmlReportPaths",
-                    listOf(subprojectReport.absolutePath, rootReport.absolutePath).joinToString(","),
-                )
+                property("sonar.coverage.jacoco.xmlReportPaths", subprojectReport.absolutePath)
             }
         }
     }
