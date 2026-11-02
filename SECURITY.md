@@ -44,10 +44,12 @@ Alternatively, you may reach out directly to the maintainer via the email addres
 
 ### 2. External Service Authentication Tokens (Sensitive Secrets)
 - `MODRINTH_TOKEN`: Personal API token with version publishing permissions on Modrinth.
+- `CURSEFORGE_TOKEN`: API token with version upload permissions on CurseForge.
 - `HANGAR_TOKEN`: API token with version upload permissions on PaperMC Hangar.
 - `SONAR_TOKEN`: Authentication token for SonarCloud static analysis and code quality reporting.
 - `CODECOV_TOKEN`: Repository upload token for Codecov test coverage reports.
 
 ### 3. Project Identifiers & Configuration Variables (Non-Token References)
 - `MODRINTH_PROJECT_ID`: Unique project identifier (or slug) target on Modrinth.
+- `CURSEFORGE_PROJECT_ID`: Numerical or slug project identifier target on CurseForge.
 - `HANGAR_PROJECT_SLUG`: Project slug target on Hangar.
