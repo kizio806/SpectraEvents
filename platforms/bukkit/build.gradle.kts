@@ -13,6 +13,7 @@ dependencies {
     testImplementation(libs.spigot.api)
     testImplementation(libs.adventure.text.minimessage)
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.archunit.junit5)
 }
 
 tasks.withType<JavaCompile>().configureEach {
