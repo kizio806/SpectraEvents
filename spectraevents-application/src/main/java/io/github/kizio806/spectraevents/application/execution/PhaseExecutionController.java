@@ -12,7 +12,6 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
 import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleTransition;
 import java.time.Duration;
 import java.util.Optional;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -38,14 +37,8 @@ final class PhaseExecutionController {
 
   public boolean evaluateTrigger(
       EventInstanceId instanceId, TriggerDefinition trigger, ExecutionContext execContext) {
-    ReentrantLock lock =
-        context.instanceLocks().computeIfAbsent(instanceId, ignored -> new ReentrantLock());
-    lock.lock();
-    try {
-      return evaluateTriggerLocked(instanceId, trigger, execContext);
-    } finally {
-      lock.unlock();
-    }
+    return context.withInstanceLock(
+        instanceId, () -> evaluateTriggerLocked(instanceId, trigger, execContext));
   }
 
   private boolean evaluateTriggerLocked(
@@ -100,32 +93,25 @@ final class PhaseExecutionController {
 
               if (rule.targetPhase().isPresent()) {
                 PhaseId targetPhase = rule.targetPhase().get();
-                ReentrantLock l =
-                    context
-                        .instanceLocks()
-                        .computeIfAbsent(instance.id(), ignored -> new ReentrantLock());
-                l.lock();
-                try {
-                  Optional<EventInstance> latestInstance =
-                      context.repository().findById(instance.id());
-                  if (latestInstance.isEmpty()
-                      || latestInstance.get().state() != EventLifecycleState.RUNNING) return;
-                  EventLifecycleTransition transition =
-                      latestInstance.get().transitionPhase(definition, targetPhase);
-                  EventInstance nextInstance = transition.eventInstance();
-                  context.repository().save(nextInstance);
+                context.withInstanceLock(
+                    instance.id(),
+                    () -> {
+                      Optional<EventInstance> latestInstance =
+                          context.repository().findById(instance.id());
+                      if (latestInstance.isEmpty()
+                          || latestInstance.get().state() != EventLifecycleState.RUNNING) return;
+                      EventLifecycleTransition transition =
+                          latestInstance.get().transitionPhase(definition, targetPhase);
+                      EventInstance nextInstance = transition.eventInstance();
+                      context.repository().save(nextInstance);
 
-                  try {
-                    executePhaseEntry(nextInstance, definition, targetPhase, execContext);
-                  } catch (RuntimeException exception) {
-                    LOGGER.log(Level.SEVERE, "Error during phase transition", exception);
-                    lifecycleManager.failEvent(nextInstance.id(), exception);
-                  }
-                } catch (RuntimeException exception) {
-                  LOGGER.log(Level.SEVERE, "Error during phase transition outer", exception);
-                } finally {
-                  l.unlock();
-                }
+                      try {
+                        executePhaseEntry(nextInstance, definition, targetPhase, execContext);
+                      } catch (RuntimeException exception) {
+                        LOGGER.log(Level.SEVERE, "Error during phase transition", exception);
+                        lifecycleManager.failEvent(nextInstance.id(), exception);
+                      }
+                    });
               }
             });
         return true;
@@ -157,58 +143,54 @@ final class PhaseExecutionController {
             return;
           }
 
-          ReentrantLock l =
-              context
-                  .instanceLocks()
-                  .computeIfAbsent(instance.id(), ignored -> new ReentrantLock());
-          l.lock();
-          try {
-            Optional<EventInstance> currentInstance = context.repository().findById(instance.id());
-            if (currentInstance.isEmpty()
-                || currentInstance.get().state() != EventLifecycleState.RUNNING) {
-              return;
-            }
-            EventRuntimeState latestState = context.stateStore().getOrCreate(instance.id());
-            latestState.clearTimerDeadlines();
-            int ruleIndex = 0;
-            for (TransitionRule rule : phaseDef.rules()) {
-              String timerKey = String.valueOf(ruleIndex++);
-              if (rule.trigger() instanceof CoreTriggers.TimerElapsedTrigger timerTriggerRule) {
-                Duration duration = timerTriggerRule.duration();
-                if (duration == null || duration.isZero() || duration.isNegative()) {
-                  throw new FatalActionException(
-                      "timer_elapsed.duration must be a positive duration");
+          context.withInstanceLock(
+              instance.id(),
+              () -> {
+                Optional<EventInstance> currentInstance =
+                    context.repository().findById(instance.id());
+                if (currentInstance.isEmpty()
+                    || currentInstance.get().state() != EventLifecycleState.RUNNING) {
+                  return;
                 }
-                if (duration.compareTo(MAX_TIMER_DURATION) > 0) {
-                  throw new FatalActionException(
-                      "timer_elapsed.duration must not exceed " + MAX_TIMER_DURATION);
+                EventRuntimeState latestState = context.stateStore().getOrCreate(instance.id());
+                latestState.clearTimerDeadlines();
+                int ruleIndex = 0;
+                for (TransitionRule rule : phaseDef.rules()) {
+                  String timerKey = String.valueOf(ruleIndex++);
+                  if (rule.trigger() instanceof CoreTriggers.TimerElapsedTrigger timerTriggerRule) {
+                    Duration duration = timerTriggerRule.duration();
+                    if (duration == null || duration.isZero() || duration.isNegative()) {
+                      throw new FatalActionException(
+                          "timer_elapsed.duration must be a positive duration");
+                    }
+                    if (duration.compareTo(MAX_TIMER_DURATION) > 0) {
+                      throw new FatalActionException(
+                          "timer_elapsed.duration must not exceed " + MAX_TIMER_DURATION);
+                    }
+
+                    TriggerDefinition timerTrigger = rule.trigger();
+                    long deadline = Math.addExact(System.currentTimeMillis(), duration.toMillis());
+                    latestState.setTimerDeadlineMillis(timerKey, deadline);
+
+                    context
+                        .scheduler()
+                        .schedule(
+                            instance.id(),
+                            duration,
+                            () -> {
+                              try {
+                                evaluateTrigger(instance.id(), timerTrigger, execContext);
+                              } catch (RuntimeException e) {
+                                LOGGER.log(
+                                    Level.SEVERE,
+                                    "Error executing timer trigger for event " + instance.id(),
+                                    e);
+                              }
+                            });
+                  }
                 }
-
-                TriggerDefinition timerTrigger = rule.trigger();
-                long deadline = Math.addExact(System.currentTimeMillis(), duration.toMillis());
-                latestState.setTimerDeadlineMillis(timerKey, deadline);
-
-                context
-                    .scheduler()
-                    .schedule(
-                        instance.id(),
-                        duration,
-                        () -> {
-                          try {
-                            evaluateTrigger(instance.id(), timerTrigger, execContext);
-                          } catch (RuntimeException e) {
-                            LOGGER.log(
-                                Level.SEVERE,
-                                "Error executing timer trigger for event " + instance.id(),
-                                e);
-                          }
-                        });
-              }
-            }
-            context.repository().saveState(latestState);
-          } finally {
-            l.unlock();
-          }
+                context.repository().saveState(latestState);
+              });
         });
   }
 

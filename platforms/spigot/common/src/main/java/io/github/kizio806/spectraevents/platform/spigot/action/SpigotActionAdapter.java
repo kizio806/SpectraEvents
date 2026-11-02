@@ -357,6 +357,8 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
       EventRuntimeState state,
       PlatformActions.RemoveBossbarAction action,
       ExecutionContext context) {
+    Objects.requireNonNull(state, "state");
+    Objects.requireNonNull(action, "action");
     return executeSync(
         () -> {
           BossBar bar = bossBars.remove(instance.id());
@@ -404,6 +406,9 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
       EventRuntimeState state,
       PlatformActions.UpdateScoreboardAction action,
       ExecutionContext context) {
+    Objects.requireNonNull(instance, "instance");
+    Objects.requireNonNull(state, "state");
+    Objects.requireNonNull(action, "action");
     return CompletableFuture.completedFuture(true);
   }
 
@@ -413,6 +418,8 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
       EventRuntimeState state,
       PlatformActions.RemoveScoreboardAction action,
       ExecutionContext context) {
+    Objects.requireNonNull(state, "state");
+    Objects.requireNonNull(action, "action");
     return executeSync(
         () -> {
           Scoreboard board = scoreboards.remove(instance.id());

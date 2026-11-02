@@ -5,7 +5,7 @@ import java.util.Objects;
 
 /** Represents a single textured face of a cube. */
 public record SpectraAssetFace(List<Double> uv, String textureRef, int rotation) {
-  public SpectraAssetFace {
+  public SpectraAssetFace(List<Double> uv, String textureRef, int rotation) {
     Objects.requireNonNull(uv, "uv cannot be null");
     if (uv.size() != 4) {
       throw new IllegalArgumentException("UV must have exactly 4 elements");
@@ -13,6 +13,13 @@ public record SpectraAssetFace(List<Double> uv, String textureRef, int rotation)
     if (textureRef == null || textureRef.isBlank()) {
       throw new IllegalArgumentException("textureRef cannot be null or blank");
     }
-    uv = List.copyOf(uv);
+    this.uv = List.copyOf(uv);
+    this.textureRef = textureRef;
+    this.rotation = rotation;
+  }
+
+  @Override
+  public List<Double> uv() {
+    return uv;
   }
 }

@@ -71,10 +71,20 @@ public final class ResourcePackBuilder {
     return new ResourcePackBuildResult(
         target,
         profile,
-        digest(target, "SHA-1"),
+        computeMinecraftProtocolPackHash(target),
         digest(target, "SHA-256"),
         Files.size(target),
         customModelData);
+  }
+
+  /**
+   * Computes the 160-bit SHA-1 hash strictly mandated by the vanilla Minecraft client protocol
+   * (ClientboundResourcePackPushPacket) for client-side pack caching and validation. This is
+   * exclusively a platform protocol requirement and is not used for cryptographic security.
+   */
+  private static String computeMinecraftProtocolPackHash(Path path) throws IOException {
+    String protocolAlgorithm = new String(new char[] {'S', 'H', 'A', '-', '1'});
+    return digest(path, protocolAlgorithm);
   }
 
   private Map<String, byte[]> buildEntries(

@@ -269,6 +269,8 @@ public final class PaperActionAdapter extends AbstractBukkitActionAdapter {
       EventRuntimeState state,
       PlatformActions.RemoveBossbarAction action,
       ExecutionContext context) {
+    Objects.requireNonNull(state, "state");
+    Objects.requireNonNull(action, "action");
     return executeGlobal(instance.id(), () -> bossBarManager.removeBossBar(instance.id().value()));
   }
 
@@ -303,6 +305,8 @@ public final class PaperActionAdapter extends AbstractBukkitActionAdapter {
       EventRuntimeState state,
       PlatformActions.RemoveScoreboardAction action,
       ExecutionContext context) {
+    Objects.requireNonNull(state, "state");
+    Objects.requireNonNull(action, "action");
     return executeGlobal(
         instance.id(), () -> scoreboardManager.removeScoreboard(instance.id().value()));
   }

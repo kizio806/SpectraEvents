@@ -70,6 +70,7 @@ class SafeArchiveReaderTest {
     try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipFile))) {
       ZipEntry dir = new ZipEntry("textures/");
       zos.putNextEntry(dir);
+      zos.write(new byte[0]);
       zos.closeEntry();
 
       ZipEntry entry = new ZipEntry("textures/stone.png");
@@ -89,6 +90,7 @@ class SafeArchiveReaderTest {
     try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipFile))) {
       ZipEntry dir = new ZipEntry("scripts/");
       zos.putNextEntry(dir);
+      zos.write(new byte[0]);
       zos.closeEntry();
     }
 

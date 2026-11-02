@@ -7,6 +7,7 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.core.gameplay.reward.RewardItem;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
@@ -34,22 +35,29 @@ public interface PlatformActionPort {
       EventRuntimeState state,
       ActionDefinition action,
       ExecutionContext context) {
+    Objects.requireNonNull(context, "context");
     return executeAction(instance, state, action);
   }
 
   /** Removes all platform resources owned by one event instance. */
-  default void cleanupEvent(EventInstanceId instanceId) {}
+  default void cleanupEvent(EventInstanceId instanceId) {
+    Objects.requireNonNull(instanceId, "instanceId");
+  }
 
   /** Removes all platform resources owned by the plugin during shutdown. */
   default void cleanupAll() {}
 
   /** Returns tracked platform resources for diagnostics, or {@code -1} when unavailable. */
   default int resourceCount(EventInstanceId instanceId) {
+    Objects.requireNonNull(instanceId, "instanceId");
     return -1;
   }
 
   /** Refreshes a compact global event HUD snapshot. Called at most once per second per event. */
-  default void refreshHud(EventInstance instance, EventRuntimeState state) {}
+  default void refreshHud(EventInstance instance, EventRuntimeState state) {
+    Objects.requireNonNull(instance, "instance");
+    Objects.requireNonNull(state, "state");
+  }
 
   /**
    * Delivers an event reward to an online player, dropping the complete reward snapshot at the
@@ -59,19 +67,26 @@ public interface PlatformActionPort {
    * durable mailbox claim for a later delivery.
    */
   default CompletableFuture<Boolean> deliverRewardOrDrop(UUID playerId, List<RewardItem> items) {
+    Objects.requireNonNull(playerId, "playerId");
+    Objects.requireNonNull(items, "items");
     return CompletableFuture.completedFuture(false);
   }
 
   default CompletableFuture<Boolean> announcePodium(
       EventInstance instance, List<UUID> rankedPlayerIds) {
+    Objects.requireNonNull(instance, "instance");
     return announcePodium(instance.id(), rankedPlayerIds);
   }
 
   default CompletableFuture<Boolean> announcePodium(
       EventInstanceId instanceId, List<UUID> rankedPlayerIds) {
+    Objects.requireNonNull(instanceId, "instanceId");
+    Objects.requireNonNull(rankedPlayerIds, "rankedPlayerIds");
     return CompletableFuture.completedFuture(true);
   }
 
   /** Registers the engine callback used when an asynchronously scheduled platform action fails. */
-  default void setFatalActionHandler(BiConsumer<EventInstanceId, Throwable> handler) {}
+  default void setFatalActionHandler(BiConsumer<EventInstanceId, Throwable> handler) {
+    Objects.requireNonNull(handler, "handler");
+  }
 }

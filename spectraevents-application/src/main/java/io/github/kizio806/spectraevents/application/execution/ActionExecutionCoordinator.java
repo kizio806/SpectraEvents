@@ -10,7 +10,6 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -73,9 +72,7 @@ final class ActionExecutionCoordinator {
       CompletableFuture<Boolean> actionFuture,
       BiConsumer<? super Boolean, ? super Throwable> completionHandler) {
     Set<CompletableFuture<Boolean>> completions =
-        context
-            .observedActionCompletions()
-            .computeIfAbsent(instanceId, ignored -> ConcurrentHashMap.newKeySet());
+        context.getOrCreateObservedActionCompletions(instanceId);
     completions.removeIf(CompletableFuture::isDone);
     completions.add(actionFuture.whenComplete(completionHandler));
   }
