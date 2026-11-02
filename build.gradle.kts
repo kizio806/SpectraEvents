@@ -217,7 +217,6 @@ val jacocoRootReport =
         val testedProjects =
             subprojects.filter {
                 it.pluginManager.hasPlugin("jacoco") &&
-                    !it.path.startsWith(":platforms") &&
                     !it.path.startsWith(":distributions")
             }
         dependsOn(testedProjects.map { it.tasks.named("jacocoTestReport") })
@@ -254,11 +253,11 @@ sonar {
         property("sonar.host.url", "https://sonarcloud.io")
         property(
             "sonar.coverage.exclusions",
-            "**/platforms/**,**/platforms/**/*,platforms/**,platforms/**/*,**/distributions/**,**/distributions/**/*,distributions/**,distributions/**/*,**/build-logic/**,build-logic/**",
+            "**/distributions/**,**/distributions/**/*,distributions/**,distributions/**/*,**/build-logic/**,build-logic/**",
         )
         property(
             "sonar.cpd.exclusions",
-            "**/platforms/**,**/platforms/**/*,platforms/**,platforms/**/*,**/distributions/**,**/distributions/**/*,distributions/**,distributions/**/*,**/build-logic/**,build-logic/**",
+            "**/distributions/**,**/distributions/**/*,distributions/**,distributions/**/*,**/build-logic/**,build-logic/**",
         )
     }
 }
@@ -266,10 +265,9 @@ sonar {
 subprojects {
     val isContainer = subprojects.isNotEmpty()
     val isDistribution = project.path.startsWith(":distributions")
-    val isPlatform = project.path.startsWith(":platforms")
     sonar {
         properties {
-            if (isContainer || isDistribution || isPlatform) {
+            if (isContainer || isDistribution) {
                 property("sonar.coverage.exclusions", "**/*,**/*.*,**")
                 property("sonar.cpd.exclusions", "**/*,**/*.*,**")
             } else {

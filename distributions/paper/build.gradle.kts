@@ -90,7 +90,7 @@ val verifyPluginArtifact =
                     "io/github/kizio806/spectraevents/platform/paper/PaperBootstrap.class",
                     "io/github/kizio806/spectraevents/platform/paper/command/SpectraMainCommand.class",
                     "io/github/kizio806/spectraevents/platform/paper/interaction/PaperInteractionRouter.class",
-                    "io/github/kizio806/spectraevents/platform/paper/common/PaperLifecycleReporter.class",
+                    "io/github/kizio806/spectraevents/platform/bukkit/common/BukkitLifecycleReporter.class",
                     "io/github/kizio806/spectraevents/application/SpectraEventsApplication.class",
                     "io/github/kizio806/spectraevents/adapter/storage/sqlite/SQLiteEventInstanceRepository.class",
                     "io/github/kizio806/spectraevents/adapter/update/http/HttpUpdateAdapter.class",

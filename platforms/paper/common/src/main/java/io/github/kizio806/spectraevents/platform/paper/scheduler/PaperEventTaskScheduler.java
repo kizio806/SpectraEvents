@@ -18,7 +18,7 @@ public final class PaperEventTaskScheduler implements EventTaskScheduler {
   private final List<ScheduledTask> globalTasks = new CopyOnWriteArrayList<>();
 
   public PaperEventTaskScheduler(Plugin plugin) {
-    this.plugin = plugin;
+    this.plugin = java.util.Objects.requireNonNull(plugin, "plugin");
   }
 
   @Override

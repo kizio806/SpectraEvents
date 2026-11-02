@@ -12,6 +12,7 @@ SOURCE_DIRS=(
     "adapters/update-http/src"
     "adapters/assets-blockbench/src"
     "adapters/assets-delivery/src"
+    "platforms/bukkit/src"
     "platforms/paper/common/src"
     "platforms/spigot/common/src"
 )

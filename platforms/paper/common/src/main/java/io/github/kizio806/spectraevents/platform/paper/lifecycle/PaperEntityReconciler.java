@@ -18,8 +18,8 @@ public class PaperEntityReconciler implements PlatformEntityReconcilerPort {
   private final PaperResourceCleaner cleaner;
 
   public PaperEntityReconciler(Plugin plugin, PaperResourceCleaner cleaner) {
-    this.plugin = plugin;
-    this.cleaner = cleaner;
+    this.plugin = java.util.Objects.requireNonNull(plugin, "plugin");
+    this.cleaner = java.util.Objects.requireNonNull(cleaner, "cleaner");
   }
 
   @Override

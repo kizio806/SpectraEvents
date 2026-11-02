@@ -314,7 +314,7 @@ public class AnimationRuntimeService {
               Optional<ActiveAnimation> registered =
                   activeRegistry.findById(activeAnim.playbackId());
               if (registered.isEmpty()
-                  || registered.get() != activeAnim
+                  || !registered.get().equals(activeAnim)
                   || activeAnim.state() != PlaybackState.PLAYING) {
                 return;
               }
@@ -356,7 +356,7 @@ public class AnimationRuntimeService {
           synchronized (playbackLock) {
             Optional<ActiveAnimation> registered = activeRegistry.findById(activeAnim.playbackId());
             if (registered.isEmpty()
-                || registered.get() != activeAnim
+                || !registered.get().equals(activeAnim)
                 || activeAnim.state() != PlaybackState.PLAYING) {
               return;
             }

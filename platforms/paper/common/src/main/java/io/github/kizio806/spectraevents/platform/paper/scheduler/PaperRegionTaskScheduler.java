@@ -10,7 +10,7 @@ public final class PaperRegionTaskScheduler implements RegionTaskScheduler {
   private final Plugin plugin;
 
   public PaperRegionTaskScheduler(Plugin plugin) {
-    this.plugin = plugin;
+    this.plugin = java.util.Objects.requireNonNull(plugin, "plugin");
   }
 
   @Override
