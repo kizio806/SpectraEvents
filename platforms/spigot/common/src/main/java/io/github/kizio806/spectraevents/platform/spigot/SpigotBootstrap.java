@@ -7,10 +7,11 @@ import io.github.kizio806.spectraevents.application.config.loader.DefinitionLoad
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.service.EntityReconciliationReport;
+import io.github.kizio806.spectraevents.platform.bukkit.common.BukkitLifecycleReporter;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootListener;
 import io.github.kizio806.spectraevents.platform.spigot.action.SpigotActionAdapter;
 import io.github.kizio806.spectraevents.platform.spigot.command.SpigotMainCommand;
-import io.github.kizio806.spectraevents.platform.spigot.config.SpigotDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.spigot.interaction.SpigotEventRouter;
 import io.github.kizio806.spectraevents.platform.spigot.lifecycle.SpigotEntityReconciler;
 import io.github.kizio806.spectraevents.platform.spigot.render.SpigotModelRenderer;
@@ -69,7 +70,7 @@ public final class SpigotBootstrap {
 
     application =
         new SpectraEventsApplication(
-            new SpigotLifecycleReporter(plugin),
+            new BukkitLifecycleReporter(plugin),
             scheduler,
             actionAdapter,
             repository,
@@ -102,8 +103,8 @@ public final class SpigotBootstrap {
 
     extractBundledTemplates();
     application.assetPipelineService().buildAssets();
-    SpigotDefinitionConfigBootstrap definitions =
-        new SpigotDefinitionConfigBootstrap(plugin, application.definitionLoader());
+    BukkitDefinitionConfigBootstrap definitions =
+        new BukkitDefinitionConfigBootstrap(plugin, application.definitionLoader());
     loadDefinitions(definitions);
 
     try {
@@ -198,7 +199,7 @@ public final class SpigotBootstrap {
     plugin.getLogger().info("SpectraEvents disabled cleanly.");
   }
 
-  private void loadDefinitions(SpigotDefinitionConfigBootstrap definitions) {
+  private void loadDefinitions(BukkitDefinitionConfigBootstrap definitions) {
     try {
       DefinitionLoadResult result = definitions.loadFromDisk();
       definitions.logLoadResult(result);

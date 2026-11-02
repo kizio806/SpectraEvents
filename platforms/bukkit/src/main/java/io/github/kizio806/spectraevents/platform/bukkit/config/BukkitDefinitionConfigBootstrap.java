@@ -1,22 +1,28 @@
-package io.github.kizio806.spectraevents.platform.spigot.config;
+package io.github.kizio806.spectraevents.platform.bukkit.config;
 
 import io.github.kizio806.spectraevents.application.config.loader.DefinitionLoadResult;
 import io.github.kizio806.spectraevents.application.config.loader.DefinitionLoader;
 import io.github.kizio806.spectraevents.application.config.loader.FileSystemDefinitionLoader;
+import io.github.kizio806.spectraevents.application.config.validation.ValidationDiagnostic;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
-import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.plugin.Plugin;
 
-/** Loads Spigot event definitions through the shared strict application pipeline. */
-public final class SpigotDefinitionConfigBootstrap {
-  private final JavaPlugin plugin;
+/**
+ * Discovers YAML event definitions on disk and loads them through the shared application pipeline
+ * for Bukkit-based platforms (Paper, Folia, Spigot).
+ */
+public class BukkitDefinitionConfigBootstrap {
+
+  private final Plugin plugin;
   private final FileSystemDefinitionLoader fileSystemLoader;
 
-  public SpigotDefinitionConfigBootstrap(JavaPlugin plugin, DefinitionLoader definitionLoader) {
+  public BukkitDefinitionConfigBootstrap(Plugin plugin, DefinitionLoader definitionLoader) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
+    Objects.requireNonNull(definitionLoader, "definitionLoader");
     this.fileSystemLoader =
         new FileSystemDefinitionLoader(plugin.getDataFolder().toPath(), definitionLoader);
   }
@@ -25,16 +31,28 @@ public final class SpigotDefinitionConfigBootstrap {
     return fileSystemLoader.eventsDirectory();
   }
 
+  /** Ensures the events directory exists and contains default configurations. */
+  public void ensureDefaultConfiguration() throws IOException {
+    fileSystemLoader.ensureDefaultConfiguration();
+  }
+
+  /** Loads all YAML files from the events directory into the registry. */
   public DefinitionLoadResult loadFromDisk() throws IOException {
     return fileSystemLoader.loadFromDisk();
   }
 
+  /** Clears the registry and reloads all YAML files from disk. */
   public DefinitionLoadResult reloadFromDisk() throws IOException {
     return fileSystemLoader.reloadFromDisk();
   }
 
+  /** Validates all YAML files on disk without committing changes to the registry. */
   public DefinitionLoadResult validateFromDisk() throws IOException {
     return fileSystemLoader.validateFromDisk();
+  }
+
+  public FileSystemDefinitionLoader fileSystemLoader() {
+    return fileSystemLoader;
   }
 
   public void logLoadResult(DefinitionLoadResult result) {
@@ -59,9 +77,7 @@ public final class SpigotDefinitionConfigBootstrap {
     }
   }
 
-  public String formatDiagnostics(
-      List<io.github.kizio806.spectraevents.application.config.validation.ValidationDiagnostic>
-          diagnostics) {
+  public String formatDiagnostics(List<ValidationDiagnostic> diagnostics) {
     return diagnostics.stream()
         .map(
             diagnostic ->

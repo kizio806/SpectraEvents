@@ -3,8 +3,8 @@ package io.github.kizio806.spectraevents.platform.spigot.command;
 import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.spigot.action.SpigotActionAdapter;
-import io.github.kizio806.spectraevents.platform.spigot.config.SpigotDefinitionConfigBootstrap;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -31,7 +31,7 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
       Plugin plugin,
       SpectraEventsApplication application,
       EventInstanceRepository repository,
-      SpigotDefinitionConfigBootstrap definitions,
+      BukkitDefinitionConfigBootstrap definitions,
       SpigotActionAdapter actionAdapter,
       LocaleCatalog locales) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");

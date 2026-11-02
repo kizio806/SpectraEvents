@@ -11,8 +11,8 @@ import io.github.kizio806.spectraevents.application.port.EventInstanceRepository
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
 import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.paper.action.PaperActionAdapter;
-import io.github.kizio806.spectraevents.platform.paper.config.PaperDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
 import io.github.kizio806.spectraevents.platform.paper.gui.AdminGuiController;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
@@ -53,7 +53,7 @@ public final class SpectraMainCommand {
       EventOrchestrationService orchestrationService,
       EventDefinitionRegistry definitionRegistry,
       EventInstanceRepository instanceRepository,
-      PaperDefinitionConfigBootstrap configBootstrap,
+      BukkitDefinitionConfigBootstrap configBootstrap,
       IntegrationRegistry integrationRegistry,
       UpdateService updateService,
       AdminGuiController guiController,

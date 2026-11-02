@@ -8,13 +8,13 @@ import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
+import io.github.kizio806.spectraevents.platform.bukkit.common.BukkitLifecycleReporter;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootListener;
 import io.github.kizio806.spectraevents.platform.paper.action.PaperActionAdapter;
 import io.github.kizio806.spectraevents.platform.paper.command.SpectraMainCommand;
 import io.github.kizio806.spectraevents.platform.paper.common.PaperCapabilityQuery;
-import io.github.kizio806.spectraevents.platform.paper.common.PaperLifecycleReporter;
 import io.github.kizio806.spectraevents.platform.paper.common.PaperStartupLogger;
-import io.github.kizio806.spectraevents.platform.paper.config.PaperDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
 import io.github.kizio806.spectraevents.platform.paper.gui.AdminGuiController;
 import io.github.kizio806.spectraevents.platform.paper.integration.PaperIntegrationManager;
@@ -41,7 +41,7 @@ public final class PaperBootstrap {
   private PaperRegionTaskScheduler regionScheduler;
   private PaperResourceCleaner cleaner;
   private PaperActionAdapter actionAdapter;
-  private PaperDefinitionConfigBootstrap definitionConfigBootstrap;
+  private BukkitDefinitionConfigBootstrap definitionConfigBootstrap;
   private SQLiteEventInstanceRepository sqliteRepository;
   private IntegrationRegistry integrationRegistry;
   private UpdateService updateService;
@@ -98,7 +98,7 @@ public final class PaperBootstrap {
 
     application =
         new SpectraEventsApplication(
-            new PaperLifecycleReporter(plugin),
+            new BukkitLifecycleReporter(plugin),
             eventTaskScheduler,
             actionAdapter,
             sqliteRepository,
@@ -138,7 +138,7 @@ public final class PaperBootstrap {
     assetPipelineService.buildAssetsAsync().join();
 
     definitionConfigBootstrap =
-        new PaperDefinitionConfigBootstrap(plugin, application.definitionLoader());
+        new BukkitDefinitionConfigBootstrap(plugin, application.definitionLoader());
 
     try {
       definitionConfigBootstrap.ensureDefaultConfiguration();

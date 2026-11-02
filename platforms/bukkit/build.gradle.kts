@@ -7,6 +7,7 @@ plugins {
 dependencies {
     api(project(":spectraevents-core"))
     api(project(":spectraevents-application"))
+    api(project(":adapters:assets-delivery"))
     compileOnly(libs.spigot.api)
     compileOnly(libs.adventure.text.minimessage)
     testImplementation(libs.spigot.api)
