@@ -14,13 +14,13 @@ public record EventSchedule(
     ZoneId zoneId,
     EventLocation location,
     Map<String, Object> parameterOverrides) {
-  private static final Pattern ID = Pattern.compile("[a-z][a-z0-9-]{0,63}");
+  private static final Pattern ID_PATTERN = Pattern.compile("[a-z][a-z0-9-]{0,63}");
 
   public EventSchedule {
-    if (!ID.matcher(Objects.requireNonNull(id, "id")).matches()) {
+    if (!ID_PATTERN.matcher(Objects.requireNonNull(id, "id")).matches()) {
       throw new IllegalArgumentException("Schedule ID must use lowercase kebab-case");
     }
-    if (!ID.matcher(Objects.requireNonNull(definitionId, "definitionId")).matches()) {
+    if (!ID_PATTERN.matcher(Objects.requireNonNull(definitionId, "definitionId")).matches()) {
       throw new IllegalArgumentException("Definition ID must use lowercase kebab-case");
     }
     Objects.requireNonNull(cron, "cron");

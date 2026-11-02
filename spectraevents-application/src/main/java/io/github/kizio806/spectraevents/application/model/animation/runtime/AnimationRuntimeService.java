@@ -30,6 +30,7 @@ public class AnimationRuntimeService {
   private final ActiveAnimationRegistry activeRegistry;
   private final ModelRendererPort modelRenderer;
   private final AnimationSchedulerPort scheduler;
+  private final Object playbackLock = new Object();
 
   public AnimationRuntimeService(
       AnimationDefinitionRegistry definitionRegistry,
@@ -169,7 +170,7 @@ public class AnimationRuntimeService {
     Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
     if (animOpt.isPresent()) {
       ActiveAnimation anim = animOpt.get();
-      synchronized (anim) {
+      synchronized (playbackLock) {
         if (anim.state() == PlaybackState.PLAYING) {
           anim.setState(PlaybackState.PAUSED);
           return true;
@@ -184,7 +185,7 @@ public class AnimationRuntimeService {
     Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
     if (animOpt.isPresent()) {
       ActiveAnimation anim = animOpt.get();
-      synchronized (anim) {
+      synchronized (playbackLock) {
         if (anim.state() == PlaybackState.PAUSED) {
           anim.setState(PlaybackState.PLAYING);
           stepAnimation(anim);
@@ -200,7 +201,7 @@ public class AnimationRuntimeService {
     Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
     if (animOpt.isPresent()) {
       ActiveAnimation anim = animOpt.get();
-      synchronized (anim) {
+      synchronized (playbackLock) {
         anim.setState(PlaybackState.STOPPED);
       }
       activeRegistry.remove(playbackId);
@@ -215,7 +216,7 @@ public class AnimationRuntimeService {
     Optional<ActiveAnimation> animOpt = activeRegistry.findById(playbackId);
     if (animOpt.isPresent()) {
       ActiveAnimation anim = animOpt.get();
-      synchronized (anim) {
+      synchronized (playbackLock) {
         anim.setCurrentTime(targetTime);
         if (applyComposedPose(anim, targetTime, 0)) {
           return true;
@@ -240,7 +241,7 @@ public class AnimationRuntimeService {
     Objects.requireNonNull(handle, "handle cannot be null");
     List<ActiveAnimation> activeAnims = activeRegistry.findByModelHandle(handle);
     for (ActiveAnimation anim : activeAnims) {
-      synchronized (anim) {
+      synchronized (playbackLock) {
         anim.setState(PlaybackState.STOPPED);
       }
       activeRegistry.remove(anim.playbackId());
@@ -272,7 +273,7 @@ public class AnimationRuntimeService {
   }
 
   private void stepAnimation(ActiveAnimation activeAnim) {
-    synchronized (activeAnim) {
+    synchronized (playbackLock) {
       if (activeAnim.state() != PlaybackState.PLAYING) {
         return;
       }
@@ -309,7 +310,7 @@ public class AnimationRuntimeService {
       scheduler.schedule(
           stepDuration,
           () -> {
-            synchronized (activeAnim) {
+            synchronized (playbackLock) {
               if (activeAnim.state() == PlaybackState.PLAYING) {
                 boolean completed = activeAnim.advanceTime(stepTicks * 50_000_000L);
                 for (CompiledTrack track : activeAnim.compiledAnimation().tracks()) {
@@ -347,7 +348,7 @@ public class AnimationRuntimeService {
     scheduler.schedule(
         Duration.ofNanos(stepNanos),
         () -> {
-          synchronized (activeAnim) {
+          synchronized (playbackLock) {
             if (activeAnim.state() != PlaybackState.PLAYING) {
               return;
             }

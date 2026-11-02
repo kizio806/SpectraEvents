@@ -10,12 +10,13 @@ public final class LocaleCatalog {
   private static final String ENGLISH = "en-US";
 
   private final String selectedLocale;
-  private final Map<String, String> english;
+  private final Map<String, String> fallbackMessages;
   private final Map<String, String> selected;
 
-  LocaleCatalog(String selectedLocale, Map<String, String> english, Map<String, String> selected) {
+  LocaleCatalog(
+      String selectedLocale, Map<String, String> fallbackMessages, Map<String, String> selected) {
     this.selectedLocale = Objects.requireNonNull(selectedLocale, "selectedLocale");
-    this.english = Map.copyOf(new LinkedHashMap<>(english));
+    this.fallbackMessages = Map.copyOf(new LinkedHashMap<>(fallbackMessages));
     this.selected = Map.copyOf(new LinkedHashMap<>(selected));
   }
 
@@ -29,7 +30,8 @@ public final class LocaleCatalog {
 
   public String message(String key) {
     Objects.requireNonNull(key, "key");
-    return selected.getOrDefault(key, english.getOrDefault(key, "[missing locale: " + key + "]"));
+    return selected.getOrDefault(
+        key, fallbackMessages.getOrDefault(key, "[missing locale: " + key + "]"));
   }
 
   public String message(String key, Map<String, ?> placeholders) {
