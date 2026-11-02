@@ -247,7 +247,7 @@ sonar {
         property("sonar.projectKey", "kizio806_SpectraEvents")
         property("sonar.organization", "kizio806")
         property("sonar.host.url", "https://sonarcloud.io")
-        property("sonar.exclusions", "distributions/**,server/**,platforms/**")
+        property("sonar.exclusions", "distributions/**,server/**,platforms/**,adapters/**")
         property(
             "sonar.coverage.exclusions",
             "distributions/**,server/**,build-logic/**,platforms/**,**/platforms/**,adapters/**,**/adapters/**",
@@ -266,11 +266,8 @@ subprojects {
     val isAdapter = project.path.startsWith(":adapters")
     sonar {
         properties {
-            if (isContainer || isDistribution || isPlatform) {
+            if (isContainer || isDistribution || isPlatform || isAdapter) {
                 property("sonar.skip", "true")
-            } else if (isAdapter) {
-                property("sonar.coverage.exclusions", "**/*,**/*.*,**")
-                property("sonar.cpd.exclusions", "**/*,**/*.*,**")
             } else {
                 val subprojectReport =
                     layout.buildDirectory
