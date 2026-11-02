@@ -98,4 +98,76 @@ public class AssetPipelineServiceTest {
     Assertions.assertTrue(service.validateModel("test"));
     Assertions.assertFalse(service.validateModel("nonexistent"));
   }
+
+  @Test
+  void testValidateModelReturnsFalseForEmptyNodes() throws Exception {
+    AssetImportPort emptyImport =
+        source -> new SpectraAssetDocument(1, "empty-model", Map.of(), List.of(), Map.of());
+    ResourcePackBuilder mockBuilder = new ResourcePackBuilder(tempDir.resolve("out-empty"));
+    AssetPipelineService emptyService =
+        new AssetPipelineService(
+            emptyImport, mockBuilder, tempDir, AssetTargetProfile.PROFILE_26_1);
+
+    String name = "empty.spectra.zip";
+    Files.writeString(tempDir.resolve(name), "empty");
+    emptyService.importFile(name);
+
+    Assertions.assertFalse(emptyService.validateModel("empty-model"));
+  }
+
+  @Test
+  void testImportFileSecurityExceptionOnTraversal() {
+    Assertions.assertThrows(SecurityException.class, () -> service.importFile("../escaped.zip"));
+    Assertions.assertThrows(
+        SecurityException.class, () -> service.importFile("sub/../../escaped.zip"));
+  }
+
+  @Test
+  void testImportFileRejectsInvalidFileFormat() throws Exception {
+    String invalidName = "invalid.txt";
+    Files.writeString(tempDir.resolve(invalidName), "hello");
+    Assertions.assertThrows(IllegalArgumentException.class, () -> service.importFile(invalidName));
+  }
+
+  @Test
+  void testImportFileRejectsNonExistentFile() {
+    Assertions.assertThrows(
+        IllegalArgumentException.class, () -> service.importFile("missing.spectra.zip"));
+  }
+
+  @Test
+  void testImportFileNullFilename() {
+    Assertions.assertThrows(NullPointerException.class, () -> service.importFile(null));
+  }
+
+  @Test
+  void testImportFileDuplicateSkipsRebuilding() throws Exception {
+    Path dummyFile = tempDir.resolve(TEST_MODEL);
+    Files.writeString(dummyFile, "bundle-content");
+
+    service.importFile(TEST_MODEL);
+    Assertions.assertTrue(service.listModels().contains("test"));
+
+    // Second import with identical hash should skip without error
+    service.importFile(TEST_MODEL);
+    Assertions.assertTrue(service.listModels().contains("test"));
+  }
+
+  @Test
+  void testImportFileThrowsWhenImportPortFails() throws Exception {
+    AssetImportPort failingImport =
+        source -> {
+          throw new java.io.IOException("Disk read error");
+        };
+    ResourcePackBuilder mockBuilder = new ResourcePackBuilder(tempDir.resolve("out-fail"));
+    AssetPipelineService failingService =
+        new AssetPipelineService(
+            failingImport, mockBuilder, tempDir, AssetTargetProfile.PROFILE_26_1);
+
+    String name = "failing.spectra.zip";
+    Files.writeString(tempDir.resolve(name), "broken");
+    RuntimeException error =
+        Assertions.assertThrows(RuntimeException.class, () -> failingService.importFile(name));
+    Assertions.assertTrue(error.getMessage().contains("Import failed"));
+  }
 }

@@ -107,11 +107,7 @@ public final class FileSystemDefinitionLoader {
               .filter(Files::isRegularFile)
               .filter(
                   path -> {
-                    Path fileName = path.getFileName();
-                    if (fileName == null) {
-                      return false;
-                    }
-                    String name = fileName.toString().toLowerCase(Locale.ROOT);
+                    String name = String.valueOf(path.getFileName()).toLowerCase(Locale.ROOT);
                     if (name.equals("example.yml")
                         || name.equals("example.yaml")
                         || name.startsWith("example-")

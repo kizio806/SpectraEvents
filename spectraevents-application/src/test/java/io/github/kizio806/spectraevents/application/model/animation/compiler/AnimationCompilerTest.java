@@ -303,4 +303,19 @@ class AnimationCompilerTest {
     assertTrue(ex.diagnostics().stream().anyMatch(d -> d.code().equals("UNKNOWN_EASING")));
     assertTrue(ex.diagnostics().stream().anyMatch(d -> d.code().equals("INVALID_QUATERNION")));
   }
+
+  @Test
+  void testInvalidTimeFormatDiagnostic() {
+    AnimationCompiler compiler = new AnimationCompiler();
+    AnimationId animId = new AnimationId("bad_time");
+
+    AnimationSpec spec = new AnimationSpec();
+    spec.setDuration("invalid-duration");
+
+    AnimationCompilerException ex =
+        assertThrows(
+            AnimationCompilerException.class, () -> compiler.compile(animId, spec, Set.of()));
+
+    assertTrue(ex.diagnostics().stream().anyMatch(d -> d.code().equals("INVALID_TIME_SYNTAX")));
+  }
 }

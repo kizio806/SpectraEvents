@@ -253,13 +253,6 @@ sonar {
         property("sonar.organization", "kizio806")
         property("sonar.host.url", "https://sonarcloud.io")
         property(
-            "sonar.coverage.jacoco.xmlReportPaths",
-            layout.buildDirectory
-                .file("reports/jacoco/jacocoRootReport/jacocoRootReport.xml")
-                .get()
-                .asFile.absolutePath,
-        )
-        property(
             "sonar.coverage.exclusions",
             "**/platforms/**,**/platforms/**/*,platforms/**,platforms/**/*,**/distributions/**,**/distributions/**/*,distributions/**,distributions/**/*,**/build-logic/**,build-logic/**",
         )

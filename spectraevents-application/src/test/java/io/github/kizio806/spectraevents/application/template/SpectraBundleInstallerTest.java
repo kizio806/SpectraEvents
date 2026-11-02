@@ -68,6 +68,21 @@ class SpectraBundleInstallerTest {
     assertTrue(error.getMessage().contains("requires SpectraEvents 9.0.0"));
   }
 
+  @Test
+  void rejectsMissingOrInvalidArchive() throws Exception {
+    SpectraBundleInstaller installer = new SpectraBundleInstaller(dataDirectory);
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> installer.install(dataDirectory.resolve("missing.spectra.zip")));
+
+    Path txtFile = dataDirectory.resolve("not_a_bundle.txt");
+    Files.writeString(txtFile, "hello");
+    assertThrows(IllegalArgumentException.class, () -> installer.install(txtFile));
+
+    assertThrows(NullPointerException.class, () -> installer.install(null));
+  }
+
   private Path copyBundledMetinArchive() throws Exception {
     Path archive = dataDirectory.resolve("metin.spectra.zip");
     try (InputStream input = getClass().getResourceAsStream("/templates/metin.spectra.zip")) {

@@ -127,8 +127,7 @@ public final class AssetPipelineService {
   public synchronized void importFile(String filename) {
     Objects.requireNonNull(filename, "filename");
     Path path = sourceDirectory.resolve(filename).toAbsolutePath().normalize();
-    Path parent = path.getParent();
-    if (!path.startsWith(sourceDirectory) || parent == null || !parent.equals(sourceDirectory)) {
+    if (!path.startsWith(sourceDirectory) || !Objects.equals(path.getParent(), sourceDirectory)) {
       throw new SecurityException("Path traversal attempt detected: " + filename);
     }
 
@@ -150,8 +149,7 @@ public final class AssetPipelineService {
   }
 
   private boolean importSource(Path source) throws IOException {
-    Path fileName = source.getFileName();
-    String cacheKey = fileName != null ? fileName.toString() : source.toString();
+    String cacheKey = String.valueOf(source.getFileName());
     String currentHash = computeSha256(source);
     if (currentHash.equals(sourceCache.get(cacheKey))) {
       LOGGER.fine("Skipping unchanged asset source: " + cacheKey);
@@ -169,11 +167,7 @@ public final class AssetPipelineService {
   }
 
   private boolean isSupportedSource(Path path) {
-    Path fileName = path.getFileName();
-    if (fileName == null) {
-      return false;
-    }
-    String filename = fileName.toString();
+    String filename = String.valueOf(path.getFileName());
     return filename.endsWith(SPECTRA_BUNDLE_EXTENSION) || filename.endsWith(BLOCKBENCH_EXTENSION);
   }
 

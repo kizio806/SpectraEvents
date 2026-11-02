@@ -721,4 +721,54 @@ class EventDefinitionCompilerTest {
     var phase = def.phase(new PhaseId("active")).orElseThrow();
     assertEquals(actions.size(), phase.onEnterActions().size());
   }
+
+  @Test
+  void testCompilesActionsWithDefaultFallbackValues() {
+    List<ActionSpec> actions =
+        List.of(
+            new ActionSpec("show_title", Map.of()),
+            new ActionSpec(
+                "spawn_mobs",
+                Map.of(
+                    "mobs",
+                    List.of(
+                        Map.of()))), // empty mob map -> defaults to minecraft:zombie and <red>Mob
+            new ActionSpec(
+                "create_participant_reward_claims",
+                Map.of(
+                    "items",
+                    List.of(
+                        Map.of("amount", 2)))), // missing material -> defaults to minecraft:diamond
+            new ActionSpec(
+                "award_podium",
+                Map.of(
+                    "pools",
+                    List.of(
+                        Map.of("items", List.of(Map.of("amount", 3))),
+                        Map.of("items", List.of(Map.of("amount", 2))),
+                        Map.of(
+                            "items",
+                            List.of(
+                                Map.of(
+                                    "amount",
+                                    1))))))); // missing material -> defaults to minecraft:diamond
+
+    EventSpec spec =
+        new EventSpec(
+            "default_action_values",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), actions)));
+
+    try {
+      EventDefinition def = compiler.compile(spec);
+      assertNotNull(def);
+      var phase = def.phase(new PhaseId("active")).orElseThrow();
+      assertEquals(4, phase.onEnterActions().size());
+    } catch (EventDefinitionCompilerException e) {
+      org.junit.jupiter.api.Assertions.fail(
+          "Diagnostics: "
+              + e.getDiagnostics().stream().map(d -> d.code() + ": " + d.message()).toList());
+    }
+  }
 }
