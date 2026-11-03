@@ -16,6 +16,7 @@ import io.github.kizio806.spectraevents.application.config.spec.TransitionSpec;
 import io.github.kizio806.spectraevents.application.config.spec.TriggerSpec;
 import io.github.kizio806.spectraevents.application.config.validation.ValidationDiagnostic;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
+import io.github.kizio806.spectraevents.core.event.definition.EventEncounterSettings;
 import io.github.kizio806.spectraevents.core.event.execution.action.PlatformActions;
 import io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
@@ -379,9 +380,7 @@ class EventDefinitionCompilerTest {
             Map.of());
 
     EventDefinition def = compiler.compile(spec);
-    assertEquals(
-        io.github.kizio806.spectraevents.core.event.definition.EventEncounterSettings.NONE,
-        def.encounterSettings());
+    assertEquals(EventEncounterSettings.NONE, def.encounterSettings());
   }
 
   @Test

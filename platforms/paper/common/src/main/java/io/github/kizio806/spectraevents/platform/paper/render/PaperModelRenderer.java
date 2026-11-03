@@ -1,6 +1,5 @@
 package io.github.kizio806.spectraevents.platform.paper.render;
 
-import io.github.kizio806.spectraevents.application.model.runtime.ModelAnchor;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeId;
 import io.github.kizio806.spectraevents.application.model.runtime.RenderedModelHandle;
 import io.github.kizio806.spectraevents.application.model.runtime.RenderedPartHandle;
@@ -13,7 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -50,29 +48,11 @@ public class PaperModelRenderer extends AbstractBukkitModelRenderer {
   }
 
   @Override
-  public boolean updateModelTransform(RenderedModelHandle handle, ModelAnchor newAnchor) {
-    Objects.requireNonNull(handle, "handle cannot be null");
-    Objects.requireNonNull(newAnchor, "newAnchor cannot be null");
-
-    World world = Bukkit.getWorld(newAnchor.worldName());
-    if (world == null) return false;
-
-    Location newLoc =
-        new Location(
-            world, newAnchor.x(), newAnchor.y(), newAnchor.z(), newAnchor.yaw(), newAnchor.pitch());
-
+  protected void applyTransformTeleports(
+      RenderedModelHandle handle, List<Entity> entities, Location newLoc) {
     List<CompletableFuture<?>> teleportFutures = new ArrayList<>();
-    for (RenderedPartHandle partHandle : handle.parts().values()) {
-      Entity entity = Bukkit.getEntity(partHandle.entityUuid());
-      if (entity != null && entity.isValid()) {
-        teleportFutures.add(entity.teleportAsync(newLoc));
-      }
-    }
-    for (UUID interactionUuid : handle.interactions().values()) {
-      Entity entity = Bukkit.getEntity(interactionUuid);
-      if (entity != null && entity.isValid()) {
-        teleportFutures.add(entity.teleportAsync(newLoc));
-      }
+    for (Entity entity : entities) {
+      teleportFutures.add(entity.teleportAsync(newLoc));
     }
     CompletableFuture<Void> transformFuture =
         CompletableFuture.allOf(teleportFutures.toArray(CompletableFuture<?>[]::new))
@@ -88,16 +68,6 @@ public class PaperModelRenderer extends AbstractBukkitModelRenderer {
                   return null;
                 });
     inFlightTransforms.put(handle.runtimeId(), transformFuture);
-    activeHandles.put(
-        handle.runtimeId(),
-        new RenderedModelHandle(
-            handle.runtimeId(),
-            handle.definitionId(),
-            handle.ownerEventId(),
-            newAnchor,
-            handle.parts(),
-            handle.interactions()));
-    return true;
   }
 
   @Override

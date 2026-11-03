@@ -1,5 +1,7 @@
 package io.github.kizio806.spectraevents.core.visual.model;
 
+import java.util.Objects;
+
 /** Platform-neutral authoring representation of Euler angles in degrees. */
 public record EulerRotation(float pitchX, float yawY, float rollZ) {
   public static final EulerRotation ZERO = new EulerRotation(0.0f, 0.0f, 0.0f);
@@ -16,7 +18,7 @@ public record EulerRotation(float pitchX, float yawY, float rollZ) {
   }
 
   public EulerRotation lerp(EulerRotation target, float t) {
-    java.util.Objects.requireNonNull(target, "target EulerRotation cannot be null");
+    Objects.requireNonNull(target, "target EulerRotation cannot be null");
     float p = pitchX + (target.pitchX - pitchX) * t;
     float y = yawY + (target.yawY - yawY) * t;
     float r = rollZ + (target.rollZ - rollZ) * t;

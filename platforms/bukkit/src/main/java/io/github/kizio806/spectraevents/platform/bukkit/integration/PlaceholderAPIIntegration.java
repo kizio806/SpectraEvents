@@ -4,6 +4,7 @@ import io.github.kizio806.spectraevents.application.integration.IntegrationIniti
 import io.github.kizio806.spectraevents.application.integration.PlatformIntegrationModule;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
+import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
 import java.util.List;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.OfflinePlayer;
@@ -57,11 +58,7 @@ public class PlaceholderAPIIntegration implements PlatformIntegrationModule {
       if (params.equalsIgnoreCase("active_count")) {
         List<EventInstance> active =
             repository.findAll().stream()
-                .filter(
-                    i ->
-                        i.state()
-                            == io.github.kizio806.spectraevents.core.event.runtime
-                                .EventLifecycleState.RUNNING)
+                .filter(i -> i.state() == EventLifecycleState.RUNNING)
                 .toList();
         return String.valueOf(active.size());
       }

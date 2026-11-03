@@ -6,6 +6,7 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.platform.bukkit.common.EventDisplayPlaceholders;
 import io.github.kizio806.spectraevents.platform.paper.integration.MiniPlaceholdersIntegration;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -181,7 +182,7 @@ public final class EventBossBarManager implements Listener {
       return BossBar.Color.PURPLE;
     }
     try {
-      return BossBar.Color.valueOf(colorStr.toUpperCase(java.util.Locale.ROOT));
+      return BossBar.Color.valueOf(colorStr.toUpperCase(Locale.ROOT));
     } catch (IllegalArgumentException e) {
       return BossBar.Color.PURPLE;
     }
@@ -192,7 +193,7 @@ public final class EventBossBarManager implements Listener {
       return BossBar.Overlay.PROGRESS;
     }
     try {
-      String upper = styleStr.toUpperCase(java.util.Locale.ROOT);
+      String upper = styleStr.toUpperCase(Locale.ROOT);
       if (upper.startsWith("NOTCH")) {
         return BossBar.Overlay.valueOf(upper.replace("NOTCH_", "NOTCHES_"));
       }

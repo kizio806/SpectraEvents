@@ -2,6 +2,7 @@ package io.github.kizio806.spectraevents.platform.bukkit.gui;
 
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import java.util.List;
+import java.util.Map;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
@@ -18,7 +19,7 @@ public final class LocationRemoveConfirmationScreen {
         AdminGuiHolder.createInventory(
             AdminGuiController.MenuType.LOCATION_REMOVE_CONFIRMATION,
             locationName,
-            java.util.Map.of(),
+            Map.of(),
             45,
             GuiText.component(locales, "admin.gui.remove-location.title", NamedTextColor.RED));
     inventory.setItem(
@@ -29,7 +30,7 @@ public final class LocationRemoveConfirmationScreen {
                 locales,
                 "admin.gui.remove-location.confirm",
                 NamedTextColor.GREEN,
-                java.util.Map.of("location", locationName)),
+                Map.of("location", locationName)),
             List.of(
                 GuiText.component(
                     locales, "admin.gui.remove-location.confirm-lore", NamedTextColor.GRAY))));

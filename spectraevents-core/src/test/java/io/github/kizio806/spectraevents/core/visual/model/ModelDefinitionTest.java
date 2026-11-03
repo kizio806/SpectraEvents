@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationDefinition;
+import io.github.kizio806.spectraevents.core.visual.animation.AnimationDuration;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationId;
+import io.github.kizio806.spectraevents.core.visual.animation.AnimationTime;
 import io.github.kizio806.spectraevents.core.visual.animation.LoopMode;
 import io.github.kizio806.spectraevents.core.visual.animation.RecoveryPolicy;
 import java.util.List;
@@ -40,9 +42,7 @@ class ModelDefinitionTest {
     AnimationDefinition anim =
         new AnimationDefinition(
             new AnimationId("idle"),
-            io.github.kizio806.spectraevents.core.visual.animation.AnimationDuration.of(
-                io.github.kizio806.spectraevents.core.visual.animation.AnimationTime.fromSeconds(
-                    1.0)),
+            AnimationDuration.of(AnimationTime.fromSeconds(1.0)),
             LoopMode.LOOP,
             1,
             Map.of(),

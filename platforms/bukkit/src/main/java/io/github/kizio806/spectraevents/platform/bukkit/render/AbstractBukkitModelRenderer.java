@@ -328,6 +328,58 @@ public abstract class AbstractBukkitModelRenderer implements ModelRendererPort {
   }
 
   @Override
+  public boolean updateModelTransform(RenderedModelHandle handle, ModelAnchor newAnchor) {
+    Objects.requireNonNull(handle, "handle cannot be null");
+    Objects.requireNonNull(newAnchor, "newAnchor cannot be null");
+
+    World world = Bukkit.getWorld(newAnchor.worldName());
+    if (world == null) {
+      return false;
+    }
+
+    Location newLoc =
+        new Location(
+            world, newAnchor.x(), newAnchor.y(), newAnchor.z(), newAnchor.yaw(), newAnchor.pitch());
+
+    List<Entity> entities = new ArrayList<>();
+    for (RenderedPartHandle partHandle : handle.parts().values()) {
+      Entity entity = Bukkit.getEntity(partHandle.entityUuid());
+      if (entity != null && entity.isValid()) {
+        entities.add(entity);
+      }
+    }
+    for (UUID interactionUuid : handle.interactions().values()) {
+      Entity entity = Bukkit.getEntity(interactionUuid);
+      if (entity != null && entity.isValid()) {
+        entities.add(entity);
+      }
+    }
+
+    applyTransformTeleports(handle, entities, newLoc);
+
+    activeHandles.put(
+        handle.runtimeId(),
+        new RenderedModelHandle(
+            handle.runtimeId(),
+            handle.definitionId(),
+            handle.ownerEventId(),
+            newAnchor,
+            handle.parts(),
+            handle.interactions()));
+    return true;
+  }
+
+  /**
+   * Applies location teleports to all valid entities in the model.
+   *
+   * @param handle the model handle being transformed
+   * @param entities the list of valid entities belonging to the model
+   * @param newLoc the target location
+   */
+  protected abstract void applyTransformTeleports(
+      RenderedModelHandle handle, List<Entity> entities, Location newLoc);
+
+  @Override
   public boolean removeModel(RenderedModelHandle handle) {
     Objects.requireNonNull(handle, "handle cannot be null");
     activeHandles.remove(handle.runtimeId());

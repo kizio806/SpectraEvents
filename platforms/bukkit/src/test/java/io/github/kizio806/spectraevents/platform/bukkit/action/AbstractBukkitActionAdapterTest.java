@@ -10,6 +10,7 @@ import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.application.execution.FatalActionException;
+import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
 import io.github.kizio806.spectraevents.core.event.execution.action.PlatformActions;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
@@ -289,10 +290,7 @@ class AbstractBukkitActionAdapterTest {
   @Test
   void shouldValidateRemoveModelAndGiveItem() {
     EventInstanceId id = EventInstanceId.generate();
-    EventInstance instance =
-        EventInstance.create(
-            id,
-            new io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId("test"));
+    EventInstance instance = EventInstance.create(id, new EventDefinitionId("test"));
     EventRuntimeState state = new EventRuntimeState(id);
 
     PlatformActions.RemoveModelAction removeModelAction = new PlatformActions.RemoveModelAction();

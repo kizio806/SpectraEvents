@@ -1,21 +1,31 @@
 package io.github.kizio806.spectraevents.platform.spigot;
 
+import io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchProjectReader;
 import io.github.kizio806.spectraevents.adapter.storage.sqlite.SQLiteEventInstanceRepository;
+import io.github.kizio806.spectraevents.adapter.update.http.HttpUpdateAdapter;
 import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
+import io.github.kizio806.spectraevents.application.asset.AssetPipelineService;
+import io.github.kizio806.spectraevents.application.asset.AssetTargetProfile;
+import io.github.kizio806.spectraevents.application.asset.ImportedAssetModelRegistrar;
+import io.github.kizio806.spectraevents.application.asset.ResourcePackBuilder;
 import io.github.kizio806.spectraevents.application.config.DataDirectoryLayout;
 import io.github.kizio806.spectraevents.application.config.loader.DefinitionLoadResult;
+import io.github.kizio806.spectraevents.application.config.locale.FileSystemLocaleLoader;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.integration.IntegrationInitializationContext;
 import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.service.EntityReconciliationReport;
+import io.github.kizio806.spectraevents.application.update.UpdateService;
 import io.github.kizio806.spectraevents.platform.bukkit.common.BukkitLifecycleReporter;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitScheduleBootstrapHelper;
 import io.github.kizio806.spectraevents.platform.bukkit.gui.AdminGuiController;
 import io.github.kizio806.spectraevents.platform.bukkit.integration.BukkitIntegrationManager;
 import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootListener;
 import io.github.kizio806.spectraevents.platform.bukkit.util.BukkitPluginVersions;
 import io.github.kizio806.spectraevents.platform.spigot.action.SpigotActionAdapter;
+import io.github.kizio806.spectraevents.platform.spigot.asset.delivery.SpigotResourcePackDeliveryBootstrap;
 import io.github.kizio806.spectraevents.platform.spigot.command.SpigotMainCommand;
 import io.github.kizio806.spectraevents.platform.spigot.interaction.SpigotEventRouter;
 import io.github.kizio806.spectraevents.platform.spigot.lifecycle.SpigotEntityReconciler;
@@ -25,6 +35,7 @@ import java.nio.file.Path;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
+import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -59,8 +70,7 @@ public final class SpigotBootstrap {
     LocaleCatalog locales;
     try {
       locales =
-          new io.github.kizio806.spectraevents.application.config.locale.FileSystemLocaleLoader(
-                  dataLayout.root())
+          new FileSystemLocaleLoader(dataLayout.root())
               .loadConfiguredCatalog(dataLayout.configFile());
     } catch (IOException exception) {
       throw new IllegalStateException(
@@ -87,23 +97,20 @@ public final class SpigotBootstrap {
     BukkitIntegrationManager integrationManager =
         new BukkitIntegrationManager(application.integrationRegistry());
     integrationManager.detectAll();
-    io.github.kizio806.spectraevents.application.asset.AssetTargetProfile assetTargetProfile =
-        io.github.kizio806.spectraevents.application.asset.AssetTargetProfile.forMinecraftVersion(
-            minecraftVersion());
+    AssetTargetProfile assetTargetProfile =
+        AssetTargetProfile.forMinecraftVersion(minecraftVersion());
     application.setAssetPipelineService(
-        new io.github.kizio806.spectraevents.application.asset.AssetPipelineService(
-            new io.github.kizio806.spectraevents.adapter.blockbench.BlockbenchProjectReader(),
-            new io.github.kizio806.spectraevents.application.asset.ResourcePackBuilder(
-                dataLayout.resourcePackCacheDirectory()),
+        new AssetPipelineService(
+            new BlockbenchProjectReader(),
+            new ResourcePackBuilder(dataLayout.resourcePackCacheDirectory()),
             dataDirectory.resolve("assets").resolve("source"),
             assetTargetProfile,
-            new io.github.kizio806.spectraevents.application.asset.ImportedAssetModelRegistrar(
+            new ImportedAssetModelRegistrar(
                 application.modelCompiler(),
                 application.modelDefinitionRegistry(),
                 application.animationDefinitionRegistry())));
     resourcePackDelivery =
-        io.github.kizio806.spectraevents.platform.spigot.asset.delivery
-            .SpigotResourcePackDeliveryBootstrap.configure(
+        SpigotResourcePackDeliveryBootstrap.configure(
             plugin, BukkitPluginVersions.resolveVersion(plugin), assetTargetProfile, locales);
     actionAdapter.setModelRuntimeService(application.modelRuntimeService());
     actionAdapter.setModelAnimationActionService(
@@ -116,8 +123,8 @@ public final class SpigotBootstrap {
         new BukkitDefinitionConfigBootstrap(plugin, application.definitionLoader());
     loadDefinitions(definitions);
 
-    io.github.kizio806.spectraevents.platform.bukkit.config.BukkitScheduleBootstrapHelper
-        .loadAndRegisterSchedules(dataLayout.schedulesFile(), application, plugin.getLogger());
+    BukkitScheduleBootstrapHelper.loadAndRegisterSchedules(
+        dataLayout.schedulesFile(), application, plugin.getLogger());
 
     EntityReconciliationReport reconciliation = application.reconciliationService().reconcileAll();
     application.setLastReconciliationReport(reconciliation);
@@ -151,15 +158,13 @@ public final class SpigotBootstrap {
                 plugin,
                 repository,
                 application.executionEngine(),
-                (player, task) -> org.bukkit.Bukkit.getScheduler().runTask(plugin, task)),
+                (player, task) -> Bukkit.getScheduler().runTask(plugin, task)),
             plugin);
 
     Path updateDir = plugin.getDataFolder().toPath().resolve("update");
-    io.github.kizio806.spectraevents.adapter.update.http.HttpUpdateAdapter updateAdapter =
-        new io.github.kizio806.spectraevents.adapter.update.http.HttpUpdateAdapter(updateDir);
-    io.github.kizio806.spectraevents.application.update.UpdateService updateService =
-        new io.github.kizio806.spectraevents.application.update.UpdateService(
-            BukkitPluginVersions.resolveVersion(plugin), updateAdapter);
+    HttpUpdateAdapter updateAdapter = new HttpUpdateAdapter(updateDir);
+    UpdateService updateService =
+        new UpdateService(BukkitPluginVersions.resolveVersion(plugin), updateAdapter);
 
     BukkitEventSettingsStore eventSettingsStore = new BukkitEventSettingsStore(plugin);
     AdminGuiController adminGuiController =

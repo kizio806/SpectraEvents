@@ -4,17 +4,19 @@ Describe the problem and the implemented change.
 
 ## Architecture
 
-- [ ] Module placement and dependency direction were reviewed.
-- [ ] Core, application, and API remain free of Paper/Bukkit types.
-- [ ] Any major architectural decision is recorded in an ADR.
+- [ ] Module placement and dependency direction were reviewed (`platform -> application -> core`).
+- [ ] Core, application, and adapters remain free of Bukkit/Paper/Spigot/NMS types.
+- [ ] Platform parity between Paper and Spigot was verified when applicable.
 
 ## Verification
 
 - [ ] Targeted tests pass.
 - [ ] `./gradlew clean check build` passes.
-- [ ] The final plugin JAR was inspected when distribution code changed.
-- [ ] A Paper smoke test was run, or the reason it was not run is documented.
+- [ ] `./scripts/verification/validate-structure.sh` and `./scripts/verification/validate-source-hygiene.sh` pass.
+- [ ] Exactly two production JARs are produced (Paper and Spigot).
 
-## Documentation
+## Documentation & Hygiene
 
-- [ ] Durable documentation and `PROJECT_STATE.md` were updated when warranted.
+- [ ] `CHANGELOG.md` updated for user-visible changes.
+- [ ] Documentation under `docs/` updated when warranted.
+- [ ] Zero `@SuppressWarnings`, `TODO`, `FIXME`, or wildcard imports.

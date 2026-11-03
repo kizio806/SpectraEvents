@@ -43,22 +43,14 @@ jobs:
         with:
           validate-wrappers: true
 
-      - name: Configure SonarCloud Project Settings
+      - name: Disable SonarCloud Automatic Analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           if [ -n "${SONAR_TOKEN:-}" ]; then
-            echo "Ensuring Automatic Analysis is disabled for CI analysis..."
             curl -s -u "${SONAR_TOKEN}:" -X POST "https://sonarcloud.io/api/autoscan/activation" \
               -d "projectKey=kizio806_SpectraEvents" \
               -d "enable=false" || true
-
-            BRANCHES=$(curl -s -u "${SONAR_TOKEN}:" "https://sonarcloud.io/api/project_branches/list?project=kizio806_SpectraEvents" || true)
-            if echo "$BRANCHES" | grep -q '"name":"master","isMain":true'; then
-              echo "SonarCloud main branch is configured as 'master'. Switching to 'main'..."
-              curl -s -u "${SONAR_TOKEN}:" -X POST "https://sonarcloud.io/api/project_branches/delete?project=kizio806_SpectraEvents&branch=main" || true
-              curl -s -u "${SONAR_TOKEN}:" -X POST "https://sonarcloud.io/api/project_branches/rename?project=kizio806_SpectraEvents&name=main" || true
-            fi
           fi
 
       - name: Run Tests, JaCoCo, and SonarCloud Analysis

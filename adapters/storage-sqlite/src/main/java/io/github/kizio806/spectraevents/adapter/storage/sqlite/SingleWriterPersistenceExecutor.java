@@ -6,7 +6,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -23,12 +25,9 @@ public class SingleWriterPersistenceExecutor {
   private final AtomicBoolean running = new AtomicBoolean(true);
 
   // Metrics
-  private final java.util.concurrent.atomic.AtomicLong peakQueueDepth =
-      new java.util.concurrent.atomic.AtomicLong(0);
-  private final java.util.concurrent.atomic.AtomicLong totalWrites =
-      new java.util.concurrent.atomic.AtomicLong(0);
-  private final java.util.concurrent.atomic.AtomicLong totalErrors =
-      new java.util.concurrent.atomic.AtomicLong(0);
+  private final AtomicLong peakQueueDepth = new AtomicLong(0);
+  private final AtomicLong totalWrites = new AtomicLong(0);
+  private final AtomicLong totalErrors = new AtomicLong(0);
 
   public SingleWriterPersistenceExecutor(int capacity) {
     this.queue = new ArrayBlockingQueue<>(capacity);
@@ -107,7 +106,7 @@ public class SingleWriterPersistenceExecutor {
   private void runLoop() {
     while (running.get() || !queue.isEmpty()) {
       try {
-        Runnable op = queue.poll(100, java.util.concurrent.TimeUnit.MILLISECONDS);
+        Runnable op = queue.poll(100, TimeUnit.MILLISECONDS);
         if (op != null) {
           op.run();
           totalWrites.incrementAndGet();

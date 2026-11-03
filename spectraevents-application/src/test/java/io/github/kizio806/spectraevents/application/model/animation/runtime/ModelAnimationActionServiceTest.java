@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.github.kizio806.spectraevents.application.execution.FatalActionException;
 import io.github.kizio806.spectraevents.application.model.animation.compiler.AnimationCompiler;
+import io.github.kizio806.spectraevents.application.model.animation.compiler.CompiledAnimation;
 import io.github.kizio806.spectraevents.application.model.animation.registry.AnimationDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.model.animation.spec.AnimationSpec;
 import io.github.kizio806.spectraevents.application.model.animation.spec.AnimationTrackSpec;
@@ -143,8 +144,7 @@ class ModelAnimationActionServiceTest {
     return new ModelDefinition(modelId, List.of(part), List.of());
   }
 
-  private io.github.kizio806.spectraevents.application.model.animation.compiler.CompiledAnimation
-      compiledAnimation() {
+  private CompiledAnimation compiledAnimation() {
     AnimationSpec spec = new AnimationSpec();
     spec.setDuration("1s");
     KeyframeSpec start = new KeyframeSpec();

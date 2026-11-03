@@ -7,8 +7,11 @@ import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeStateStore;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.application.port.PlatformEntityReconcilerPort;
+import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
+import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
+import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -50,9 +53,9 @@ class EntityReconciliationServiceTest {
     EventInstance instance =
         EventInstance.reconstitute(
             instanceId,
-            new io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId("test"),
-            io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState.RUNNING,
-            new io.github.kizio806.spectraevents.core.event.phase.PhaseId("active"));
+            new EventDefinitionId("test"),
+            EventLifecycleState.RUNNING,
+            new PhaseId("active"));
     repository.save(instance);
     EventRuntimeState state = stateStore.getOrCreate(instanceId);
     state.setBossEntityId(UUID.randomUUID().toString()); // Stale id

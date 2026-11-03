@@ -1,8 +1,11 @@
 package io.github.kizio806.spectraevents.platform.bukkit.gui;
 
 import io.github.kizio806.spectraevents.application.config.DurationText;
+import io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompiler;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
+import io.github.kizio806.spectraevents.application.config.spec.EventParameterSpec;
+import io.github.kizio806.spectraevents.application.config.spec.EventParameterType;
 import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
@@ -11,6 +14,8 @@ import io.github.kizio806.spectraevents.application.update.UpdateService;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
+import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -359,8 +364,7 @@ public final class AdminGuiController implements Listener {
           Objects.requireNonNull(orchestrationService.executionEngine(), "executionEngine");
       var instance =
           engine.startEvent(
-              new io.github.kizio806.spectraevents.application.config.compiler
-                      .EventDefinitionCompiler()
+              new EventDefinitionCompiler()
                   .compile(registered.sourceSpec(), settingsStore.overridesFor(definitionId)),
               platformLocation);
       GuiText.send(
@@ -394,10 +398,10 @@ public final class AdminGuiController implements Listener {
               .overridesFor(definitionId)
               .getOrDefault(parameter, declaration.defaultValue());
       String adjusted = adjustedValue(declaration, value, decrease);
-      new io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompiler()
+      new EventDefinitionCompiler()
           .compile(
               definitionRegistry.findById(definitionId).orElseThrow().sourceSpec(),
-              java.util.Map.of(parameter, adjusted));
+              Map.of(parameter, adjusted));
       settingsStore.setParameter(definitionId, parameter, adjusted);
       GuiText.send(
           player,
@@ -418,12 +422,8 @@ public final class AdminGuiController implements Listener {
     }
   }
 
-  private String adjustedValue(
-      io.github.kizio806.spectraevents.application.config.spec.EventParameterSpec declaration,
-      Object value,
-      boolean decrease) {
-    if (declaration.type()
-        == io.github.kizio806.spectraevents.application.config.spec.EventParameterType.DURATION) {
+  private String adjustedValue(EventParameterSpec declaration, Object value, boolean decrease) {
+    if (declaration.type() == EventParameterType.DURATION) {
       long milliseconds = DurationText.parse(value).toMillis();
       long adjusted =
           Math.max(
@@ -432,16 +432,15 @@ public final class AdminGuiController implements Listener {
                   + (decrease
                       ? -declaration.step().longValue() * 1_000L
                       : declaration.step().longValue() * 1_000L));
-      return DurationText.format(java.time.Duration.ofMillis(adjusted));
+      return DurationText.format(Duration.ofMillis(adjusted));
     }
-    java.math.BigDecimal adjusted =
-        new java.math.BigDecimal(String.valueOf(value))
+    BigDecimal adjusted =
+        new BigDecimal(String.valueOf(value))
             .add(decrease ? declaration.step().negate() : declaration.step());
     if (declaration.minimum() != null) {
       adjusted = adjusted.max(declaration.minimum()).min(declaration.maximum());
     }
-    if (declaration.type()
-        == io.github.kizio806.spectraevents.application.config.spec.EventParameterType.INTEGER) {
+    if (declaration.type() == EventParameterType.INTEGER) {
       return adjusted.toBigIntegerExact().toString();
     }
     return adjusted.stripTrailingZeros().toPlainString();

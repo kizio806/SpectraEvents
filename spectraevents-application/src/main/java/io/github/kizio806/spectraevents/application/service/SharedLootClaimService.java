@@ -3,10 +3,12 @@ package io.github.kizio806.spectraevents.application.service;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.core.event.execution.action.CoreActions;
+import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Coordinates one-at-a-time shared-loot reservations with durable runtime state. */
@@ -43,7 +45,7 @@ public final class SharedLootClaimService {
               if (failure != null) {
                 restoreInMemory(reservation);
                 release(reservation);
-                throw new java.util.concurrent.CompletionException(failure);
+                throw new CompletionException(failure);
               }
               return Optional.of(reservation);
             });
@@ -111,6 +113,5 @@ public final class SharedLootClaimService {
     }
   }
 
-  private record ReservationKey(
-      io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId instanceId, int slot) {}
+  private record ReservationKey(EventInstanceId instanceId, int slot) {}
 }

@@ -5,6 +5,7 @@ import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.spec.EventParameterType;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,13 +59,11 @@ public final class EventConfigurationDetailScreen {
               : String.valueOf(value);
       String range =
           declaration.type() == EventParameterType.DURATION
-              ? DurationText.format(java.time.Duration.ofSeconds(declaration.minimum().longValue()))
+              ? DurationText.format(Duration.ofSeconds(declaration.minimum().longValue()))
                   + ".."
-                  + DurationText.format(
-                      java.time.Duration.ofSeconds(declaration.maximum().longValue()))
+                  + DurationText.format(Duration.ofSeconds(declaration.maximum().longValue()))
                   + " step "
-                  + DurationText.format(
-                      java.time.Duration.ofSeconds(declaration.step().longValue()))
+                  + DurationText.format(Duration.ofSeconds(declaration.step().longValue()))
               : declaration.minimum()
                   + ".."
                   + declaration.maximum()

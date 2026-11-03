@@ -14,6 +14,7 @@ import io.github.kizio806.spectraevents.core.event.phase.PhaseDefinition;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.gameplay.contribution.ContributionRanking;
 import io.github.kizio806.spectraevents.core.gameplay.health.Health;
+import io.github.kizio806.spectraevents.core.gameplay.health.HealthThresholds;
 import io.github.kizio806.spectraevents.core.gameplay.hits.HitCounter;
 import io.github.kizio806.spectraevents.core.gameplay.reward.RewardClaim;
 import io.github.kizio806.spectraevents.core.gameplay.reward.RewardClaimStatus;
@@ -303,9 +304,7 @@ class InternalActionExecutor {
           }
         }
         if (!absoluteThresholds.isEmpty()) {
-          var thresholds =
-              new io.github.kizio806.spectraevents.core.gameplay.health.HealthThresholds(
-                  absoluteThresholds);
+          var thresholds = new HealthThresholds(absoluteThresholds);
           for (Integer threshold : thresholds.checkCrossed(oldHealth, updated)) {
             engine.evaluateTrigger(
                 instance.id(), new CoreTriggers.HealthThresholdCrossedTrigger(threshold), context);

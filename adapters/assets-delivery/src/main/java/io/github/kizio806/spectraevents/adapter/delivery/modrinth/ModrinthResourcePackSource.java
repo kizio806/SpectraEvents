@@ -8,6 +8,7 @@ import io.github.kizio806.spectraevents.application.asset.AssetTargetProfile;
 import io.github.kizio806.spectraevents.application.asset.delivery.ResourcePackDescriptor;
 import io.github.kizio806.spectraevents.application.asset.delivery.ResourcePackSourcePort;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 public final class ModrinthResourcePackSource implements ResourcePackSourcePort {
 
@@ -67,7 +68,7 @@ public final class ModrinthResourcePackSource implements ResourcePackSourcePort 
               }
 
               if (selectedVersion == null) {
-                throw new java.util.concurrent.CompletionException(
+                throw new CompletionException(
                     new IllegalStateException(
                         "Version "
                             + (versionId.isBlank() ? expectedVersion : versionId)
@@ -91,7 +92,7 @@ public final class ModrinthResourcePackSource implements ResourcePackSourcePort 
               }
 
               if (primaryFile == null) {
-                throw new java.util.concurrent.CompletionException(
+                throw new CompletionException(
                     new IllegalStateException(
                         "Could not unambiguously determine primary file for Modrinth version "
                             + expectedVersion));
@@ -99,14 +100,14 @@ public final class ModrinthResourcePackSource implements ResourcePackSourcePort 
 
               String url = primaryFile.get("url").getAsString();
               if (!url.startsWith("https://") || !url.endsWith(".zip")) {
-                throw new java.util.concurrent.CompletionException(
+                throw new CompletionException(
                     new IllegalStateException(
                         "Modrinth file URL is invalid (must be HTTPS and .zip): " + url));
               }
 
               JsonObject hashes = primaryFile.getAsJsonObject("hashes");
               if (!hashes.has("sha1")) {
-                throw new java.util.concurrent.CompletionException(
+                throw new CompletionException(
                     new IllegalStateException("Modrinth file is missing sha1 hash"));
               }
 
@@ -115,7 +116,7 @@ public final class ModrinthResourcePackSource implements ResourcePackSourcePort 
               long size = primaryFile.get("size").getAsLong();
 
               if (size <= 0) {
-                throw new java.util.concurrent.CompletionException(
+                throw new CompletionException(
                     new IllegalStateException("Modrinth file size must be greater than 0"));
               }
 

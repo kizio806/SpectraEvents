@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -89,7 +90,7 @@ class FileSystemLocaleLoaderTest {
   private List<String> playerFacingLocaleReferences(String event) {
     String source = readResource("/events/" + event + ".yml");
     Matcher matcher = PLAYER_FACING_ACTION_FIELD.matcher(source);
-    java.util.ArrayList<String> values = new java.util.ArrayList<>();
+    List<String> values = new ArrayList<>();
     while (matcher.find()) {
       values.add(matcher.group(1));
     }

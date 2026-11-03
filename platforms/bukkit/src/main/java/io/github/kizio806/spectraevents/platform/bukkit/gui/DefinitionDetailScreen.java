@@ -8,6 +8,7 @@ import io.github.kizio806.spectraevents.core.event.phase.PhaseDefinition;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -54,13 +55,13 @@ public final class DefinitionDetailScreen {
         AdminGuiHolder.createInventory(
             AdminGuiController.MenuType.DEFINITION_DETAIL,
             definitionId,
-            /* slotPayloads= */ java.util.Map.of(),
+            /* slotPayloads= */ Map.of(),
             54,
             GuiText.component(
                 locales,
                 "admin.gui.definition-detail.title",
                 NamedTextColor.DARK_GREEN,
-                java.util.Map.of("definition", definitionId)));
+                Map.of("definition", definitionId)));
 
     // Render one item per phase (up to 36 items in the first four rows)
     int slot = 0;
@@ -75,13 +76,13 @@ public final class DefinitionDetailScreen {
               locales,
               "admin.gui.definition-detail.on-enter-actions",
               NamedTextColor.GRAY,
-              java.util.Map.of("count", phase.onEnterActions().size())));
+              Map.of("count", phase.onEnterActions().size())));
       lore.add(
           GuiText.component(
               locales,
               "admin.gui.definition-detail.transitions",
               NamedTextColor.GRAY,
-              java.util.Map.of("count", phase.rules().size())));
+              Map.of("count", phase.rules().size())));
 
       boolean isInitial = phaseId.equals(definition.initialPhase());
       Material phaseMat = isInitial ? Material.LIME_WOOL : Material.LIGHT_GRAY_WOOL;
@@ -113,7 +114,7 @@ public final class DefinitionDetailScreen {
                     locales,
                     "admin.gui.definition-detail.start-lore",
                     NamedTextColor.GRAY,
-                    java.util.Map.of("definition", definitionId)))));
+                    Map.of("definition", definitionId)))));
 
     return inv;
   }

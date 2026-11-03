@@ -4,6 +4,7 @@ import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.update.UpdateInfo;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
 import java.util.List;
+import java.util.Map;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
@@ -36,17 +37,17 @@ public final class UpdatesScreen {
                     locales,
                     "admin.gui.updates.installed-version",
                     NamedTextColor.GRAY,
-                    java.util.Map.of("version", info.currentVersion())),
+                    Map.of("version", info.currentVersion())),
                 GuiText.component(
                     locales,
                     "admin.gui.updates.latest-version",
                     NamedTextColor.GRAY,
-                    java.util.Map.of("version", info.latestVersion())),
+                    Map.of("version", info.latestVersion())),
                 GuiText.component(
                     locales,
                     "admin.gui.updates.release-notes",
                     NamedTextColor.DARK_GRAY,
-                    java.util.Map.of("notes", info.releaseNotes())))));
+                    Map.of("notes", info.releaseNotes())))));
 
     inv.setItem(
         22,

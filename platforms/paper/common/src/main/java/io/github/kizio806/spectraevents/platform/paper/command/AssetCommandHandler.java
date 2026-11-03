@@ -3,6 +3,8 @@ package io.github.kizio806.spectraevents.platform.paper.command;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import io.github.kizio806.spectraevents.application.asset.AssetPipelineService;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetDocument;
@@ -12,6 +14,7 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -66,10 +69,8 @@ public final class AssetCommandHandler {
                         .executes(this::validateAsset)));
   }
 
-  private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions>
-      suggestAssetIds(
-          CommandContext<CommandSourceStack> ctx,
-          com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
+  private CompletableFuture<Suggestions> suggestAssetIds(
+      CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {
     String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
     if (assetPipelineService != null) {
       for (String modelId : assetPipelineService.listModels()) {

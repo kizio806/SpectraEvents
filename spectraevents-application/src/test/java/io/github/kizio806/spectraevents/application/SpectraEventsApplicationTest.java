@@ -12,7 +12,9 @@ import io.github.kizio806.spectraevents.application.port.EventTaskScheduler;
 import io.github.kizio806.spectraevents.application.port.LifecycleReporter;
 import io.github.kizio806.spectraevents.application.port.ModelRendererPort;
 import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
+import io.github.kizio806.spectraevents.application.port.PlatformCapability;
 import io.github.kizio806.spectraevents.application.port.PlatformCapabilityQuery;
+import io.github.kizio806.spectraevents.application.port.PlatformDescriptor;
 import io.github.kizio806.spectraevents.application.port.PlatformEntityReconcilerPort;
 import io.github.kizio806.spectraevents.application.repository.InMemoryEventInstanceRepository;
 import io.github.kizio806.spectraevents.application.service.EntityReconciliationReport;
@@ -20,6 +22,8 @@ import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseDefinition;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
+import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -46,17 +50,13 @@ class SpectraEventsApplicationTest {
     EventTaskScheduler scheduler =
         new EventTaskScheduler() {
           @Override
-          public void schedule(
-              io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId eventId,
-              java.time.Duration delay,
-              Runnable task) {}
+          public void schedule(EventInstanceId eventId, Duration delay, Runnable task) {}
 
           @Override
-          public void scheduleGlobal(java.time.Duration delay, Runnable task) {}
+          public void scheduleGlobal(Duration delay, Runnable task) {}
 
           @Override
-          public void cancelAll(
-              io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId eventId) {}
+          public void cancelAll(EventInstanceId eventId) {}
 
           @Override
           public void cancelAll() {}
@@ -77,23 +77,19 @@ class SpectraEventsApplicationTest {
 
           @Override
           public void restoreInstance(
-              io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId instanceId,
-              List<DiscoveredEntity> entities) {}
+              EventInstanceId instanceId, List<DiscoveredEntity> entities) {}
         };
 
     PlatformCapabilityQuery capabilityQuery =
         new PlatformCapabilityQuery() {
           @Override
-          public boolean hasCapability(
-              io.github.kizio806.spectraevents.application.port.PlatformCapability capability) {
+          public boolean hasCapability(PlatformCapability capability) {
             return true;
           }
 
           @Override
-          public io.github.kizio806.spectraevents.application.port.PlatformDescriptor
-              platformDescriptor() {
-            return new io.github.kizio806.spectraevents.application.port.PlatformDescriptor(
-                "Paper", "Paper", "1.21.4", "1.21.4-R0.1-SNAPSHOT");
+          public PlatformDescriptor platformDescriptor() {
+            return new PlatformDescriptor("Paper", "Paper", "1.21.4", "1.21.4-R0.1-SNAPSHOT");
           }
         };
     SpectraEventsApplication app =

@@ -3,6 +3,7 @@ package io.github.kizio806.spectraevents.platform.bukkit.gui;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import java.util.List;
+import java.util.Map;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
@@ -56,7 +57,7 @@ public final class IntegrationsScreen {
                       locales,
                       "admin.gui.integrations.status",
                       statusColor,
-                      java.util.Map.of("status", info.state().name())),
+                      Map.of("status", info.state().name())),
                   Component.text(info.details(), NamedTextColor.GRAY))));
     }
 

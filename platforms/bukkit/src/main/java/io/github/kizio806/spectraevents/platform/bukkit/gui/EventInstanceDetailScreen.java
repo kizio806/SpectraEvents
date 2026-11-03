@@ -6,6 +6,7 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
@@ -25,34 +26,30 @@ public final class EventInstanceDetailScreen {
         AdminGuiHolder.createInventory(
             AdminGuiController.MenuType.EVENT_INSTANCE_DETAIL,
             instance.id().toString(),
-            java.util.Map.of(),
+            Map.of(),
             54,
             GuiText.component(
                 locales,
                 "admin.gui.instance.title",
                 NamedTextColor.GOLD,
-                java.util.Map.of("event", instance.definitionId().value())));
+                Map.of("event", instance.definitionId().value())));
 
     List<Component> details = new ArrayList<>();
     details.add(
         GuiText.component(
-            locales,
-            "admin.gui.instance.id",
-            NamedTextColor.GRAY,
-            java.util.Map.of("id", instance.id())));
+            locales, "admin.gui.instance.id", NamedTextColor.GRAY, Map.of("id", instance.id())));
     details.add(
         GuiText.component(
             locales,
             "admin.gui.instance.state",
             NamedTextColor.GRAY,
-            java.util.Map.of("state", instance.state())));
+            Map.of("state", instance.state())));
     details.add(
         GuiText.component(
             locales,
             "admin.gui.instance.phase",
             NamedTextColor.YELLOW,
-            java.util.Map.of(
-                "phase", instance.currentPhase().map(phase -> phase.value()).orElse("none"))));
+            Map.of("phase", instance.currentPhase().map(phase -> phase.value()).orElse("none"))));
     engine
         .status(instance.id())
         .ifPresent(
@@ -63,8 +60,7 @@ public final class EventInstanceDetailScreen {
                         locales,
                         "admin.gui.instance.health",
                         NamedTextColor.RED,
-                        java.util.Map.of(
-                            "current", status.currentHealth(), "maximum", status.maxHealth())));
+                        Map.of("current", status.currentHealth(), "maximum", status.maxHealth())));
               }
               if (status.maxHits() > 0) {
                 details.add(
@@ -72,8 +68,7 @@ public final class EventInstanceDetailScreen {
                         locales,
                         "admin.gui.instance.hits",
                         NamedTextColor.LIGHT_PURPLE,
-                        java.util.Map.of(
-                            "current", status.currentHits(), "maximum", status.maxHits())));
+                        Map.of("current", status.currentHits(), "maximum", status.maxHits())));
               }
               if (status.location() != null) {
                 var location = status.location();
@@ -82,7 +77,7 @@ public final class EventInstanceDetailScreen {
                         locales,
                         "admin.gui.instance.location",
                         NamedTextColor.AQUA,
-                        java.util.Map.of(
+                        Map.of(
                             "location",
                             location.world()
                                 + " "
@@ -100,7 +95,7 @@ public final class EventInstanceDetailScreen {
                         locales,
                         "admin.gui.instance.remaining",
                         NamedTextColor.GREEN,
-                        java.util.Map.of("seconds", Duration.ofMillis(remaining).toSeconds())));
+                        Map.of("seconds", Duration.ofMillis(remaining).toSeconds())));
               }
               if (status.locked()) {
                 details.add(

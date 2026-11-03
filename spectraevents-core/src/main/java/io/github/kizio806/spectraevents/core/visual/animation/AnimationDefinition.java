@@ -3,6 +3,7 @@ package io.github.kizio806.spectraevents.core.visual.animation;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /** Immutable, compiled, validated, platform-neutral definition of an animation clip. */
 public record AnimationDefinition(
@@ -24,7 +25,7 @@ public record AnimationDefinition(
             ? Map.of()
             : tracks.entrySet().stream()
                 .collect(
-                    java.util.stream.Collectors.toUnmodifiableMap(
+                    Collectors.toUnmodifiableMap(
                         Map.Entry::getKey, entry -> List.copyOf(entry.getValue())));
     cues = cues == null ? List.of() : List.copyOf(cues);
 

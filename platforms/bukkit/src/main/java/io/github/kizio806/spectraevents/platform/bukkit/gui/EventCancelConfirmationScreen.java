@@ -2,6 +2,7 @@ package io.github.kizio806.spectraevents.platform.bukkit.gui;
 
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import java.util.List;
+import java.util.Map;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
@@ -18,7 +19,7 @@ public final class EventCancelConfirmationScreen {
         AdminGuiHolder.createInventory(
             AdminGuiController.MenuType.EVENT_CANCEL_CONFIRMATION,
             instanceId,
-            java.util.Map.of(),
+            Map.of(),
             45,
             GuiText.component(locales, "admin.gui.cancel.title", NamedTextColor.RED));
     inventory.setItem(

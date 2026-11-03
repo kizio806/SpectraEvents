@@ -1,6 +1,8 @@
 package io.github.kizio806.spectraevents.application.asset.delivery;
 
+import io.github.kizio806.spectraevents.application.asset.AssetTargetProfile;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -44,10 +46,8 @@ public class PlayerResourcePackService {
   }
 
   /** Determines if a pack is available and should be sent. */
-  public java.util.Optional<ResourcePackDescriptor> getAvailablePack(
-      String pluginVersion,
-      io.github.kizio806.spectraevents.application.asset.AssetTargetProfile profile,
-      String sourceConfigId) {
+  public Optional<ResourcePackDescriptor> getAvailablePack(
+      String pluginVersion, AssetTargetProfile profile, String sourceConfigId) {
     return cache.get(pluginVersion, profile, sourceConfigId);
   }
 

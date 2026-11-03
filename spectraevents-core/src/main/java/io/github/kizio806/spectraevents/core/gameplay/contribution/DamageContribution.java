@@ -1,6 +1,7 @@
 package io.github.kizio806.spectraevents.core.gameplay.contribution;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,7 @@ public record DamageContribution(Map<UUID, Integer> contributions) {
     }
     return contributions.entrySet().stream()
         .sorted(
-            java.util.Comparator.<Map.Entry<UUID, Integer>>comparingInt(Map.Entry::getValue)
+            Comparator.<Map.Entry<UUID, Integer>>comparingInt(Map.Entry::getValue)
                 .reversed()
                 .thenComparing(entry -> entry.getKey().toString()))
         .limit(limit)

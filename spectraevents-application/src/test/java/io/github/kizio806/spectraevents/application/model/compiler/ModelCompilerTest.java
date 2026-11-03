@@ -11,8 +11,10 @@ import io.github.kizio806.spectraevents.application.model.animation.spec.Keyfram
 import io.github.kizio806.spectraevents.application.model.spec.InteractionSpec;
 import io.github.kizio806.spectraevents.application.model.spec.ModelPartSpec;
 import io.github.kizio806.spectraevents.application.model.spec.ModelSpec;
+import io.github.kizio806.spectraevents.application.model.spec.RenderPropertiesSpec;
 import io.github.kizio806.spectraevents.application.model.spec.TransformSpec;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationId;
+import io.github.kizio806.spectraevents.core.visual.model.BillboardMode;
 import io.github.kizio806.spectraevents.core.visual.model.ModelDefinition;
 import io.github.kizio806.spectraevents.core.visual.model.ModelPartDefinition;
 import io.github.kizio806.spectraevents.core.visual.model.ModelPartId;
@@ -248,8 +250,7 @@ class ModelCompilerTest {
     part.setType("ITEM_DISPLAY");
     part.setItem("minecraft:diamond_sword");
 
-    io.github.kizio806.spectraevents.application.model.spec.RenderPropertiesSpec renderSpec =
-        new io.github.kizio806.spectraevents.application.model.spec.RenderPropertiesSpec();
+    RenderPropertiesSpec renderSpec = new RenderPropertiesSpec();
     renderSpec.setBillboard("VERTICAL");
     renderSpec.setBrightnessBlock(12);
     renderSpec.setBrightnessSky(15);
@@ -275,9 +276,7 @@ class ModelCompilerTest {
     ModelDefinition def = compiler.compile(spec);
     assertNotNull(def);
     var compiledPart = def.findPart(ModelPartId.of("sword")).orElseThrow();
-    assertEquals(
-        io.github.kizio806.spectraevents.core.visual.model.BillboardMode.VERTICAL,
-        compiledPart.renderProperties().billboard());
+    assertEquals(BillboardMode.VERTICAL, compiledPart.renderProperties().billboard());
     assertEquals(12, compiledPart.renderProperties().brightnessBlock());
     assertEquals(15, compiledPart.renderProperties().brightnessSky());
 
@@ -288,8 +287,7 @@ class ModelCompilerTest {
     badPart.setType("ITEM_DISPLAY");
     badPart.setItem("minecraft:stone");
 
-    io.github.kizio806.spectraevents.application.model.spec.RenderPropertiesSpec badRender =
-        new io.github.kizio806.spectraevents.application.model.spec.RenderPropertiesSpec();
+    RenderPropertiesSpec badRender = new RenderPropertiesSpec();
     badRender.setBillboard("BOGUS_BILLBOARD");
     badRender.setShadowRadius(-5.0f); // Invalid negative shadow radius
     badPart.setRender(badRender);

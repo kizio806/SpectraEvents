@@ -12,6 +12,7 @@ import io.github.kizio806.spectraevents.application.model.animation.spec.Animati
 import io.github.kizio806.spectraevents.application.model.animation.spec.AnimationTrackSpec;
 import io.github.kizio806.spectraevents.application.model.animation.spec.KeyframeSpec;
 import io.github.kizio806.spectraevents.application.model.animation.spec.TimelineCueSpec;
+import io.github.kizio806.spectraevents.application.model.registry.ModelDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.model.runtime.DiscoveredModelEntity;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelAnchor;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeId;
@@ -22,9 +23,16 @@ import io.github.kizio806.spectraevents.application.port.ModelRendererPort;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationId;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationTime;
+import io.github.kizio806.spectraevents.core.visual.animation.LoopMode;
+import io.github.kizio806.spectraevents.core.visual.animation.RecoveryPolicy;
+import io.github.kizio806.spectraevents.core.visual.model.DisplayTransformMode;
+import io.github.kizio806.spectraevents.core.visual.model.ItemAssetRef;
 import io.github.kizio806.spectraevents.core.visual.model.ModelDefinition;
 import io.github.kizio806.spectraevents.core.visual.model.ModelId;
+import io.github.kizio806.spectraevents.core.visual.model.ModelPartDefinition;
 import io.github.kizio806.spectraevents.core.visual.model.ModelPartId;
+import io.github.kizio806.spectraevents.core.visual.model.ModelPartType;
+import io.github.kizio806.spectraevents.core.visual.model.ModelRenderProperties;
 import io.github.kizio806.spectraevents.core.visual.model.ModelTransform;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -196,9 +204,9 @@ class AnimationRuntimeServiceTest {
             PlaybackState.PLAYING,
             AnimationTime.fromMillis(250),
             1.0f,
-            io.github.kizio806.spectraevents.core.visual.animation.LoopMode.ONCE,
+            LoopMode.ONCE,
             0,
-            io.github.kizio806.spectraevents.core.visual.animation.RecoveryPolicy.STOP);
+            RecoveryPolicy.STOP);
 
     AnimationPlaybackId restoredId = service.restorePlayback(snapshot);
     assertNotNull(restoredId);
@@ -209,20 +217,17 @@ class AnimationRuntimeServiceTest {
 
   @Test
   void testComposedAnimationLifecycle() {
-    io.github.kizio806.spectraevents.application.model.registry.ModelDefinitionRegistry modelReg =
-        new io.github.kizio806.spectraevents.application.model.registry.ModelDefinitionRegistry();
+    ModelDefinitionRegistry modelReg = new ModelDefinitionRegistry();
 
-    io.github.kizio806.spectraevents.core.visual.model.ModelPartDefinition part =
-        new io.github.kizio806.spectraevents.core.visual.model.ModelPartDefinition(
+    ModelPartDefinition part =
+        new ModelPartDefinition(
             ModelPartId.of("part1"),
             null,
-            io.github.kizio806.spectraevents.core.visual.model.ModelPartType.ITEM_DISPLAY,
+            ModelPartType.ITEM_DISPLAY,
             ModelTransform.IDENTITY,
             ModelTransform.IDENTITY,
-            io.github.kizio806.spectraevents.core.visual.model.ModelRenderProperties.DEFAULT,
-            new io.github.kizio806.spectraevents.core.visual.model.ItemAssetRef(
-                "minecraft:diamond_helmet",
-                io.github.kizio806.spectraevents.core.visual.model.DisplayTransformMode.HEAD));
+            ModelRenderProperties.DEFAULT,
+            new ItemAssetRef("minecraft:diamond_helmet", DisplayTransformMode.HEAD));
 
     ModelDefinition modelDef =
         new ModelDefinition(new ModelId("test_model"), List.of(part), List.of(), Map.of());

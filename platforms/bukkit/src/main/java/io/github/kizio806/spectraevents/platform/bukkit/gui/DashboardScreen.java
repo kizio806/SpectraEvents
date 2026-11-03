@@ -6,6 +6,7 @@ import io.github.kizio806.spectraevents.application.integration.IntegrationRegis
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
 import java.util.List;
+import java.util.Map;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
@@ -37,13 +38,13 @@ public final class DashboardScreen {
                 locales,
                 "admin.gui.dashboard.active-events",
                 NamedTextColor.GOLD,
-                java.util.Map.of("count", running)),
+                Map.of("count", running)),
             List.of(
                 GuiText.component(
                     locales,
                     "admin.gui.dashboard.persisted-instances",
                     NamedTextColor.GRAY,
-                    java.util.Map.of("count", totalInstances)))));
+                    Map.of("count", totalInstances)))));
     inventory.setItem(
         12,
         MainScreen.createGuiItem(
@@ -52,7 +53,7 @@ public final class DashboardScreen {
                 locales,
                 "admin.gui.dashboard.definitions",
                 NamedTextColor.GREEN,
-                java.util.Map.of("count", definitions.getAll().size())),
+                Map.of("count", definitions.getAll().size())),
             List.of(
                 GuiText.component(
                     locales, "admin.gui.dashboard.definitions-lore", NamedTextColor.GRAY))));
@@ -72,7 +73,7 @@ public final class DashboardScreen {
                 locales,
                 "admin.gui.dashboard.integrations",
                 NamedTextColor.AQUA,
-                java.util.Map.of("count", integrations.enabledCount())),
+                Map.of("count", integrations.enabledCount())),
             List.of(
                 GuiText.component(
                     locales, "admin.gui.dashboard.integrations-lore", NamedTextColor.GRAY))));

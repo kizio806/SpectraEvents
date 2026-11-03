@@ -6,6 +6,7 @@ import io.github.kizio806.spectraevents.application.model.animation.spec.Animati
 import io.github.kizio806.spectraevents.application.model.animation.spec.AnimationTrackSpec;
 import io.github.kizio806.spectraevents.application.model.animation.spec.KeyframeSpec;
 import io.github.kizio806.spectraevents.application.model.animation.spec.TimelineCueSpec;
+import io.github.kizio806.spectraevents.application.model.compiler.SpecMathParser;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationDefinition;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationDuration;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationId;
@@ -644,65 +645,16 @@ public class AnimationCompiler {
 
   private Vector3 parseVector3(
       List<Float> list, Vector3 defaultValue, String path, List<ValidationDiagnostic> diagnostics) {
-    if (list == null || list.isEmpty()) {
-      return defaultValue;
-    }
-    if (list.size() != 3) {
-      diagnostics.add(
-          new ValidationDiagnostic(
-              Severity.ERROR,
-              "INVALID_VECTOR3",
-              path,
-              "Vector3 must contain 3 float elements [x, y, z]"));
-      return defaultValue;
-    }
-    try {
-      return Vector3.of(list.get(0), list.get(1), list.get(2));
-    } catch (IllegalArgumentException e) {
-      diagnostics.add(
-          new ValidationDiagnostic(Severity.ERROR, "INVALID_VECTOR3_VALUES", path, e.getMessage()));
-      return defaultValue;
-    }
+    return SpecMathParser.parseVector3(list, defaultValue, path, diagnostics);
   }
 
   private EulerRotation parseEuler(
       List<Float> list, String path, List<ValidationDiagnostic> diagnostics) {
-    if (list == null || list.size() != 3) {
-      diagnostics.add(
-          new ValidationDiagnostic(
-              Severity.ERROR,
-              "INVALID_EULER",
-              path,
-              "Euler rotation must contain 3 float elements [pitch, yaw, roll]"));
-      return EulerRotation.ZERO;
-    }
-    try {
-      return new EulerRotation(list.get(0), list.get(1), list.get(2));
-    } catch (IllegalArgumentException e) {
-      diagnostics.add(
-          new ValidationDiagnostic(Severity.ERROR, "INVALID_EULER_VALUES", path, e.getMessage()));
-      return EulerRotation.ZERO;
-    }
+    return SpecMathParser.parseEuler(list, path, diagnostics);
   }
 
   private Quaternion parseQuaternion(
       List<Float> list, String path, List<ValidationDiagnostic> diagnostics) {
-    if (list == null || list.size() != 4) {
-      diagnostics.add(
-          new ValidationDiagnostic(
-              Severity.ERROR,
-              "INVALID_QUATERNION",
-              path,
-              "Quaternion must contain 4 float elements [x, y, z, w]"));
-      return Quaternion.IDENTITY;
-    }
-    try {
-      return Quaternion.of(list.get(0), list.get(1), list.get(2), list.get(3));
-    } catch (IllegalArgumentException e) {
-      diagnostics.add(
-          new ValidationDiagnostic(
-              Severity.ERROR, "INVALID_QUATERNION_VALUES", path, e.getMessage()));
-      return Quaternion.IDENTITY;
-    }
+    return SpecMathParser.parseQuaternion(list, path, diagnostics);
   }
 }

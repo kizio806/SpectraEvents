@@ -18,6 +18,7 @@ import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
 import io.github.kizio806.spectraevents.application.repository.InMemoryEventInstanceRepository;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
+import io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
@@ -80,9 +81,7 @@ class MeteorConfigDrivenIntegrationTest {
     // Announced -> falling -> impact lock -> first vulnerable phase.
     boolean handled1 =
         engine.evaluateTrigger(
-            instance.id(),
-            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                .TimerElapsedTrigger(java.time.Duration.ofSeconds(1)));
+            instance.id(), new CoreTriggers.TimerElapsedTrigger(Duration.ofSeconds(1)));
     assertTrue(handled1);
 
     assertEquals(new PhaseId("falling"), phase(instance));
@@ -145,18 +144,12 @@ class MeteorConfigDrivenIntegrationTest {
     return repository.findById(instance.id()).orElseThrow().currentPhase().orElseThrow();
   }
 
-  private io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-          .TimerElapsedTrigger
-      timer() {
-    return new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-        .TimerElapsedTrigger(Duration.ofSeconds(1));
+  private CoreTriggers.TimerElapsedTrigger timer() {
+    return new CoreTriggers.TimerElapsedTrigger(Duration.ofSeconds(1));
   }
 
-  private io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-          .WaveClearedTrigger
-      waveCleared(String waveId) {
-    return new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-        .WaveClearedTrigger(waveId);
+  private CoreTriggers.WaveClearedTrigger waveCleared(String waveId) {
+    return new CoreTriggers.WaveClearedTrigger(waveId);
   }
 
   private void damageUntilGate(EventInstance instance, int hits) {
@@ -164,8 +157,7 @@ class MeteorConfigDrivenIntegrationTest {
       assertTrue(
           engine.evaluateTrigger(
               instance.id(),
-              new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                  .CombatDamageTrigger(),
+              new CoreTriggers.CombatDamageTrigger(),
               ExecutionContext.withCombatDamage(new Object(), UUID.randomUUID(), 5000.0d)));
     }
   }

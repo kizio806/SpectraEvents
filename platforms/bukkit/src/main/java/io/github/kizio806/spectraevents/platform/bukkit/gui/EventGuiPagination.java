@@ -2,6 +2,7 @@ package io.github.kizio806.spectraevents.platform.bukkit.gui;
 
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import java.util.List;
+import java.util.Map;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
@@ -43,7 +44,7 @@ final class EventGuiPagination {
                       locales,
                       "admin.gui.pagination.progress",
                       NamedTextColor.GRAY,
-                      java.util.Map.of("current", page, "total", lastPage + 1)))));
+                      Map.of("current", page, "total", lastPage + 1)))));
     }
     if (page < lastPage) {
       inventory.setItem(
@@ -56,7 +57,7 @@ final class EventGuiPagination {
                       locales,
                       "admin.gui.pagination.progress",
                       NamedTextColor.GRAY,
-                      java.util.Map.of("current", page + 2, "total", lastPage + 1)))));
+                      Map.of("current", page + 2, "total", lastPage + 1)))));
     }
   }
 }

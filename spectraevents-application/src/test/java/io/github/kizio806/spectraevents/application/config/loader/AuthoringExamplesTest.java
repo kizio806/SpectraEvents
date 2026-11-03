@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompiler;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.yaml.EventSpecYamlParser;
+import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
 import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
 import java.io.IOException;
@@ -14,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class AuthoringExamplesTest {
@@ -59,11 +61,10 @@ class AuthoringExamplesTest {
     }
   }
 
-  private List<ActionDefinition> allActions(
-      io.github.kizio806.spectraevents.core.event.definition.EventDefinition definition) {
+  private List<ActionDefinition> allActions(EventDefinition definition) {
     return definition.phaseIds().stream()
         .map(definition::phase)
-        .flatMap(java.util.Optional::stream)
+        .flatMap(Optional::stream)
         .flatMap(phase -> phase.onEnterActions().stream())
         .toList();
   }

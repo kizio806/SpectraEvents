@@ -6,9 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.kizio806.spectraevents.application.config.compiled.ConfiguredTriggerDefinition;
 import io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompiler;
+import io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompilerException;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.yaml.EventSpecYamlParser;
 import io.github.kizio806.spectraevents.application.execution.EventExecutionEngine;
+import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeStateStore;
 import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
@@ -19,10 +21,12 @@ import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
 import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
 import io.github.kizio806.spectraevents.core.event.execution.action.PlatformActions;
+import io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
+import io.github.kizio806.spectraevents.core.gameplay.reward.RewardItem;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -30,6 +34,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -57,10 +62,7 @@ class ReferenceEventsConfigDrivenIntegrationTest {
         EventDefinition definition =
             compiler.compile(parser.parse(readResource(event), event + ".yml"));
         registry.register(definition, event + ".yml");
-      } catch (
-          io.github.kizio806.spectraevents.application.config.compiler
-                  .EventDefinitionCompilerException
-              e) {
+      } catch (EventDefinitionCompilerException e) {
         throw new AssertionError(
             "Could not compile bundled event " + event + ": " + e.getDiagnostics(), e);
       }
@@ -70,26 +72,17 @@ class ReferenceEventsConfigDrivenIntegrationTest {
   @Test
   void airdropCompletesAfterPublicLootIsTakenAndTheContainerIsEmptied() {
     EventInstance instance =
-        engine.startEvent(
-            "airdrop",
-            new io.github.kizio806.spectraevents.application.execution.EventLocation(
-                "world", 0, 64, 0, 0, 0));
+        engine.startEvent("airdrop", new EventLocation("world", 0, 64, 0, 0, 0));
 
     assertTrue(
         engine.evaluateTrigger(
-            instance.id(),
-            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                .TimerElapsedTrigger(Duration.ofMinutes(15))));
+            instance.id(), new CoreTriggers.TimerElapsedTrigger(Duration.ofMinutes(15))));
     assertTrue(
         engine.evaluateTrigger(
-            instance.id(),
-            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                .TimerElapsedTrigger(Duration.ofSeconds(3))));
+            instance.id(), new CoreTriggers.TimerElapsedTrigger(Duration.ofSeconds(3))));
     assertTrue(
         engine.evaluateTrigger(
-            instance.id(),
-            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                .TimerElapsedTrigger(Duration.ofMinutes(5))));
+            instance.id(), new CoreTriggers.TimerElapsedTrigger(Duration.ofMinutes(5))));
     assertEquals(
         new PhaseId("open"),
         repository.findById(instance.id()).orElseThrow().currentPhase().orElseThrow());
@@ -111,9 +104,7 @@ class ReferenceEventsConfigDrivenIntegrationTest {
         repository.findById(instance.id()).orElseThrow().currentPhase().orElseThrow());
     assertTrue(
         engine.evaluateTrigger(
-            instance.id(),
-            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                .TimerElapsedTrigger(Duration.ofMinutes(5))));
+            instance.id(), new CoreTriggers.TimerElapsedTrigger(Duration.ofMinutes(5))));
 
     assertEquals(
         EventLifecycleState.COMPLETED, repository.findById(instance.id()).orElseThrow().state());
@@ -125,22 +116,15 @@ class ReferenceEventsConfigDrivenIntegrationTest {
   @Test
   void pinataCountsInteractionsIndependentlyOfDamageAndCleansUpAtTheTarget() {
     EventInstance instance =
-        engine.startEvent(
-            "pinata",
-            new io.github.kizio806.spectraevents.application.execution.EventLocation(
-                "world", 0, 64, 0, 0, 0));
+        engine.startEvent("pinata", new EventLocation("world", 0, 64, 0, 0, 0));
     assertEquals(new PhaseId("announced"), instance.currentPhase().orElseThrow());
     assertTrue(
         engine.evaluateTrigger(
-            instance.id(),
-            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                .TimerElapsedTrigger(java.time.Duration.ofSeconds(60))));
+            instance.id(), new CoreTriggers.TimerElapsedTrigger(Duration.ofSeconds(60))));
 
     assertTrue(
         engine.evaluateTrigger(
-            instance.id(),
-            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                .TimerElapsedTrigger(java.time.Duration.ofSeconds(1))));
+            instance.id(), new CoreTriggers.TimerElapsedTrigger(Duration.ofSeconds(1))));
 
     assertEquals(
         new PhaseId("active"),
@@ -201,18 +185,13 @@ class ReferenceEventsConfigDrivenIntegrationTest {
   @Test
   void bossPortalUsesTheSharedTimerBossAndEntityDeathWorkflow() {
     EventInstance instance =
-        engine.startEvent(
-            "boss_portal",
-            new io.github.kizio806.spectraevents.application.execution.EventLocation(
-                "world", 0, 64, 0, 0, 0));
+        engine.startEvent("boss_portal", new EventLocation("world", 0, 64, 0, 0, 0));
     assertEquals(new PhaseId("gathering"), instance.currentPhase().orElseThrow());
     assertTrue(actionPort.containsAction("spawn_model"));
 
     assertTrue(
         engine.evaluateTrigger(
-            instance.id(),
-            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                .TimerElapsedTrigger(java.time.Duration.ofMinutes(5))));
+            instance.id(), new CoreTriggers.TimerElapsedTrigger(Duration.ofMinutes(5))));
     assertEquals(
         new PhaseId("first-wave"),
         repository.findById(instance.id()).orElseThrow().currentPhase().orElseThrow());
@@ -220,18 +199,14 @@ class ReferenceEventsConfigDrivenIntegrationTest {
 
     assertTrue(
         engine.evaluateTrigger(
-            instance.id(),
-            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                .WaveClearedTrigger("portal-vanguard")));
+            instance.id(), new CoreTriggers.WaveClearedTrigger("portal-vanguard")));
     assertEquals(
         new PhaseId("second-wave"),
         repository.findById(instance.id()).orElseThrow().currentPhase().orElseThrow());
 
     assertTrue(
         engine.evaluateTrigger(
-            instance.id(),
-            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                .WaveClearedTrigger("portal-wardens")));
+            instance.id(), new CoreTriggers.WaveClearedTrigger("portal-wardens")));
     assertEquals(
         new PhaseId("boss"),
         repository.findById(instance.id()).orElseThrow().currentPhase().orElseThrow());
@@ -276,25 +251,23 @@ class ReferenceEventsConfigDrivenIntegrationTest {
     private int podiumAnnouncements;
 
     @Override
-    public java.util.concurrent.CompletableFuture<Boolean> executeAction(
+    public CompletableFuture<Boolean> executeAction(
         EventInstance instance, EventRuntimeState state, ActionDefinition action) {
       actions.add(action);
-      return java.util.concurrent.CompletableFuture.completedFuture(true);
+      return CompletableFuture.completedFuture(true);
     }
 
     @Override
-    public java.util.concurrent.CompletableFuture<Boolean> deliverRewardOrDrop(
-        UUID playerId,
-        List<io.github.kizio806.spectraevents.core.gameplay.reward.RewardItem> items) {
+    public CompletableFuture<Boolean> deliverRewardOrDrop(UUID playerId, List<RewardItem> items) {
       rewardRecipients.add(playerId);
-      return java.util.concurrent.CompletableFuture.completedFuture(true);
+      return CompletableFuture.completedFuture(true);
     }
 
     @Override
-    public java.util.concurrent.CompletableFuture<Boolean> announcePodium(
+    public CompletableFuture<Boolean> announcePodium(
         EventInstanceId instanceId, List<UUID> rankedPlayerIds) {
       podiumAnnouncements++;
-      return java.util.concurrent.CompletableFuture.completedFuture(true);
+      return CompletableFuture.completedFuture(true);
     }
 
     boolean containsAction(String type) {

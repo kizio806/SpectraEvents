@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.execution.EventExecutionEngine;
+import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeStateStore;
 import io.github.kizio806.spectraevents.application.port.EventTaskScheduler;
 import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
@@ -21,6 +22,7 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
 
 class EventOrchestrationServiceTest {
@@ -155,11 +157,9 @@ class EventOrchestrationServiceTest {
 
   private static final class StubActionPort implements PlatformActionPort {
     @Override
-    public java.util.concurrent.CompletableFuture<Boolean> executeAction(
-        EventInstance instance,
-        io.github.kizio806.spectraevents.application.execution.EventRuntimeState state,
-        ActionDefinition action) {
-      return java.util.concurrent.CompletableFuture.completedFuture(true);
+    public CompletableFuture<Boolean> executeAction(
+        EventInstance instance, EventRuntimeState state, ActionDefinition action) {
+      return CompletableFuture.completedFuture(true);
     }
 
     @Override

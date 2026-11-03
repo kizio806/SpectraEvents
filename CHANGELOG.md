@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Paper Command Decomposition & Architecture Parity**: Extracted `ScheduleCommandHandler` and `RewardsCommandHandler` in `:platforms:paper:common:command`, achieving architectural symmetry with Spigot and removing cross-platform translation key coupling (`command.paper.*` keys added across all 6 locales).
+- **Spec Math Deduplication**: Extracted `SpecMathParser` in `:spectraevents-application:model:compiler`, eliminating identical 3D vector, euler rotation, and quaternion parsing logic between `ModelCompiler` and `AnimationCompiler`.
+- **Model Transform Teleport Deduplication**: Generalized model transform updates to template method `applyTransformTeleports` in `AbstractBukkitModelRenderer`, eliminating duplicated entity traversal and handle mapping between Paper and Spigot.
+- **Source Hygiene & Clean Imports**: Cleared all inline fully qualified names (FQNs) across domain, application, and platform modules in favor of clean single-class imports. Restored `CODE_OF_CONDUCT.md` and cleaned PR template and CI workflows.
 - **Full Integration & Custom Item Platform Parity**: Relocated third-party plugin integrations (Vault, LuckPerms, WorldGuard, PlaceholderAPI) and custom item providers (Nexo, Oraxen, ItemsAdder) from `:platforms:paper:common` to `:platforms:bukkit:integration`, establishing 100% integration parity for Spigot distributions with unified `BukkitIntegrationManager`.
 - **Shared Entity Reconciler & Model Handles**: Extracted `AbstractBukkitEntityReconciler` into `:platforms:bukkit:lifecycle` and unified `BukkitModelInstanceHandle` in `:platforms:bukkit:render`, eliminating duplicate chunk scanning, corrupted entity handling, and parallel model handle classes.
 - **Shared Schedule Bootstrap**: Introduced `BukkitScheduleBootstrapHelper` in `:platforms:bukkit:config`, deduplicating YAML schedule loading between platform bootstraps.

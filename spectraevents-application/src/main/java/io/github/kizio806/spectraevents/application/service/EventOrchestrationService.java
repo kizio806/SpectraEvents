@@ -3,6 +3,7 @@ package io.github.kizio806.spectraevents.application.service;
 import io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompiler;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.registry.RegisteredEventDefinition;
+import io.github.kizio806.spectraevents.application.execution.EventExecutionEngine;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
@@ -12,6 +13,7 @@ import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleTransition;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -24,13 +26,12 @@ public final class EventOrchestrationService {
 
   private final EventInstanceRepository repository;
   private final EventDefinitionRegistry definitionRegistry;
-  private final io.github.kizio806.spectraevents.application.execution.EventExecutionEngine
-      executionEngine;
+  private final EventExecutionEngine executionEngine;
 
   public EventOrchestrationService(
       EventInstanceRepository repository,
       EventDefinitionRegistry definitionRegistry,
-      io.github.kizio806.spectraevents.application.execution.EventExecutionEngine executionEngine) {
+      EventExecutionEngine executionEngine) {
     this.repository = Objects.requireNonNull(repository, "repository");
     this.definitionRegistry = Objects.requireNonNull(definitionRegistry, "definitionRegistry");
     this.executionEngine = executionEngine;
@@ -41,8 +42,7 @@ public final class EventOrchestrationService {
     this(repository, definitionRegistry, null);
   }
 
-  public io.github.kizio806.spectraevents.application.execution.EventExecutionEngine
-      executionEngine() {
+  public EventExecutionEngine executionEngine() {
     return executionEngine;
   }
 
@@ -107,11 +107,9 @@ public final class EventOrchestrationService {
    * Starts a definition with validated scalar parameter overrides from a platform-neutral caller.
    */
   public CompletableFuture<EventInstance> startDefinitionAsync(
-      String definitionId,
-      Object platformLocationReference,
-      java.util.Map<String, Object> overrides) {
-    java.util.Map<String, Object> nonNullOverrides =
-        java.util.Map.copyOf(Objects.requireNonNull(overrides, "overrides"));
+      String definitionId, Object platformLocationReference, Map<String, Object> overrides) {
+    Map<String, Object> nonNullOverrides =
+        Map.copyOf(Objects.requireNonNull(overrides, "overrides"));
     if (nonNullOverrides.isEmpty()) {
       return startDefinitionAsync(definitionId, platformLocationReference);
     }

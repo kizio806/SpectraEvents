@@ -1,6 +1,7 @@
 package io.github.kizio806.spectraevents.platform.paper;
 
 import io.papermc.paper.ServerBuildInfo;
+import java.util.logging.Level;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /** Paper family plugin entrypoint for SpectraEvents. */
@@ -28,7 +29,7 @@ public final class SpectraEventsPlugin extends JavaPlugin {
     } catch (RuntimeException exception) {
       getLogger()
           .log(
-              java.util.logging.Level.SEVERE,
+              Level.SEVERE,
               "SpectraEvents was not enabled because startup validation failed. No success banner was emitted.",
               exception);
       bootstrap.disable();

@@ -3,6 +3,7 @@ package io.github.kizio806.spectraevents.platform.spigot.command;
 import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
 import io.github.kizio806.spectraevents.application.config.loader.DefinitionLoadResult;
 import io.github.kizio806.spectraevents.application.config.validation.ValidationDiagnostic;
+import io.github.kizio806.spectraevents.application.validation.EventReferenceValidator;
 import io.github.kizio806.spectraevents.application.validation.OperationalReadinessValidator;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.spigot.asset.delivery.SpigotResourcePackDeliveryBootstrap;
@@ -72,7 +73,7 @@ public final class SpigotDefinitionCommandHandler implements SpigotSubcommandHan
           validateOnly ? definitions.validateFromDisk() : definitions.reloadFromDisk();
       var referenceDiagnostics =
           validateOnly
-              ? new io.github.kizio806.spectraevents.application.validation.EventReferenceValidator(
+              ? new EventReferenceValidator(
                       application.modelDefinitionRegistry(),
                       application.animationDefinitionRegistry())
                   .validate(result)
