@@ -251,7 +251,7 @@ public abstract class AbstractBukkitActionAdapter extends AbstractPlatformAction
           }
           ModelAnchor anchor =
               new ModelAnchor(
-                  spawnLoc.getWorld().getName(),
+                  Objects.requireNonNull(spawnLoc.getWorld(), "spawnLoc.world").getName(),
                   spawnLoc.getX(),
                   spawnLoc.getY(),
                   spawnLoc.getZ(),
@@ -285,7 +285,7 @@ public abstract class AbstractBukkitActionAdapter extends AbstractPlatformAction
         () -> {
           ModelAnchor anchor =
               new ModelAnchor(
-                  baseLoc.getWorld().getName(),
+                  Objects.requireNonNull(baseLoc.getWorld(), "baseLoc.world").getName(),
                   baseLoc.getX(),
                   baseLoc.getY(),
                   baseLoc.getZ(),
@@ -619,10 +619,11 @@ public abstract class AbstractBukkitActionAdapter extends AbstractPlatformAction
               player,
               () -> {
                 Location location = player.getLocation();
-                if (location.getWorld() != null
+                World world = location.getWorld();
+                if (world != null
                     && zone.contains(
                         new EventLocation(
-                            location.getWorld().getName(),
+                            world.getName(),
                             location.getX(),
                             location.getY(),
                             location.getZ(),

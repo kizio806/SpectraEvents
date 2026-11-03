@@ -99,7 +99,7 @@ final class EventLifecycleManager {
                   phaseController.executePhaseEntry(
                       running, definition, definition.initialPhase(), ExecutionContext.EMPTY);
                 }
-              } catch (RuntimeException exception) {
+              } catch (IllegalStateException | IllegalArgumentException exception) {
                 failEvent(running.id(), exception);
                 throw exception;
               }

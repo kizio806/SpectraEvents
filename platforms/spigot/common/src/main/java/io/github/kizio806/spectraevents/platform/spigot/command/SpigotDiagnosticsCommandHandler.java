@@ -4,6 +4,7 @@ import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
+import io.github.kizio806.spectraevents.platform.bukkit.util.BukkitPluginVersions;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -73,10 +74,7 @@ public final class SpigotDiagnosticsCommandHandler implements SpigotSubcommandHa
   }
 
   public void version(CommandSender sender) {
-    String version = plugin.getClass().getPackage().getImplementationVersion();
-    if (version == null || version.isBlank()) {
-      version = plugin.getDescription().getVersion();
-    }
+    String version = BukkitPluginVersions.resolveVersion(plugin);
     helper.send(sender, "command.spigot.version", Map.of("version", version));
   }
 

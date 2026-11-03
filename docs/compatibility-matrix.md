@@ -2,7 +2,7 @@
 
 This document is the **canonical compatibility reference** for the SpectraEvents project across supported server software and Minecraft versions.
 
-Last verified: **2026-11-01** | Verification toolchain: Gradle 9.7.1, OpenJDK 25.
+Last verified: **2026-11-03** | Verification toolchain: Gradle 9.8.2, OpenJDK 25.
 
 ---
 

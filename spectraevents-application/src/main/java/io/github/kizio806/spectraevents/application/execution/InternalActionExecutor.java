@@ -372,7 +372,8 @@ class InternalActionExecutor {
                         future -> {
                           try {
                             return Boolean.TRUE.equals(future.join());
-                          } catch (RuntimeException exception) {
+                          } catch (java.util.concurrent.CompletionException
+                              | java.util.concurrent.CancellationException exception) {
                             return false;
                           }
                         }));

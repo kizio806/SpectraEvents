@@ -64,8 +64,12 @@ public final class SpigotCommandHelper {
   }
 
   public List<String> matches(String prefix, String... candidates) {
+    return matches(prefix, Arrays.asList(candidates));
+  }
+
+  public List<String> matches(String prefix, java.util.Collection<String> candidates) {
     String normalized = prefix.toLowerCase(Locale.ROOT);
-    return Arrays.stream(candidates)
+    return candidates.stream()
         .filter(candidate -> candidate.startsWith(normalized))
         .collect(Collectors.toCollection(ArrayList::new));
   }

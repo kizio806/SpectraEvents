@@ -10,13 +10,13 @@ import io.github.kizio806.spectraevents.application.model.animation.runtime.Mode
 import io.github.kizio806.spectraevents.application.update.UpdateService;
 import io.github.kizio806.spectraevents.platform.bukkit.common.BukkitLifecycleReporter;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
+import io.github.kizio806.spectraevents.platform.bukkit.gui.AdminGuiController;
 import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootListener;
 import io.github.kizio806.spectraevents.platform.paper.action.PaperActionAdapter;
 import io.github.kizio806.spectraevents.platform.paper.command.SpectraMainCommand;
 import io.github.kizio806.spectraevents.platform.paper.common.PaperCapabilityQuery;
 import io.github.kizio806.spectraevents.platform.paper.common.PaperStartupLogger;
 import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
-import io.github.kizio806.spectraevents.platform.paper.gui.AdminGuiController;
 import io.github.kizio806.spectraevents.platform.paper.integration.PaperIntegrationManager;
 import io.github.kizio806.spectraevents.platform.paper.interaction.PaperEntityDeathRouter;
 import io.github.kizio806.spectraevents.platform.paper.interaction.PaperInteractionRouter;

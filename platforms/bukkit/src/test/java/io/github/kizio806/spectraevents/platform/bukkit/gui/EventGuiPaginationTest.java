@@ -1,4 +1,4 @@
-package io.github.kizio806.spectraevents.platform.paper.gui;
+package io.github.kizio806.spectraevents.platform.bukkit.gui;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

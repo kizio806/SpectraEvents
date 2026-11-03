@@ -98,7 +98,7 @@ public final class EventOrchestrationService {
     try {
       return CompletableFuture.completedFuture(
           startDefinition(definitionId, platformLocationReference));
-    } catch (RuntimeException exception) {
+    } catch (IllegalArgumentException | IllegalStateException exception) {
       return CompletableFuture.failedFuture(exception);
     }
   }
@@ -133,7 +133,7 @@ public final class EventOrchestrationService {
                       registered.sourceSpec(), "Definition source is unavailable"),
                   nonNullOverrides);
       return executionEngine.startEventAsync(compiled, platformLocationReference);
-    } catch (RuntimeException exception) {
+    } catch (IllegalArgumentException | IllegalStateException exception) {
       return CompletableFuture.failedFuture(exception);
     }
   }

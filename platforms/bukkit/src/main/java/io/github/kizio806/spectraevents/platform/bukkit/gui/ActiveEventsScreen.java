@@ -1,4 +1,4 @@
-package io.github.kizio806.spectraevents.platform.paper.gui;
+package io.github.kizio806.spectraevents.platform.bukkit.gui;
 
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;

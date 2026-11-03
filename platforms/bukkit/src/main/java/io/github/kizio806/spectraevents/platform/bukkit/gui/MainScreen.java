@@ -1,4 +1,4 @@
-package io.github.kizio806.spectraevents.platform.paper.gui;
+package io.github.kizio806.spectraevents.platform.bukkit.gui;
 
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import java.util.List;
@@ -80,7 +80,7 @@ public final class MainScreen {
     ItemStack item = new ItemStack(material);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.displayName(Component.empty());
+      meta.setDisplayName(" ");
       if (!item.setItemMeta(meta)) {
         throw new IllegalStateException("Could not apply filler item metadata");
       }
@@ -92,8 +92,10 @@ public final class MainScreen {
     ItemStack item = new ItemStack(mat);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.displayName(name);
-      meta.lore(lore);
+      meta.setDisplayName(GuiText.legacy(name));
+      if (lore != null && !lore.isEmpty()) {
+        meta.setLore(lore.stream().map(GuiText::legacy).toList());
+      }
       if (!item.setItemMeta(meta)) {
         throw new IllegalStateException("Could not apply GUI item metadata");
       }

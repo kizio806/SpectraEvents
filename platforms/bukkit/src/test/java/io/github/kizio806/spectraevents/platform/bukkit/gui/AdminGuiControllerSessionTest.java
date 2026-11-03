@@ -1,4 +1,4 @@
-package io.github.kizio806.spectraevents.platform.paper.gui;
+package io.github.kizio806.spectraevents.platform.bukkit.gui;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -13,7 +13,7 @@ import io.github.kizio806.spectraevents.application.service.EventOrchestrationSe
 import io.github.kizio806.spectraevents.application.update.UpdateInfo;
 import io.github.kizio806.spectraevents.application.update.UpdatePort;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
-import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
 import java.nio.file.Path;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -45,7 +45,7 @@ class AdminGuiControllerSessionTest {
     IntegrationRegistry integrations = new IntegrationRegistry();
     UpdateService updates = new UpdateService("1.0.0", dummyUpdatePort);
     EventOrchestrationService orch = new EventOrchestrationService(repo, defs);
-    PaperEventSettingsStore store = new PaperEventSettingsStore(temporaryDirectory);
+    BukkitEventSettingsStore store = new BukkitEventSettingsStore(temporaryDirectory);
     LocaleCatalog locales = new FileSystemLocaleLoader(temporaryDirectory).loadCatalog("en-US");
 
     assertThrows(
@@ -63,7 +63,7 @@ class AdminGuiControllerSessionTest {
     IntegrationRegistry integrations = new IntegrationRegistry();
     UpdateService updates = new UpdateService("1.0.0", dummyUpdatePort);
     EventOrchestrationService orch = new EventOrchestrationService(repo, defs);
-    PaperEventSettingsStore store = new PaperEventSettingsStore(temporaryDirectory);
+    BukkitEventSettingsStore store = new BukkitEventSettingsStore(temporaryDirectory);
     LocaleCatalog locales = new FileSystemLocaleLoader(temporaryDirectory).loadCatalog("en-US");
 
     AdminGuiController controller =

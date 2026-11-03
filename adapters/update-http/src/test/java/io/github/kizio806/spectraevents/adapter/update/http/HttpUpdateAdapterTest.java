@@ -64,15 +64,17 @@ class HttpUpdateAdapterTest {
 
     try {
       String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/release";
-      HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
-      HttpUpdateAdapter adapter =
-          new HttpUpdateAdapter(temporaryDirectory.resolve("updates"), url, client);
+      try (HttpClient client =
+          HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build()) {
+        HttpUpdateAdapter adapter =
+            new HttpUpdateAdapter(temporaryDirectory.resolve("updates"), url, client);
 
-      UpdateInfo info = adapter.checkUpdate("1.0.0", "stable").join();
+        UpdateInfo info = adapter.checkUpdate("1.0.0", "stable").join();
 
-      assertTrue(info.updateAvailable());
-      assertEquals("2.1.0", info.latestVersion());
-      assertEquals(UpdateCheckStatus.UPDATE_AVAILABLE, info.status());
+        assertTrue(info.updateAvailable());
+        assertEquals("2.1.0", info.latestVersion());
+        assertEquals(UpdateCheckStatus.UPDATE_AVAILABLE, info.status());
+      }
     } finally {
       server.stop(0);
     }
@@ -95,15 +97,17 @@ class HttpUpdateAdapterTest {
 
     try {
       String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/release";
-      HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
-      HttpUpdateAdapter adapter =
-          new HttpUpdateAdapter(temporaryDirectory.resolve("updates"), url, client);
+      try (HttpClient client =
+          HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build()) {
+        HttpUpdateAdapter adapter =
+            new HttpUpdateAdapter(temporaryDirectory.resolve("updates"), url, client);
 
-      UpdateInfo info = adapter.checkUpdate("1.0.0", "stable").join();
+        UpdateInfo info = adapter.checkUpdate("1.0.0", "stable").join();
 
-      assertFalse(info.updateAvailable());
-      assertEquals("1.0.0", info.latestVersion());
-      assertEquals(UpdateCheckStatus.UP_TO_DATE, info.status());
+        assertFalse(info.updateAvailable());
+        assertEquals("1.0.0", info.latestVersion());
+        assertEquals(UpdateCheckStatus.UP_TO_DATE, info.status());
+      }
     } finally {
       server.stop(0);
     }
@@ -122,15 +126,17 @@ class HttpUpdateAdapterTest {
 
     try {
       String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/release";
-      HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
-      HttpUpdateAdapter adapter =
-          new HttpUpdateAdapter(temporaryDirectory.resolve("updates"), url, client);
+      try (HttpClient client =
+          HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build()) {
+        HttpUpdateAdapter adapter =
+            new HttpUpdateAdapter(temporaryDirectory.resolve("updates"), url, client);
 
-      UpdateInfo info = adapter.checkUpdate("1.0.0", "stable").join();
+        UpdateInfo info = adapter.checkUpdate("1.0.0", "stable").join();
 
-      assertFalse(info.updateAvailable());
-      assertEquals(UpdateCheckStatus.FAILED, info.status());
-      assertTrue(info.releaseNotes().contains("no usable release metadata"));
+        assertFalse(info.updateAvailable());
+        assertEquals(UpdateCheckStatus.FAILED, info.status());
+        assertTrue(info.releaseNotes().contains("no usable release metadata"));
+      }
     } finally {
       server.stop(0);
     }
@@ -153,14 +159,16 @@ class HttpUpdateAdapterTest {
 
     try {
       String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/release";
-      HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
-      HttpUpdateAdapter adapter =
-          new HttpUpdateAdapter(temporaryDirectory.resolve("updates"), url, client);
+      try (HttpClient client =
+          HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build()) {
+        HttpUpdateAdapter adapter =
+            new HttpUpdateAdapter(temporaryDirectory.resolve("updates"), url, client);
 
-      UpdateInfo info = adapter.checkUpdate("1.0.0", "stable").join();
+        UpdateInfo info = adapter.checkUpdate("1.0.0", "stable").join();
 
-      assertFalse(info.updateAvailable());
-      assertEquals(UpdateCheckStatus.FAILED, info.status());
+        assertFalse(info.updateAvailable());
+        assertEquals(UpdateCheckStatus.FAILED, info.status());
+      }
     } finally {
       server.stop(0);
     }
@@ -169,14 +177,16 @@ class HttpUpdateAdapterTest {
   @Test
   void checkUpdateFailsGracefullyOnUnreachableServer() {
     String url = "http://127.0.0.1:59999/release";
-    HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(200)).build();
-    HttpUpdateAdapter adapter =
-        new HttpUpdateAdapter(temporaryDirectory.resolve("updates"), url, client);
+    try (HttpClient client =
+        HttpClient.newBuilder().connectTimeout(Duration.ofMillis(200)).build()) {
+      HttpUpdateAdapter adapter =
+          new HttpUpdateAdapter(temporaryDirectory.resolve("updates"), url, client);
 
-    UpdateInfo info = adapter.checkUpdate("1.0.0", "stable").join();
+      UpdateInfo info = adapter.checkUpdate("1.0.0", "stable").join();
 
-    assertFalse(info.updateAvailable());
-    assertEquals(UpdateCheckStatus.FAILED, info.status());
-    assertTrue(info.releaseNotes().contains("could not be reached"));
+      assertFalse(info.updateAvailable());
+      assertEquals(UpdateCheckStatus.FAILED, info.status());
+      assertTrue(info.releaseNotes().contains("could not be reached"));
+    }
   }
 }

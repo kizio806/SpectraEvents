@@ -1,8 +1,8 @@
-package io.github.kizio806.spectraevents.platform.paper.gui;
+package io.github.kizio806.spectraevents.platform.bukkit.gui;
 
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.execution.EventLocation;
-import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,7 +16,7 @@ public final class LocationsScreen {
   private LocationsScreen() {}
 
   public static Inventory createInventory(
-      PaperEventSettingsStore settingsStore, LocaleCatalog locales, int requestedPage) {
+      BukkitEventSettingsStore settingsStore, LocaleCatalog locales, int requestedPage) {
     Map<String, EventLocation> locations = settingsStore.locations();
     List<Map.Entry<String, EventLocation>> entries = List.copyOf(locations.entrySet());
     int page = EventGuiPagination.pageFor(requestedPage, entries.size());

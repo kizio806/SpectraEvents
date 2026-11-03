@@ -1,9 +1,9 @@
-package io.github.kizio806.spectraevents.platform.paper.gui;
+package io.github.kizio806.spectraevents.platform.bukkit.gui;
 
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.registry.RegisteredEventDefinition;
-import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,7 +18,7 @@ public final class EventConfigurationScreen {
 
   public static Inventory createInventory(
       EventDefinitionRegistry definitionRegistry,
-      PaperEventSettingsStore settingsStore,
+      BukkitEventSettingsStore settingsStore,
       LocaleCatalog locales,
       int requestedPage) {
     List<RegisteredEventDefinition> definitions = List.copyOf(definitionRegistry.getAll());

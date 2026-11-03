@@ -106,7 +106,7 @@ public final class RewardMailboxService {
                           return ClaimDeliveryResult.delivered();
                         });
               });
-    } catch (RuntimeException exception) {
+    } catch (IllegalStateException | IllegalArgumentException exception) {
       return repository
           .returnToPendingAsync(claim.id())
           .thenApply(

@@ -106,7 +106,9 @@ final class ActionExecutionCoordinator {
                       e);
                   lifecycleManager.failEvent(instance.id(), e);
                   throw e;
-                } catch (RuntimeException e) {
+                } catch (IllegalStateException
+                    | IllegalArgumentException
+                    | UnsupportedOperationException e) {
                   FatalActionException fatal =
                       new FatalActionException(
                           "Action " + action.type() + " failed for event " + instance.id(), e);
@@ -143,7 +145,9 @@ final class ActionExecutionCoordinator {
                       ex instanceof Exception exception ? exception : new RuntimeException(ex));
                 }
               });
-        } catch (RuntimeException exception) {
+        } catch (IllegalStateException
+            | IllegalArgumentException
+            | UnsupportedOperationException exception) {
           lifecycleManager.failEvent(instance.id(), exception);
         }
       }

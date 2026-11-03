@@ -9,7 +9,10 @@ import io.github.kizio806.spectraevents.application.model.animation.runtime.Mode
 import io.github.kizio806.spectraevents.application.service.EntityReconciliationReport;
 import io.github.kizio806.spectraevents.platform.bukkit.common.BukkitLifecycleReporter;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
+import io.github.kizio806.spectraevents.platform.bukkit.gui.AdminGuiController;
 import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootListener;
+import io.github.kizio806.spectraevents.platform.bukkit.util.BukkitPluginVersions;
 import io.github.kizio806.spectraevents.platform.spigot.action.SpigotActionAdapter;
 import io.github.kizio806.spectraevents.platform.spigot.command.SpigotMainCommand;
 import io.github.kizio806.spectraevents.platform.spigot.interaction.SpigotEventRouter;
@@ -39,7 +42,9 @@ public final class SpigotBootstrap {
     plugin
         .getLogger()
         .info(
-            "SpectraEvents " + plugin.getDescription().getVersion() + " starting on Spigot/Bukkit");
+            "SpectraEvents "
+                + BukkitPluginVersions.resolveVersion(plugin)
+                + " starting on Spigot/Bukkit");
 
     Path dataDirectory = plugin.getDataFolder().toPath();
     DataDirectoryLayout dataLayout;
@@ -95,7 +100,7 @@ public final class SpigotBootstrap {
     resourcePackDelivery =
         io.github.kizio806.spectraevents.platform.spigot.asset.delivery
             .SpigotResourcePackDeliveryBootstrap.configure(
-            plugin, plugin.getDescription().getVersion(), assetTargetProfile, locales);
+            plugin, BukkitPluginVersions.resolveVersion(plugin), assetTargetProfile, locales);
     actionAdapter.setModelRuntimeService(application.modelRuntimeService());
     actionAdapter.setModelAnimationActionService(
         new ModelAnimationActionService(
@@ -165,12 +170,40 @@ public final class SpigotBootstrap {
                 (player, task) -> org.bukkit.Bukkit.getScheduler().runTask(plugin, task)),
             plugin);
 
+    Path updateDir = plugin.getDataFolder().toPath().resolve("update");
+    io.github.kizio806.spectraevents.adapter.update.http.HttpUpdateAdapter updateAdapter =
+        new io.github.kizio806.spectraevents.adapter.update.http.HttpUpdateAdapter(updateDir);
+    io.github.kizio806.spectraevents.application.update.UpdateService updateService =
+        new io.github.kizio806.spectraevents.application.update.UpdateService(
+            BukkitPluginVersions.resolveVersion(plugin), updateAdapter);
+
+    BukkitEventSettingsStore eventSettingsStore = new BukkitEventSettingsStore(plugin);
+    AdminGuiController adminGuiController =
+        new AdminGuiController(
+            application.definitionRegistry(),
+            repository,
+            application.integrationRegistry(),
+            updateService,
+            application.orchestrationService(),
+            eventSettingsStore,
+            locales);
+    plugin.getServer().getPluginManager().registerEvents(adminGuiController, plugin);
+
     PluginCommand eventCommand = plugin.getCommand("spectraevents");
     if (eventCommand == null) {
       throw new IllegalStateException("plugin.yml does not declare the /spectraevents command");
     }
     SpigotMainCommand commandHandler =
-        new SpigotMainCommand(plugin, application, repository, definitions, actionAdapter, locales);
+        new SpigotMainCommand(
+            plugin,
+            application,
+            repository,
+            definitions,
+            actionAdapter,
+            eventSettingsStore,
+            adminGuiController,
+            updateService,
+            locales);
     eventCommand.setExecutor(commandHandler);
     eventCommand.setTabCompleter(commandHandler);
 
@@ -235,7 +268,7 @@ public final class SpigotBootstrap {
         registry.register(
             pluginName,
             io.github.kizio806.spectraevents.application.integration.IntegrationState.ACTIVE,
-            pluginName + " " + p.getDescription().getVersion());
+            pluginName + " " + BukkitPluginVersions.resolveVersion(p));
       } else if (p != null) {
         registry.register(
             pluginName,

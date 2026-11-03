@@ -38,12 +38,15 @@ public class PaperEntityReconciler implements PlatformEntityReconcilerPort {
               String partId =
                   entity
                       .getPersistentDataContainer()
-                      .get(BukkitPdcKeys.partId(plugin), PersistentDataType.STRING);
+                      .get(BukkitPdcKeys.MODEL_PART_ID, PersistentDataType.STRING);
 
               String role =
                   entity
-                      .getType()
-                      .name(); // Use entity type as role for now if no specific role set
+                      .getPersistentDataContainer()
+                      .get(BukkitPdcKeys.RESOURCE_ROLE, PersistentDataType.STRING);
+              if (role == null) {
+                role = entity.getType().name();
+              }
 
               discovered.add(new DiscoveredEntity(entity.getUniqueId(), instanceId, role, partId));
             } catch (IllegalArgumentException ignored) {

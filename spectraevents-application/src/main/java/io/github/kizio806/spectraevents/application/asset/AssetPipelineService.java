@@ -76,7 +76,7 @@ public final class AssetPipelineService {
                 path -> {
                   try {
                     importSource(path);
-                  } catch (Exception e) {
+                  } catch (IOException | IllegalStateException | IllegalArgumentException e) {
                     LOGGER.severe("Failed to compile asset source " + path + ": " + e.getMessage());
                     failures.add(path.getFileName() + ": " + e.getMessage());
                   }
@@ -90,11 +90,11 @@ public final class AssetPipelineService {
       rebuildResourcePackIfDirty();
       ready = true;
       lastFailure = null;
-    } catch (RuntimeException e) {
+    } catch (IllegalStateException | IllegalArgumentException e) {
       ready = false;
       lastFailure = e.getMessage();
       throw e;
-    } catch (Exception e) {
+    } catch (IOException e) {
       ready = false;
       lastFailure = e.getMessage();
       throw new IllegalStateException("Failed to build assets", e);

@@ -72,56 +72,60 @@ class SpigotActionAdapterTest {
                   return null;
                 });
 
-    BukkitAudiences adventure =
+    try (BukkitAudiences adventure =
         (BukkitAudiences)
             Proxy.newProxyInstance(
                 BukkitAudiences.class.getClassLoader(),
                 new Class<?>[] {BukkitAudiences.class},
-                (proxy, method, args) -> null);
+                (proxy, method, args) -> null)) {
+      SpigotActionAdapter adapter = new SpigotActionAdapter(plugin, adventure, locales);
+      assertNotNull(adapter);
 
-    SpigotActionAdapter adapter = new SpigotActionAdapter(plugin, adventure, locales);
-    assertNotNull(adapter);
+      EventInstanceId id = EventInstanceId.generate();
+      EventInstance instance = EventInstance.create(id, new EventDefinitionId("test"));
+      EventRuntimeState state = new EventRuntimeState(id);
 
-    EventInstanceId id = EventInstanceId.generate();
-    EventInstance instance = EventInstance.create(id, new EventDefinitionId("test"));
-    EventRuntimeState state = new EventRuntimeState(id);
+      PlatformActions.UpdateScoreboardAction updateAction =
+          new PlatformActions.UpdateScoreboardAction(java.util.List.of("line1"));
+      assertTrue(
+          adapter
+              .handleUpdateScoreboard(instance, state, updateAction, ExecutionContext.EMPTY)
+              .join());
 
-    PlatformActions.UpdateScoreboardAction updateAction =
-        new PlatformActions.UpdateScoreboardAction(java.util.List.of("line1"));
-    assertTrue(
-        adapter
-            .handleUpdateScoreboard(instance, state, updateAction, ExecutionContext.EMPTY)
-            .join());
+      assertThrows(
+          NullPointerException.class,
+          () -> adapter.handleUpdateScoreboard(null, state, updateAction, ExecutionContext.EMPTY));
+      assertThrows(
+          NullPointerException.class,
+          () ->
+              adapter.handleUpdateScoreboard(instance, null, updateAction, ExecutionContext.EMPTY));
+      assertThrows(
+          NullPointerException.class,
+          () -> adapter.handleUpdateScoreboard(instance, state, null, ExecutionContext.EMPTY));
 
-    assertThrows(
-        NullPointerException.class,
-        () -> adapter.handleUpdateScoreboard(null, state, updateAction, ExecutionContext.EMPTY));
-    assertThrows(
-        NullPointerException.class,
-        () -> adapter.handleUpdateScoreboard(instance, null, updateAction, ExecutionContext.EMPTY));
-    assertThrows(
-        NullPointerException.class,
-        () -> adapter.handleUpdateScoreboard(instance, state, null, ExecutionContext.EMPTY));
+      assertThrows(
+          NullPointerException.class,
+          () ->
+              adapter.handleRemoveBossbar(
+                  instance,
+                  null,
+                  new PlatformActions.RemoveBossbarAction(),
+                  ExecutionContext.EMPTY));
+      assertThrows(
+          NullPointerException.class,
+          () -> adapter.handleRemoveBossbar(instance, state, null, ExecutionContext.EMPTY));
 
-    assertThrows(
-        NullPointerException.class,
-        () ->
-            adapter.handleRemoveBossbar(
-                instance, null, new PlatformActions.RemoveBossbarAction(), ExecutionContext.EMPTY));
-    assertThrows(
-        NullPointerException.class,
-        () -> adapter.handleRemoveBossbar(instance, state, null, ExecutionContext.EMPTY));
-
-    assertThrows(
-        NullPointerException.class,
-        () ->
-            adapter.handleRemoveScoreboard(
-                instance,
-                null,
-                new PlatformActions.RemoveScoreboardAction(),
-                ExecutionContext.EMPTY));
-    assertThrows(
-        NullPointerException.class,
-        () -> adapter.handleRemoveScoreboard(instance, state, null, ExecutionContext.EMPTY));
+      assertThrows(
+          NullPointerException.class,
+          () ->
+              adapter.handleRemoveScoreboard(
+                  instance,
+                  null,
+                  new PlatformActions.RemoveScoreboardAction(),
+                  ExecutionContext.EMPTY));
+      assertThrows(
+          NullPointerException.class,
+          () -> adapter.handleRemoveScoreboard(instance, state, null, ExecutionContext.EMPTY));
+    }
   }
 }

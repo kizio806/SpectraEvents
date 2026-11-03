@@ -1,10 +1,10 @@
-package io.github.kizio806.spectraevents.platform.paper.gui;
+package io.github.kizio806.spectraevents.platform.bukkit.gui;
 
 import io.github.kizio806.spectraevents.application.config.DurationText;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.spec.EventParameterType;
-import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +23,7 @@ public final class EventConfigurationDetailScreen {
   public static Inventory createInventory(
       String definitionId,
       EventDefinitionRegistry definitions,
-      PaperEventSettingsStore settingsStore,
+      BukkitEventSettingsStore settingsStore,
       LocaleCatalog locales) {
     var definition = definitions.findById(definitionId).orElseThrow();
     Map<String, Object> settings = settingsStore.overridesFor(definitionId);

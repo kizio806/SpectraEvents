@@ -1,12 +1,14 @@
-package io.github.kizio806.spectraevents.platform.paper.gui;
+package io.github.kizio806.spectraevents.platform.bukkit.gui;
 
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import java.util.Map;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import org.bukkit.entity.Player;
 
-/** Converts a catalog entry to an Adventure component at the Paper UI boundary. */
+/** Converts catalog entries and Adventure components at the Bukkit UI boundary. */
 final class GuiText {
   private GuiText() {}
 
@@ -21,5 +23,16 @@ final class GuiText {
 
   static Component title(LocaleCatalog locales, String key, NamedTextColor color) {
     return Component.text(locales.message(key), color, TextDecoration.BOLD);
+  }
+
+  static String legacy(Component component) {
+    if (component == null) {
+      return "";
+    }
+    return LegacyComponentSerializer.legacySection().serialize(component);
+  }
+
+  static void send(Player player, Component component) {
+    player.sendMessage(legacy(component));
   }
 }

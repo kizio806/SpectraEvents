@@ -50,6 +50,7 @@ itemsadder-api = { module = "com.github.LoneDev6:API-ItemsAdder", version.ref = 
 spigot-api = { module = "org.spigotmc:spigot-api", version.ref = "spigot" }
 adventure-platform-bukkit = { module = "net.kyori:adventure-platform-bukkit", version.ref = "adventure-platform" }
 adventure-text-minimessage = { module = "net.kyori:adventure-text-minimessage", version.ref = "adventure" }
+adventure-text-serializer-legacy = { module = "net.kyori:adventure-text-serializer-legacy", version.ref = "adventure" }
 [plugins]
 run-paper = { id = "xyz.jpenilla.run-paper", version.ref = "run-paper" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }

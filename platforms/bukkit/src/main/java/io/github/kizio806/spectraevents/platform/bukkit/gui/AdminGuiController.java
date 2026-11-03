@@ -1,4 +1,4 @@
-package io.github.kizio806.spectraevents.platform.paper.gui;
+package io.github.kizio806.spectraevents.platform.bukkit.gui;
 
 import io.github.kizio806.spectraevents.application.config.DurationText;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
@@ -10,7 +10,7 @@ import io.github.kizio806.spectraevents.application.service.EventOrchestrationSe
 import io.github.kizio806.spectraevents.application.update.UpdateService;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
-import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -48,7 +48,7 @@ public final class AdminGuiController implements Listener {
   private final IntegrationRegistry integrationRegistry;
   private final UpdateService updateService;
   private final EventOrchestrationService orchestrationService;
-  private final PaperEventSettingsStore settingsStore;
+  private final BukkitEventSettingsStore settingsStore;
   private final LocaleCatalog locales;
 
   private final Map<UUID, MenuType> openSessions = new ConcurrentHashMap<>();
@@ -59,7 +59,7 @@ public final class AdminGuiController implements Listener {
       IntegrationRegistry integrationRegistry,
       UpdateService updateService,
       EventOrchestrationService orchestrationService,
-      PaperEventSettingsStore settingsStore,
+      BukkitEventSettingsStore settingsStore,
       LocaleCatalog locales) {
     this.definitionRegistry = Objects.requireNonNull(definitionRegistry, "definitionRegistry");
     this.instanceRepository = Objects.requireNonNull(instanceRepository, "instanceRepository");
@@ -119,7 +119,8 @@ public final class AdminGuiController implements Listener {
               Objects.requireNonNull(orchestrationService.executionEngine(), "executionEngine"),
               locales));
     } catch (IllegalArgumentException exception) {
-      player.sendMessage(
+      GuiText.send(
+          player,
           GuiText.component(locales, "admin.messages.instance-missing", NamedTextColor.RED));
       openActiveEventsMenu(player);
     }
@@ -165,7 +166,8 @@ public final class AdminGuiController implements Listener {
   public void openDefinitionDetailMenu(Player player, String definitionId) {
     var inv = DefinitionDetailScreen.createInventory(definitionId, definitionRegistry, locales);
     if (inv == null) {
-      player.sendMessage(
+      GuiText.send(
+          player,
           GuiText.component(
               locales,
               "admin.messages.definition-missing",
@@ -338,20 +340,17 @@ public final class AdminGuiController implements Listener {
 
   private void startEventFromGui(Player player, String definitionId) {
     if (definitionId == null || definitionId.isBlank()) {
-      player.sendMessage(
+      GuiText.send(
+          player,
           GuiText.component(locales, "admin.messages.no-definition-selected", NamedTextColor.RED));
       return;
     }
     try {
       var loc = player.getLocation();
+      String worldName = player.getWorld().getName();
       EventLocation platformLocation =
           new EventLocation(
-              loc.getWorld().getName(),
-              loc.getX(),
-              loc.getY(),
-              loc.getZ(),
-              loc.getYaw(),
-              loc.getPitch());
+              worldName, loc.getX(), loc.getY(), loc.getZ(), loc.getYaw(), loc.getPitch());
       var registered =
           definitionRegistry
               .get(new EventDefinitionId(definitionId))
@@ -364,17 +363,19 @@ public final class AdminGuiController implements Listener {
                       .EventDefinitionCompiler()
                   .compile(registered.sourceSpec(), settingsStore.overridesFor(definitionId)),
               platformLocation);
-      player.sendMessage(
+      GuiText.send(
+          player,
           Component.text(
               "Started " + definitionId + " (" + instance.id() + ")", NamedTextColor.GREEN));
       player.closeInventory();
     } catch (Exception e) {
-      player.sendMessage(
+      GuiText.send(
+          player,
           GuiText.component(
               locales,
               "admin.messages.start-failed",
               NamedTextColor.RED,
-              Map.of("reason", e.getMessage())));
+              Map.of("reason", e.getMessage() != null ? e.getMessage() : "unknown")));
     }
   }
 
@@ -398,7 +399,8 @@ public final class AdminGuiController implements Listener {
               definitionRegistry.findById(definitionId).orElseThrow().sourceSpec(),
               java.util.Map.of(parameter, adjusted));
       settingsStore.setParameter(definitionId, parameter, adjusted);
-      player.sendMessage(
+      GuiText.send(
+          player,
           Component.text(
               locales.message(
                   "admin.configuration.saved",
@@ -406,7 +408,8 @@ public final class AdminGuiController implements Listener {
               NamedTextColor.GREEN));
       openConfigurationDetailMenu(player, definitionId);
     } catch (IllegalArgumentException | IllegalStateException exception) {
-      player.sendMessage(
+      GuiText.send(
+          player,
           GuiText.component(
               locales,
               "admin.messages.setting-not-saved",
@@ -447,11 +450,13 @@ public final class AdminGuiController implements Listener {
   private void cancelEventFromGui(Player player, String instanceId) {
     try {
       orchestrationService.cancelEvent(Objects.requireNonNull(instanceId, "instanceId"));
-      player.sendMessage(
+      GuiText.send(
+          player,
           GuiText.component(locales, "admin.messages.event-cancelled", NamedTextColor.GREEN));
       openActiveEventsMenu(player);
     } catch (IllegalArgumentException | IllegalStateException exception) {
-      player.sendMessage(
+      GuiText.send(
+          player,
           GuiText.component(
               locales,
               "admin.messages.cancel-failed",
@@ -464,16 +469,18 @@ public final class AdminGuiController implements Listener {
   private void saveCurrentLocation(Player player) {
     String name = "location_" + (settingsStore.locations().size() + 1);
     var location = player.getLocation();
+    String worldName = player.getWorld().getName();
     settingsStore.saveLocation(
         name,
         new EventLocation(
-            location.getWorld().getName(),
+            worldName,
             location.getX(),
             location.getY(),
             location.getZ(),
             location.getYaw(),
             location.getPitch()));
-    player.sendMessage(
+    GuiText.send(
+        player,
         GuiText.component(
             locales,
             "admin.messages.location-saved",
@@ -489,10 +496,12 @@ public final class AdminGuiController implements Listener {
 
   private void removeLocationFromGui(Player player, String locationName) {
     if (locationName == null || !settingsStore.removeLocation(locationName)) {
-      player.sendMessage(
+      GuiText.send(
+          player,
           GuiText.component(locales, "admin.messages.location-missing", NamedTextColor.RED));
     } else {
-      player.sendMessage(
+      GuiText.send(
+          player,
           GuiText.component(locales, "admin.messages.location-removed", NamedTextColor.GREEN));
     }
     openLocationsMenu(player);

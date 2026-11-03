@@ -49,10 +49,12 @@ class MeteorConfigDrivenIntegrationTest {
     stateStore = new EventRuntimeStateStore();
     engine = new EventExecutionEngine(repository, registry, scheduler, actionPort, stateStore);
 
-    // Read events/meteor.yml
-    InputStream inputStream = getClass().getClassLoader().getResourceAsStream("events/meteor.yml");
-    assertNotNull(inputStream, "meteor.yml resource must exist");
-    String yamlContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+    String yamlContent;
+    try (InputStream inputStream =
+        getClass().getClassLoader().getResourceAsStream("events/meteor.yml")) {
+      assertNotNull(inputStream, "meteor.yml resource must exist");
+      yamlContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+    }
 
     EventSpecYamlParser parser = new EventSpecYamlParser();
     EventDefinitionCompiler compiler = new EventDefinitionCompiler();

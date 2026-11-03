@@ -11,9 +11,10 @@ import io.github.kizio806.spectraevents.platform.bukkit.action.AbstractBukkitAct
 import io.github.kizio806.spectraevents.platform.bukkit.common.EventDisplayPlaceholders;
 import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
 import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootHolder;
+import io.github.kizio806.spectraevents.platform.spigot.bossbar.SpigotBossBarManager;
+import io.github.kizio806.spectraevents.platform.spigot.scoreboard.SpigotScoreboardManager;
 import java.time.Duration;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -26,9 +27,6 @@ import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.boss.BarColor;
-import org.bukkit.boss.BarStyle;
-import org.bukkit.boss.BossBar;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -37,9 +35,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.scoreboard.DisplaySlot;
-import org.bukkit.scoreboard.Objective;
-import org.bukkit.scoreboard.Scoreboard;
 
 /**
  * Spigot implementation of {@link AbstractBukkitActionAdapter} with primary-thread scheduling and
@@ -47,21 +42,29 @@ import org.bukkit.scoreboard.Scoreboard;
  */
 public final class SpigotActionAdapter extends AbstractBukkitActionAdapter implements Listener {
 
-  private static final int MAX_VISIBLE_EVENT_BOSS_BARS = 3;
-
   private final Plugin plugin;
   private final BukkitAudiences adventure;
 
   private final Map<EventInstanceId, List<UUID>> ownedEntities = new ConcurrentHashMap<>();
-  private final Map<EventInstanceId, BossBar> bossBars = new ConcurrentHashMap<>();
-  private final Map<EventInstanceId, String> bossBarTemplates = new ConcurrentHashMap<>();
-  private final Map<EventInstanceId, String> bossBarProgressModes = new ConcurrentHashMap<>();
-  private final Map<EventInstanceId, Scoreboard> scoreboards = new ConcurrentHashMap<>();
+  private final SpigotBossBarManager bossBarManager;
+  private final SpigotScoreboardManager scoreboardManager;
 
   public SpigotActionAdapter(Plugin plugin, BukkitAudiences adventure, LocaleCatalog locales) {
     super(locales);
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.adventure = Objects.requireNonNull(adventure, "adventure");
+    this.bossBarManager =
+        new SpigotBossBarManager((tmpl, inst) -> renderLegacyTemplate(tmpl, inst, null));
+    this.scoreboardManager =
+        new SpigotScoreboardManager((tmpl, inst) -> renderLegacyTemplate(tmpl, inst, null));
+  }
+
+  public SpigotBossBarManager getBossBarManager() {
+    return bossBarManager;
+  }
+
+  public SpigotScoreboardManager getScoreboardManager() {
+    return scoreboardManager;
   }
 
   public void registerRecoveredEntity(EventInstanceId instanceId, UUID entityId) {
@@ -93,22 +96,8 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
       }
     }
 
-    BossBar bar = bossBars.remove(instanceId);
-    if (bar != null) {
-      bar.removeAll();
-    }
-    bossBarTemplates.remove(instanceId);
-    bossBarProgressModes.remove(instanceId);
-
-    Scoreboard board = scoreboards.remove(instanceId);
-    if (board != null) {
-      Scoreboard main = Bukkit.getScoreboardManager().getMainScoreboard();
-      for (Player player : Bukkit.getOnlinePlayers()) {
-        if (player.getScoreboard().equals(board)) {
-          player.setScoreboard(main);
-        }
-      }
-    }
+    bossBarManager.cleanup(instanceId);
+    scoreboardManager.cleanup(instanceId);
   }
 
   @Override
@@ -117,6 +106,8 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
     for (EventInstanceId id : List.copyOf(ownedEntities.keySet())) {
       cleanupEvent(id);
     }
+    bossBarManager.shutdown();
+    scoreboardManager.shutdown();
   }
 
   @Override
@@ -126,10 +117,10 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
     if (entities != null) {
       count += entities.size();
     }
-    if (bossBars.containsKey(instanceId)) {
+    if (bossBarManager.hasBossBar(instanceId)) {
       count++;
     }
-    if (scoreboards.containsKey(instanceId)) {
+    if (scoreboardManager.hasScoreboard(instanceId)) {
       count++;
     }
     if (modelRuntimeService != null) {
@@ -146,23 +137,9 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
   public void refreshHud(EventInstance instance, EventRuntimeState state) {
     AsyncFutures.discard(
         executeSync(
-            () -> {
-              BossBar bar = bossBars.get(instance.id());
-              if (bar != null) {
-                bar.setTitle(
-                    renderLegacyTemplate(
-                        bossBarTemplates.getOrDefault(instance.id(), bar.getTitle()),
-                        instance,
-                        state));
-                bar.setProgress(
-                    Math.max(
-                        0.0,
-                        Math.min(
-                            1.0,
-                            calculateProgress(
-                                state, bossBarProgressModes.getOrDefault(instance.id(), "1.0")))));
-              }
-            }));
+            () ->
+                bossBarManager.refreshHud(
+                    instance, state, (float) calculateProgress(state, "1.0"))));
   }
 
   private String resolveDisplayTemplate(
@@ -271,10 +248,13 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
       future.complete(false);
       return future;
     }
-    if (Bukkit.isPrimaryThread()) {
+    org.bukkit.Server server = org.bukkit.Bukkit.getServer();
+    if (server != null && server.isPrimaryThread()) {
       runGuarded(null, action, future);
+    } else if (server != null) {
+      server.getScheduler().runTask(plugin, () -> runGuarded(null, action, future));
     } else {
-      Bukkit.getScheduler().runTask(plugin, () -> runGuarded(null, action, future));
+      runGuarded(null, action, future);
     }
     return future;
   }
@@ -285,51 +265,19 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
       EventRuntimeState state,
       PlatformActions.ShowBossbarAction action,
       ExecutionContext context) {
+    Objects.requireNonNull(instance, "instance");
+    Objects.requireNonNull(state, "state");
+    Objects.requireNonNull(action, "action");
     return executeSync(
-        () -> {
-          if (!bossBars.containsKey(instance.id())
-              && bossBars.size() >= MAX_VISIBLE_EVENT_BOSS_BARS) {
-            return;
-          }
-          BarColor color;
-          try {
-            color =
-                action.color() != null
-                    ? BarColor.valueOf(action.color().toUpperCase(Locale.ROOT))
-                    : BarColor.PURPLE;
-          } catch (IllegalArgumentException e) {
-            color = BarColor.PURPLE;
-          }
-
-          BarStyle style;
-          try {
-            String upper =
-                action.style() != null ? action.style().toUpperCase(Locale.ROOT) : "SOLID";
-            if (upper.startsWith("NOTCH_")) {
-              upper = upper.replace("NOTCH_", "SEGMENTED_");
-            } else if (upper.startsWith("NOTCHES_")) {
-              upper = upper.replace("NOTCHES_", "SEGMENTED_");
-            } else if (upper.equals("PROGRESS")) {
-              upper = "SOLID";
-            }
-            style = BarStyle.valueOf(upper);
-          } catch (IllegalArgumentException e) {
-            style = BarStyle.SOLID;
-          }
-
-          double progress =
-              Math.max(0.0, Math.min(1.0, calculateProgress(state, action.progress())));
-          BossBar bar =
-              Bukkit.createBossBar(
-                  renderLegacyTemplate(action.title(), instance, state), color, style);
-          bar.setProgress(progress);
-          for (Player player : Bukkit.getOnlinePlayers()) {
-            bar.addPlayer(player);
-          }
-          bossBars.put(instance.id(), bar);
-          bossBarTemplates.put(instance.id(), action.title());
-          bossBarProgressModes.put(instance.id(), action.progress());
-        });
+        () ->
+            bossBarManager.showBossBar(
+                instance,
+                state,
+                action.title(),
+                action.color(),
+                action.style(),
+                action.progress(),
+                (float) calculateProgress(state, action.progress())));
   }
 
   @Override
@@ -338,17 +286,17 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
       EventRuntimeState state,
       PlatformActions.UpdateBossbarAction action,
       ExecutionContext context) {
+    Objects.requireNonNull(instance, "instance");
+    Objects.requireNonNull(state, "state");
+    Objects.requireNonNull(action, "action");
     return executeSync(
-        () -> {
-          BossBar bar = bossBars.get(instance.id());
-          if (bar != null) {
-            bossBarTemplates.put(instance.id(), action.title());
-            bossBarProgressModes.put(instance.id(), action.progress());
-            bar.setTitle(renderLegacyTemplate(action.title(), instance, state));
-            bar.setProgress(
-                Math.max(0.0, Math.min(1.0, calculateProgress(state, action.progress()))));
-          }
-        });
+        () ->
+            bossBarManager.updateBossBar(
+                instance,
+                state,
+                action.title(),
+                action.progress(),
+                (float) calculateProgress(state, action.progress())));
   }
 
   @Override
@@ -357,17 +305,10 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
       EventRuntimeState state,
       PlatformActions.RemoveBossbarAction action,
       ExecutionContext context) {
+    Objects.requireNonNull(instance, "instance");
     Objects.requireNonNull(state, "state");
     Objects.requireNonNull(action, "action");
-    return executeSync(
-        () -> {
-          BossBar bar = bossBars.remove(instance.id());
-          if (bar != null) {
-            bar.removeAll();
-          }
-          bossBarTemplates.remove(instance.id());
-          bossBarProgressModes.remove(instance.id());
-        });
+    return executeSync(() -> bossBarManager.removeBossBar(instance.id()));
   }
 
   @Override
@@ -376,28 +317,11 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
       EventRuntimeState state,
       PlatformActions.ShowScoreboardAction action,
       ExecutionContext context) {
+    Objects.requireNonNull(instance, "instance");
+    Objects.requireNonNull(state, "state");
+    Objects.requireNonNull(action, "action");
     return executeSync(
-        () -> {
-          Scoreboard board = Bukkit.getScoreboardManager().getNewScoreboard();
-          Objective obj =
-              board.registerNewObjective(
-                  "event_" + instance.id().toString().substring(0, 8),
-                  org.bukkit.scoreboard.Criteria.DUMMY,
-                  renderLegacyTemplate(action.title(), instance, state));
-          obj.setDisplaySlot(DisplaySlot.SIDEBAR);
-
-          List<String> lines = action.lines();
-          for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i);
-            int score = lines.size() - i;
-            obj.getScore(renderLegacyTemplate(line, instance, state)).setScore(score);
-          }
-
-          scoreboards.put(instance.id(), board);
-          for (Player player : Bukkit.getOnlinePlayers()) {
-            player.setScoreboard(board);
-          }
-        });
+        () -> scoreboardManager.showScoreboard(instance, state, action.title(), action.lines()));
   }
 
   @Override
@@ -409,7 +333,7 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
     Objects.requireNonNull(instance, "instance");
     Objects.requireNonNull(state, "state");
     Objects.requireNonNull(action, "action");
-    return CompletableFuture.completedFuture(true);
+    return executeSync(() -> scoreboardManager.updateScoreboard(instance, state, action.lines()));
   }
 
   @Override
@@ -418,20 +342,10 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
       EventRuntimeState state,
       PlatformActions.RemoveScoreboardAction action,
       ExecutionContext context) {
+    Objects.requireNonNull(instance, "instance");
     Objects.requireNonNull(state, "state");
     Objects.requireNonNull(action, "action");
-    return executeSync(
-        () -> {
-          Scoreboard board = scoreboards.remove(instance.id());
-          if (board != null) {
-            Scoreboard main = Bukkit.getScoreboardManager().getMainScoreboard();
-            for (Player player : Bukkit.getOnlinePlayers()) {
-              if (player.getScoreboard().equals(board)) {
-                player.setScoreboard(main);
-              }
-            }
-          }
-        });
+    return executeSync(() -> scoreboardManager.removeScoreboard(instance.id()));
   }
 
   private double calculateProgress(EventRuntimeState state, String progressStr) {
@@ -453,14 +367,7 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
   @EventHandler
   public void onPlayerJoin(PlayerJoinEvent event) {
     Player player = event.getPlayer();
-    for (BossBar bar : bossBars.values()) {
-      bar.addPlayer(player);
-    }
-    if (!scoreboards.isEmpty()) {
-      var it = scoreboards.values().iterator();
-      if (it.hasNext()) {
-        player.setScoreboard(it.next());
-      }
-    }
+    bossBarManager.onPlayerJoin(player);
+    scoreboardManager.onPlayerJoin(player);
   }
 }

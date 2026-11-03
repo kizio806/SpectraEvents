@@ -21,6 +21,7 @@ import java.util.List;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -30,8 +31,16 @@ class SpigotRewardsCommandHandlerTest {
   @TempDir Path tempDir;
   private SpigotCommandHelper helper;
   private Plugin dummyPlugin;
+  private BukkitAudiences dummyAudiences;
   private SpectraEventsApplication application;
   private SpigotActionAdapter actionAdapter;
+
+  @AfterEach
+  void tearDown() {
+    if (dummyAudiences != null) {
+      dummyAudiences.close();
+    }
+  }
 
   @BeforeEach
   void setUp() throws IOException {
@@ -50,7 +59,7 @@ class SpigotRewardsCommandHandlerTest {
                   return null;
                 });
 
-    BukkitAudiences dummyAudiences =
+    dummyAudiences =
         (BukkitAudiences)
             Proxy.newProxyInstance(
                 BukkitAudiences.class.getClassLoader(),

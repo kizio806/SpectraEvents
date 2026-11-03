@@ -317,7 +317,7 @@ public final class SQLiteEventInstanceRepository
                 persistInstance(eventInstance, false);
                 persistState(snapshot, false);
                 database.commitOrThrow();
-              } catch (RuntimeException exception) {
+              } catch (IllegalStateException exception) {
                 database.rollbackQuietly();
                 throw exception;
               }
@@ -338,7 +338,7 @@ public final class SQLiteEventInstanceRepository
                 persistInstance(eventInstance, false);
                 persistState(snapshot, false);
                 database.commitOrThrow();
-              } catch (RuntimeException exception) {
+              } catch (IllegalStateException exception) {
                 database.rollbackQuietly();
                 throw exception;
               }

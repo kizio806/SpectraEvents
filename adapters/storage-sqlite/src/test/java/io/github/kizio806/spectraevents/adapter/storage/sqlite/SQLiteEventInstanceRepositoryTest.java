@@ -159,14 +159,13 @@ class SQLiteEventInstanceRepositoryTest {
     assertNotNull(repository.databaseManager());
     assertNotNull(repository.rewardClaimRepository());
 
-    SQLiteDatabaseManager db = repository.databaseManager();
-    assertNotNull(db.dbPath());
-    assertNotNull(db.executor());
-    assertNotNull(db.writerConnection());
+    try (SQLiteDatabaseManager db = repository.databaseManager()) {
+      assertNotNull(db.dbPath());
+      assertNotNull(db.executor());
+      assertNotNull(db.writerConnection());
 
-    db.rollbackQuietly();
-    db.commitOrThrow();
-
-    db.close();
+      db.rollbackQuietly();
+      db.commitOrThrow();
+    }
   }
 }

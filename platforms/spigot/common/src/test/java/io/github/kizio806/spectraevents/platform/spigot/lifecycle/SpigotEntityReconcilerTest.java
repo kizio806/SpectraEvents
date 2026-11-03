@@ -50,8 +50,12 @@ class SpigotEntityReconcilerTest {
     LocaleCatalog catalog = new FileSystemLocaleLoader(temporaryDirectory).loadCatalog("en-US");
     SpigotActionAdapter adapter = new SpigotActionAdapter(dummyPlugin, dummyAudiences, catalog);
 
-    assertThrows(NullPointerException.class, () -> new SpigotEntityReconciler(null, adapter));
-    assertThrows(NullPointerException.class, () -> new SpigotEntityReconciler(dummyPlugin, null));
+    try {
+      assertThrows(NullPointerException.class, () -> new SpigotEntityReconciler(null, adapter));
+      assertThrows(NullPointerException.class, () -> new SpigotEntityReconciler(dummyPlugin, null));
+    } finally {
+      dummyAudiences.close();
+    }
 
     SpigotEntityReconciler reconciler = new SpigotEntityReconciler(dummyPlugin, adapter);
     assertNotNull(reconciler.getPlugin());

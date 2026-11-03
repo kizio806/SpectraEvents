@@ -1,4 +1,4 @@
-package io.github.kizio806.spectraevents.platform.paper.gui;
+package io.github.kizio806.spectraevents.platform.bukkit.gui;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -43,7 +43,7 @@ public final class AdminGuiHolder implements InventoryHolder {
       int size,
       Component title) {
     AdminGuiHolder holder = new AdminGuiHolder(menuType, extra, slotPayloads);
-    Inventory inventory = Bukkit.createInventory(holder, size, title);
+    Inventory inventory = Bukkit.createInventory(holder, size, GuiText.legacy(title));
     holder.inventory = inventory;
     return inventory;
   }

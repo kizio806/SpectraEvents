@@ -3,7 +3,10 @@ package io.github.kizio806.spectraevents.platform.spigot.command;
 import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
+import io.github.kizio806.spectraevents.application.update.UpdateService;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
+import io.github.kizio806.spectraevents.platform.bukkit.gui.AdminGuiController;
 import io.github.kizio806.spectraevents.platform.spigot.action.SpigotActionAdapter;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -16,6 +19,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 /** Classic Bukkit command adapter dispatching to modular sub-command handlers. */
@@ -26,6 +30,7 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
   private final Map<String, SpigotSubcommandHandler> subcommands = new HashMap<>();
   private final SpigotDiagnosticsCommandHandler diagnosticsHandler;
   private final SpigotDefinitionCommandHandler definitionHandler;
+  private final AdminGuiController guiController;
 
   public SpigotMainCommand(
       Plugin plugin,
@@ -33,9 +38,13 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
       EventInstanceRepository repository,
       BukkitDefinitionConfigBootstrap definitions,
       SpigotActionAdapter actionAdapter,
+      BukkitEventSettingsStore settingsStore,
+      AdminGuiController guiController,
+      UpdateService updateService,
       LocaleCatalog locales) {
     this.plugin = Objects.requireNonNull(plugin, "plugin");
     this.helper = new SpigotCommandHelper(locales);
+    this.guiController = guiController;
 
     Path schedulesFile = plugin.getDataFolder().toPath().resolve("schedules.yml");
 
@@ -53,6 +62,39 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
         "schedule", new SpigotScheduleCommandHandler(application, schedulesFile, helper));
     subcommands.put(
         "rewards", new SpigotRewardsCommandHandler(plugin, application, actionAdapter, helper));
+
+    if (settingsStore != null) {
+      subcommands.put("location", new SpigotLocationCommandHandler(settingsStore, helper));
+    }
+    if (application.modelDefinitionRegistry() != null) {
+      subcommands.put(
+          "model", new SpigotModelCommandHandler(application.modelDefinitionRegistry(), helper));
+    }
+    if (application.assetPipelineService() != null) {
+      SpigotAssetCommandHandler assetHandler =
+          new SpigotAssetCommandHandler(application.assetPipelineService(), helper);
+      subcommands.put("asset", assetHandler);
+      subcommands.put("assets", assetHandler);
+    }
+    if (application.integrationRegistry() != null) {
+      SpigotIntegrationCommandHandler integrationHandler =
+          new SpigotIntegrationCommandHandler(application.integrationRegistry(), helper);
+      subcommands.put("integration", integrationHandler);
+      subcommands.put("integrations", integrationHandler);
+    }
+    if (updateService != null) {
+      subcommands.put("update", new SpigotUpdateCommandHandler(updateService, helper));
+    }
+  }
+
+  public SpigotMainCommand(
+      Plugin plugin,
+      SpectraEventsApplication application,
+      EventInstanceRepository repository,
+      BukkitDefinitionConfigBootstrap definitions,
+      SpigotActionAdapter actionAdapter,
+      LocaleCatalog locales) {
+    this(plugin, application, repository, definitions, actionAdapter, null, null, null, locales);
   }
 
   @Override
@@ -69,9 +111,7 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
         case "status" -> diagnosticsHandler.status(sender);
         case "doctor" -> diagnosticsHandler.doctor(sender);
         case "validate" -> definitionHandler.reloadOrValidate(sender, true);
-        case "assets" -> unavailableAssets(sender);
-        case "admin" -> unsupported(sender, "Inventory GUI", "Paper family");
-        case "update" -> unsupported(sender, "Update commands", "Paper family");
+        case "admin" -> openAdmin(sender);
         default -> {
           SpigotSubcommandHandler handler = subcommands.get(sub);
           if (handler != null) {
@@ -110,7 +150,14 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
           "template",
           "schedule",
           "rewards",
-          "assets");
+          "location",
+          "model",
+          "asset",
+          "assets",
+          "integration",
+          "integrations",
+          "update",
+          "admin");
     }
     if (arguments.length >= 2) {
       String sub = arguments[0].toLowerCase(Locale.ROOT);
@@ -123,15 +170,20 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
     return List.of();
   }
 
-  private void unavailableAssets(CommandSender sender) {
-    helper.send(sender, "command.spigot.assets-unavailable");
-  }
-
-  private void unsupported(CommandSender sender, String feature, String supportedPlatform) {
-    helper.send(
-        sender,
-        "command.spigot.unsupported",
-        Map.of("feature", feature, "platform", supportedPlatform));
+  private void openAdmin(CommandSender sender) {
+    helper.require(sender, "spectraevents.admin");
+    if (guiController == null) {
+      helper.send(
+          sender,
+          "command.spigot.unsupported",
+          Map.of("feature", "Inventory GUI", "platform", "Paper family"));
+      return;
+    }
+    if (sender instanceof Player player) {
+      guiController.openMainMenu(player);
+    } else {
+      helper.send(sender, "command.paper.gui-player-only");
+    }
   }
 
   private void help(CommandSender sender) {

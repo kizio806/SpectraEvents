@@ -8,9 +8,12 @@ public enum EventParameterType {
   BOOLEAN;
 
   public static EventParameterType parse(String value) {
+    if (value == null) {
+      throw new IllegalArgumentException("Event parameter type cannot be null");
+    }
     try {
       return valueOf(value.trim().toUpperCase(java.util.Locale.ROOT));
-    } catch (RuntimeException exception) {
+    } catch (IllegalArgumentException exception) {
       throw new IllegalArgumentException("Unsupported event parameter type: " + value, exception);
     }
   }

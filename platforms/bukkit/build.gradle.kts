@@ -10,8 +10,10 @@ dependencies {
     api(project(":adapters:assets-delivery"))
     compileOnly(libs.spigot.api)
     compileOnly(libs.adventure.text.minimessage)
+    compileOnly(libs.adventure.text.serializer.legacy)
     testImplementation(libs.spigot.api)
     testImplementation(libs.adventure.text.minimessage)
+    testImplementation(libs.adventure.text.serializer.legacy)
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.archunit.junit5)
 }
