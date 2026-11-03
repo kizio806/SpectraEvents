@@ -291,7 +291,7 @@ jobs:
           files: release-artifacts/resource-packs/spectraevents-profile_26_3.zip
           changelog-file: release-notes.md
 
-      - name: Publish Paper and Purpur distribution to Modrinth & CurseForge
+      - name: Publish Paper, Purpur, and Folia distribution to Modrinth & CurseForge
         id: modrinth_paper
         uses: Kir-Antipov/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
         with:
@@ -299,7 +299,7 @@ jobs:
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID || vars.CURSEFORGE_PROJECT_ID }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
-          name: SpectraEvents ${{ needs.build.outputs.version }} — Paper and Purpur
+          name: SpectraEvents ${{ needs.build.outputs.version }} — Paper, Purpur, and Folia
           version: ${{ needs.build.outputs.version }}+paper
           version-type: ${{ needs.build.outputs.modrinth_type }}
           game-versions: |
@@ -310,6 +310,7 @@ jobs:
           loaders: |
             paper
             purpur
+            folia
           java: 25
           environment: server
           modrinth-featured: false
@@ -339,29 +340,6 @@ jobs:
           environment: server
           modrinth-featured: false
           files: release-artifacts/SpectraEvents-*-spigot.jar
-          changelog-file: release-notes.md
-
-      - name: Publish the Folia 26.1-26.3 distribution to Modrinth & CurseForge
-        id: modrinth_folia
-        uses: Kir-Antipov/mc-publish@c23376546a97f5ba7984e94445da359459b14419 # v3.3.2
-        with:
-          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID || vars.MODRINTH_PROJECT_ID }}
-          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-          curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID || vars.CURSEFORGE_PROJECT_ID }}
-          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
-          name: SpectraEvents ${{ needs.build.outputs.version }} — Folia 26.1-26.3
-          version: ${{ needs.build.outputs.version }}+folia
-          version-type: ${{ needs.build.outputs.modrinth_type }}
-          game-versions: |
-            26.1
-            26.2
-            26.3
-          game-version-filter: releases
-          loaders: folia
-          java: 25
-          environment: server
-          modrinth-featured: false
-          files: release-artifacts/SpectraEvents-*-paper.jar
           changelog-file: release-notes.md
 
       - name: Create GitHub Release after all Modrinth versions exist
@@ -399,7 +377,6 @@ jobs:
             ${{ steps.modrinth_pack_26_3.outputs.modrinth-version }}
             ${{ steps.modrinth_paper.outputs.modrinth-version }}
             ${{ steps.modrinth_spigot.outputs.modrinth-version }}
-            ${{ steps.modrinth_folia.outputs.modrinth-version }}
           GITHUB_RELEASE_OUTCOME: ${{ steps.github_release.outcome }}
         run: |
           set -euo pipefail
@@ -426,7 +403,6 @@ jobs:
           PACK_OUTCOMES: "${{ steps.modrinth_pack_26_1.outcome }}/${{ steps.modrinth_pack_26_2.outcome }}/${{ steps.modrinth_pack_26_3.outcome }}"
           PAPER_OUTCOME: ${{ steps.modrinth_paper.outcome }}
           SPIGOT_OUTCOME: ${{ steps.modrinth_spigot.outcome }}
-          FOLIA_OUTCOME: ${{ steps.modrinth_folia.outcome }}
           RELEASE_OUTCOME: ${{ steps.github_release.outcome }}
         run: |
           {
@@ -434,8 +410,7 @@ jobs:
             echo "- Version: $VERSION"
             echo "- Runtime matrix: passed"
             echo "- Modrinth resource packs (26.1/26.2/26.3): $PACK_OUTCOMES"
-            echo "- Modrinth Paper/Purpur distribution: $PAPER_OUTCOME"
+            echo "- Modrinth Paper/Purpur/Folia distribution: $PAPER_OUTCOME"
             echo "- Modrinth Spigot/CraftBukkit distribution: $SPIGOT_OUTCOME"
-            echo "- Modrinth Folia distribution (26.1/26.2/26.3): $FOLIA_OUTCOME"
             echo "- GitHub Release: $RELEASE_OUTCOME"
           } >> "$GITHUB_STEP_SUMMARY"

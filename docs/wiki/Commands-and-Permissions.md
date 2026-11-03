@@ -26,6 +26,5 @@ Interrupted `DELIVERING` claims are never silently reissued. An operator must in
 choose the explicit rewards reconciliation command for `mark-delivered` or `return-pending`.
 
 Permission nodes are namespaced below `spectraevents`. Verify the exact command help and generated
-plugin metadata for the installed version; the beta command contract may still change. Paper offers
-an inventory GUI for selected administration flows. Equivalent Spigot operator UX is planned but is
-not currently complete.
+plugin metadata for the installed version. Both Paper and Spigot distributions offer the full inventory
+Admin GUI (`/spectraevents admin`) and complete modular subcommands (`location`, `model`, `asset`, `integration`, `update`).

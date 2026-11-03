@@ -6,7 +6,7 @@ SpectraEvents is a data-driven 3D event engine for modern Paper and Spigot Minec
 
 ## ☕ System Requirements
 
-- **Server Software:** Paper, Purpur, Spigot, or CraftBukkit (versions 26.1–26.3).
+- **Server Software:** Paper, Purpur, Folia, Spigot, or CraftBukkit (versions 26.1–26.3).
 - **Java Runtime:** **Java 25** (strictly required for server plugin distributions).
 - **Client Requirements:** Vanilla Minecraft clients (1.19.4+) supporting native Display and Interaction entities.
 

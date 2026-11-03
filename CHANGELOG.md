@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Code Deduplication**: Eliminated duplicate model rendering implementations between Paper and Spigot, reducing boilerplate by ~800 lines while retaining Folia region scheduling in `PaperModelRenderer`.
 - **Static Analysis & Hygiene Hardening**: Eliminated blanket rule suppressions in `spotbugs-exclude.xml` and `pmd.xml`. Resolved all potential null dereference paths, unclosed resources in unit/integration tests, and replaced generic `catch (RuntimeException)` blocks with typed domain exceptions (`FatalActionException`, `IllegalStateException`, `IllegalArgumentException`, `IOException`).
 - **Toolchain & Dependency Locks**: Upgraded Gradle wrapper to 9.8.2 and JaCoCo to 0.8.15 with verified lockfile synchronization across all modules.
+- **Unified Distribution Publishing**: Consolidated Modrinth/CurseForge deployment to exactly two release entries (Paper/Purpur/Folia and Spigot/CraftBukkit), eliminating redundant duplicate Folia upload entries while declaring native Folia 26.1–26.3 support. Added curated release notes at `docs/releases/0.1.1-beta.2.md`.
 
 ### Security
 - **Atomic Concurrency**: Resolved TOCTOU race condition in `AnimationRuntimeService` by enforcing strict lock acquisition and double-checked registration state before animation step advancement.

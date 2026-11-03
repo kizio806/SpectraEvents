@@ -62,9 +62,8 @@ SpectraEvents targets **Java 25** for server execution (platform-neutral code ta
 
 | Distribution JAR | Target Server Families | Minecraft Compatibility | Notes |
 | :--- | :--- | :---: | :--- |
-| **`SpectraEvents-<version>-paper.jar`** | **Paper**, **Purpur** | **26.1 – 26.3** | Full feature set, asynchronous chunk loading, native Adventure MiniMessage, admin GUI controller. |
-| **`SpectraEvents-<version>-paper.jar`** | **Folia** | **26.1 – 26.3** | Regional multithreading compatible with region-bound task delegation. |
-| **`SpectraEvents-<version>-spigot.jar`** | **Spigot**, **CraftBukkit** | **26.1 – 26.3** | Dedicated Spigot task scheduling, Spigot PDC keys, and fallback platform adapters. |
+| **`SpectraEvents-<version>-paper.jar`** | **Paper**, **Purpur**, **Folia** | **26.1 – 26.3** | Full feature set, asynchronous chunk loading, native Adventure MiniMessage, Folia regional multithreading via `RegionTaskScheduler`, and Admin GUI. |
+| **`SpectraEvents-<version>-spigot.jar`** | **Spigot**, **CraftBukkit** | **26.1 – 26.3** | Dedicated Spigot task scheduling, Spigot PDC persistence keys, Bukkit Admin GUI, and modular administration subcommands. |
 
 > [!IMPORTANT]
 > Install **exactly one** matching JAR in your server's `plugins/` directory. Do not substitute the Paper artifact for Spigot or vice-versa.
