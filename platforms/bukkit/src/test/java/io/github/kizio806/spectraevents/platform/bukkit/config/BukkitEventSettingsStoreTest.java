@@ -1,4 +1,4 @@
-package io.github.kizio806.spectraevents.platform.paper.config;
+package io.github.kizio806.spectraevents.platform.bukkit.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -9,12 +9,12 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-class PaperEventSettingsStoreTest {
+class BukkitEventSettingsStoreTest {
   @TempDir Path temporaryDirectory;
 
   @Test
   void writesNewGlobalConfigurationWithEnglishAsTheDefaultLocale() throws Exception {
-    PaperEventSettingsStore store = new PaperEventSettingsStore(temporaryDirectory);
+    BukkitEventSettingsStore store = new BukkitEventSettingsStore(temporaryDirectory);
 
     assertEquals("en-US", store.locale());
     assertFalse(Files.readString(temporaryDirectory.resolve("config.yml")).contains("overrides:"));
@@ -22,7 +22,7 @@ class PaperEventSettingsStoreTest {
 
   @Test
   void writesOnlyTheSelectedEventOverride() throws Exception {
-    PaperEventSettingsStore store = new PaperEventSettingsStore(temporaryDirectory);
+    BukkitEventSettingsStore store = new BukkitEventSettingsStore(temporaryDirectory);
 
     store.setParameter("airdrop", "announcement-delay", "16m");
 

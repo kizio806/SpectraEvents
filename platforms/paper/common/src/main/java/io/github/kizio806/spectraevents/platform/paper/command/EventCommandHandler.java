@@ -15,7 +15,7 @@ import io.github.kizio806.spectraevents.application.service.EventOrchestrationSe
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
-import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
@@ -35,7 +35,7 @@ public final class EventCommandHandler {
   private final EventOrchestrationService orchestrationService;
   private final EventInstanceRepository instanceRepository;
   private final EventDefinitionRegistry definitionRegistry;
-  private final PaperEventSettingsStore settingsStore;
+  private final BukkitEventSettingsStore settingsStore;
   private final RegionTaskScheduler regionScheduler;
   private final CommandText messages;
 
@@ -43,7 +43,7 @@ public final class EventCommandHandler {
       EventOrchestrationService orchestrationService,
       EventInstanceRepository instanceRepository,
       EventDefinitionRegistry definitionRegistry,
-      PaperEventSettingsStore settingsStore,
+      BukkitEventSettingsStore settingsStore,
       RegionTaskScheduler regionScheduler,
       LocaleCatalog locales) {
     this.orchestrationService = orchestrationService;

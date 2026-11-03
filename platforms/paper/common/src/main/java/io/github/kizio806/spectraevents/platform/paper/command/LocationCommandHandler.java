@@ -5,7 +5,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.execution.EventLocation;
-import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.util.Map;
@@ -15,10 +15,10 @@ import org.bukkit.entity.Player;
 
 /** Player-friendly named location commands for event starts. */
 public final class LocationCommandHandler {
-  private final PaperEventSettingsStore settingsStore;
+  private final BukkitEventSettingsStore settingsStore;
   private final CommandText messages;
 
-  public LocationCommandHandler(PaperEventSettingsStore settingsStore, LocaleCatalog locales) {
+  public LocationCommandHandler(BukkitEventSettingsStore settingsStore, LocaleCatalog locales) {
     this.settingsStore = settingsStore;
     this.messages = new CommandText(locales);
   }

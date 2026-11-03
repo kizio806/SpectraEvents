@@ -1,6 +1,5 @@
-package io.github.kizio806.spectraevents.platform.paper.integration.item;
+package io.github.kizio806.spectraevents.platform.bukkit.integration.item;
 
-import io.github.kizio806.spectraevents.platform.bukkit.integration.item.CustomItemProvider;
 import io.th0rgal.oraxen.api.OraxenItems;
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.ItemStack;
@@ -10,7 +9,10 @@ public class OraxenItemProvider implements CustomItemProvider {
   private final boolean available;
 
   public OraxenItemProvider() {
-    available = Bukkit.getPluginManager().getPlugin("Oraxen") != null;
+    available =
+        Bukkit.getServer() != null
+            && Bukkit.getPluginManager() != null
+            && Bukkit.getPluginManager().getPlugin("Oraxen") != null;
   }
 
   @Override

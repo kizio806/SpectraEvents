@@ -182,7 +182,7 @@ public final class SpigotMainCommand implements CommandExecutor, TabCompleter {
     if (sender instanceof Player player) {
       guiController.openMainMenu(player);
     } else {
-      helper.send(sender, "command.paper.gui-player-only");
+      helper.send(sender, "command.gui-player-only");
     }
   }
 

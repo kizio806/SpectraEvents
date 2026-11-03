@@ -5,19 +5,20 @@ import io.github.kizio806.spectraevents.adapter.update.http.HttpUpdateAdapter;
 import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
 import io.github.kizio806.spectraevents.application.config.DataDirectoryLayout;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
+import io.github.kizio806.spectraevents.application.integration.IntegrationInitializationContext;
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
 import io.github.kizio806.spectraevents.platform.bukkit.common.BukkitLifecycleReporter;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
 import io.github.kizio806.spectraevents.platform.bukkit.gui.AdminGuiController;
+import io.github.kizio806.spectraevents.platform.bukkit.integration.BukkitIntegrationManager;
 import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootListener;
 import io.github.kizio806.spectraevents.platform.paper.action.PaperActionAdapter;
 import io.github.kizio806.spectraevents.platform.paper.command.SpectraMainCommand;
 import io.github.kizio806.spectraevents.platform.paper.common.PaperCapabilityQuery;
 import io.github.kizio806.spectraevents.platform.paper.common.PaperStartupLogger;
-import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
-import io.github.kizio806.spectraevents.platform.paper.integration.PaperIntegrationManager;
 import io.github.kizio806.spectraevents.platform.paper.interaction.PaperEntityDeathRouter;
 import io.github.kizio806.spectraevents.platform.paper.interaction.PaperInteractionRouter;
 import io.github.kizio806.spectraevents.platform.paper.lifecycle.PaperEntityReconciler;
@@ -45,7 +46,7 @@ public final class PaperBootstrap {
   private SQLiteEventInstanceRepository sqliteRepository;
   private IntegrationRegistry integrationRegistry;
   private UpdateService updateService;
-  private PaperEventSettingsStore eventSettingsStore;
+  private BukkitEventSettingsStore eventSettingsStore;
   private CompletableFuture<Void> updateCheck;
   private CompletableFuture<Void> resourcePackDelivery;
 
@@ -64,7 +65,7 @@ public final class PaperBootstrap {
     regionScheduler = new PaperRegionTaskScheduler(plugin);
 
     integrationRegistry = new IntegrationRegistry();
-    PaperIntegrationManager integrationManager = new PaperIntegrationManager(integrationRegistry);
+    BukkitIntegrationManager integrationManager = new BukkitIntegrationManager(integrationRegistry);
     integrationManager.detectAll();
 
     renderer = new PaperModelRenderer(plugin);
@@ -77,7 +78,7 @@ public final class PaperBootstrap {
       throw new IllegalStateException(
           "Could not prepare the SpectraEvents data directory", exception);
     }
-    eventSettingsStore = new PaperEventSettingsStore(plugin);
+    eventSettingsStore = new BukkitEventSettingsStore(plugin);
     LocaleCatalog locales;
     try {
       locales =
@@ -165,76 +166,14 @@ public final class PaperBootstrap {
           exception);
     }
 
-    try {
-      var schedules =
-          new io.github.kizio806.spectraevents.application.schedule.FileSystemScheduleLoader(
-                  new io.github.kizio806.spectraevents.application.schedule.ScheduleYamlLoader())
-              .load(dataLayout.schedulesFile());
-      schedules
-          .failures()
-          .forEach(
-              failure ->
-                  plugin
-                      .getLogger()
-                      .warning(
-                          "Ignoring invalid schedule "
-                              + failure.path()
-                              + ": "
-                              + failure.message()));
-      application.startSchedules(schedules.schedules());
-      plugin.getLogger().info("Loaded schedules=" + schedules.schedules().size());
-    } catch (IOException exception) {
-      plugin
-          .getLogger()
-          .warning(
-              "Could not load schedules.yml; scheduling remains disabled: "
-                  + exception.getMessage());
-    }
+    io.github.kizio806.spectraevents.platform.bukkit.config.BukkitScheduleBootstrapHelper
+        .loadAndRegisterSchedules(dataLayout.schedulesFile(), application, plugin.getLogger());
 
     application.start();
 
-    // Initialize specific integrations safely
-
-    // Initialize specific integrations safely using ServiceLoader
-    io.github.kizio806.spectraevents.application.integration.IntegrationInitializationContext
-        integrationContext =
-            new io.github.kizio806.spectraevents.application.integration
-                .IntegrationInitializationContext(
-                application, sqliteRepository, plugin.getLogger());
-
-    for (io.github.kizio806.spectraevents.application.integration.PlatformIntegrationModule module :
-        java.util.ServiceLoader.load(
-            io.github.kizio806.spectraevents.application.integration.PlatformIntegrationModule
-                .class,
-            plugin.getClass().getClassLoader())) {
-      if (org.bukkit.Bukkit.getPluginManager().getPlugin(module.requiredPluginName()) != null) {
-        String pluginName = module.requiredPluginName();
-        try {
-          module.initialize(integrationContext);
-          String existingDetails =
-              integrationRegistry
-                  .get(pluginName)
-                  .map(
-                      io.github.kizio806.spectraevents.application.integration.IntegrationRegistry
-                              .IntegrationInfo
-                          ::details)
-                  .orElse("Active");
-          integrationRegistry.register(
-              pluginName,
-              io.github.kizio806.spectraevents.application.integration.IntegrationState.ACTIVE,
-              existingDetails);
-        } catch (Exception e) {
-          String reason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-          integrationRegistry.register(
-              pluginName,
-              io.github.kizio806.spectraevents.application.integration.IntegrationState.FAILED,
-              "Initialization failed: " + reason);
-          plugin
-              .getLogger()
-              .warning("Failed to initialize integration " + pluginName + ": " + reason);
-        }
-      }
-    }
+    IntegrationInitializationContext integrationContext =
+        new IntegrationInitializationContext(application, sqliteRepository, plugin.getLogger());
+    integrationManager.initializeModules(plugin, integrationContext);
     startupLogger.integrations(integrationRegistry);
 
     Path updateDir = plugin.getDataFolder().toPath().resolve("update");

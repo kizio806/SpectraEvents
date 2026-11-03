@@ -1,7 +1,6 @@
-package io.github.kizio806.spectraevents.platform.paper.integration.item;
+package io.github.kizio806.spectraevents.platform.bukkit.integration.item;
 
 import dev.lone.itemsadder.api.CustomStack;
-import io.github.kizio806.spectraevents.platform.bukkit.integration.item.CustomItemProvider;
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.ItemStack;
 
@@ -10,7 +9,10 @@ public class ItemsAdderItemProvider implements CustomItemProvider {
   private final boolean available;
 
   public ItemsAdderItemProvider() {
-    available = Bukkit.getPluginManager().getPlugin("ItemsAdder") != null;
+    available =
+        Bukkit.getServer() != null
+            && Bukkit.getPluginManager() != null
+            && Bukkit.getPluginManager().getPlugin("ItemsAdder") != null;
   }
 
   @Override

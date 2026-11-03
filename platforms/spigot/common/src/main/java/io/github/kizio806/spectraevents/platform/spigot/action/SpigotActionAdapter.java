@@ -10,6 +10,9 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.platform.bukkit.action.AbstractBukkitActionAdapter;
 import io.github.kizio806.spectraevents.platform.bukkit.common.EventDisplayPlaceholders;
 import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
+import io.github.kizio806.spectraevents.platform.bukkit.integration.item.ItemsAdderItemProvider;
+import io.github.kizio806.spectraevents.platform.bukkit.integration.item.NexoItemProvider;
+import io.github.kizio806.spectraevents.platform.bukkit.integration.item.OraxenItemProvider;
 import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootHolder;
 import io.github.kizio806.spectraevents.platform.spigot.bossbar.SpigotBossBarManager;
 import io.github.kizio806.spectraevents.platform.spigot.scoreboard.SpigotScoreboardManager;
@@ -57,6 +60,10 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
         new SpigotBossBarManager((tmpl, inst) -> renderLegacyTemplate(tmpl, inst, null));
     this.scoreboardManager =
         new SpigotScoreboardManager((tmpl, inst) -> renderLegacyTemplate(tmpl, inst, null));
+
+    registerItemProvider(new NexoItemProvider());
+    registerItemProvider(new OraxenItemProvider());
+    registerItemProvider(new ItemsAdderItemProvider());
   }
 
   public SpigotBossBarManager getBossBarManager() {
@@ -137,9 +144,11 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
   public void refreshHud(EventInstance instance, EventRuntimeState state) {
     AsyncFutures.discard(
         executeSync(
-            () ->
-                bossBarManager.refreshHud(
-                    instance, state, (float) calculateProgress(state, "1.0"))));
+            () -> {
+              String progressMode = bossBarManager.getProgressMode(instance.id());
+              bossBarManager.refreshHud(
+                  instance, state, (float) calculateProgress(state, progressMode));
+            }));
   }
 
   private String resolveDisplayTemplate(

@@ -38,7 +38,7 @@
 
     <!-- PlaceholderExpansion declares final equals(Object) without hashCode in third-party PlaceholderAPI library -->
     <Match>
-        <Class name="io.github.kizio806.spectraevents.platform.paper.integration.PlaceholderAPIIntegration$SpectraExpansion" />
+        <Class name="io.github.kizio806.spectraevents.platform.bukkit.integration.PlaceholderAPIIntegration$SpectraExpansion" />
         <Bug pattern="HE_INHERITS_EQUALS_USE_HASHCODE" />
     </Match>
 </FindBugsFilter>

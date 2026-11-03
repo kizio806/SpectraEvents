@@ -250,6 +250,7 @@ sonar {
     properties {
         property("sonar.projectKey", "kizio806_SpectraEvents")
         property("sonar.organization", "kizio806")
+        property("sonar.projectName", "SpectraEvents")
         property("sonar.host.url", "https://sonarcloud.io")
         property(
             "sonar.coverage.exclusions",

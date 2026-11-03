@@ -1,7 +1,6 @@
-package io.github.kizio806.spectraevents.platform.paper.integration.item;
+package io.github.kizio806.spectraevents.platform.bukkit.integration.item;
 
 import com.nexomc.nexo.api.NexoItems;
-import io.github.kizio806.spectraevents.platform.bukkit.integration.item.CustomItemProvider;
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.ItemStack;
 
@@ -10,7 +9,10 @@ public class NexoItemProvider implements CustomItemProvider {
   private final boolean available;
 
   public NexoItemProvider() {
-    available = Bukkit.getPluginManager().getPlugin("Nexo") != null;
+    available =
+        Bukkit.getServer() != null
+            && Bukkit.getPluginManager() != null
+            && Bukkit.getPluginManager().getPlugin("Nexo") != null;
   }
 
   @Override

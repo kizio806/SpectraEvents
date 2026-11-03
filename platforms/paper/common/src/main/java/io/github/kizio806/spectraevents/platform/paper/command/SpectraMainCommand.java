@@ -12,9 +12,9 @@ import io.github.kizio806.spectraevents.application.service.EventOrchestrationSe
 import io.github.kizio806.spectraevents.application.update.UpdateService;
 import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
+import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
 import io.github.kizio806.spectraevents.platform.bukkit.gui.AdminGuiController;
 import io.github.kizio806.spectraevents.platform.paper.action.PaperActionAdapter;
-import io.github.kizio806.spectraevents.platform.paper.config.PaperEventSettingsStore;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
@@ -58,7 +58,7 @@ public final class SpectraMainCommand {
       UpdateService updateService,
       AdminGuiController guiController,
       SpectraEventsApplication application,
-      PaperEventSettingsStore settingsStore,
+      BukkitEventSettingsStore settingsStore,
       PaperActionAdapter actionAdapter,
       RegionTaskScheduler regionScheduler,
       Path schedulesFile,
@@ -484,7 +484,7 @@ public final class SpectraMainCommand {
     if (sender instanceof Player player) {
       guiController.openMainMenu(player);
     } else {
-      sender.sendMessage(messages.component("command.paper.gui-player-only", NamedTextColor.RED));
+      sender.sendMessage(messages.component("command.gui-player-only", NamedTextColor.RED));
     }
     return 1;
   }

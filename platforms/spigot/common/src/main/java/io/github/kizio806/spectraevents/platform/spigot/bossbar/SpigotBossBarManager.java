@@ -19,9 +19,19 @@ public final class SpigotBossBarManager {
 
   private static final int MAX_VISIBLE_EVENT_BOSS_BARS = 3;
 
-  private final Map<EventInstanceId, BossBar> bossBars = new ConcurrentHashMap<>();
-  private final Map<EventInstanceId, String> bossBarTemplates = new ConcurrentHashMap<>();
-  private final Map<EventInstanceId, String> bossBarProgressModes = new ConcurrentHashMap<>();
+  private static final class BossBarHolder {
+    final BossBar bossBar;
+    String titleTemplate;
+    String progressMode;
+
+    BossBarHolder(BossBar bossBar, String titleTemplate, String progressMode) {
+      this.bossBar = bossBar;
+      this.titleTemplate = titleTemplate;
+      this.progressMode = progressMode;
+    }
+  }
+
+  private final Map<EventInstanceId, BossBarHolder> bossBars = new ConcurrentHashMap<>();
   private final BiFunction<String, EventInstance, String> templateRenderer;
 
   public SpigotBossBarManager(BiFunction<String, EventInstance, String> templateRenderer) {
@@ -67,15 +77,16 @@ public final class SpigotBossBarManager {
     }
 
     double progress = Math.max(0.0, Math.min(1.0, calculatedProgress));
-    String renderedTitle = templateRenderer.apply(title, instance);
+    String titleTemplate = title != null ? title : "";
+    String renderedTitle = templateRenderer.apply(titleTemplate, instance);
     BossBar bar = Bukkit.createBossBar(renderedTitle, color, style);
     bar.setProgress(progress);
     for (Player player : Bukkit.getOnlinePlayers()) {
       bar.addPlayer(player);
     }
-    bossBars.put(instance.id(), bar);
-    bossBarTemplates.put(instance.id(), title != null ? title : "");
-    bossBarProgressModes.put(instance.id(), progressStr != null ? progressStr : "");
+    bossBars.put(
+        instance.id(),
+        new BossBarHolder(bar, titleTemplate, progressStr != null ? progressStr : ""));
   }
 
   public void updateBossBar(
@@ -87,27 +98,29 @@ public final class SpigotBossBarManager {
     Objects.requireNonNull(instance, "instance");
     Objects.requireNonNull(state, "state");
 
-    BossBar bar = bossBars.get(instance.id());
-    if (bar != null) {
-      bossBarTemplates.put(instance.id(), title != null ? title : "");
-      bossBarProgressModes.put(instance.id(), progressStr != null ? progressStr : "");
-      bar.setTitle(templateRenderer.apply(title, instance));
-      bar.setProgress(Math.max(0.0, Math.min(1.0, calculatedProgress)));
+    BossBarHolder holder = bossBars.get(instance.id());
+    if (holder != null) {
+      if (title != null) {
+        holder.titleTemplate = title;
+      }
+      if (progressStr != null) {
+        holder.progressMode = progressStr;
+      }
+      holder.bossBar.setTitle(templateRenderer.apply(holder.titleTemplate, instance));
+      holder.bossBar.setProgress(Math.max(0.0, Math.min(1.0, calculatedProgress)));
     }
   }
 
   public void removeBossBar(EventInstanceId instanceId) {
-    BossBar bar = bossBars.remove(instanceId);
-    if (bar != null) {
-      bar.removeAll();
+    BossBarHolder holder = bossBars.remove(instanceId);
+    if (holder != null) {
+      holder.bossBar.removeAll();
     }
-    bossBarTemplates.remove(instanceId);
-    bossBarProgressModes.remove(instanceId);
   }
 
   public void onPlayerJoin(Player player) {
-    for (BossBar bar : bossBars.values()) {
-      bar.addPlayer(player);
+    for (BossBarHolder holder : bossBars.values()) {
+      holder.bossBar.addPlayer(player);
     }
   }
 
@@ -116,25 +129,27 @@ public final class SpigotBossBarManager {
   }
 
   public void shutdown() {
-    for (BossBar bar : bossBars.values()) {
-      bar.removeAll();
+    for (BossBarHolder holder : bossBars.values()) {
+      holder.bossBar.removeAll();
     }
     bossBars.clear();
-    bossBarTemplates.clear();
-    bossBarProgressModes.clear();
   }
 
   public boolean hasBossBar(EventInstanceId instanceId) {
     return bossBars.containsKey(instanceId);
   }
 
+  public String getProgressMode(EventInstanceId instanceId) {
+    BossBarHolder holder = bossBars.get(instanceId);
+    return holder != null ? holder.progressMode : "1.0";
+  }
+
   public void refreshHud(
       EventInstance instance, EventRuntimeState state, float calculatedProgress) {
-    BossBar bar = bossBars.get(instance.id());
-    if (bar != null) {
-      String template = bossBarTemplates.getOrDefault(instance.id(), bar.getTitle());
-      bar.setTitle(templateRenderer.apply(template, instance));
-      bar.setProgress(Math.max(0.0, Math.min(1.0, calculatedProgress)));
+    BossBarHolder holder = bossBars.get(instance.id());
+    if (holder != null) {
+      holder.bossBar.setTitle(templateRenderer.apply(holder.titleTemplate, instance));
+      holder.bossBar.setProgress(Math.max(0.0, Math.min(1.0, calculatedProgress)));
     }
   }
 }

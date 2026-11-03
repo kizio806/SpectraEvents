@@ -1,4 +1,4 @@
-package io.github.kizio806.spectraevents.platform.paper.integration;
+package io.github.kizio806.spectraevents.platform.bukkit.integration;
 
 import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.application.execution.ExecutionContext;

@@ -13,7 +13,6 @@ coverage:
         threshold: 0%
 
 ignore:
-  - "platforms/**"
   - "distributions/**"
   - "build-logic/**"
 
@@ -36,3 +35,7 @@ component_management:
       name: Adapters
       paths:
         - adapters/**
+    - component_id: platforms
+      name: Platform Adapters
+      paths:
+        - platforms/**

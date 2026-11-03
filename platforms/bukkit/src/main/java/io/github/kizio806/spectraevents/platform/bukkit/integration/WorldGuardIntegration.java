@@ -1,4 +1,4 @@
-package io.github.kizio806.spectraevents.platform.paper.integration;
+package io.github.kizio806.spectraevents.platform.bukkit.integration;
 
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;

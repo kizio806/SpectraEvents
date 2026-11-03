@@ -146,6 +146,7 @@ admin:
     back: "Retour à la configuration"
     saved: "%parameter% enregistré pour %event% : %value%."
 command:
+  gui-player-only: "Le panneau d'administration ne peut être ouvert que par un joueur en jeu."
   events:
     usage-title: "Commandes d'événements :"
     usage-start: "/spectraevents event start <event-id>"

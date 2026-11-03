@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Full Integration & Custom Item Platform Parity**: Relocated third-party plugin integrations (Vault, LuckPerms, WorldGuard, PlaceholderAPI) and custom item providers (Nexo, Oraxen, ItemsAdder) from `:platforms:paper:common` to `:platforms:bukkit:integration`, establishing 100% integration parity for Spigot distributions with unified `BukkitIntegrationManager`.
+- **Shared Entity Reconciler & Model Handles**: Extracted `AbstractBukkitEntityReconciler` into `:platforms:bukkit:lifecycle` and unified `BukkitModelInstanceHandle` in `:platforms:bukkit:render`, eliminating duplicate chunk scanning, corrupted entity handling, and parallel model handle classes.
+- **Shared Schedule Bootstrap**: Introduced `BukkitScheduleBootstrapHelper` in `:platforms:bukkit:config`, deduplicating YAML schedule loading between platform bootstraps.
+- **Comprehensive Platform Tests**: Added unit tests for `BukkitModelInstanceHandleTest`, `AbstractBukkitEntityReconcilerTest`, `BukkitScheduleBootstrapHelperTest`, `BukkitIntegrationManagerTest`, and `SpigotBossBarManagerTest`.
+
+### Changed
+- **Code Deduplication**: Eliminated duplicate `PaperModelInstanceHandle`, `SpigotModelInstanceHandle`, and ghost class `PaperEventSettingsStore`, standardizing on canonical `BukkitEventSettingsStore`.
+- **Spigot BossBar State Architecture**: Refactored `SpigotBossBarManager` to use unified atomic `BossBarHolder`, resolving multi-map concurrency hazards and fixing a bug where boss bar progress got reset to 1.0 on every HUD refresh.
+- **i18n Neutrality**: Harmonized `command.gui-player-only` across all 6 localization catalogs (`en-US`, `pl-PL`, `de-DE`, `es-ES`, `fr-FR`, `pt-BR`) eliminating platform leakage in command messages.
+- **Quality Pipeline Cleanliness**: Consolidated SonarCloud configuration as single source of truth in `build.gradle.kts`, removed redundant root `sonar-project.properties`, renamed to standard `.codecov.yml`, and included platforms in Codecov tracking.
 - **Admin GUI Portability & Spigot Feature Parity**: Relocated the entire Admin GUI hierarchy (17 screens, view navigation, pagination) to `:platforms:bukkit:gui` with `GuiText.legacy` component bridging. Added modular Spigot administration subcommands (`location`, `model`, `asset`, `integration`, `update`, `admin`) achieving 100% parity with Paper.
 - **Shared Model Renderer**: Introduced `AbstractBukkitModelRenderer` in `:platforms:bukkit:render`, consolidating common Display/Interaction entity math, transformation matrices, billboard settings, and PDC tagging.
 

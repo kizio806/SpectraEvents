@@ -5,12 +5,14 @@ import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
 import io.github.kizio806.spectraevents.application.config.DataDirectoryLayout;
 import io.github.kizio806.spectraevents.application.config.loader.DefinitionLoadResult;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
+import io.github.kizio806.spectraevents.application.integration.IntegrationInitializationContext;
 import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.service.EntityReconciliationReport;
 import io.github.kizio806.spectraevents.platform.bukkit.common.BukkitLifecycleReporter;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
 import io.github.kizio806.spectraevents.platform.bukkit.gui.AdminGuiController;
+import io.github.kizio806.spectraevents.platform.bukkit.integration.BukkitIntegrationManager;
 import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootListener;
 import io.github.kizio806.spectraevents.platform.bukkit.util.BukkitPluginVersions;
 import io.github.kizio806.spectraevents.platform.spigot.action.SpigotActionAdapter;
@@ -82,7 +84,9 @@ public final class SpigotBootstrap {
             reconciler,
             new SpigotCapabilityQuery(),
             renderer);
-    detectIntegrations(application.integrationRegistry());
+    BukkitIntegrationManager integrationManager =
+        new BukkitIntegrationManager(application.integrationRegistry());
+    integrationManager.detectAll();
     io.github.kizio806.spectraevents.application.asset.AssetTargetProfile assetTargetProfile =
         io.github.kizio806.spectraevents.application.asset.AssetTargetProfile.forMinecraftVersion(
             minecraftVersion());
@@ -112,35 +116,15 @@ public final class SpigotBootstrap {
         new BukkitDefinitionConfigBootstrap(plugin, application.definitionLoader());
     loadDefinitions(definitions);
 
-    try {
-      var schedules =
-          new io.github.kizio806.spectraevents.application.schedule.FileSystemScheduleLoader(
-                  new io.github.kizio806.spectraevents.application.schedule.ScheduleYamlLoader())
-              .load(dataLayout.schedulesFile());
-      schedules
-          .failures()
-          .forEach(
-              failure ->
-                  plugin
-                      .getLogger()
-                      .warning(
-                          "Ignoring invalid schedule "
-                              + failure.path()
-                              + ": "
-                              + failure.message()));
-      application.startSchedules(schedules.schedules());
-      plugin.getLogger().info("Loaded schedules=" + schedules.schedules().size());
-    } catch (IOException exception) {
-      plugin
-          .getLogger()
-          .warning(
-              "Could not load schedules.yml; scheduling remains disabled: "
-                  + exception.getMessage());
-    }
+    io.github.kizio806.spectraevents.platform.bukkit.config.BukkitScheduleBootstrapHelper
+        .loadAndRegisterSchedules(dataLayout.schedulesFile(), application, plugin.getLogger());
 
     EntityReconciliationReport reconciliation = application.reconciliationService().reconcileAll();
     application.setLastReconciliationReport(reconciliation);
     application.start();
+    IntegrationInitializationContext integrationContext =
+        new IntegrationInitializationContext(application, repository, plugin.getLogger());
+    integrationManager.initializeModules(plugin, integrationContext);
     plugin
         .getLogger()
         .info(
@@ -257,29 +241,5 @@ public final class SpigotBootstrap {
 
   private Path dataDirectory() {
     return plugin.getDataFolder().toPath();
-  }
-
-  private void detectIntegrations(
-      io.github.kizio806.spectraevents.application.integration.IntegrationRegistry registry) {
-    for (String pluginName :
-        java.util.List.of("LuckPerms", "WorldGuard", "Vault", "PlaceholderAPI")) {
-      org.bukkit.plugin.Plugin p = plugin.getServer().getPluginManager().getPlugin(pluginName);
-      if (p != null && p.isEnabled()) {
-        registry.register(
-            pluginName,
-            io.github.kizio806.spectraevents.application.integration.IntegrationState.ACTIVE,
-            pluginName + " " + BukkitPluginVersions.resolveVersion(p));
-      } else if (p != null) {
-        registry.register(
-            pluginName,
-            io.github.kizio806.spectraevents.application.integration.IntegrationState.DEGRADED,
-            pluginName + " present but disabled");
-      } else {
-        registry.register(
-            pluginName,
-            io.github.kizio806.spectraevents.application.integration.IntegrationState.ABSENT,
-            pluginName + " not installed");
-      }
-    }
   }
 }

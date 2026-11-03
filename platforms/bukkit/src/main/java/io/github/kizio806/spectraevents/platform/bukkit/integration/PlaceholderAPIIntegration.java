@@ -1,4 +1,4 @@
-package io.github.kizio806.spectraevents.platform.paper.integration;
+package io.github.kizio806.spectraevents.platform.bukkit.integration;
 
 import io.github.kizio806.spectraevents.application.integration.IntegrationInitializationContext;
 import io.github.kizio806.spectraevents.application.integration.PlatformIntegrationModule;
@@ -29,11 +29,11 @@ public class PlaceholderAPIIntegration implements PlatformIntegrationModule {
     }
   }
 
-  private static class SpectraExpansion extends PlaceholderExpansion {
+  public static class SpectraExpansion extends PlaceholderExpansion {
 
     private final EventInstanceRepository repository;
 
-    private SpectraExpansion(EventInstanceRepository repository) {
+    public SpectraExpansion(EventInstanceRepository repository) {
       this.repository = repository;
     }
 
