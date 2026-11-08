@@ -2,6 +2,9 @@ package io.github.kizio806.spectraevents.platform.paper.command;
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import io.github.kizio806.spectraevents.application.asset.AssetPipelineService;
 import io.github.kizio806.spectraevents.application.config.loader.DefinitionLoadResult;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
@@ -10,14 +13,17 @@ import io.github.kizio806.spectraevents.application.config.validation.Validation
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.validation.EventReferenceValidator;
 import io.github.kizio806.spectraevents.application.validation.OperationalReadinessValidator;
+import io.github.kizio806.spectraevents.platform.bukkit.asset.delivery.BukkitResourcePackDeliveryBootstrap;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
-import io.github.kizio806.spectraevents.platform.paper.asset.delivery.PaperResourcePackDeliveryBootstrap;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
@@ -27,8 +33,7 @@ import org.bukkit.plugin.Plugin;
 public final class DefinitionCommandHandler {
   private final EventDefinitionRegistry definitionRegistry;
   private final BukkitDefinitionConfigBootstrap configBootstrap;
-  private final io.github.kizio806.spectraevents.application.asset.AssetPipelineService
-      assetPipeline;
+  private final AssetPipelineService assetPipeline;
   private final Plugin plugin;
   private final IntegrationRegistry integrations;
   private final CommandText messages;
@@ -86,10 +91,8 @@ public final class DefinitionCommandHandler {
         .executes(this::definitionValidate);
   }
 
-  private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions>
-      suggestDefinitionIds(
-          CommandContext<CommandSourceStack> ctx,
-          com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
+  private CompletableFuture<Suggestions> suggestDefinitionIds(
+      CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {
     String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
     if ("all".startsWith(remaining)) {
       builder.suggest("all");
@@ -110,9 +113,7 @@ public final class DefinitionCommandHandler {
     Collection<RegisteredEventDefinition> all = definitionRegistry.getAll();
     sender.sendMessage(
         messages.component(
-            "command.definitions.title",
-            NamedTextColor.GOLD,
-            java.util.Map.of("count", all.size())));
+            "command.definitions.title", NamedTextColor.GOLD, Map.of("count", all.size())));
     for (RegisteredEventDefinition reg : all) {
       sender.sendMessage(
           messages
@@ -134,14 +135,13 @@ public final class DefinitionCommandHandler {
           messages.component(
               "command.definitions.reloaded",
               result.failures().isEmpty() ? NamedTextColor.GREEN : NamedTextColor.YELLOW,
-              java.util.Map.of(
-                  "loaded", result.loaded().size(), "failed", result.failures().size())));
+              Map.of("loaded", result.loaded().size(), "failed", result.failures().size())));
     } catch (RuntimeException | IOException e) {
       sender.sendMessage(
           messages.component(
               "command.definitions.reload-failed",
               NamedTextColor.RED,
-              java.util.Map.of("reason", e.getMessage())));
+              Map.of("reason", e.getMessage())));
     }
     return 1;
   }
@@ -153,12 +153,12 @@ public final class DefinitionCommandHandler {
       // sources, including unsupported Blockbench geometry introduced after installation.
       assetPipeline.buildAssets();
       DefinitionLoadResult result = configBootstrap.validateFromDisk();
-      java.util.List<ValidationDiagnostic> references = referenceValidator.validate(result);
-      java.util.List<ValidationDiagnostic> diagnostics = new ArrayList<>(references);
+      List<ValidationDiagnostic> references = referenceValidator.validate(result);
+      List<ValidationDiagnostic> diagnostics = new ArrayList<>(references);
       diagnostics.addAll(
           new OperationalReadinessValidator()
               .validate(
-                  PaperResourcePackDeliveryBootstrap.readSettings(plugin.getDataFolder().toPath()),
+                  BukkitResourcePackDeliveryBootstrap.readSettings(plugin.getDataFolder().toPath()),
                   integrations));
       long diagnosticErrors =
           diagnostics.stream()
@@ -169,25 +169,25 @@ public final class DefinitionCommandHandler {
             messages.component(
                 "command.definitions.validation-passed",
                 NamedTextColor.GREEN,
-                java.util.Map.of("count", result.loaded().size())));
+                Map.of("count", result.loaded().size())));
       } else {
         sender.sendMessage(
             messages.component(
                 "command.definitions.validation-failed",
                 NamedTextColor.RED,
-                java.util.Map.of("count", result.failures().size() + diagnosticErrors)));
+                Map.of("count", result.failures().size() + diagnosticErrors)));
         for (var failure : result.failures()) {
           sender.sendMessage(
               messages.component(
                   "command.definitions.failure-source",
                   NamedTextColor.YELLOW,
-                  java.util.Map.of("source", failure.sourceFile())));
+                  Map.of("source", failure.sourceFile())));
           for (ValidationDiagnostic diag : failure.diagnostics()) {
             sender.sendMessage(
                 messages.component(
                     "command.definitions.diagnostic",
                     NamedTextColor.RED,
-                    java.util.Map.of("code", diag.code(), "message", diag.message())));
+                    Map.of("code", diag.code(), "message", diag.message())));
           }
         }
       }
@@ -196,14 +196,14 @@ public final class DefinitionCommandHandler {
             messages.component(
                 "command.definitions.diagnostic",
                 color(diagnostic.severity()),
-                java.util.Map.of("code", diagnostic.code(), "message", diagnostic.message())));
+                Map.of("code", diagnostic.code(), "message", diagnostic.message())));
       }
     } catch (RuntimeException | IOException e) {
       sender.sendMessage(
           messages.component(
               "command.definitions.validation-error",
               NamedTextColor.RED,
-              java.util.Map.of("reason", e.getMessage())));
+              Map.of("reason", e.getMessage())));
     }
     return 1;
   }

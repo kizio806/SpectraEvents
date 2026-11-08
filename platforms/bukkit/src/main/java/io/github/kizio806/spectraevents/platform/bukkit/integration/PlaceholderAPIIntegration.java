@@ -1,0 +1,68 @@
+package io.github.kizio806.spectraevents.platform.bukkit.integration;
+
+import io.github.kizio806.spectraevents.application.integration.IntegrationInitializationContext;
+import io.github.kizio806.spectraevents.application.integration.PlatformIntegrationModule;
+import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
+import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
+import io.github.kizio806.spectraevents.core.event.runtime.EventLifecycleState;
+import java.util.List;
+import me.clip.placeholderapi.expansion.PlaceholderExpansion;
+import org.bukkit.OfflinePlayer;
+import org.jetbrains.annotations.NotNull;
+
+public class PlaceholderAPIIntegration implements PlatformIntegrationModule {
+
+  public PlaceholderAPIIntegration() {}
+
+  @Override
+  public String requiredPluginName() {
+    return "PlaceholderAPI";
+  }
+
+  @Override
+  public void initialize(IntegrationInitializationContext context) {
+    try {
+      new SpectraExpansion(context.repository()).register();
+    } catch (NoClassDefFoundError | Exception exception) {
+      context
+          .logger()
+          .warning("Could not register PlaceholderAPI integration: " + exception.getMessage());
+    }
+  }
+
+  public static class SpectraExpansion extends PlaceholderExpansion {
+
+    private final EventInstanceRepository repository;
+
+    public SpectraExpansion(EventInstanceRepository repository) {
+      this.repository = repository;
+    }
+
+    @Override
+    public @NotNull String getIdentifier() {
+      return "spectra";
+    }
+
+    @Override
+    public @NotNull String getAuthor() {
+      return "SpectraTeam";
+    }
+
+    @Override
+    public @NotNull String getVersion() {
+      return "1.0.0";
+    }
+
+    @Override
+    public String onRequest(OfflinePlayer player, @NotNull String params) {
+      if (params.equalsIgnoreCase("active_count")) {
+        List<EventInstance> active =
+            repository.findAll().stream()
+                .filter(i -> i.state() == EventLifecycleState.RUNNING)
+                .toList();
+        return String.valueOf(active.size());
+      }
+      return null;
+    }
+  }
+}

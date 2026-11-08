@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
@@ -40,6 +41,28 @@ class SafeArchiveReaderTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> SafeArchiveReader.validateSafeEntryName("dir/../file"));
+    assertThrows(
+        IllegalArgumentException.class, () -> SafeArchiveReader.validateSafeEntryName("foo/./bar"));
+  }
+
+  @Test
+  void testReadArchiveRejectsExcessiveTotalUncompressedBytes() throws Exception {
+    Path zipFile = tempDir.resolve("huge_total.zip");
+    byte[] chunk = new byte[1024 * 1024]; // 1MB of zeroes
+    try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipFile))) {
+      for (int i = 0; i < 2; i++) {
+        ZipEntry entry = new ZipEntry("entry_" + i + ".txt");
+        zos.putNextEntry(entry);
+        for (int c = 0; c < 17; c++) {
+          zos.write(chunk); // 17MB per entry * 2 = 34MB > 32MB MAX_TOTAL_UNCOMPRESSED_BYTES
+        }
+        zos.closeEntry();
+      }
+    }
+
+    IllegalArgumentException ex =
+        assertThrows(IllegalArgumentException.class, () -> SafeArchiveReader.readArchive(zipFile));
+    assertTrue(ex.getMessage().contains("expanded size limit"));
   }
 
   @Test
@@ -110,5 +133,69 @@ class SafeArchiveReaderTest {
     }
 
     assertThrows(IllegalArgumentException.class, () -> SafeArchiveReader.readArchive(zipFile));
+  }
+
+  @Test
+  void testReadArchiveRejectsDuplicateEntry() throws Exception {
+    Path zipFile = tempDir.resolve("duplicate.zip");
+    try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipFile))) {
+      ZipEntry e1 = new ZipEntry("entry_a.txt");
+      zos.putNextEntry(e1);
+      zos.write(new byte[] {1});
+      zos.closeEntry();
+
+      ZipEntry e2 = new ZipEntry("entry_b.txt");
+      zos.putNextEntry(e2);
+      zos.write(new byte[] {2});
+      zos.closeEntry();
+    }
+
+    byte[] bytes = Files.readAllBytes(zipFile);
+    byte[] target = "entry_b.txt".getBytes(StandardCharsets.UTF_8);
+    byte[] replacement = "entry_a.txt".getBytes(StandardCharsets.UTF_8);
+    for (int i = 0; i <= bytes.length - target.length; i++) {
+      boolean match = true;
+      for (int j = 0; j < target.length; j++) {
+        if (bytes[i + j] != target[j]) {
+          match = false;
+          break;
+        }
+      }
+      if (match) {
+        System.arraycopy(replacement, 0, bytes, i, target.length);
+      }
+    }
+    Files.write(zipFile, bytes);
+
+    IllegalArgumentException ex =
+        assertThrows(IllegalArgumentException.class, () -> SafeArchiveReader.readArchive(zipFile));
+    assertTrue(ex.getMessage().contains("duplicate ZIP entry"));
+  }
+
+  @Test
+  void testReadBoundedEntryExceedsMaxEntryBytesThrows() throws Exception {
+    try (java.io.InputStream stream =
+        new java.io.InputStream() {
+          private int count = 0;
+
+          @Override
+          public int read() {
+            count++;
+            return 1;
+          }
+
+          @Override
+          public int read(byte[] b, int off, int len) {
+            count += len;
+            if (count > SafeArchiveReader.MAX_ENTRY_BYTES + 8192) {
+              return -1;
+            }
+            return len;
+          }
+        }) {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> SafeArchiveReader.readBoundedEntry(stream, "large_file.txt"));
+    }
   }
 }

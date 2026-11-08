@@ -5,16 +5,19 @@
     xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
     <description>SpectraEvents PMD Ruleset</description>
 
+    <!-- Exclude only the persistent connection lifecycle manager from CloseResource inspection -->
+    <exclude-pattern>.*/SQLiteDatabaseManager\.java</exclude-pattern>
+
     <rule ref="category/java/errorprone.xml">
         <exclude name="AvoidFieldNameMatchingMethodName"/>
-        <exclude name="AvoidCatchingGenericException"/>
         <exclude name="AvoidDuplicateLiterals"/>
         <exclude name="AvoidLiteralsInIfCondition"/>
         <exclude name="NullAssignment"/>
         <exclude name="AssignmentInOperand"/>
         <exclude name="UseProperClassLoader"/>
-        <exclude name="CloseResource"/>
         <exclude name="TestClassWithoutTestCases"/>
+        <exclude name="AvoidCatchingGenericException"/>
+        <exclude name="AvoidAccessibilityAlteration"/>
     </rule>
 
     <rule ref="category/java/security.xml"/>

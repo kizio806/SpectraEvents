@@ -222,4 +222,258 @@ class VisualAndRuntimeCoverageTest {
         IllegalArgumentException.class,
         () -> new CoreTriggers.HitsPercentThresholdCrossedTrigger(101));
   }
+
+  @Test
+  void testCoreDomainValueObjectsCoverage() {
+    // AnimationTime & AnimationDuration
+    AnimationTime t1 = AnimationTime.fromNanos(5_000_000L);
+    assertEquals(5L, t1.toMillis());
+    assertThrows(IllegalArgumentException.class, () -> AnimationTime.fromSeconds(-1.0));
+    assertThrows(IllegalArgumentException.class, () -> AnimationTime.fromSeconds(Double.NaN));
+    assertThrows(
+        IllegalArgumentException.class, () -> AnimationTime.fromSeconds(Double.POSITIVE_INFINITY));
+
+    AnimationDuration d1 = AnimationDuration.fromMillis(500L);
+    assertEquals(500_000_000L, d1.toNanos());
+    AnimationDuration d2 = AnimationDuration.fromSeconds(1.5);
+    assertEquals(1_500_000_000L, d2.toNanos());
+
+    // AnimationId, ModelId, ModelPartId, InteractionId
+    assertThrows(IllegalArgumentException.class, () -> new AnimationId(""));
+    assertThrows(IllegalArgumentException.class, () -> new AnimationId("   "));
+    assertEquals("walk", new AnimationId("walk").value());
+
+    assertThrows(IllegalArgumentException.class, () -> new ModelId(""));
+    assertEquals("boss", new ModelId("boss").toString());
+
+    assertThrows(IllegalArgumentException.class, () -> new ModelPartId(""));
+    assertEquals("leg", new ModelPartId("leg").value());
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new io.github.kizio806.spectraevents.core.visual.model.InteractionId(""));
+    assertEquals(
+        "hit1",
+        io.github.kizio806.spectraevents.core.visual.model.InteractionId.of("hit1").value());
+
+    // BlockAssetRef & ItemAssetRef
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new io.github.kizio806.spectraevents.core.visual.model.BlockAssetRef(""));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new io.github.kizio806.spectraevents.core.visual.model.ItemAssetRef(
+                "", io.github.kizio806.spectraevents.core.visual.model.DisplayTransformMode.HEAD));
+    assertEquals(
+        io.github.kizio806.spectraevents.core.visual.model.DisplayTransformMode.NONE,
+        io.github.kizio806.spectraevents.core.visual.model.ItemAssetRef.of("stone")
+            .transformMode());
+
+    // PhaseId & EventDefinitionId
+    assertThrows(IllegalArgumentException.class, () -> new PhaseId(""));
+    assertThrows(IllegalArgumentException.class, () -> new PhaseId("INVALID_UPPERCASE"));
+    assertThrows(IllegalArgumentException.class, () -> new PhaseId("has space"));
+    assertEquals("phase_one", new PhaseId("phase_one").toString());
+
+    assertThrows(IllegalArgumentException.class, () -> new EventDefinitionId(""));
+    assertThrows(IllegalArgumentException.class, () -> new EventDefinitionId("has-hyphen"));
+    assertThrows(IllegalArgumentException.class, () -> new EventDefinitionId("UPPERCASE"));
+    assertEquals("meteor_rain", new EventDefinitionId("meteor_rain").toString());
+
+    // Additional coverage for remaining core edge cases
+    assertEquals("run", AnimationId.of("run").value());
+    io.github.kizio806.spectraevents.core.visual.animation.AnimationDefinition
+        animDefWithNullTracks =
+            new io.github.kizio806.spectraevents.core.visual.animation.AnimationDefinition(
+                new AnimationId("idle"),
+                AnimationDuration.fromSeconds(1.0),
+                io.github.kizio806.spectraevents.core.visual.animation.LoopMode.ONCE,
+                1,
+                null,
+                null,
+                io.github.kizio806.spectraevents.core.visual.animation.RecoveryPolicy.STOP);
+    assertTrue(animDefWithNullTracks.tracks().isEmpty());
+    assertTrue(animDefWithNullTracks.cues().isEmpty());
+
+    io.github.kizio806.spectraevents.core.gameplay.health.HealthThresholds ht =
+        new io.github.kizio806.spectraevents.core.gameplay.health.HealthThresholds(
+            java.util.List.of(50, 25));
+    assertTrue(
+        ht.checkCrossed(
+                null, new io.github.kizio806.spectraevents.core.gameplay.health.Health(10, 100))
+            .isEmpty());
+    assertTrue(
+        ht.checkCrossed(
+                new io.github.kizio806.spectraevents.core.gameplay.health.Health(100, 100), null)
+            .isEmpty());
+
+    io.github.kizio806.spectraevents.core.gameplay.contribution.DamageContribution dc =
+        io.github.kizio806.spectraevents.core.gameplay.contribution.DamageContribution.empty();
+    java.util.UUID p1 = java.util.UUID.randomUUID();
+    assertEquals(dc, dc.addDamage(p1, 0));
+    assertEquals(dc, dc.addDamage(p1, -5));
+    assertTrue(dc.getTopContributors(0).isEmpty());
+    assertTrue(dc.getTopContributors(-1).isEmpty());
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            io.github.kizio806.spectraevents.core.gameplay.contribution.ContributionRanking.podium(
+                dc, java.util.List.of(p1), -1, java.util.Map.of()));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new io.github.kizio806.spectraevents.core.event.execution.action.PlatformActions
+                .AwardPodiumAction(java.util.List.of()));
+
+    io.github.kizio806.spectraevents.core.event.execution.action.PlatformActions.SpawnMobsAction
+        spawnMobsNullWave =
+            new io.github.kizio806.spectraevents.core.event.execution.action.PlatformActions
+                .SpawnMobsAction(null, java.util.List.of());
+    assertEquals("", spawnMobsNullWave.waveId());
+
+    // InvalidPhaseTransitionException with null current and requested phases
+    EventInstanceId instId = new EventInstanceId(java.util.UUID.randomUUID());
+    EventDefinitionId defId = new EventDefinitionId("meteor");
+    InvalidPhaseTransitionException ipte =
+        new InvalidPhaseTransitionException(instId, defId, null, null, "not started");
+    assertNull(ipte.currentPhase());
+    assertNull(ipte.requestedPhase());
+    assertTrue(ipte.getMessage().contains("none to none"));
+
+    // ModelPose with null partTransforms
+    io.github.kizio806.spectraevents.core.visual.animation.ModelPose poseNullParts =
+        io.github.kizio806.spectraevents.core.visual.animation.ModelPose.of(
+            io.github.kizio806.spectraevents.core.visual.model.ModelTransform.IDENTITY, null);
+    assertTrue(poseNullParts.partTransforms().isEmpty());
+
+    // HitCounter boundary conditions
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new io.github.kizio806.spectraevents.core.gameplay.hits.HitCounter(-1, 10));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new io.github.kizio806.spectraevents.core.gameplay.hits.HitCounter(11, 10));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new io.github.kizio806.spectraevents.core.gameplay.hits.HitCounter(0, 0));
+    io.github.kizio806.spectraevents.core.gameplay.hits.HitCounter hc =
+        io.github.kizio806.spectraevents.core.gameplay.hits.HitCounter.startingAt(10).addHits(5);
+    assertEquals(5, hc.current());
+    assertEquals(10, hc.addHits(10).current());
+
+    // ModelTransform zero scale and out-of-bounds scales
+    io.github.kizio806.spectraevents.core.visual.model.Vector3 zero =
+        io.github.kizio806.spectraevents.core.visual.model.Vector3.ZERO;
+    io.github.kizio806.spectraevents.core.visual.model.Quaternion qId =
+        io.github.kizio806.spectraevents.core.visual.model.Quaternion.IDENTITY;
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new io.github.kizio806.spectraevents.core.visual.model.ModelTransform(
+                zero,
+                qId,
+                new io.github.kizio806.spectraevents.core.visual.model.Vector3(1f, 0f, 1f),
+                zero));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new io.github.kizio806.spectraevents.core.visual.model.ModelTransform(
+                zero,
+                qId,
+                new io.github.kizio806.spectraevents.core.visual.model.Vector3(1f, 1f, 0f),
+                zero));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new io.github.kizio806.spectraevents.core.visual.model.ModelTransform(
+                zero,
+                qId,
+                new io.github.kizio806.spectraevents.core.visual.model.Vector3(1001f, 1f, 1f),
+                zero));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new io.github.kizio806.spectraevents.core.visual.model.ModelTransform(
+                zero,
+                qId,
+                new io.github.kizio806.spectraevents.core.visual.model.Vector3(1f, 1001f, 1f),
+                zero));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new io.github.kizio806.spectraevents.core.visual.model.ModelTransform(
+                zero,
+                qId,
+                new io.github.kizio806.spectraevents.core.visual.model.Vector3(1f, 1f, 1001f),
+                zero));
+
+    // ModelDefinition with null animations map
+    io.github.kizio806.spectraevents.core.visual.model.ModelPartDefinition samplePart =
+        new io.github.kizio806.spectraevents.core.visual.model.ModelPartDefinition(
+            new ModelPartId("part1"),
+            null,
+            io.github.kizio806.spectraevents.core.visual.model.ModelPartType.ITEM_DISPLAY,
+            io.github.kizio806.spectraevents.core.visual.model.ModelTransform.IDENTITY,
+            io.github.kizio806.spectraevents.core.visual.model.ModelTransform.IDENTITY,
+            io.github.kizio806.spectraevents.core.visual.model.ModelRenderProperties.DEFAULT,
+            new io.github.kizio806.spectraevents.core.visual.model.ItemAssetRef(
+                "minecraft:diamond",
+                io.github.kizio806.spectraevents.core.visual.model.DisplayTransformMode.HEAD));
+    io.github.kizio806.spectraevents.core.visual.model.ModelDefinition modelDefNullAnims =
+        new io.github.kizio806.spectraevents.core.visual.model.ModelDefinition(
+            new ModelId("test_model"), java.util.List.of(samplePart), java.util.List.of(), null);
+    assertTrue(modelDefNullAnims.animations().isEmpty());
+
+    // CoreActions GroundLootEntry and ApplyCombatDamageAction boundary conditions
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new io.github.kizio806.spectraevents.core.event.execution.action.CoreActions
+                .GroundLootEntry("diamond", 1, -1));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new io.github.kizio806.spectraevents.core.event.execution.action.CoreActions
+                .GroundLootEntry("diamond", 1, 101));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new io.github.kizio806.spectraevents.core.event.execution.action.CoreActions
+                .GroundLootEntry("   ", 1, 50));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new io.github.kizio806.spectraevents.core.event.execution.action.CoreActions
+                .ApplyCombatDamageAction(0, 50, Duration.ofSeconds(1)));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new io.github.kizio806.spectraevents.core.event.execution.action.CoreActions
+                .ApplyCombatDamageAction(10, -1, Duration.ofSeconds(1)));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new io.github.kizio806.spectraevents.core.event.execution.action.CoreActions
+                .ApplyCombatDamageAction(10, 101, Duration.ofSeconds(1)));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new io.github.kizio806.spectraevents.core.event.execution.action.CoreActions
+                .ApplyCombatDamageAction(10, 50, null));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new io.github.kizio806.spectraevents.core.event.execution.action.CoreActions
+                .ApplyCombatDamageAction(10, 50, Duration.ofSeconds(-1)));
+
+    // EventEncounterSettings 3-arg constructor with 0.0 radius sets maxActivePerWorld to 0
+    EventEncounterSettings encounterZeroRadius =
+        new EventEncounterSettings(0.0d, Duration.ofMinutes(1), 10);
+    assertEquals(0, encounterZeroRadius.maxActivePerWorld());
+    assertFalse(encounterZeroRadius.reservesZone());
+  }
 }

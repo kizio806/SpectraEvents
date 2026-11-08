@@ -110,7 +110,7 @@ public final class SpectraBundleInstaller {
         writeAtomically(target, required(entries, asset));
         installedAssets.add(target);
       }
-    } catch (IOException | RuntimeException exception) {
+    } catch (IOException | IllegalStateException | IllegalArgumentException exception) {
       installedDefinitions.forEach(SpectraBundleInstaller::deleteQuietly);
       installedAssets.forEach(SpectraBundleInstaller::deleteQuietly);
       throw exception;

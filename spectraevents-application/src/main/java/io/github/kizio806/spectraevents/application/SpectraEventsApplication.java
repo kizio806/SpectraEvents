@@ -10,6 +10,8 @@ import io.github.kizio806.spectraevents.application.config.registry.EventDefinit
 import io.github.kizio806.spectraevents.application.config.registry.RegisteredEventDefinition;
 import io.github.kizio806.spectraevents.application.config.validation.ValidationDiagnostic;
 import io.github.kizio806.spectraevents.application.config.yaml.EventSpecYamlParser;
+import io.github.kizio806.spectraevents.application.execution.EventExecutionEngine;
+import io.github.kizio806.spectraevents.application.execution.EventRuntimeStateStore;
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.model.animation.registry.AnimationDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.model.animation.runtime.ActiveAnimationRegistry;
@@ -17,19 +19,26 @@ import io.github.kizio806.spectraevents.application.model.animation.runtime.Anim
 import io.github.kizio806.spectraevents.application.model.compiler.ModelCompiler;
 import io.github.kizio806.spectraevents.application.model.registry.ModelDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeService;
+import io.github.kizio806.spectraevents.application.port.EventInstanceRepository;
+import io.github.kizio806.spectraevents.application.port.EventTaskScheduler;
 import io.github.kizio806.spectraevents.application.port.LifecycleReporter;
 import io.github.kizio806.spectraevents.application.port.ModelRendererPort;
+import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
 import io.github.kizio806.spectraevents.application.port.PlatformCapabilityQuery;
+import io.github.kizio806.spectraevents.application.port.PlatformEntityReconcilerPort;
 import io.github.kizio806.spectraevents.application.port.RewardClaimRepository;
 import io.github.kizio806.spectraevents.application.repository.InMemoryEventInstanceRepository;
 import io.github.kizio806.spectraevents.application.schedule.EventSchedule;
 import io.github.kizio806.spectraevents.application.schedule.EventScheduleService;
+import io.github.kizio806.spectraevents.application.service.EntityReconciliationReport;
+import io.github.kizio806.spectraevents.application.service.EntityReconciliationService;
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
 import io.github.kizio806.spectraevents.application.service.RewardMailboxService;
 import io.github.kizio806.spectraevents.application.validation.OperationalReadinessValidator;
 import java.time.Clock;
 import java.util.List;
 import java.util.Objects;
+import java.util.logging.Logger;
 
 /** Coordinates the platform-neutral application lifecycle. */
 public final class SpectraEventsApplication {
@@ -37,15 +46,11 @@ public final class SpectraEventsApplication {
   private final EventDefinitionRegistry definitionRegistry;
   private final DefinitionLoader definitionLoader;
   private final EventOrchestrationService orchestrationService;
-  private final io.github.kizio806.spectraevents.application.execution.EventExecutionEngine
-      executionEngine;
-  private final io.github.kizio806.spectraevents.application.service.EntityReconciliationService
-      reconciliationService;
-  private io.github.kizio806.spectraevents.application.service.EntityReconciliationReport
-      lastReconciliationReport;
+  private final EventExecutionEngine executionEngine;
+  private final EntityReconciliationService reconciliationService;
+  private volatile EntityReconciliationReport lastReconciliationReport;
   private final PlatformCapabilityQuery capabilityQuery;
-  private final io.github.kizio806.spectraevents.application.port.EventInstanceRepository
-      repository;
+  private final EventInstanceRepository repository;
   private final RewardMailboxService rewardMailboxService;
   private final EventScheduleService scheduleService;
 
@@ -59,10 +64,10 @@ public final class SpectraEventsApplication {
   private final IntegrationRegistry integrationRegistry = new IntegrationRegistry();
   private final OperationalReadinessValidator operationalReadinessValidator =
       new OperationalReadinessValidator();
-  private ResourcePackDeliveryCoordinator resourcePackCoordinator;
-  private ResourcePackDeliverySettings resourcePackSettings;
-  private AssetTargetProfile assetTargetProfile;
-  private AssetPipelineService assetPipelineService;
+  private volatile ResourcePackDeliveryCoordinator resourcePackCoordinator;
+  private volatile ResourcePackDeliverySettings resourcePackSettings;
+  private volatile AssetTargetProfile assetTargetProfile;
+  private volatile AssetPipelineService assetPipelineService;
 
   /**
    * Creates the application composition root with platform ports.
@@ -77,10 +82,10 @@ public final class SpectraEventsApplication {
    */
   public SpectraEventsApplication(
       LifecycleReporter lifecycleReporter,
-      io.github.kizio806.spectraevents.application.port.EventTaskScheduler scheduler,
-      io.github.kizio806.spectraevents.application.port.PlatformActionPort platformActionPort,
-      io.github.kizio806.spectraevents.application.port.EventInstanceRepository repository,
-      io.github.kizio806.spectraevents.application.port.PlatformEntityReconcilerPort reconcilerPort,
+      EventTaskScheduler scheduler,
+      PlatformActionPort platformActionPort,
+      EventInstanceRepository repository,
+      PlatformEntityReconcilerPort reconcilerPort,
       PlatformCapabilityQuery capabilityQuery,
       ModelRendererPort modelRendererPort) {
     this.lifecycleReporter = Objects.requireNonNull(lifecycleReporter, "lifecycleReporter");
@@ -119,12 +124,11 @@ public final class SpectraEventsApplication {
           "Event instance repository must also provide durable reward-claim storage");
     }
     this.rewardMailboxService = new RewardMailboxService(rewardClaimRepository);
-    var stateStore =
-        new io.github.kizio806.spectraevents.application.execution.EventRuntimeStateStore();
+    var stateStore = new EventRuntimeStateStore();
 
     if (scheduler != null && platformActionPort != null) {
       this.executionEngine =
-          new io.github.kizio806.spectraevents.application.execution.EventExecutionEngine(
+          new EventExecutionEngine(
               targetRepository, definitionRegistry, scheduler, platformActionPort, stateStore);
     } else {
       this.executionEngine = null;
@@ -140,15 +144,13 @@ public final class SpectraEventsApplication {
                 orchestrationService,
                 Clock.systemUTC(),
                 message ->
-                    java.util.logging.Logger.getLogger(SpectraEventsApplication.class.getName())
-                        .info(message));
+                    Logger.getLogger(SpectraEventsApplication.class.getName()).info(message));
 
     this.assetPipelineService = null; // Will be properly wired by Bootstrap later
 
     if (reconcilerPort != null) {
       this.reconciliationService =
-          new io.github.kizio806.spectraevents.application.service.EntityReconciliationService(
-              reconcilerPort, targetRepository, stateStore);
+          new EntityReconciliationService(reconcilerPort, targetRepository, stateStore);
     } else {
       this.reconciliationService = null;
     }
@@ -158,10 +160,10 @@ public final class SpectraEventsApplication {
 
   public SpectraEventsApplication(
       LifecycleReporter lifecycleReporter,
-      io.github.kizio806.spectraevents.application.port.EventTaskScheduler scheduler,
-      io.github.kizio806.spectraevents.application.port.PlatformActionPort platformActionPort,
-      io.github.kizio806.spectraevents.application.port.EventInstanceRepository repository,
-      io.github.kizio806.spectraevents.application.port.PlatformEntityReconcilerPort reconcilerPort,
+      EventTaskScheduler scheduler,
+      PlatformActionPort platformActionPort,
+      EventInstanceRepository repository,
+      PlatformEntityReconcilerPort reconcilerPort,
       PlatformCapabilityQuery capabilityQuery) {
     this(
         lifecycleReporter,
@@ -175,8 +177,8 @@ public final class SpectraEventsApplication {
 
   public SpectraEventsApplication(
       LifecycleReporter lifecycleReporter,
-      io.github.kizio806.spectraevents.application.port.EventTaskScheduler scheduler,
-      io.github.kizio806.spectraevents.application.port.PlatformActionPort platformActionPort) {
+      EventTaskScheduler scheduler,
+      PlatformActionPort platformActionPort) {
     this(lifecycleReporter, scheduler, platformActionPort, null, null, null, null);
   }
 
@@ -204,32 +206,23 @@ public final class SpectraEventsApplication {
     return modelRuntimeService;
   }
 
-  public io.github.kizio806.spectraevents.application.model.animation.registry
-          .AnimationDefinitionRegistry
-      animationDefinitionRegistry() {
+  public AnimationDefinitionRegistry animationDefinitionRegistry() {
     return animationDefinitionRegistry;
   }
 
-  public io.github.kizio806.spectraevents.application.model.animation.runtime
-          .ActiveAnimationRegistry
-      activeAnimationRegistry() {
+  public ActiveAnimationRegistry activeAnimationRegistry() {
     return activeAnimationRegistry;
   }
 
-  public io.github.kizio806.spectraevents.application.model.animation.runtime
-          .AnimationRuntimeService
-      animationRuntimeService() {
+  public AnimationRuntimeService animationRuntimeService() {
     return animationRuntimeService;
   }
 
-  public io.github.kizio806.spectraevents.application.asset.AssetPipelineService
-      assetPipelineService() {
+  public AssetPipelineService assetPipelineService() {
     return assetPipelineService;
   }
 
-  public void setAssetPipelineService(
-      io.github.kizio806.spectraevents.application.asset.AssetPipelineService
-          assetPipelineService) {
+  public void setAssetPipelineService(AssetPipelineService assetPipelineService) {
     this.assetPipelineService = assetPipelineService;
   }
 
@@ -241,23 +234,19 @@ public final class SpectraEventsApplication {
     return rewardMailboxService;
   }
 
-  public io.github.kizio806.spectraevents.application.execution.EventExecutionEngine
-      executionEngine() {
+  public EventExecutionEngine executionEngine() {
     return executionEngine;
   }
 
-  public io.github.kizio806.spectraevents.application.service.EntityReconciliationService
-      reconciliationService() {
+  public EntityReconciliationService reconciliationService() {
     return reconciliationService;
   }
 
-  public io.github.kizio806.spectraevents.application.service.EntityReconciliationReport
-      lastReconciliationReport() {
+  public EntityReconciliationReport lastReconciliationReport() {
     return lastReconciliationReport;
   }
 
-  public void setLastReconciliationReport(
-      io.github.kizio806.spectraevents.application.service.EntityReconciliationReport report) {
+  public void setLastReconciliationReport(EntityReconciliationReport report) {
     this.lastReconciliationReport = report;
   }
 

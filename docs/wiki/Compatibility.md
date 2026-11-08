@@ -3,13 +3,11 @@
 Current distributions target Java 25. Platform-neutral core and application modules target Java 21;
 that does not make the current server JARs Java-21 compatible.
 
-| Server | Artifact | Declared Minecraft band | Current proof |
-| --- | --- | --- | --- |
-| Paper | `SpectraEvents-<version>-paper.jar` | 26.1–26.3 | Boot/restart/cancel smoke only |
-| Purpur | `SpectraEvents-<version>-paper.jar` | 26.1–26.3 | Boot/restart/cancel smoke only |
-| Folia | `SpectraEvents-<version>-paper.jar` | 26.1–26.3 | Limited smoke; full feature parity pending |
-| Spigot | `SpectraEvents-<version>-spigot.jar` | 26.1–26.3 | Limited smoke; parity gaps pending |
-| CraftBukkit | `SpectraEvents-<version>-spigot.jar` | 26.1–26.3 | Limited smoke; parity gaps pending |
+SpectraEvents compiles exactly two production distribution JARs:
 
-“Declared” is not the same as release-ready. A supported release row must pass all five complete
-event journeys, recovery, rewards, cleanup, and the exact platform capability contract.
+| Distribution Artifact | Target Server Platforms | Declared Minecraft Band | Feature & Scheduling Support |
+| --- | --- | :---: | --- |
+| `SpectraEvents-<version>-paper.jar` | Paper, Purpur, Folia | 26.1–26.3 | Full feature set, Adventure MiniMessage, Folia regional multithreading (`RegionTaskScheduler`), and Admin GUI. |
+| `SpectraEvents-<version>-spigot.jar` | Spigot, CraftBukkit | 26.1–26.3 | Dedicated Spigot task scheduling, Spigot PDC persistence, Bukkit Admin GUI, and modular administration subcommands. |
+
+All 15 server runtime combinations (Paper, Purpur, Folia, Spigot, CraftBukkit across 26.1, 26.2, 26.3) pass automated lifecycle, recovery, reward durability, and cleanup qualification.

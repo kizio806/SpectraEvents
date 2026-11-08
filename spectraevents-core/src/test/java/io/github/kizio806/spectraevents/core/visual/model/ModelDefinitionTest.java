@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationDefinition;
+import io.github.kizio806.spectraevents.core.visual.animation.AnimationDuration;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationId;
+import io.github.kizio806.spectraevents.core.visual.animation.AnimationTime;
 import io.github.kizio806.spectraevents.core.visual.animation.LoopMode;
 import io.github.kizio806.spectraevents.core.visual.animation.RecoveryPolicy;
 import java.util.List;
@@ -40,9 +42,7 @@ class ModelDefinitionTest {
     AnimationDefinition anim =
         new AnimationDefinition(
             new AnimationId("idle"),
-            io.github.kizio806.spectraevents.core.visual.animation.AnimationDuration.of(
-                io.github.kizio806.spectraevents.core.visual.animation.AnimationTime.fromSeconds(
-                    1.0)),
+            AnimationDuration.of(AnimationTime.fromSeconds(1.0)),
             LoopMode.LOOP,
             1,
             Map.of(),
@@ -218,5 +218,118 @@ class ModelDefinitionTest {
     assertThrows(
         NullPointerException.class,
         () -> new InteractionDefinition(id, partId, Vector3.ZERO, null, 1.0f, 1.0f, false));
+  }
+
+  @Test
+  void testThreeArgConstructorAndLimitValidation() {
+    ModelPartDefinition part =
+        new ModelPartDefinition(
+            new ModelPartId("base"),
+            null,
+            ModelPartType.ITEM_DISPLAY,
+            ModelTransform.IDENTITY,
+            ModelTransform.IDENTITY,
+            ModelRenderProperties.DEFAULT,
+            new ItemAssetRef("minecraft:stick", DisplayTransformMode.HEAD));
+    InteractionDefinition interaction =
+        new InteractionDefinition(
+            new InteractionId("hit"),
+            new ModelPartId("base"),
+            Vector3.ZERO,
+            Vector3.ZERO,
+            1.0f,
+            1.0f,
+            true);
+
+    ModelDefinition threeArg =
+        new ModelDefinition(new ModelId("model3"), List.of(part), List.of(interaction));
+    assertEquals(new ModelId("model3"), threeArg.id());
+    assertTrue(threeArg.animations().isEmpty());
+
+    List<ModelPartDefinition> tooManyParts =
+        java.util.stream.IntStream.range(0, ModelDefinition.MAX_PARTS_LIMIT + 1)
+            .mapToObj(
+                i ->
+                    new ModelPartDefinition(
+                        new ModelPartId("p" + i),
+                        null,
+                        ModelPartType.ITEM_DISPLAY,
+                        ModelTransform.IDENTITY,
+                        ModelTransform.IDENTITY,
+                        ModelRenderProperties.DEFAULT,
+                        new ItemAssetRef("minecraft:stick", DisplayTransformMode.HEAD)))
+            .toList();
+
+    IllegalArgumentException partLimitEx =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new ModelDefinition(
+                    new ModelId("too_many_parts"), tooManyParts, List.of(interaction)));
+    assertTrue(partLimitEx.getMessage().contains("exceeds guardrail limit"));
+
+    List<InteractionDefinition> tooManyInteractions =
+        java.util.stream.IntStream.range(0, ModelDefinition.MAX_INTERACTIONS_LIMIT + 1)
+            .mapToObj(
+                i ->
+                    new InteractionDefinition(
+                        new InteractionId("i" + i),
+                        new ModelPartId("base"),
+                        Vector3.ZERO,
+                        Vector3.ZERO,
+                        1.0f,
+                        1.0f,
+                        true))
+            .toList();
+
+    IllegalArgumentException interactionLimitEx =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new ModelDefinition(
+                    new ModelId("too_many_interactions"), List.of(part), tooManyInteractions));
+    assertTrue(interactionLimitEx.getMessage().contains("exceeds guardrail limit"));
+  }
+
+  @Test
+  void testModelRenderPropertiesEdgeCases() {
+    assertThrows(
+        NullPointerException.class,
+        () -> new ModelRenderProperties(null, 0, 0, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, null, 0, 0, 0));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ModelRenderProperties(
+                BillboardMode.FIXED, 0, 0, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, null, 0, 0, 0));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ModelRenderProperties(
+                BillboardMode.FIXED, 0, 0, 1.0f, -0.5f, 1.0f, 1.0f, 1.0f, null, 0, 0, 0));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ModelRenderProperties(
+                BillboardMode.FIXED, 0, 0, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, null, 0, 0, 0));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ModelRenderProperties(
+                BillboardMode.FIXED, 0, 0, 0.0f, 1.0f, -1.0f, 1.0f, 1.0f, null, 0, 0, 0));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ModelRenderProperties(
+                BillboardMode.FIXED, 0, 0, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, null, -1, 0, 0));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ModelRenderProperties(
+                BillboardMode.FIXED, 0, 0, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, null, 0, -1, 0));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ModelRenderProperties(
+                BillboardMode.FIXED, 0, 0, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, null, 0, 0, -1));
   }
 }

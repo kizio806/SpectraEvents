@@ -30,6 +30,8 @@ class EventDefinitionTest {
     assertEquals(INITIAL, definition.initialPhase());
     assertTrue(definition.phase(INITIAL).isPresent());
     assertTrue(definition.phase(NEXT).isPresent());
+    assertEquals(Set.of(INITIAL, NEXT), definition.phaseIds());
+    org.junit.jupiter.api.Assertions.assertNotNull(definition.encounterSettings());
   }
 
   @Test

@@ -7,19 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Security
-- **Atomic Concurrency**: Resolved TOCTOU race condition in `AnimationRuntimeService` by enforcing strict lock acquisition and double-checked registration state before animation step advancement.
-- **Cryptographic Contract**: Resolved CodeQL SHA-1 weak cryptography alert in `ResourcePackBuilder` through explicit protocol-mandated pack hash method and Javadoc contract.
-- **Encapsulation Hardening**: Eliminated internal representation leaks in `EngineContext` and `SpectraAssetFace`, replacing exposed internal maps and locks with encapsulated domain execution methods.
-- **Exception Logging**: Ensured all caught exceptions in `EventLifecycleManager` log underlying cause and stack traces without silent omission.
+### Added
+- **Paper Command Decomposition & Architecture Parity**: Extracted `ScheduleCommandHandler` and `RewardsCommandHandler` in `:platforms:paper:common:command`, achieving architectural symmetry with Spigot and removing cross-platform translation key coupling (`command.paper.*` keys added across all 6 locales).
+- **Spec Math Deduplication**: Extracted `SpecMathParser` in `:spectraevents-application:model:compiler`, eliminating identical 3D vector, euler rotation, and quaternion parsing logic between `ModelCompiler` and `AnimationCompiler`.
+- **Model Transform Teleport Deduplication**: Generalized model transform updates to template method `applyTransformTeleports` in `AbstractBukkitModelRenderer`, eliminating duplicated entity traversal and handle mapping between Paper and Spigot.
+- **Source Hygiene & Clean Imports**: Cleared all inline fully qualified names (FQNs) across domain, application, and platform modules in favor of clean single-class imports. Restored `CODE_OF_CONDUCT.md` and cleaned PR template and CI workflows.
+- **Full Integration & Custom Item Platform Parity**: Relocated third-party plugin integrations (Vault, LuckPerms, WorldGuard, PlaceholderAPI) and custom item providers (Nexo, Oraxen, ItemsAdder) from `:platforms:paper:common` to `:platforms:bukkit:integration`, establishing 100% integration parity for Spigot distributions with unified `BukkitIntegrationManager`.
+- **Shared Entity Reconciler & Model Handles**: Extracted `AbstractBukkitEntityReconciler` into `:platforms:bukkit:lifecycle` and unified `BukkitModelInstanceHandle` in `:platforms:bukkit:render`, eliminating duplicate chunk scanning, corrupted entity handling, and parallel model handle classes.
+- **Shared Schedule Bootstrap**: Introduced `BukkitScheduleBootstrapHelper` in `:platforms:bukkit:config`, deduplicating YAML schedule loading between platform bootstraps.
+- **Comprehensive Platform Tests**: Added unit tests for `BukkitModelInstanceHandleTest`, `AbstractBukkitEntityReconcilerTest`, `BukkitScheduleBootstrapHelperTest`, `BukkitIntegrationManagerTest`, `SpigotBossBarManagerTest`, `BukkitBossBarHolderTest`, `BukkitBossBarProgressCalculatorTest`, `GuiTextTest`, `CommandTextTest`, `SpigotUpdateCommandHandlerTest`, and `SpigotAssetCommandHandlerTest`.
 
 ### Changed
+- **Code Deduplication**: Eliminated duplicate `PaperModelInstanceHandle`, `SpigotModelInstanceHandle`, `PaperResourcePackDeliveryBootstrap`, `SpigotResourcePackDeliveryBootstrap`, and ghost class `PaperEventSettingsStore`, standardizing on canonical `BukkitEventSettingsStore` and direct bootstrap calls.
+- **Naming Harmonization**: Renamed Paper manager classes and test fixtures to `PaperBossBarManager` and `PaperScoreboardManager` for symmetry with Spigot counterparts.
+- **Extracted Shared BossBar Progress Calculator**: Centralized BossBar progress calculations in `:platforms:bukkit:bossbar:BukkitBossBarProgressCalculator`.
+- **Spigot BossBar State Architecture**: Refactored `SpigotBossBarManager` to use unified atomic `BukkitBossBarHolder`, resolving multi-map concurrency hazards and fixing a bug where boss bar progress got reset to 1.0 on every HUD refresh.
+- **i18n Neutrality**: Harmonized `command.gui-player-only` across all 6 localization catalogs (`en-US`, `pl-PL`, `de-DE`, `es-ES`, `fr-FR`, `pt-BR`) eliminating platform leakage in command messages.
+- **Quality Pipeline Cleanliness**: Consolidated SonarCloud configuration as single source of truth in `build.gradle.kts`, removed redundant root `sonar-project.properties`, renamed to standard `.codecov.yml`, and included platforms in Codecov tracking.
+- **Admin GUI Portability & Spigot Feature Parity**: Relocated the entire Admin GUI hierarchy (17 screens, view navigation, pagination) to `:platforms:bukkit:gui` with `GuiText.legacy` component bridging. Added modular Spigot administration subcommands (`location`, `model`, `asset`, `integration`, `update`, `admin`) achieving 100% parity with Paper.
+- **Shared Model Renderer**: Introduced `AbstractBukkitModelRenderer` in `:platforms:bukkit:render`, consolidating common Display/Interaction entity math, transformation matrices, billboard settings, and PDC tagging while reducing boilerplate by ~800 lines.
+- **Static Analysis & Hygiene Hardening**: Eliminated blanket rule suppressions in `spotbugs-exclude.xml` and `pmd.xml`. Resolved all potential null dereference paths, unclosed resources in unit/integration tests, and replaced generic `catch (RuntimeException)` blocks with typed domain exceptions (`FatalActionException`, `IllegalStateException`, `IllegalArgumentException`, `IOException`).
+- **Toolchain & Dependency Locks**: Upgraded Gradle wrapper to 9.8.2 and JaCoCo to 0.8.15 with verified lockfile synchronization across all modules. Removed unused `gradle/compatibility.versions.toml`.
+- **Unified Distribution Publishing**: Consolidated Modrinth/CurseForge deployment to exactly two release entries (Paper/Purpur/Folia and Spigot/CraftBukkit), eliminating redundant duplicate Folia upload entries while declaring native Folia 26.1–26.3 support. Added curated release notes at `docs/releases/0.1.1-beta.2.md`.
 - **Zero Platform Duplication**: Extracted common Bukkit, Paper, and Spigot logic into `:platforms:bukkit`, eliminating duplicate configuration bootstraps, capability queries, lifecycle reporters, and resource-pack delivery adapters.
 - **Test Coverage Transparency**: Removed all platform coverage exclusions from JaCoCo root aggregation, SonarCloud analysis, and Codecov configurations. All platform code is now included in testing and coverage gates.
 - **Defensive API Contracts**: Enforced strict `Objects.requireNonNull` validation across platform action adapters, schedulers, and resource cleaners.
 
-### Added
-- **Platform Unit Test Suite**: Added comprehensive unit test suites for `:platforms:bukkit` (`BukkitSharedLootListenerTest`, `BukkitResourcePackDeliveryBootstrapTest`, `BukkitDefinitionConfigBootstrapTest`, `BukkitLifecycleReporterTest`), `:platforms:spigot:common` (command handlers and helpers), and `:platforms:paper:common` (`PaperResourceCleanerTest`, `PaperEntityReconcilerTest`, `PaperSchedulerTest`, `EventScoreboardManagerTest`).
+### Fixed
+- **Resource Pack Status Mapping on Spigot (`SE-BUG-01`)**: Corrected handling of `DOWNLOADED`, `INVALID_URL`, `FAILED_RELOAD`, and `DISCARDED` resource pack statuses in `AbstractBukkitPlayerResourcePackAdapter`, preventing Spigot servers from erroneously kicking players upon downloading required packs.
+- **Concurrency Invariants**: Thread-safe item providers using `CopyOnWriteArrayList` in `AbstractBukkitActionAdapter` and atomic `peakQueueDepth.accumulateAndGet(depth, Math::max)` in `SingleWriterPersistenceExecutor`.
+- **Spigot Plugin Lifecycle**: Hardened `SpectraEventsSpigotPlugin` with safe shutdown and audience teardown on startup failure.
+
+### Security
+- **Atomic Concurrency**: Resolved TOCTOU race condition in `AnimationRuntimeService` by enforcing strict lock acquisition and double-checked registration state before animation step advancement.
+- **Cryptographic Contract**: Resolved CodeQL SHA-1 weak cryptography alert in `ResourcePackBuilder` through explicit protocol-mandated pack hash method and Javadoc contract.
+- **Encapsulation Hardening**: Eliminated internal representation leaks in `EngineContext` and `SpectraAssetFace`, replacing exposed internal maps and lists with defensive copies (`List.copyOf`) and encapsulated domain execution methods.
+- **Exception Logging**: Ensured all caught exceptions in `EventLifecycleManager` log underlying cause and stack traces without silent omission.
+- **CodeQL Deprecation Cleansing**: Addressed deprecations across Spigot adapters reflectively to ensure clean multi-module CodeQL builds without `@SuppressWarnings`.
 
 ## [0.1.1-beta.2] - 2026-10-08
 

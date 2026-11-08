@@ -146,6 +146,7 @@ admin:
     back: "Voltar à configuração"
     saved: "%parameter% salvo para %event%: %value%."
 command:
+  gui-player-only: "O painel administrativo só pode ser aberto por jogadores no jogo."
   events:
     usage-title: "Comandos de eventos:"
     usage-start: "/spectraevents event start <event-id>"
@@ -175,6 +176,15 @@ command:
     reconcile-resolved: "A reivindicação %id% foi conciliada como %decision%."
     reconcile-not-found: "A reivindicação %id% não aguarda mais conciliação."
   paper:
+    failed: "Falha no comando: %reason%"
+    schedules-title: "Agendamentos: %count%"
+    schedule-entry: " - %id% → %definition% (%zone%)"
+    schedules-reloaded: "Agendamentos carregados=%loaded% falhas=%failed%"
+    diagnostic-entry: " - %path%: %message%"
+    rewards-title: "Recompensas pendentes: %count%"
+    reward-entry: " - %id% (%count% entradas de itens)"
+    reward-busy: "Essa recompensa já está sendo entregue."
+    reward-unavailable: "Essa recompensa não está disponível."
     schedules-read-failed: "Não foi possível ler schedules.yml: %reason%"
     rewards-player-only: "As recompensas estão disponíveis apenas para jogadores no jogo."
     invalid-reward-id: "ID de resgate de recompensa inválido."

@@ -62,7 +62,10 @@ public class ModelCompiler {
           new ValidationDiagnostic(
               Severity.ERROR, "MODEL_ID_BLANK", "id", "Model ID cannot be null or blank"));
     }
-    ModelId modelId = spec.getId() != null ? new ModelId(spec.getId()) : new ModelId("unknown");
+    ModelId modelId =
+        (spec.getId() != null && !spec.getId().isBlank())
+            ? new ModelId(spec.getId())
+            : new ModelId("unknown");
 
     // 2. Validate Parts map
     if (spec.getParts() == null || spec.getParts().isEmpty()) {
@@ -389,34 +392,14 @@ public class ModelCompiler {
     }
 
     if (spec.getEuler() != null && !spec.getEuler().isEmpty()) {
-      if (spec.getEuler().size() != 3) {
-        diagnostics.add(
-            new ValidationDiagnostic(
-                Severity.ERROR,
-                "INVALID_EULER_ROTATION",
-                path + ".euler",
-                "Euler rotation must contain 3 float elements [pitch, yaw, roll]"));
-        return Quaternion.IDENTITY;
-      }
-      return Quaternion.fromEulerDegrees(
-          spec.getEuler().get(0), spec.getEuler().get(1), spec.getEuler().get(2));
+      return SpecMathParser.parseEuler(
+              spec.getEuler(), path + ".euler", diagnostics, "INVALID_EULER_ROTATION")
+          .toQuaternion();
     }
 
     if (spec.getQuaternion() != null && !spec.getQuaternion().isEmpty()) {
-      if (spec.getQuaternion().size() != 4) {
-        diagnostics.add(
-            new ValidationDiagnostic(
-                Severity.ERROR,
-                "INVALID_QUATERNION_ROTATION",
-                path + ".quaternion",
-                "Quaternion rotation must contain 4 float elements [x, y, z, w]"));
-        return Quaternion.IDENTITY;
-      }
-      return Quaternion.of(
-          spec.getQuaternion().get(0),
-          spec.getQuaternion().get(1),
-          spec.getQuaternion().get(2),
-          spec.getQuaternion().get(3));
+      return SpecMathParser.parseQuaternion(
+          spec.getQuaternion(), path + ".quaternion", diagnostics, "INVALID_QUATERNION_ROTATION");
     }
 
     return Quaternion.IDENTITY;
@@ -424,25 +407,7 @@ public class ModelCompiler {
 
   private Vector3 parseVector3(
       List<Float> list, Vector3 defaultValue, String path, List<ValidationDiagnostic> diagnostics) {
-    if (list == null || list.isEmpty()) {
-      return defaultValue;
-    }
-    if (list.size() != 3) {
-      diagnostics.add(
-          new ValidationDiagnostic(
-              Severity.ERROR,
-              "INVALID_VECTOR3",
-              path,
-              "Vector3 must contain 3 float elements [x, y, z]"));
-      return defaultValue;
-    }
-    try {
-      return Vector3.of(list.get(0), list.get(1), list.get(2));
-    } catch (IllegalArgumentException e) {
-      diagnostics.add(
-          new ValidationDiagnostic(Severity.ERROR, "INVALID_VECTOR3_VALUES", path, e.getMessage()));
-      return defaultValue;
-    }
+    return SpecMathParser.parseVector3(list, defaultValue, path, diagnostics);
   }
 
   private ModelPartType parsePartType(

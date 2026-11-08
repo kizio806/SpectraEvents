@@ -13,6 +13,7 @@ import java.util.Objects;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
+import org.yaml.snakeyaml.error.YAMLException;
 
 /** Extracts the shipped locale catalog without replacing an operator's translation. */
 public final class FileSystemLocaleLoader {
@@ -94,7 +95,7 @@ public final class FileSystemLocaleLoader {
         return map;
       }
       throw new IOException("Locale root must be a map.");
-    } catch (RuntimeException exception) {
+    } catch (YAMLException | IllegalArgumentException exception) {
       throw new IOException("Locale YAML is invalid.", exception);
     }
   }

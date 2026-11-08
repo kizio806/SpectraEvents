@@ -17,6 +17,7 @@ import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
 import io.github.kizio806.spectraevents.application.repository.InMemoryEventInstanceRepository;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
+import io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
@@ -46,10 +47,12 @@ class MetinConfigDrivenIntegrationTest {
     stateStore = new EventRuntimeStateStore();
     engine = new EventExecutionEngine(repository, registry, scheduler, actionPort, stateStore);
 
-    // Read events/metin.yml
-    InputStream inputStream = getClass().getClassLoader().getResourceAsStream("events/metin.yml");
-    assertNotNull(inputStream, "metin.yml resource must exist");
-    String yamlContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+    String yamlContent;
+    try (InputStream inputStream =
+        getClass().getClassLoader().getResourceAsStream("events/metin.yml")) {
+      assertNotNull(inputStream, "metin.yml resource must exist");
+      yamlContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+    }
 
     EventSpecYamlParser parser = new EventSpecYamlParser();
     EventDefinitionCompiler compiler = new EventDefinitionCompiler();
@@ -74,9 +77,7 @@ class MetinConfigDrivenIntegrationTest {
     // 2. Protected manifestation -> dominance.
     boolean handled1 =
         engine.evaluateTrigger(
-            instance.id(),
-            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                .TimerElapsedTrigger(java.time.Duration.ofSeconds(30)));
+            instance.id(), new CoreTriggers.TimerElapsedTrigger(Duration.ofSeconds(30)));
     assertTrue(handled1);
 
     EventInstance afterSpawning = repository.findById(instance.id()).orElseThrow();
@@ -94,9 +95,7 @@ class MetinConfigDrivenIntegrationTest {
     assertTrue(actionPort.containsAction("spawn_particles"));
     assertTrue(
         engine.evaluateTrigger(
-            instance.id(),
-            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                .WaveClearedTrigger("fracture_guard")));
+            instance.id(), new CoreTriggers.WaveClearedTrigger("fracture_guard")));
 
     // 4. Desperation spawns its second bounded wave at 50%, then permits the push to 25%.
     for (int i = 1; i <= 25; i++) {
@@ -105,9 +104,7 @@ class MetinConfigDrivenIntegrationTest {
     assertTrue(actionPort.containsAction("spawn_mobs"));
     assertTrue(
         engine.evaluateTrigger(
-            instance.id(),
-            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                .WaveClearedTrigger("desperation_guard")));
+            instance.id(), new CoreTriggers.WaveClearedTrigger("desperation_guard")));
     for (int i = 1; i <= 25; i++) {
       engine.evaluateTrigger(instance.id(), new ConfiguredTriggerDefinition("interaction"));
     }
@@ -117,9 +114,7 @@ class MetinConfigDrivenIntegrationTest {
     // 5. Defender and its final escort must all clear before victory.
     assertTrue(
         engine.evaluateTrigger(
-            instance.id(),
-            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                .WaveClearedTrigger("final_assault")));
+            instance.id(), new CoreTriggers.WaveClearedTrigger("final_assault")));
 
     EventInstance afterVictory = repository.findById(instance.id()).orElseThrow();
     assertEquals(EventLifecycleState.COMPLETED, afterVictory.state());

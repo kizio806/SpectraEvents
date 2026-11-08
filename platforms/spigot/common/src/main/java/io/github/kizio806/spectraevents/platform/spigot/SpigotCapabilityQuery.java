@@ -18,7 +18,7 @@ public final class SpigotCapabilityQuery extends BukkitCapabilityQuery {
       return false; // Spigot does not implement Adventure directly on Player
     }
     // Assume other features (DISPLAY_ENTITIES, INTERACTION_ENTITIES, CUSTOM_ITEMS, GUI) are
-    // supported on 1.21.3
+    // supported on 26.1–26.3
     return true;
   }
 }

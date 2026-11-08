@@ -170,4 +170,84 @@ public class AssetPipelineServiceTest {
         Assertions.assertThrows(RuntimeException.class, () -> failingService.importFile(name));
     Assertions.assertTrue(error.getMessage().contains("Import failed"));
   }
+
+  @Test
+  void testBuildAssetsWithNonExistentSourceDirectory() {
+    Path missingDir = tempDir.resolve("missing_src_dir");
+    AssetPipelineService nonExistentService =
+        new AssetPipelineService(
+            source -> null,
+            new ResourcePackBuilder(tempDir.resolve("out_non_existent")),
+            missingDir,
+            AssetTargetProfile.PROFILE_26_1);
+
+    nonExistentService.buildAssets();
+    Assertions.assertTrue(nonExistentService.isReady());
+    Assertions.assertNull(nonExistentService.lastFailure());
+  }
+
+  @Test
+  void testBuildAssetsThrowsWhenImportFails() throws Exception {
+    AssetImportPort failingImport =
+        source -> {
+          throw new java.io.IOException("File corrupted");
+        };
+    ResourcePackBuilder mockBuilder = new ResourcePackBuilder(tempDir.resolve("out-err"));
+    Path srcDir = tempDir.resolve("sources_err");
+    Files.createDirectories(srcDir);
+    Files.writeString(srcDir.resolve("model1.spectra.zip"), "corrupted-content");
+
+    AssetPipelineService failingService =
+        new AssetPipelineService(
+            failingImport, mockBuilder, srcDir, AssetTargetProfile.PROFILE_26_1);
+
+    IllegalStateException ex =
+        Assertions.assertThrows(IllegalStateException.class, failingService::buildAssets);
+    Assertions.assertTrue(ex.getMessage().contains("Asset pipeline rejected bundle"));
+    Assertions.assertFalse(failingService.isReady());
+    Assertions.assertNotNull(failingService.lastFailure());
+  }
+
+  @Test
+  void testImportWithModelRegistrarAndBbmodelExtension() throws Exception {
+    io.github.kizio806.spectraevents.application.model.compiler.ModelCompiler modelCompiler =
+        new io.github.kizio806.spectraevents.application.model.compiler.ModelCompiler();
+    io.github.kizio806.spectraevents.application.model.registry.ModelDefinitionRegistry
+        modelRegistry =
+            new io.github.kizio806.spectraevents.application.model.registry
+                .ModelDefinitionRegistry();
+    io.github.kizio806.spectraevents.application.model.animation.registry
+            .AnimationDefinitionRegistry
+        animRegistry =
+            new io.github.kizio806.spectraevents.application.model.animation.registry
+                .AnimationDefinitionRegistry();
+    ImportedAssetModelRegistrar mockRegistrar =
+        new ImportedAssetModelRegistrar(modelCompiler, modelRegistry, animRegistry);
+
+    SpectraAssetNode node =
+        new SpectraAssetNode(
+            "bone1",
+            Vector3.ZERO,
+            Vector3.ZERO,
+            EulerRotation.ZERO,
+            Vector3.ONE,
+            List.of(),
+            List.of());
+    AssetImportPort mockImport =
+        source -> new SpectraAssetDocument(1, "bbmodel-test", Map.of(), List.of(node), Map.of());
+    ResourcePackBuilder mockBuilder = new ResourcePackBuilder(tempDir.resolve("out-reg"));
+
+    AssetPipelineService registrarService =
+        new AssetPipelineService(
+            mockImport, mockBuilder, tempDir, AssetTargetProfile.PROFILE_26_1, mockRegistrar);
+
+    String bbmodelName = "custom.bbmodel";
+    Files.writeString(tempDir.resolve(bbmodelName), "bbmodel-data");
+
+    registrarService.importFile(bbmodelName);
+    Assertions.assertTrue(
+        modelRegistry.contains(
+            new io.github.kizio806.spectraevents.core.visual.model.ModelId("bbmodel-test")));
+    Assertions.assertTrue(registrarService.listModels().contains("bbmodel-test"));
+  }
 }

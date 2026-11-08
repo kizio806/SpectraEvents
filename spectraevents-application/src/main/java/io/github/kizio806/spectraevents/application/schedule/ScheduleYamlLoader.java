@@ -2,6 +2,7 @@ package io.github.kizio806.spectraevents.application.schedule;
 
 import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.yaml.snakeyaml.LoaderOptions;
@@ -102,7 +103,7 @@ public final class ScheduleYamlLoader {
     if (!(raw instanceof Map<?, ?> values)) {
       throw invalid(file, path + ".parameters", "must be a mapping");
     }
-    java.util.LinkedHashMap<String, Object> result = new java.util.LinkedHashMap<>();
+    Map<String, Object> result = new LinkedHashMap<>();
     values.forEach(
         (key, value) -> {
           if (key == null || String.valueOf(key).isBlank()) {

@@ -147,6 +147,7 @@ admin:
     back: "Back to Configuration"
     saved: "Saved %parameter% for %event%: %value%."
 command:
+  gui-player-only: "The admin panel can only be opened by in-game players."
   events:
     usage-title: "Event commands:"
     usage-start: "/spectraevents event start <event-id>"
@@ -176,6 +177,15 @@ command:
     reconcile-resolved: "Reward claim %id% reconciled as %decision%."
     reconcile-not-found: "Reward claim %id% is no longer awaiting reconciliation."
   paper:
+    failed: "Command failed: %reason%"
+    schedules-title: "Schedules: %count%"
+    schedule-entry: " - %id% → %definition% (%zone%)"
+    schedules-reloaded: "Schedules loaded=%loaded% failed=%failed%"
+    diagnostic-entry: " - %path%: %message%"
+    rewards-title: "Pending rewards: %count%"
+    reward-entry: " - %id% (%count% item entries)"
+    reward-busy: "That reward is already being delivered."
+    reward-unavailable: "That reward is not available."
     schedules-read-failed: "Could not read schedules.yml: %reason%"
     rewards-player-only: "Rewards are available to in-game players only."
     invalid-reward-id: "Invalid reward claim ID."

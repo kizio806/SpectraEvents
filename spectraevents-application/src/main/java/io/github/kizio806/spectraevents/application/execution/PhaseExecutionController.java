@@ -107,7 +107,9 @@ final class PhaseExecutionController {
 
                       try {
                         executePhaseEntry(nextInstance, definition, targetPhase, execContext);
-                      } catch (RuntimeException exception) {
+                      } catch (FatalActionException
+                          | IllegalStateException
+                          | IllegalArgumentException exception) {
                         LOGGER.log(Level.SEVERE, "Error during phase transition", exception);
                         lifecycleManager.failEvent(nextInstance.id(), exception);
                       }
@@ -183,7 +185,9 @@ final class PhaseExecutionController {
                               () -> {
                                 try {
                                   evaluateTrigger(instance.id(), timerTrigger, execContext);
-                                } catch (RuntimeException e) {
+                                } catch (FatalActionException
+                                    | IllegalStateException
+                                    | IllegalArgumentException e) {
                                   LOGGER.log(
                                       Level.SEVERE,
                                       "Error executing timer trigger for event " + instance.id(),
@@ -194,7 +198,7 @@ final class PhaseExecutionController {
                   }
                   context.repository().saveState(latestState);
                 });
-          } catch (Exception e) {
+          } catch (FatalActionException | IllegalStateException | IllegalArgumentException e) {
             lifecycleManager.failEvent(instance.id(), e);
           }
         });

@@ -4,6 +4,7 @@ import io.github.kizio806.spectraevents.application.SpectraEventsApplication;
 import io.github.kizio806.spectraevents.application.config.loader.DefinitionLoadResult;
 import io.github.kizio806.spectraevents.application.template.SpectraBundleInstaller;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
+import io.github.kizio806.spectraevents.platform.bukkit.util.BukkitPluginVersions;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -46,10 +47,7 @@ public final class SpigotTemplateCommandHandler implements SpigotSubcommandHandl
     try {
       Path archive =
           plugin.getDataFolder().toPath().resolve("templates").resolve("metin.spectra.zip");
-      String version = plugin.getClass().getPackage().getImplementationVersion();
-      if (version == null || version.isBlank()) {
-        version = plugin.getDescription().getVersion();
-      }
+      String version = BukkitPluginVersions.resolveVersion(plugin);
       new SpectraBundleInstaller(plugin.getDataFolder().toPath(), version).install(archive);
       application.assetPipelineService().buildAssets();
       DefinitionLoadResult result = definitions.reloadFromDisk();

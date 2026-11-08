@@ -6,12 +6,15 @@ import io.github.kizio806.spectraevents.application.port.EventInstanceRepository
 import io.github.kizio806.spectraevents.application.port.EventTaskScheduler;
 import io.github.kizio806.spectraevents.application.port.PlatformActionPort;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
+import io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers.WaveClearedTrigger;
 import io.github.kizio806.spectraevents.core.event.execution.trigger.TriggerDefinition;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Deterministic execution engine for data-driven event definitions. This acts as a facade,
@@ -23,10 +26,9 @@ public final class EventExecutionEngine {
   private final PhaseExecutionController phaseController;
   private final ActionExecutionCoordinator actionCoordinator;
 
-  private final java.util.List<IntegrationConditionResolver> conditionResolvers =
-      new java.util.ArrayList<>();
-  private final java.util.List<IntegrationActionResolver> actionResolvers =
-      new java.util.ArrayList<>();
+  private final List<IntegrationConditionResolver> conditionResolvers =
+      new CopyOnWriteArrayList<>();
+  private final List<IntegrationActionResolver> actionResolvers = new CopyOnWriteArrayList<>();
   private final InternalActionExecutor internalActionExecutor;
   private final EventTriggerEvaluator triggerEvaluator;
 
@@ -128,11 +130,7 @@ public final class EventExecutionEngine {
     if (state == null || !state.recordWaveEntityDeath(waveId, entityId)) {
       return false;
     }
-    return evaluateTrigger(
-        instanceId,
-        new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-            .WaveClearedTrigger(waveId),
-        context);
+    return evaluateTrigger(instanceId, new WaveClearedTrigger(waveId), context);
   }
 
   /**

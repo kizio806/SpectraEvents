@@ -1,68 +1,27 @@
 package io.github.kizio806.spectraevents.platform.paper.lifecycle;
 
-import io.github.kizio806.spectraevents.application.port.PlatformEntityReconcilerPort;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
-import io.github.kizio806.spectraevents.platform.bukkit.metadata.BukkitPdcKeys;
-import java.util.ArrayList;
+import io.github.kizio806.spectraevents.platform.bukkit.lifecycle.AbstractBukkitEntityReconciler;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import org.bukkit.Bukkit;
-import org.bukkit.Chunk;
-import org.bukkit.World;
 import org.bukkit.entity.Entity;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 
-public class PaperEntityReconciler implements PlatformEntityReconcilerPort {
-  private final Plugin plugin;
+/** Paper entity reconciler integrating with Folia entity schedulers and PaperResourceCleaner. */
+public class PaperEntityReconciler extends AbstractBukkitEntityReconciler {
   private final PaperResourceCleaner cleaner;
 
   public PaperEntityReconciler(Plugin plugin, PaperResourceCleaner cleaner) {
-    this.plugin = java.util.Objects.requireNonNull(plugin, "plugin");
-    this.cleaner = java.util.Objects.requireNonNull(cleaner, "cleaner");
+    super(plugin);
+    this.cleaner = Objects.requireNonNull(cleaner, "cleaner");
   }
 
   @Override
-  public List<DiscoveredEntity> scanLoadedEntities() {
-    List<DiscoveredEntity> discovered = new ArrayList<>();
-    for (World world : Bukkit.getWorlds()) {
-      for (Chunk chunk : world.getLoadedChunks()) {
-        for (Entity entity : chunk.getEntities()) {
-          String instanceIdStr =
-              entity
-                  .getPersistentDataContainer()
-                  .get(BukkitPdcKeys.EVENT_INSTANCE_ID, PersistentDataType.STRING);
-          if (instanceIdStr != null) {
-            try {
-              EventInstanceId instanceId = new EventInstanceId(UUID.fromString(instanceIdStr));
-              String partId =
-                  entity
-                      .getPersistentDataContainer()
-                      .get(BukkitPdcKeys.partId(plugin), PersistentDataType.STRING);
-
-              String role =
-                  entity
-                      .getType()
-                      .name(); // Use entity type as role for now if no specific role set
-
-              discovered.add(new DiscoveredEntity(entity.getUniqueId(), instanceId, role, partId));
-            } catch (IllegalArgumentException ignored) {
-              // Invalid UUID format
-            }
-          }
-        }
-      }
-    }
-    return discovered;
-  }
-
-  @Override
-  public void removeEntity(Object platformEntityReference) {
-    if (platformEntityReference instanceof UUID uuid) {
-      Entity entity = Bukkit.getEntity(uuid);
-      if (entity != null && entity.isValid()) {
-        entity.getScheduler().execute(plugin, entity::remove, null, 1);
-      }
+  public void removeEntitySafely(Entity entity) {
+    if (entity != null && entity.isValid()) {
+      entity.getScheduler().execute(plugin, entity::remove, null, 1);
     }
   }
 
@@ -75,9 +34,7 @@ public class PaperEntityReconciler implements PlatformEntityReconcilerPort {
             instanceId,
             () -> {
               Entity entity = Bukkit.getEntity(uuid);
-              if (entity != null && entity.isValid()) {
-                entity.getScheduler().execute(plugin, entity::remove, null, 1);
-              }
+              removeEntitySafely(entity);
             });
       }
     }

@@ -8,6 +8,8 @@ import io.github.kizio806.spectraevents.core.visual.animation.AnimationId;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationTime;
 import io.github.kizio806.spectraevents.core.visual.animation.Easing;
 import io.github.kizio806.spectraevents.core.visual.animation.LoopMode;
+import io.github.kizio806.spectraevents.core.visual.animation.RotationKeyframe;
+import io.github.kizio806.spectraevents.core.visual.animation.RotationMode;
 import io.github.kizio806.spectraevents.core.visual.animation.ScaleKeyframe;
 import io.github.kizio806.spectraevents.core.visual.animation.Vector3Keyframe;
 import io.github.kizio806.spectraevents.core.visual.asset.SpectraAssetAnimation;
@@ -35,7 +37,7 @@ class ImportedAssetModelRegistrarTest {
 
     ModelId modelId = new ModelId("meteor");
     var definition = modelRegistry.get(modelId).orElseThrow();
-    Assertions.assertEquals(1, definition.parts().size());
+    Assertions.assertEquals(2, definition.parts().size());
     ItemAssetRef asset = (ItemAssetRef) definition.parts().getFirst().visualAsset();
     Assertions.assertEquals(GeneratedAssetItem.reference("meteor", "root"), asset.itemRef());
     Assertions.assertTrue(animationRegistry.find(modelId, new AnimationId("pulse")).isPresent());
@@ -51,8 +53,14 @@ class ImportedAssetModelRegistrarTest {
     Assertions.assertDoesNotThrow(() -> registrar.register(documentWithTerminalZeroScale()));
   }
 
-  private static SpectraAssetDocument document() {
-    SpectraAssetNode root =
+  @Test
+  void rejectsDuplicateBlockbenchGroupId() {
+    ModelDefinitionRegistry modelRegistry = new ModelDefinitionRegistry();
+    AnimationDefinitionRegistry animationRegistry = new AnimationDefinitionRegistry();
+    ImportedAssetModelRegistrar registrar =
+        new ImportedAssetModelRegistrar(new ModelCompiler(), modelRegistry, animationRegistry);
+
+    SpectraAssetNode duplicateChild =
         new SpectraAssetNode(
             "root",
             Vector3.ZERO,
@@ -61,6 +69,41 @@ class ImportedAssetModelRegistrarTest {
             Vector3.ONE,
             List.of(),
             List.of());
+    SpectraAssetNode root =
+        new SpectraAssetNode(
+            "root",
+            Vector3.ZERO,
+            Vector3.ZERO,
+            EulerRotation.ZERO,
+            Vector3.ONE,
+            List.of(),
+            List.of(duplicateChild));
+    SpectraAssetDocument doc =
+        new SpectraAssetDocument(1, "meteor", Map.of(), List.of(root), Map.of());
+
+    var ex = Assertions.assertThrows(IllegalArgumentException.class, () -> registrar.register(doc));
+    Assertions.assertTrue(ex.getMessage().contains("Blockbench group ID is not unique"));
+  }
+
+  private static SpectraAssetDocument document() {
+    SpectraAssetNode child =
+        new SpectraAssetNode(
+            "child_part",
+            Vector3.ZERO,
+            Vector3.ZERO,
+            EulerRotation.ZERO,
+            Vector3.ONE,
+            List.of(),
+            List.of());
+    SpectraAssetNode root =
+        new SpectraAssetNode(
+            "root",
+            Vector3.ZERO,
+            Vector3.ZERO,
+            EulerRotation.ZERO,
+            Vector3.ONE,
+            List.of(),
+            List.of(child));
     SpectraAssetAnimation animation =
         new SpectraAssetAnimation(
             "pulse",
@@ -74,7 +117,19 @@ class ImportedAssetModelRegistrarTest {
                         AnimationTime.fromSeconds(1.0),
                         new Vector3(16.0f, 0.0f, 0.0f),
                         Easing.LINEAR))),
-            Map.of(),
+            Map.of(
+                "root",
+                List.of(
+                    RotationKeyframe.ofEuler(
+                        AnimationTime.ZERO,
+                        EulerRotation.ZERO,
+                        Easing.LINEAR,
+                        RotationMode.SHORTEST),
+                    RotationKeyframe.ofEuler(
+                        AnimationTime.fromSeconds(1.0),
+                        new EulerRotation(0.0f, 90.0f, 0.0f),
+                        Easing.LINEAR,
+                        RotationMode.SHORTEST))),
             Map.of(),
             List.of());
     return new SpectraAssetDocument(

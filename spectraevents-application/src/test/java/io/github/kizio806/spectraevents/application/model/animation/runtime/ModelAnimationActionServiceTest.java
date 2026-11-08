@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.github.kizio806.spectraevents.application.execution.FatalActionException;
 import io.github.kizio806.spectraevents.application.model.animation.compiler.AnimationCompiler;
+import io.github.kizio806.spectraevents.application.model.animation.compiler.CompiledAnimation;
 import io.github.kizio806.spectraevents.application.model.animation.registry.AnimationDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.model.animation.spec.AnimationSpec;
 import io.github.kizio806.spectraevents.application.model.animation.spec.AnimationTrackSpec;
@@ -120,9 +121,48 @@ class ModelAnimationActionServiceTest {
     int p1 = service.play(eventId, Map.of("animation", "hover", "loop", "ping-pong"));
     assertEquals(1, p1);
 
+    // Boolean false loop mode -> ONCE
+    int p2 = service.play(eventId, Map.of("animation", "hover", "loop", false, "max-loops", 3));
+    assertEquals(1, p2);
+
     assertThrows(
         FatalActionException.class,
         () -> service.play(eventId, Map.of("animation", "hover", "loop", "unknown_mode")));
+    assertThrows(
+        FatalActionException.class,
+        () -> service.play(eventId, Map.of("animation", "hover", "loop", 123)));
+    assertThrows(
+        FatalActionException.class,
+        () -> service.play(eventId, Map.of("animation", "hover", "loop", "   ")));
+
+    // Model not a string
+    assertThrows(
+        FatalActionException.class,
+        () -> service.play(eventId, Map.of("animation", "hover", "model", 123)));
+
+    // Animation not a string
+    assertThrows(FatalActionException.class, () -> service.play(eventId, Map.of("animation", 123)));
+
+    // Speed NaN / non-positive
+    assertThrows(
+        FatalActionException.class,
+        () -> service.play(eventId, Map.of("animation", "hover", "speed", 0.0f)));
+    assertThrows(
+        FatalActionException.class,
+        () -> service.play(eventId, Map.of("animation", "hover", "speed", Float.NaN)));
+
+    // Max-loops non-number / non-integer decimal
+    assertThrows(
+        FatalActionException.class,
+        () -> service.play(eventId, Map.of("animation", "hover", "max-loops", "abc")));
+    assertThrows(
+        FatalActionException.class,
+        () -> service.play(eventId, Map.of("animation", "hover", "max-loops", 2.5)));
+
+    // Play throws RuntimeException when animation fails to play
+    assertThrows(
+        FatalActionException.class,
+        () -> service.play(eventId, Map.of("animation", "unregistered_anim")));
 
     // stopForModel
     var handle = modelRuntimeService.getActiveInstances().iterator().next();
@@ -143,8 +183,7 @@ class ModelAnimationActionServiceTest {
     return new ModelDefinition(modelId, List.of(part), List.of());
   }
 
-  private io.github.kizio806.spectraevents.application.model.animation.compiler.CompiledAnimation
-      compiledAnimation() {
+  private CompiledAnimation compiledAnimation() {
     AnimationSpec spec = new AnimationSpec();
     spec.setDuration("1s");
     KeyframeSpec start = new KeyframeSpec();

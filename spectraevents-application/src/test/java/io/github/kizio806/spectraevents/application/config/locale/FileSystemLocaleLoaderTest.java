@@ -1,6 +1,7 @@
 package io.github.kizio806.spectraevents.application.config.locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -8,6 +9,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -86,10 +88,49 @@ class FileSystemLocaleLoaderTest {
     }
   }
 
+  @Test
+  void loadsConfiguredCatalogFromConfigFile() throws Exception {
+    FileSystemLocaleLoader loader = new FileSystemLocaleLoader(temporaryDirectory);
+    Path configWithLocale = temporaryDirectory.resolve("config.yml");
+    Files.writeString(configWithLocale, "locale: pl-PL\n");
+
+    LocaleCatalog catalog = loader.loadConfiguredCatalog(configWithLocale);
+    assertEquals("pl-PL", catalog.selectedLocale());
+
+    Path configWithoutLocale = temporaryDirectory.resolve("config-no-locale.yml");
+    Files.writeString(configWithoutLocale, "other-key: value\n");
+
+    LocaleCatalog defaultCatalog = loader.loadConfiguredCatalog(configWithoutLocale);
+    assertEquals("en-US", defaultCatalog.selectedLocale());
+  }
+
+  @Test
+  void fallsBackToEnglishWhenUnknownLocaleRequested() throws Exception {
+    FileSystemLocaleLoader loader = new FileSystemLocaleLoader(temporaryDirectory);
+    LocaleCatalog catalog = loader.loadCatalog("non-existent-LOCALE");
+    assertEquals("en-US", catalog.selectedLocale());
+  }
+
+  @Test
+  void throwsOnInvalidLocaleYamlOrNonMapRoot() throws Exception {
+    FileSystemLocaleLoader loader = new FileSystemLocaleLoader(temporaryDirectory);
+    Files.createDirectories(loader.localesDirectory());
+
+    Path nonMapLocale = loader.localesDirectory().resolve("en-US.yml");
+    Files.writeString(nonMapLocale, "just a scalar string\n");
+    var ex1 = assertThrows(IOException.class, () -> loader.loadCatalog("en-US"));
+    assertTrue(ex1.getMessage().contains("Locale root must be a map"));
+
+    Path brokenYaml = loader.localesDirectory().resolve("en-US.yml");
+    Files.writeString(brokenYaml, ": [ broken yaml\n");
+    var ex2 = assertThrows(IOException.class, () -> loader.loadCatalog("en-US"));
+    assertTrue(ex2.getMessage().contains("Locale YAML is invalid"));
+  }
+
   private List<String> playerFacingLocaleReferences(String event) {
     String source = readResource("/events/" + event + ".yml");
     Matcher matcher = PLAYER_FACING_ACTION_FIELD.matcher(source);
-    java.util.ArrayList<String> values = new java.util.ArrayList<>();
+    List<String> values = new ArrayList<>();
     while (matcher.find()) {
       values.add(matcher.group(1));
     }

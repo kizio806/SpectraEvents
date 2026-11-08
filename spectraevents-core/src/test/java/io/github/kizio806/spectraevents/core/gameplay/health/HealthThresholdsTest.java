@@ -50,5 +50,10 @@ class HealthThresholdsTest {
 
     List<Integer> crossed = thresholds.checkCrossed(oldHealth, newHealth);
     assertTrue(crossed.isEmpty());
+
+    // Both above threshold (100 -> 80 with threshold 60)
+    Health above1 = new Health(100, 100);
+    Health above2 = new Health(80, 100);
+    assertTrue(thresholds.checkCrossed(above1, above2).isEmpty());
   }
 }

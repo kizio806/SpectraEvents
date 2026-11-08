@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -246,9 +247,11 @@ public class EventDefinitionCompiler {
                   .map(
                       transition ->
                           new TransitionSpec(
-                              new TriggerSpec(
-                                  transition.trigger().type(),
-                                  resolveMap(transition.trigger().parameters(), values)),
+                              transition.trigger() == null
+                                  ? null
+                                  : new TriggerSpec(
+                                      transition.trigger().type(),
+                                      resolveMap(transition.trigger().parameters(), values)),
                               transition.conditions() == null
                                   ? List.of()
                                   : transition.conditions().stream()
@@ -429,9 +432,8 @@ public class EventDefinitionCompiler {
     }
   }
 
-  private ActionDefinition compileAction(
-      io.github.kizio806.spectraevents.application.config.spec.ActionSpec spec) {
-    String type = spec.type().toLowerCase(java.util.Locale.ROOT);
+  private ActionDefinition compileAction(ActionSpec spec) {
+    String type = spec.type().toLowerCase(Locale.ROOT);
     Map<String, Object> params = spec.parameters() != null ? spec.parameters() : Map.of();
     switch (type) {
       case "initialize_health" -> {
@@ -679,9 +681,8 @@ public class EventDefinitionCompiler {
     }
   }
 
-  private TriggerDefinition compileTrigger(
-      io.github.kizio806.spectraevents.application.config.spec.TriggerSpec spec) {
-    String type = spec.type().toLowerCase(java.util.Locale.ROOT);
+  private TriggerDefinition compileTrigger(TriggerSpec spec) {
+    String type = spec.type().toLowerCase(Locale.ROOT);
     Map<String, Object> params = spec.parameters() != null ? spec.parameters() : Map.of();
     switch (type) {
       case "timer_elapsed" -> {
@@ -724,9 +725,8 @@ public class EventDefinitionCompiler {
     }
   }
 
-  private ConditionDefinition compileCondition(
-      io.github.kizio806.spectraevents.application.config.spec.ConditionSpec spec) {
-    String type = spec.type().toLowerCase(java.util.Locale.ROOT);
+  private ConditionDefinition compileCondition(ConditionSpec spec) {
+    String type = spec.type().toLowerCase(Locale.ROOT);
     Map<String, Object> params = spec.parameters() != null ? spec.parameters() : Map.of();
     switch (type) {
       case "not_locked" -> {

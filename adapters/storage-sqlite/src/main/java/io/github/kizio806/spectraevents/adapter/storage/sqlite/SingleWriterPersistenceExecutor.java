@@ -6,7 +6,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -23,12 +25,29 @@ public class SingleWriterPersistenceExecutor {
   private final AtomicBoolean running = new AtomicBoolean(true);
 
   // Metrics
-  private final java.util.concurrent.atomic.AtomicLong peakQueueDepth =
-      new java.util.concurrent.atomic.AtomicLong(0);
-  private final java.util.concurrent.atomic.AtomicLong totalWrites =
-      new java.util.concurrent.atomic.AtomicLong(0);
-  private final java.util.concurrent.atomic.AtomicLong totalErrors =
-      new java.util.concurrent.atomic.AtomicLong(0);
+  private final AtomicLong peakQueueDepth = new AtomicLong(0);
+  private final AtomicLong totalWrites = new AtomicLong(0);
+  private final AtomicLong totalErrors = new AtomicLong(0);
+
+  @FunctionalInterface
+  private interface TrackedWrite extends Runnable {}
+
+  private final class RawTrackedWrite implements TrackedWrite {
+    private final Runnable delegate;
+
+    RawTrackedWrite(Runnable delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public void run() {
+      try {
+        delegate.run();
+      } finally {
+        totalWrites.incrementAndGet();
+      }
+    }
+  }
 
   public SingleWriterPersistenceExecutor(int capacity) {
     this.queue = new ArrayBlockingQueue<>(capacity);
@@ -44,14 +63,16 @@ public class SingleWriterPersistenceExecutor {
     if (!running.get()) {
       throw new IllegalStateException("Persistence writer is not accepting writes");
     }
-    if (!queue.offer(writeOperation)) {
+    Runnable task =
+        (writeOperation instanceof TrackedWrite)
+            ? writeOperation
+            : new RawTrackedWrite(writeOperation);
+    if (!queue.offer(task)) {
       throw new RejectedExecutionException(
           "Persistence queue is full; refusing the write without blocking a platform thread");
     }
     long depth = queue.size();
-    if (depth > peakQueueDepth.get()) {
-      peakQueueDepth.set(depth);
-    }
+    peakQueueDepth.accumulateAndGet(depth, Math::max);
   }
 
   /** Executes a write on the single writer thread and waits for its actual result. */
@@ -72,45 +93,63 @@ public class SingleWriterPersistenceExecutor {
     if (Thread.currentThread().equals(workerThread)) {
       try {
         writeOperation.run();
+        totalWrites.incrementAndGet();
         return CompletableFuture.completedFuture(null);
-      } catch (RuntimeException exception) {
+      } catch (Exception exception) {
+        totalErrors.incrementAndGet();
         return CompletableFuture.failedFuture(exception);
       }
     }
     CompletableFuture<Void> completion = new CompletableFuture<>();
     enqueue(
-        () -> {
-          try {
-            writeOperation.run();
-            completion.complete(null);
-          } catch (RuntimeException exception) {
-            completion.completeExceptionally(exception);
-          }
-        });
+        (TrackedWrite)
+            () -> {
+              try {
+                writeOperation.run();
+                totalWrites.incrementAndGet();
+                completion.complete(null);
+              } catch (Exception exception) {
+                totalErrors.incrementAndGet();
+                completion.completeExceptionally(exception);
+              }
+            });
     return completion;
   }
 
   /** Queues a result-producing write without blocking the caller. */
   public <T> CompletableFuture<T> supplyAsync(Callable<T> writeOperation) {
+    if (Thread.currentThread().equals(workerThread)) {
+      try {
+        T result = writeOperation.call();
+        totalWrites.incrementAndGet();
+        return CompletableFuture.completedFuture(result);
+      } catch (Exception exception) {
+        totalErrors.incrementAndGet();
+        return CompletableFuture.failedFuture(exception);
+      }
+    }
     CompletableFuture<T> completion = new CompletableFuture<>();
     enqueue(
-        () -> {
-          try {
-            completion.complete(writeOperation.call());
-          } catch (Exception exception) {
-            completion.completeExceptionally(exception);
-          }
-        });
+        (TrackedWrite)
+            () -> {
+              try {
+                T result = writeOperation.call();
+                totalWrites.incrementAndGet();
+                completion.complete(result);
+              } catch (Exception exception) {
+                totalErrors.incrementAndGet();
+                completion.completeExceptionally(exception);
+              }
+            });
     return completion;
   }
 
   private void runLoop() {
     while (running.get() || !queue.isEmpty()) {
       try {
-        Runnable op = queue.poll(100, java.util.concurrent.TimeUnit.MILLISECONDS);
+        Runnable op = queue.poll(100, TimeUnit.MILLISECONDS);
         if (op != null) {
           op.run();
-          totalWrites.incrementAndGet();
         }
       } catch (InterruptedException e) {
         if (running.get()) {

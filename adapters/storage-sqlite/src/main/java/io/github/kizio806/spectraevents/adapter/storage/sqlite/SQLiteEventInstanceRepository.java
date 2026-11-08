@@ -22,10 +22,12 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -254,7 +256,7 @@ public final class SQLiteEventInstanceRepository
 
   private void loadAllParticipantsFromDb() {
     String sql = "SELECT instance_id, player_uuid FROM spectra_participants";
-    Map<EventInstanceId, java.util.Set<UUID>> participants = new HashMap<>();
+    Map<EventInstanceId, Set<UUID>> participants = new HashMap<>();
     try (Connection conn = database.getConnection();
         PreparedStatement statement = conn.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery()) {
@@ -262,7 +264,7 @@ public final class SQLiteEventInstanceRepository
         EventInstanceId instanceId =
             new EventInstanceId(UUID.fromString(resultSet.getString("instance_id")));
         participants
-            .computeIfAbsent(instanceId, ignored -> new java.util.HashSet<>())
+            .computeIfAbsent(instanceId, ignored -> new HashSet<>())
             .add(UUID.fromString(resultSet.getString("player_uuid")));
       }
       participants.forEach(
@@ -317,7 +319,7 @@ public final class SQLiteEventInstanceRepository
                 persistInstance(eventInstance, false);
                 persistState(snapshot, false);
                 database.commitOrThrow();
-              } catch (RuntimeException exception) {
+              } catch (IllegalStateException exception) {
                 database.rollbackQuietly();
                 throw exception;
               }
@@ -338,7 +340,7 @@ public final class SQLiteEventInstanceRepository
                 persistInstance(eventInstance, false);
                 persistState(snapshot, false);
                 database.commitOrThrow();
-              } catch (RuntimeException exception) {
+              } catch (IllegalStateException exception) {
                 database.rollbackQuietly();
                 throw exception;
               }
@@ -566,7 +568,7 @@ public final class SQLiteEventInstanceRepository
       Integer minimumContribution,
       Map<UUID, Integer> contributions,
       Map<UUID, Long> thresholdAttained,
-      java.util.Set<UUID> participants,
+      Set<UUID> participants,
       Map<Integer, CoreActions.LootStack> sharedLoot,
       boolean sharedLootInitialized,
       long updatedAt) {}

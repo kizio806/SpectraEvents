@@ -30,12 +30,6 @@
         <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE" />
     </Match>
 
-    <!-- Bukkit / Spigot API return values lacking nullability annotations in platform adapters -->
-    <Match>
-        <Package name="~io\.github\.kizio806\.spectraevents\.platform\..*" />
-        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" />
-    </Match>
-
     <!-- JUnit test methods and test fixtures intentionally declaring throws Exception -->
     <Match>
         <Class name="~.*Test(\$.*)?" />
@@ -44,7 +38,7 @@
 
     <!-- PlaceholderExpansion declares final equals(Object) without hashCode in third-party PlaceholderAPI library -->
     <Match>
-        <Class name="io.github.kizio806.spectraevents.platform.paper.integration.PlaceholderAPIIntegration$SpectraExpansion" />
+        <Class name="io.github.kizio806.spectraevents.platform.bukkit.integration.PlaceholderAPIIntegration$SpectraExpansion" />
         <Bug pattern="HE_INHERITS_EQUALS_USE_HASHCODE" />
     </Match>
 </FindBugsFilter>

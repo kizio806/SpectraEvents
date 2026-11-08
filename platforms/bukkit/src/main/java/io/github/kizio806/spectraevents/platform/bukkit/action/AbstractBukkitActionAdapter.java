@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import java.util.logging.Level;
@@ -61,12 +62,12 @@ public abstract class AbstractBukkitActionAdapter extends AbstractPlatformAction
 
   protected final Logger logger = Logger.getLogger(getClass().getName());
   protected final LocaleCatalog locales;
-  protected final List<CustomItemProvider> itemProviders = new ArrayList<>();
+  protected final List<CustomItemProvider> itemProviders = new CopyOnWriteArrayList<>();
 
-  protected ModelRuntimeService modelRuntimeService;
-  protected ModelAnimationActionService modelAnimationActionService;
+  protected volatile ModelRuntimeService modelRuntimeService;
+  protected volatile ModelAnimationActionService modelAnimationActionService;
   protected volatile boolean shuttingDown;
-  protected BiConsumer<EventInstanceId, Throwable> fatalActionHandler =
+  protected volatile BiConsumer<EventInstanceId, Throwable> fatalActionHandler =
       (instanceId, throwable) ->
           logger.severe(
               "Asynchronous action failed for " + instanceId + ": " + throwable.getMessage());
@@ -109,6 +110,16 @@ public abstract class AbstractBukkitActionAdapter extends AbstractPlatformAction
 
   public void registerItemProvider(CustomItemProvider provider) {
     itemProviders.add(Objects.requireNonNull(provider, "provider"));
+  }
+
+  public void unregisterItemProvider(CustomItemProvider provider) {
+    if (provider != null) {
+      itemProviders.remove(provider);
+    }
+  }
+
+  public List<CustomItemProvider> itemProviders() {
+    return List.copyOf(itemProviders);
   }
 
   // --- Abstract Platform Hooks ---
@@ -251,7 +262,7 @@ public abstract class AbstractBukkitActionAdapter extends AbstractPlatformAction
           }
           ModelAnchor anchor =
               new ModelAnchor(
-                  spawnLoc.getWorld().getName(),
+                  Objects.requireNonNull(spawnLoc.getWorld(), "spawnLoc.world").getName(),
                   spawnLoc.getX(),
                   spawnLoc.getY(),
                   spawnLoc.getZ(),
@@ -285,7 +296,7 @@ public abstract class AbstractBukkitActionAdapter extends AbstractPlatformAction
         () -> {
           ModelAnchor anchor =
               new ModelAnchor(
-                  baseLoc.getWorld().getName(),
+                  Objects.requireNonNull(baseLoc.getWorld(), "baseLoc.world").getName(),
                   baseLoc.getX(),
                   baseLoc.getY(),
                   baseLoc.getZ(),
@@ -619,10 +630,11 @@ public abstract class AbstractBukkitActionAdapter extends AbstractPlatformAction
               player,
               () -> {
                 Location location = player.getLocation();
-                if (location.getWorld() != null
+                World world = location.getWorld();
+                if (world != null
                     && zone.contains(
                         new EventLocation(
-                            location.getWorld().getName(),
+                            world.getName(),
                             location.getX(),
                             location.getY(),
                             location.getZ(),

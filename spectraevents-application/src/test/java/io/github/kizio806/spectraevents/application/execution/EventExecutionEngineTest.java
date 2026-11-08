@@ -16,6 +16,7 @@ import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
 import io.github.kizio806.spectraevents.core.event.execution.TransitionRule;
 import io.github.kizio806.spectraevents.core.event.execution.action.ActionDefinition;
 import io.github.kizio806.spectraevents.core.event.execution.action.CoreActions;
+import io.github.kizio806.spectraevents.core.event.execution.condition.ConditionDefinition;
 import io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseDefinition;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
@@ -168,8 +169,7 @@ class EventExecutionEngineTest {
                     Set.of(new PhaseId("phase2")),
                     List.of(
                         new TransitionRule(
-                            new io.github.kizio806.spectraevents.core.event.execution.trigger
-                                .CoreTriggers.TimerElapsedTrigger(java.time.Duration.ofSeconds(10)),
+                            new CoreTriggers.TimerElapsedTrigger(Duration.ofSeconds(10)),
                             List.of(),
                             Optional.of(new PhaseId("phase2")),
                             List.of(new ConfiguredActionDefinition("rule_action")))),
@@ -185,9 +185,7 @@ class EventExecutionEngineTest {
     EventInstance instance = engine.startEvent("test_event", null);
     boolean handled =
         engine.evaluateTrigger(
-            instance.id(),
-            new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                .TimerElapsedTrigger(java.time.Duration.ofSeconds(1)));
+            instance.id(), new CoreTriggers.TimerElapsedTrigger(Duration.ofSeconds(1)));
 
     assertTrue(handled);
     EventInstance updated = repository.findById(instance.id()).orElseThrow();
@@ -531,8 +529,7 @@ class EventExecutionEngineTest {
         new IntegrationConditionResolver() {
           @Override
           public boolean resolve(
-              io.github.kizio806.spectraevents.core.event.execution.condition.ConditionDefinition
-                  condition,
+              ConditionDefinition condition,
               EventInstance instance,
               EventRuntimeState state,
               ExecutionContext context) {

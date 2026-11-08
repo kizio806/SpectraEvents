@@ -146,6 +146,7 @@ admin:
     back: "Zurück zur Konfiguration"
     saved: "%parameter% für %event% gespeichert: %value%."
 command:
+  gui-player-only: "Das Administrationspanel kann nur von Spielern im Spiel geöffnet werden."
   events:
     usage-title: "Event-Befehle:"
     usage-start: "/spectraevents event start <event-id>"
@@ -175,6 +176,15 @@ command:
     reconcile-resolved: "Belohnungsanspruch %id% wurde als %decision% abgeglichen."
     reconcile-not-found: "Belohnungsanspruch %id% wartet nicht mehr auf Abgleich."
   paper:
+    failed: "Befehl fehlgeschlagen: %reason%"
+    schedules-title: "Zeitpläne: %count%"
+    schedule-entry: " - %id% → %definition% (%zone%)"
+    schedules-reloaded: "Zeitpläne geladen=%loaded% fehlgeschlagen=%failed%"
+    diagnostic-entry: " - %path%: %message%"
+    rewards-title: "Ausstehende Belohnungen: %count%"
+    reward-entry: " - %id% (%count% Gegenstandseinträge)"
+    reward-busy: "Diese Belohnung wird bereits zugestellt."
+    reward-unavailable: "Diese Belohnung ist nicht verfügbar."
     schedules-read-failed: "schedules.yml konnte nicht gelesen werden: %reason%"
     rewards-player-only: "Belohnungen sind nur für Spieler im Spiel verfügbar."
     invalid-reward-id: "Ungültige Belohnungsanspruchs-ID."

@@ -20,7 +20,7 @@ final class EventLifecycleManager {
   private static final int MAX_RUNNING_INSTANCES = 64;
 
   private final EngineContext context;
-  private PhaseExecutionController phaseController;
+  private volatile PhaseExecutionController phaseController;
 
   public EventLifecycleManager(EngineContext context) {
     this.context = context;
@@ -99,7 +99,7 @@ final class EventLifecycleManager {
                   phaseController.executePhaseEntry(
                       running, definition, definition.initialPhase(), ExecutionContext.EMPTY);
                 }
-              } catch (RuntimeException exception) {
+              } catch (IllegalStateException | IllegalArgumentException exception) {
                 failEvent(running.id(), exception);
                 throw exception;
               }

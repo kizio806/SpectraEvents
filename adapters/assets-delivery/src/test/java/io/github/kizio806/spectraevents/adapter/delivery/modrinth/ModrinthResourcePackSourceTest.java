@@ -171,4 +171,179 @@ class ModrinthResourcePackSourceTest {
         IllegalArgumentException.class,
         () -> new ModrinthResourcePackSource(mockClient, "", "26.1.1"));
   }
+
+  @Test
+  void testSingleFileFallbackWhenPrimaryNotSpecified() throws Exception {
+    String fixture =
+        """
+        [
+          {
+            "id": "v1",
+            "version_number": "1.0.0+26.1",
+            "files": [
+              {
+                "url": "https://cdn.modrinth.com/pack.zip",
+                "size": 512,
+                "hashes": {
+                  "sha1": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                }
+              }
+            ]
+          }
+        ]
+        """;
+    StubClient mockClient = new StubClient(fixture);
+    ModrinthResourcePackSource source =
+        new ModrinthResourcePackSource(mockClient, "xyz", TEST_MINECRAFT_VERSION);
+    ResourcePackDescriptor desc =
+        source.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_1).get();
+    Assertions.assertEquals("b".repeat(40), desc.sha1());
+  }
+
+  @Test
+  void testAmbiguousFilesWithoutPrimaryThrowsException() {
+    String fixture =
+        """
+        [
+          {
+            "id": "v1",
+            "version_number": "1.0.0+26.1",
+            "files": [
+              {"url": "https://cdn.modrinth.com/pack1.zip", "size": 100, "hashes": {"sha1": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}},
+              {"url": "https://cdn.modrinth.com/pack2.zip", "size": 100, "hashes": {"sha1": "cccccccccccccccccccccccccccccccccccccccc"}}
+            ]
+          }
+        ]
+        """;
+    StubClient mockClient = new StubClient(fixture);
+    ModrinthResourcePackSource source =
+        new ModrinthResourcePackSource(mockClient, "xyz", TEST_MINECRAFT_VERSION);
+    ExecutionException ex =
+        Assertions.assertThrows(
+            ExecutionException.class,
+            () -> source.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_1).get());
+    Assertions.assertTrue(
+        ex.getCause().getMessage().contains("unambiguously determine primary file"));
+  }
+
+  @Test
+  void testMissingSha1AndZeroSizeThrowsException() {
+    String fixtureMissingSha1 =
+        """
+        [
+          {
+            "id": "v1",
+            "version_number": "1.0.0+26.1",
+            "files": [
+              {"url": "https://cdn.modrinth.com/pack.zip", "primary": true, "size": 100, "hashes": {}}
+            ]
+          }
+        ]
+        """;
+    StubClient mockClient1 = new StubClient(fixtureMissingSha1);
+    ModrinthResourcePackSource source1 =
+        new ModrinthResourcePackSource(mockClient1, "xyz", TEST_MINECRAFT_VERSION);
+    ExecutionException ex1 =
+        Assertions.assertThrows(
+            ExecutionException.class,
+            () -> source1.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_1).get());
+    Assertions.assertTrue(ex1.getCause().getMessage().contains("missing sha1 hash"));
+
+    String fixtureZeroSize =
+        """
+        [
+          {
+            "id": "v1",
+            "version_number": "1.0.0+26.1",
+            "files": [
+              {"url": "https://cdn.modrinth.com/pack.zip", "primary": true, "size": 0, "hashes": {"sha1": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}
+            ]
+          }
+        ]
+        """;
+    StubClient mockClient2 = new StubClient(fixtureZeroSize);
+    ModrinthResourcePackSource source2 =
+        new ModrinthResourcePackSource(mockClient2, "xyz", TEST_MINECRAFT_VERSION);
+    ExecutionException ex2 =
+        Assertions.assertThrows(
+            ExecutionException.class,
+            () -> source2.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_1).get());
+    Assertions.assertTrue(ex2.getCause().getMessage().contains("size must be greater than 0"));
+  }
+
+  @Test
+  void testRemainingBranchConditions() {
+    StubClient mockClient = new StubClient("[]");
+
+    // 1. ProjectId starts with '<' or is null
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () -> new ModrinthResourcePackSource(mockClient, null, "26.1"));
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () -> new ModrinthResourcePackSource(mockClient, "<your-project-id>", "26.1"));
+
+    // 2. VersionId is null
+    ModrinthResourcePackSource nullVerSource =
+        new ModrinthResourcePackSource(mockClient, "proj-id", "26.1", null);
+    Assertions.assertNotNull(nullVerSource);
+
+    // 3. Pinned versionId not found
+    ModrinthResourcePackSource pinnedMissing =
+        new ModrinthResourcePackSource(mockClient, "proj-id", "26.1", "pinned-404");
+    ExecutionException exPinned =
+        Assertions.assertThrows(
+            ExecutionException.class,
+            () ->
+                pinnedMissing.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_1).get());
+    Assertions.assertTrue(exPinned.getCause().getMessage().contains("pinned-404"));
+
+    // 4. URL not ending in .zip
+    String fixtureNonZip =
+        """
+        [
+          {
+            "id": "v1",
+            "version_number": "1.0.0+26.1",
+            "files": [
+              {"url": "https://cdn.modrinth.com/pack.jar", "primary": true, "size": 100, "hashes": {"sha1": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}
+            ]
+          }
+        ]
+        """;
+    ModrinthResourcePackSource nonZipSource =
+        new ModrinthResourcePackSource(new StubClient(fixtureNonZip), "proj-id", "26.1");
+    ExecutionException exNonZip =
+        Assertions.assertThrows(
+            ExecutionException.class,
+            () -> nonZipSource.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_1).get());
+    Assertions.assertTrue(exNonZip.getCause().getMessage().contains("must be HTTPS and .zip"));
+
+    // 5. Multiple versions in list where first doesn't match expectedVersion, and multiple files
+    // where first has primary: false
+    String fixtureMultiple =
+        """
+        [
+          {
+            "id": "old-v",
+            "version_number": "0.9.0",
+            "files": []
+          },
+          {
+            "id": "match-v",
+            "version_number": "1.0.0+26.1",
+            "files": [
+              {"url": "https://cdn.modrinth.com/secondary.zip", "primary": false, "size": 100, "hashes": {"sha1": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}},
+              {"url": "https://cdn.modrinth.com/primary.zip", "primary": true, "size": 200, "hashes": {"sha1": "cccccccccccccccccccccccccccccccccccccccc"}}
+            ]
+          }
+        ]
+        """;
+    ModrinthResourcePackSource multiSource =
+        new ModrinthResourcePackSource(new StubClient(fixtureMultiple), "proj-id", "26.1");
+    ResourcePackDescriptor multiDesc =
+        Assertions.assertDoesNotThrow(
+            () -> multiSource.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_1).get());
+    Assertions.assertEquals("https://cdn.modrinth.com/primary.zip", multiDesc.url());
+  }
 }

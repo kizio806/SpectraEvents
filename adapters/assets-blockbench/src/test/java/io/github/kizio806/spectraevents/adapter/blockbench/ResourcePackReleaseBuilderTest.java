@@ -29,6 +29,21 @@ class ResourcePackReleaseBuilderTest {
     }
   }
 
+  @Test
+  void throwsOnInvalidArguments() {
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () -> ResourcePackReleaseBuilder.main(new String[] {"only-one-arg"}));
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            ResourcePackReleaseBuilder.main(
+                new String[] {
+                  temporaryDirectory.resolve("non_existent").toString(),
+                  temporaryDirectory.resolve("out").toString()
+                }));
+  }
+
   private static String validProject() {
     return """
         {

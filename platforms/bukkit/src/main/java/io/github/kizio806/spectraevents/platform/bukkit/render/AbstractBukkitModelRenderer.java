@@ -1,0 +1,551 @@
+package io.github.kizio806.spectraevents.platform.bukkit.render;
+
+import io.github.kizio806.spectraevents.application.asset.GeneratedAssetItem;
+import io.github.kizio806.spectraevents.application.model.runtime.DiscoveredModelEntity;
+import io.github.kizio806.spectraevents.application.model.runtime.ModelAnchor;
+import io.github.kizio806.spectraevents.application.model.runtime.ModelRuntimeId;
+import io.github.kizio806.spectraevents.application.model.runtime.RenderedModelHandle;
+import io.github.kizio806.spectraevents.application.model.runtime.RenderedPartHandle;
+import io.github.kizio806.spectraevents.application.model.runtime.ResourceRole;
+import io.github.kizio806.spectraevents.application.port.ModelRendererPort;
+import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
+import io.github.kizio806.spectraevents.core.visual.model.BillboardMode;
+import io.github.kizio806.spectraevents.core.visual.model.BlockAssetRef;
+import io.github.kizio806.spectraevents.core.visual.model.DisplayTransformMode;
+import io.github.kizio806.spectraevents.core.visual.model.InteractionDefinition;
+import io.github.kizio806.spectraevents.core.visual.model.InteractionId;
+import io.github.kizio806.spectraevents.core.visual.model.ItemAssetRef;
+import io.github.kizio806.spectraevents.core.visual.model.ModelDefinition;
+import io.github.kizio806.spectraevents.core.visual.model.ModelId;
+import io.github.kizio806.spectraevents.core.visual.model.ModelPartDefinition;
+import io.github.kizio806.spectraevents.core.visual.model.ModelPartId;
+import io.github.kizio806.spectraevents.core.visual.model.ModelRenderProperties;
+import io.github.kizio806.spectraevents.core.visual.model.ModelTransform;
+import io.github.kizio806.spectraevents.core.visual.model.Quaternion;
+import io.github.kizio806.spectraevents.core.visual.model.TextAlignment;
+import io.github.kizio806.spectraevents.core.visual.model.TextAssetRef;
+import io.github.kizio806.spectraevents.core.visual.model.Vector3;
+import io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge;
+import io.github.kizio806.spectraevents.platform.bukkit.integration.item.CustomItemProvider;
+import io.github.kizio806.spectraevents.platform.bukkit.metadata.BukkitPdcKeys;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import org.bukkit.Bukkit;
+import org.bukkit.Color;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.entity.BlockDisplay;
+import org.bukkit.entity.Display;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Interaction;
+import org.bukkit.entity.ItemDisplay;
+import org.bukkit.entity.TextDisplay;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.Plugin;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
+
+/**
+ * Shared Bukkit model renderer providing native Display and Interaction entity management,
+ * transform matrix math, and persistent data tagging across platform implementations.
+ */
+public abstract class AbstractBukkitModelRenderer implements ModelRendererPort {
+
+  protected final Plugin plugin;
+  protected final CustomItemProvider customItemProvider;
+  protected final Map<ModelRuntimeId, RenderedModelHandle> activeHandles =
+      new ConcurrentHashMap<>();
+
+  protected AbstractBukkitModelRenderer(Plugin plugin, CustomItemProvider customItemProvider) {
+    this.plugin = Objects.requireNonNull(plugin, "plugin cannot be null");
+    this.customItemProvider = customItemProvider;
+  }
+
+  protected AbstractBukkitModelRenderer(Plugin plugin) {
+    this(plugin, null);
+  }
+
+  @Override
+  public RenderedModelHandle spawnModel(
+      ModelRuntimeId runtimeId,
+      ModelDefinition definition,
+      ModelAnchor anchor,
+      EventInstanceId ownerEventId) {
+
+    Objects.requireNonNull(runtimeId, "runtimeId cannot be null");
+    Objects.requireNonNull(definition, "definition cannot be null");
+    Objects.requireNonNull(anchor, "anchor cannot be null");
+
+    World world = Bukkit.getWorld(anchor.worldName());
+    if (world == null) {
+      return null;
+    }
+
+    Location rootLoc =
+        new Location(world, anchor.x(), anchor.y(), anchor.z(), anchor.yaw(), anchor.pitch());
+
+    Map<ModelPartId, RenderedPartHandle> spawnedParts = new HashMap<>();
+    Map<InteractionId, UUID> spawnedInteractions = new HashMap<>();
+    List<Entity> spawnedBatch = new ArrayList<>();
+
+    try {
+      for (ModelPartDefinition part : definition.parts()) {
+        Entity partEntity =
+            spawnPartEntity(world, rootLoc, runtimeId, definition.id(), ownerEventId, part);
+        spawnedBatch.add(partEntity);
+        spawnedParts.put(
+            part.partId(), new RenderedPartHandle(part.partId(), partEntity.getUniqueId()));
+      }
+
+      for (InteractionDefinition interaction : definition.interactions()) {
+        Vector3 offset = interaction.composedOffset();
+        Location interactionLoc = rootLoc.clone().add(offset.x(), offset.y(), offset.z());
+
+        Interaction interactionEntity =
+            world.spawn(
+                interactionLoc,
+                Interaction.class,
+                entity -> {
+                  entity.setInteractionWidth(interaction.width());
+                  entity.setInteractionHeight(interaction.height());
+                  entity.setPersistent(false);
+
+                  PersistentDataContainer pdc = entity.getPersistentDataContainer();
+                  pdc.set(
+                      BukkitPdcKeys.MODEL_INSTANCE_ID,
+                      PersistentDataType.STRING,
+                      runtimeId.value());
+                  pdc.set(
+                      BukkitPdcKeys.MODEL_DEFINITION_ID,
+                      PersistentDataType.STRING,
+                      definition.id().value());
+                  pdc.set(
+                      BukkitPdcKeys.MODEL_PART_ID,
+                      PersistentDataType.STRING,
+                      interaction.interactionId().value());
+                  pdc.set(
+                      BukkitPdcKeys.RESOURCE_ROLE,
+                      PersistentDataType.STRING,
+                      ResourceRole.INTERACTION_HITBOX.name());
+                  if (ownerEventId != null) {
+                    pdc.set(
+                        BukkitPdcKeys.EVENT_INSTANCE_ID,
+                        PersistentDataType.STRING,
+                        ownerEventId.toString());
+                  }
+                });
+
+        spawnedBatch.add(interactionEntity);
+        spawnedInteractions.put(interaction.interactionId(), interactionEntity.getUniqueId());
+      }
+
+      RenderedModelHandle handle =
+          new RenderedModelHandle(
+              runtimeId, definition.id(), ownerEventId, anchor, spawnedParts, spawnedInteractions);
+      activeHandles.put(runtimeId, handle);
+      return handle;
+
+    } catch (RuntimeException e) {
+      for (Entity entity : spawnedBatch) {
+        if (entity != null && entity.isValid()) {
+          entity.remove();
+        }
+      }
+      return null;
+    }
+  }
+
+  protected Entity spawnPartEntity(
+      World world,
+      Location rootLoc,
+      ModelRuntimeId runtimeId,
+      ModelId definitionId,
+      EventInstanceId ownerEventId,
+      ModelPartDefinition part) {
+
+    ModelTransform transform = part.composedTransform();
+    Matrix4f matrix = toMatrix4f(transform);
+
+    return switch (part.type()) {
+      case ITEM_DISPLAY -> {
+        ItemAssetRef itemRef = (ItemAssetRef) part.visualAsset();
+        ItemStack itemStack = resolveItemStack(itemRef.itemRef());
+
+        yield world.spawn(
+            rootLoc,
+            ItemDisplay.class,
+            entity -> {
+              entity.setItemStack(itemStack);
+              entity.setTransformationMatrix(matrix);
+              entity.setItemDisplayTransform(toItemDisplayTransform(itemRef.transformMode()));
+              entity.setPersistent(false);
+              applyRenderProperties(entity, part.renderProperties());
+              tagPdc(
+                  entity.getPersistentDataContainer(),
+                  runtimeId,
+                  definitionId,
+                  part.partId().value(),
+                  ResourceRole.VISUAL_PART,
+                  ownerEventId);
+            });
+      }
+      case BLOCK_DISPLAY -> {
+        BlockAssetRef blockRef = (BlockAssetRef) part.visualAsset();
+        org.bukkit.block.data.BlockData blockData = resolveBlockData(blockRef.blockStateRef());
+
+        yield world.spawn(
+            rootLoc,
+            BlockDisplay.class,
+            entity -> {
+              entity.setBlock(blockData);
+              entity.setTransformationMatrix(matrix);
+              entity.setPersistent(false);
+              applyRenderProperties(entity, part.renderProperties());
+              tagPdc(
+                  entity.getPersistentDataContainer(),
+                  runtimeId,
+                  definitionId,
+                  part.partId().value(),
+                  ResourceRole.VISUAL_PART,
+                  ownerEventId);
+            });
+      }
+      case TEXT_DISPLAY -> {
+        TextAssetRef textRef = (TextAssetRef) part.visualAsset();
+
+        yield world.spawn(
+            rootLoc,
+            TextDisplay.class,
+            entity -> {
+              configureTextDisplay(entity, textRef);
+              entity.setTransformationMatrix(matrix);
+              entity.setPersistent(false);
+              entity.setAlignment(toTextAlignment(textRef.alignment()));
+              entity.setLineWidth(textRef.lineWidth());
+              entity.setTextOpacity((byte) textRef.textOpacity());
+              entity.setShadowed(textRef.shadow());
+              entity.setSeeThrough(textRef.seeThrough());
+              applyRenderProperties(entity, part.renderProperties());
+              tagPdc(
+                  entity.getPersistentDataContainer(),
+                  runtimeId,
+                  definitionId,
+                  part.partId().value(),
+                  ResourceRole.VISUAL_PART,
+                  ownerEventId);
+            });
+      }
+    };
+  }
+
+  protected void configureTextDisplay(TextDisplay entity, TextAssetRef textRef) {
+    if (textRef.text() != null && !textRef.text().isBlank()) {
+      BukkitPlatformBridge.setText(entity, textRef.text(), null, null);
+    }
+  }
+
+  protected void applyRenderProperties(Display display, ModelRenderProperties props) {
+    display.setBillboard(toBillboardMode(props.billboard()));
+    display.setShadowRadius(props.shadowRadius());
+    display.setShadowStrength(props.shadowStrength());
+    display.setViewRange(props.viewRange());
+
+    if (props.brightnessBlock() >= 0 || props.brightnessSky() >= 0) {
+      int block = Math.max(0, props.brightnessBlock());
+      int sky = Math.max(0, props.brightnessSky());
+      display.setBrightness(new Display.Brightness(block, sky));
+    }
+    if (props.glowColor() != null && !props.glowColor().isBlank()) {
+      display.setGlowing(true);
+      try {
+        display.setGlowColorOverride(
+            Color.fromRGB(Integer.parseInt(props.glowColor().replace("#", ""), 16)));
+      } catch (IllegalArgumentException ignored) {
+        plugin.getLogger().warning("Failed to parse glow color: " + ignored.getMessage());
+      }
+    }
+    if (props.interpolationDurationTicks() > 0) {
+      display.setInterpolationDelay(props.interpolationDelayTicks());
+      display.setInterpolationDuration(props.interpolationDurationTicks());
+    }
+    if (props.teleportDurationTicks() > 0) {
+      display.setTeleportDuration(props.teleportDurationTicks());
+    }
+  }
+
+  protected void tagPdc(
+      PersistentDataContainer pdc,
+      ModelRuntimeId runtimeId,
+      ModelId definitionId,
+      String partId,
+      ResourceRole role,
+      EventInstanceId ownerEventId) {
+    pdc.set(BukkitPdcKeys.MODEL_INSTANCE_ID, PersistentDataType.STRING, runtimeId.value());
+    pdc.set(BukkitPdcKeys.MODEL_DEFINITION_ID, PersistentDataType.STRING, definitionId.value());
+    pdc.set(BukkitPdcKeys.MODEL_PART_ID, PersistentDataType.STRING, partId);
+    pdc.set(BukkitPdcKeys.RESOURCE_ROLE, PersistentDataType.STRING, role.name());
+    if (ownerEventId != null) {
+      pdc.set(BukkitPdcKeys.EVENT_INSTANCE_ID, PersistentDataType.STRING, ownerEventId.toString());
+    }
+  }
+
+  @Override
+  public boolean updatePartTransform(
+      RenderedModelHandle handle, ModelPartId partId, ModelTransform newLocalTransform) {
+    return updatePartTransform(handle, partId, newLocalTransform, 0);
+  }
+
+  @Override
+  public boolean updatePartTransform(
+      RenderedModelHandle handle,
+      ModelPartId partId,
+      ModelTransform newLocalTransform,
+      int interpolationDurationTicks) {
+    Objects.requireNonNull(handle, "handle cannot be null");
+    Objects.requireNonNull(partId, "partId cannot be null");
+    Objects.requireNonNull(newLocalTransform, "newLocalTransform cannot be null");
+
+    RenderedPartHandle partHandle = handle.parts().get(partId);
+    if (partHandle == null) return false;
+
+    Entity entity = Bukkit.getEntity(partHandle.entityUuid());
+    if (entity instanceof Display display && entity.isValid()) {
+      if (interpolationDurationTicks >= 0) {
+        display.setInterpolationDuration(interpolationDurationTicks);
+      }
+      display.setTransformationMatrix(toMatrix4f(newLocalTransform));
+      return true;
+    }
+    return false;
+  }
+
+  @Override
+  public boolean updateModelTransform(RenderedModelHandle handle, ModelAnchor newAnchor) {
+    Objects.requireNonNull(handle, "handle cannot be null");
+    Objects.requireNonNull(newAnchor, "newAnchor cannot be null");
+
+    World world = Bukkit.getWorld(newAnchor.worldName());
+    if (world == null) {
+      return false;
+    }
+
+    Location newLoc =
+        new Location(
+            world, newAnchor.x(), newAnchor.y(), newAnchor.z(), newAnchor.yaw(), newAnchor.pitch());
+
+    List<Entity> entities = new ArrayList<>();
+    for (RenderedPartHandle partHandle : handle.parts().values()) {
+      Entity entity = Bukkit.getEntity(partHandle.entityUuid());
+      if (entity != null && entity.isValid()) {
+        entities.add(entity);
+      }
+    }
+    for (UUID interactionUuid : handle.interactions().values()) {
+      Entity entity = Bukkit.getEntity(interactionUuid);
+      if (entity != null && entity.isValid()) {
+        entities.add(entity);
+      }
+    }
+
+    applyTransformTeleports(handle, entities, newLoc);
+
+    activeHandles.put(
+        handle.runtimeId(),
+        new RenderedModelHandle(
+            handle.runtimeId(),
+            handle.definitionId(),
+            handle.ownerEventId(),
+            newAnchor,
+            handle.parts(),
+            handle.interactions()));
+    return true;
+  }
+
+  /**
+   * Applies location teleports to all valid entities in the model.
+   *
+   * @param handle the model handle being transformed
+   * @param entities the list of valid entities belonging to the model
+   * @param newLoc the target location
+   */
+  protected abstract void applyTransformTeleports(
+      RenderedModelHandle handle, List<Entity> entities, Location newLoc);
+
+  @Override
+  public boolean removeModel(RenderedModelHandle handle) {
+    Objects.requireNonNull(handle, "handle cannot be null");
+    activeHandles.remove(handle.runtimeId());
+    removeEntities(handle);
+    return true;
+  }
+
+  protected static void removeEntities(RenderedModelHandle handle) {
+    for (RenderedPartHandle partHandle : handle.parts().values()) {
+      Entity entity = Bukkit.getEntity(partHandle.entityUuid());
+      if (entity != null && entity.isValid()) {
+        entity.remove();
+      }
+    }
+    for (UUID interactionUuid : handle.interactions().values()) {
+      Entity entity = Bukkit.getEntity(interactionUuid);
+      if (entity != null && entity.isValid()) {
+        entity.remove();
+      }
+    }
+  }
+
+  public void cleanupInstance(EventInstanceId ownerEventId) {
+    if (ownerEventId == null) return;
+    for (RenderedModelHandle handle : List.copyOf(activeHandles.values())) {
+      if (ownerEventId.equals(handle.ownerEventId())) {
+        removeModel(handle);
+      }
+    }
+  }
+
+  public int resourceCount(EventInstanceId ownerEventId) {
+    return activeHandles.values().stream()
+        .filter(handle -> ownerEventId.equals(handle.ownerEventId()))
+        .mapToInt(handle -> handle.parts().size() + handle.interactions().size())
+        .sum();
+  }
+
+  @Override
+  public void removeAll() {
+    for (RenderedModelHandle handle : List.copyOf(activeHandles.values())) {
+      removeModel(handle);
+    }
+    activeHandles.clear();
+  }
+
+  @Override
+  public List<DiscoveredModelEntity> reconcileEntities() {
+    List<DiscoveredModelEntity> discovered = new ArrayList<>();
+    for (World world : Bukkit.getWorlds()) {
+      for (Entity entity : world.getEntities()) {
+        PersistentDataContainer pdc = entity.getPersistentDataContainer();
+        if (pdc.has(BukkitPdcKeys.MODEL_INSTANCE_ID, PersistentDataType.STRING)) {
+          String runtimeIdStr = pdc.get(BukkitPdcKeys.MODEL_INSTANCE_ID, PersistentDataType.STRING);
+          String defIdStr = pdc.get(BukkitPdcKeys.MODEL_DEFINITION_ID, PersistentDataType.STRING);
+          String partIdStr = pdc.get(BukkitPdcKeys.MODEL_PART_ID, PersistentDataType.STRING);
+          String roleStr = pdc.get(BukkitPdcKeys.RESOURCE_ROLE, PersistentDataType.STRING);
+          String eventIdStr = pdc.get(BukkitPdcKeys.EVENT_INSTANCE_ID, PersistentDataType.STRING);
+
+          if (runtimeIdStr != null && defIdStr != null && partIdStr != null && roleStr != null) {
+            ResourceRole role = ResourceRole.valueOf(roleStr);
+            EventInstanceId eventId =
+                eventIdStr != null ? new EventInstanceId(UUID.fromString(eventIdStr)) : null;
+
+            discovered.add(
+                new DiscoveredModelEntity(
+                    entity.getUniqueId(),
+                    ModelRuntimeId.of(runtimeIdStr),
+                    new ModelId(defIdStr),
+                    partIdStr,
+                    role,
+                    eventId));
+          }
+        }
+      }
+    }
+    return discovered;
+  }
+
+  protected ItemStack resolveItemStack(String itemRef) {
+    GeneratedAssetItem.ParsedReference generatedAsset = GeneratedAssetItem.parse(itemRef);
+    if (generatedAsset != null) {
+      ItemStack generatedItem = new ItemStack(Material.PAPER);
+      org.bukkit.inventory.meta.ItemMeta itemMeta = generatedItem.getItemMeta();
+      if (itemMeta != null) {
+        itemMeta.setItemModel(
+            new org.bukkit.NamespacedKey(
+                GeneratedAssetItem.NAMESPACE,
+                generatedAsset.modelId() + "/" + generatedAsset.nodeId()));
+        if (!generatedItem.setItemMeta(itemMeta)) {
+          throw new IllegalStateException("Could not apply generated asset item metadata");
+        }
+      }
+      return generatedItem;
+    }
+    if (customItemProvider != null && customItemProvider.isAvailable()) {
+      ItemStack custom = customItemProvider.resolveItem(itemRef, 1);
+      if (custom != null) {
+        return custom;
+      }
+    }
+    String cleanRef =
+        itemRef != null ? itemRef.replace("minecraft:", "").toUpperCase(Locale.ROOT) : "";
+    Material mat = Material.matchMaterial(cleanRef);
+    if (mat == null) {
+      mat = Material.MAGMA_BLOCK;
+    }
+    return new ItemStack(mat);
+  }
+
+  protected org.bukkit.block.data.BlockData resolveBlockData(String blockStateRef) {
+    try {
+      return Bukkit.createBlockData(blockStateRef);
+    } catch (IllegalArgumentException e) {
+      Material mat = Material.matchMaterial(blockStateRef);
+      if (mat != null && mat.isBlock()) {
+        return mat.createBlockData();
+      }
+      return Material.STONE.createBlockData();
+    }
+  }
+
+  public Matrix4f toMatrix4f(ModelTransform transform) {
+    Vector3 t = transform.translation();
+    Quaternion r = transform.rotation();
+    Vector3 s = transform.scale();
+    Vector3 p = transform.pivot();
+
+    Quaternionf q = new Quaternionf(r.x(), r.y(), r.z(), r.w());
+
+    return new Matrix4f()
+        .translation(t.x(), t.y(), t.z())
+        .rotate(q)
+        .scale(s.x(), s.y(), s.z())
+        .translate(-p.x(), -p.y(), -p.z());
+  }
+
+  protected Display.Billboard toBillboardMode(BillboardMode mode) {
+    return switch (mode) {
+      case FIXED -> Display.Billboard.FIXED;
+      case CENTER -> Display.Billboard.CENTER;
+      case VERTICAL -> Display.Billboard.VERTICAL;
+      case HORIZONTAL -> Display.Billboard.HORIZONTAL;
+    };
+  }
+
+  protected ItemDisplay.ItemDisplayTransform toItemDisplayTransform(DisplayTransformMode mode) {
+    return switch (mode) {
+      case NONE -> ItemDisplay.ItemDisplayTransform.NONE;
+      case THIRDPERSON_LEFTHAND -> ItemDisplay.ItemDisplayTransform.THIRDPERSON_LEFTHAND;
+      case THIRDPERSON_RIGHTHAND -> ItemDisplay.ItemDisplayTransform.THIRDPERSON_RIGHTHAND;
+      case FIRSTPERSON_LEFTHAND -> ItemDisplay.ItemDisplayTransform.FIRSTPERSON_LEFTHAND;
+      case FIRSTPERSON_RIGHTHAND -> ItemDisplay.ItemDisplayTransform.FIRSTPERSON_RIGHTHAND;
+      case HEAD -> ItemDisplay.ItemDisplayTransform.HEAD;
+      case GUI -> ItemDisplay.ItemDisplayTransform.GUI;
+      case GROUND -> ItemDisplay.ItemDisplayTransform.GROUND;
+      case FIXED -> ItemDisplay.ItemDisplayTransform.FIXED;
+    };
+  }
+
+  protected TextDisplay.TextAlignment toTextAlignment(TextAlignment alignment) {
+    return switch (alignment) {
+      case CENTER -> TextDisplay.TextAlignment.CENTER;
+      case LEFT -> TextDisplay.TextAlignment.LEFT;
+      case RIGHT -> TextDisplay.TextAlignment.RIGHT;
+    };
+  }
+}

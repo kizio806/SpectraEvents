@@ -54,3 +54,17 @@ SpectraEvents enforces a strict **Single JAR per Server Family** architectural i
 - single-writer asynchronous SQLite persistence with WAL mode and crash recovery
 - durable mailbox claim lifecycle with idempotent reward delivery
 - comprehensive unit test coverage ($\ge 95\%$ on core, $\ge 85\%$ on application)
+
+## Risks To Watch
+
+- Folia region scheduling compatibility requires strict task confinement to region threads; global tasks must never mutate region-bound entity transforms
+- Spigot runtime relies on reflection fallbacks for modern Adventure text and custom name APIs to maintain binary compatibility without Paper-only linkages
+- Blockbench asset compilation and resource pack generation must stay synchronized with Minecraft pack format specifications (`min_format` / `max_format`)
+- SQLite single-writer persistence depends on bounded write queues; spikes during massive participant events require monitoring peak depth
+
+## Recommended Next Quality Milestones
+
+1. Expand automated integration test coverage across Spigot and Paper platform adapter layers.
+2. Maintain Folia concurrency safety invariants with multi-threaded stress tests.
+3. Keep Blockbench asset compilation verified against newest resource pack format revisions.
+4. Track third-party Gradle plugin deprecations (such as ErrorProne Gradle plugin `setVisible`) ahead of future Gradle major upgrades.

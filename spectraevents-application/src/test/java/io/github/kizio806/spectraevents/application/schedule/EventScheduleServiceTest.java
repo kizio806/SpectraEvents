@@ -8,6 +8,10 @@ import io.github.kizio806.spectraevents.application.execution.EventLocation;
 import io.github.kizio806.spectraevents.application.port.EventTaskScheduler;
 import io.github.kizio806.spectraevents.application.repository.InMemoryEventInstanceRepository;
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
+import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
+import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
+import io.github.kizio806.spectraevents.core.event.phase.PhaseDefinition;
+import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import java.time.Clock;
 import java.time.Duration;
@@ -15,6 +19,8 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class EventScheduleServiceTest {
@@ -93,17 +99,10 @@ class EventScheduleServiceTest {
     assertTrue(diagnostics.getFirst().contains("daily-event started sample"));
   }
 
-  private io.github.kizio806.spectraevents.core.event.definition.EventDefinition sampleDefinition(
-      String id) {
-    io.github.kizio806.spectraevents.core.event.phase.PhaseId phaseId =
-        new io.github.kizio806.spectraevents.core.event.phase.PhaseId("active");
-    io.github.kizio806.spectraevents.core.event.phase.PhaseDefinition phase =
-        new io.github.kizio806.spectraevents.core.event.phase.PhaseDefinition(
-            phaseId, java.util.Set.of(), java.util.List.of(), java.util.List.of());
-    return new io.github.kizio806.spectraevents.core.event.definition.EventDefinition(
-        new io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId(id),
-        phaseId,
-        java.util.Map.of(phaseId, phase));
+  private EventDefinition sampleDefinition(String id) {
+    PhaseId phaseId = new PhaseId("active");
+    PhaseDefinition phase = new PhaseDefinition(phaseId, Set.of(), List.of(), List.of());
+    return new EventDefinition(new EventDefinitionId(id), phaseId, Map.of(phaseId, phase));
   }
 
   private static final class FakeScheduler implements EventTaskScheduler {

@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -79,9 +80,13 @@ public final class SpigotEventCommandHandler implements SpigotSubcommandHandler 
     helper.require(sender, "spectraevents.event.start");
     helper.requireArguments(arguments, 2, "/spectraevents event start <definition>");
     Location bukkitLocation = helper.eventLocation(sender);
+    World world = bukkitLocation.getWorld();
+    if (world == null) {
+      throw new IllegalStateException("Event location world is not loaded");
+    }
     EventLocation location =
         new EventLocation(
-            bukkitLocation.getWorld().getName(),
+            world.getName(),
             bukkitLocation.getX(),
             bukkitLocation.getY(),
             bukkitLocation.getZ(),

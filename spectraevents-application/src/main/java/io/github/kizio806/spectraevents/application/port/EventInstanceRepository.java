@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.application.port;
 
+import io.github.kizio806.spectraevents.application.execution.EventRuntimeState;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import java.util.List;
@@ -24,15 +25,13 @@ public interface EventInstanceRepository {
    * Stores the runtime state associated with the event instance. Useful for persisting mutable
    * state like health or claims without overwriting the base instance.
    */
-  default void saveState(
-      io.github.kizio806.spectraevents.application.execution.EventRuntimeState state) {}
+  default void saveState(EventRuntimeState state) {}
 
   /**
    * Stores runtime state and returns only after the storage implementation has durably accepted the
    * write. Implementations that do not buffer writes may use the default implementation.
    */
-  default void saveStateDurably(
-      io.github.kizio806.spectraevents.application.execution.EventRuntimeState state) {
+  default void saveStateDurably(EventRuntimeState state) {
     saveState(state);
   }
 
@@ -40,8 +39,7 @@ public interface EventInstanceRepository {
    * Persists state durably without blocking a platform-owned thread. The returned future completes
    * only after the write has committed; callers must wait for it before an irreversible action.
    */
-  default CompletableFuture<Void> saveStateDurablyAsync(
-      io.github.kizio806.spectraevents.application.execution.EventRuntimeState state) {
+  default CompletableFuture<Void> saveStateDurablyAsync(EventRuntimeState state) {
     try {
       saveStateDurably(state);
       return CompletableFuture.completedFuture(null);
@@ -54,17 +52,14 @@ public interface EventInstanceRepository {
    * Stores a newly-created instance and its initial runtime state as one durable unit when the
    * backing store supports transactions.
    */
-  default void saveWithStateDurably(
-      EventInstance eventInstance,
-      io.github.kizio806.spectraevents.application.execution.EventRuntimeState state) {
+  default void saveWithStateDurably(EventInstance eventInstance, EventRuntimeState state) {
     save(eventInstance);
     saveStateDurably(state);
   }
 
   /** Stores a new instance and its initial state without blocking a platform-owned thread. */
   default CompletableFuture<Void> saveWithStateDurablyAsync(
-      EventInstance eventInstance,
-      io.github.kizio806.spectraevents.application.execution.EventRuntimeState state) {
+      EventInstance eventInstance, EventRuntimeState state) {
     try {
       saveWithStateDurably(eventInstance, state);
       return CompletableFuture.completedFuture(null);
@@ -74,8 +69,7 @@ public interface EventInstanceRepository {
   }
 
   /** Finds the runtime state by identity, if previously saved. */
-  default Optional<io.github.kizio806.spectraevents.application.execution.EventRuntimeState>
-      findState(EventInstanceId eventInstanceId) {
+  default Optional<EventRuntimeState> findState(EventInstanceId eventInstanceId) {
     return Optional.empty();
   }
 

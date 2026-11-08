@@ -48,7 +48,7 @@ class BukkitResourcePackDeliveryBootstrapTest {
                 new Class<?>[] {Server.class},
                 (proxy, method, args) -> {
                   if ("getBukkitVersion".equals(method.getName())) {
-                    return "1.21.4-R0.1-SNAPSHOT";
+                    return "26.1.0-R0.1-SNAPSHOT";
                   }
                   return null;
                 });
@@ -65,7 +65,7 @@ class BukkitResourcePackDeliveryBootstrapTest {
                   return null;
                 });
 
-    assertEquals("1.21.4", BukkitResourcePackDeliveryBootstrap.minecraftVersion(dummyPlugin));
+    assertEquals("26.1.0", BukkitResourcePackDeliveryBootstrap.minecraftVersion(dummyPlugin));
   }
 
   @Test
@@ -77,7 +77,7 @@ class BukkitResourcePackDeliveryBootstrapTest {
                 new Class<?>[] {Server.class},
                 (proxy, method, args) -> {
                   if ("getBukkitVersion".equals(method.getName())) {
-                    return "1.21.4";
+                    return "26.1.0";
                   }
                   return null;
                 });
@@ -94,12 +94,12 @@ class BukkitResourcePackDeliveryBootstrapTest {
                   return null;
                 });
 
-    assertEquals("1.21.4", BukkitResourcePackDeliveryBootstrap.minecraftVersion(dummyPlugin));
+    assertEquals("26.1.0", BukkitResourcePackDeliveryBootstrap.minecraftVersion(dummyPlugin));
   }
 
   @Test
   void testIsEnabled() throws IOException {
-    Plugin dummyPlugin = createMockPlugin(tempDir, "1.21.4");
+    Plugin dummyPlugin = createMockPlugin(tempDir, "26.1.0");
     assertFalse(BukkitResourcePackDeliveryBootstrap.isEnabled(dummyPlugin));
 
     Path configFile = tempDir.resolve(BukkitResourcePackDeliveryBootstrap.CONFIG_FILE);
@@ -114,7 +114,7 @@ class BukkitResourcePackDeliveryBootstrapTest {
 
   @Test
   void testConfigureWhenDisabled() throws IOException {
-    Plugin dummyPlugin = createMockPlugin(tempDir, "1.21.4");
+    Plugin dummyPlugin = createMockPlugin(tempDir, "26.1.0");
     LocaleCatalog locales = new FileSystemLocaleLoader(tempDir).loadCatalog("en-US");
 
     CompletableFuture<Void> future =
@@ -127,6 +127,39 @@ class BukkitResourcePackDeliveryBootstrapTest {
 
     assertNotNull(future);
     assertNull(future.join());
+  }
+
+  @Test
+  void testBootstrapDeliveryWhenEnabledWithManualUrl() throws Exception {
+    String yaml =
+        "enabled: true\n"
+            + "required: false\n"
+            + "url: \"https://example.com/pack.zip\"\n"
+            + "sha1: \"0123456789abcdef0123456789abcdef01234567\"\n"
+            + "prompt: \"pack.prompt\"\n";
+    Files.writeString(tempDir.resolve(BukkitResourcePackDeliveryBootstrap.CONFIG_FILE), yaml);
+
+    Plugin plugin = createMockPlugin(tempDir, "26.1.0-R0.1-SNAPSHOT");
+    assertTrue(BukkitResourcePackDeliveryBootstrap.isEnabled(plugin));
+
+    AssetTargetProfile profile = AssetTargetProfile.forMinecraftVersion("26.1.0");
+    LocaleCatalog locales = LocaleCatalog.of(java.util.Map.of());
+
+    CompletableFuture<Void> future =
+        BukkitResourcePackDeliveryBootstrap.configure(
+            plugin,
+            "1.0.0",
+            profile,
+            locales,
+            (service, settings) ->
+                (Listener)
+                    Proxy.newProxyInstance(
+                        Listener.class.getClassLoader(),
+                        new Class<?>[] {Listener.class},
+                        (p, m, a) -> null));
+
+    assertNotNull(future);
+    future.join();
   }
 
   @Test

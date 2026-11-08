@@ -146,6 +146,7 @@ admin:
     back: "Wróć do konfiguracji"
     saved: "Zapisano %parameter% dla %event%: %value%."
 command:
+  gui-player-only: "Panel administracyjny może otworzyć tylko gracz w grze."
   events:
     usage-title: "Komendy eventów:"
     usage-start: "/spectraevents event start <event-id>"
@@ -175,6 +176,15 @@ command:
     reconcile-resolved: "Roszczenie nagrody %id% uzgodniono jako %decision%."
     reconcile-not-found: "Roszczenie nagrody %id% nie oczekuje już na uzgodnienie."
   paper:
+    failed: "Komenda nie powiodła się: %reason%"
+    schedules-title: "Harmonogramy: %count%"
+    schedule-entry: " - %id% → %definition% (%zone%)"
+    schedules-reloaded: "Wczytano harmonogramy=%loaded% błędów=%failed%"
+    diagnostic-entry: " - %path%: %message%"
+    rewards-title: "Oczekujące nagrody: %count%"
+    reward-entry: " - %id% (%count% pozycji)"
+    reward-busy: "Ta nagroda jest już dostarczana."
+    reward-unavailable: "Ta nagroda nie jest dostępna."
     schedules-read-failed: "Nie można odczytać schedules.yml: %reason%"
     rewards-player-only: "Nagrody są dostępne tylko dla graczy w grze."
     invalid-reward-id: "Nieprawidłowy identyfikator odbioru nagrody."

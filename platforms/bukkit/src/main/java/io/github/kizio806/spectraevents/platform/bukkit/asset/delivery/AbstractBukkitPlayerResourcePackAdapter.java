@@ -52,30 +52,47 @@ public abstract class AbstractBukkitPlayerResourcePackAdapter implements Listene
 
   @EventHandler
   public void onPackStatus(PlayerResourcePackStatusEvent event) {
+    if (event == null || event.getStatus() == null) {
+      return;
+    }
     PlayerResourcePackState state = mapStatus(event.getStatus());
+    if (state == null) {
+      return;
+    }
     service.updateState(event.getPlayer().getUniqueId(), state);
     if (service.isRequired()
-        && (state == PlayerResourcePackState.DECLINED || state == PlayerResourcePackState.FAILED)) {
+        && (state == PlayerResourcePackState.DECLINED
+            || state == PlayerResourcePackState.FAILED
+            || state == PlayerResourcePackState.DISCARDED)) {
       kickPlayer(event.getPlayer(), locales.message("messages.resource-pack-required"));
     }
   }
 
   @EventHandler
   public void onQuit(PlayerQuitEvent event) {
-    service.removePlayer(event.getPlayer().getUniqueId());
+    if (event != null && event.getPlayer() != null) {
+      service.removePlayer(event.getPlayer().getUniqueId());
+    }
   }
 
   protected abstract void sendResourcePack(Player player, ResourcePackDescriptor pack);
 
   protected abstract void kickPlayer(Player player, String message);
 
-  protected PlayerResourcePackState mapStatus(PlayerResourcePackStatusEvent.Status status) {
+  public PlayerResourcePackState mapStatus(PlayerResourcePackStatusEvent.Status status) {
+    if (status == null) {
+      return null;
+    }
     return switch (status) {
       case ACCEPTED -> PlayerResourcePackState.ACCEPTED;
       case DECLINED -> PlayerResourcePackState.DECLINED;
       case FAILED_DOWNLOAD -> PlayerResourcePackState.FAILED;
       case SUCCESSFULLY_LOADED -> PlayerResourcePackState.LOADED;
-      default -> PlayerResourcePackState.FAILED;
+      case DOWNLOADED -> PlayerResourcePackState.DOWNLOADED;
+      case INVALID_URL -> PlayerResourcePackState.FAILED;
+      case FAILED_RELOAD -> PlayerResourcePackState.FAILED;
+      case DISCARDED -> PlayerResourcePackState.DISCARDED;
+      default -> null;
     };
   }
 

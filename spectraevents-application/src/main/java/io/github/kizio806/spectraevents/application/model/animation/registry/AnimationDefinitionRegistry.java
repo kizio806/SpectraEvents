@@ -3,6 +3,9 @@ package io.github.kizio806.spectraevents.application.model.animation.registry;
 import io.github.kizio806.spectraevents.application.model.animation.compiler.CompiledAnimation;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationId;
 import io.github.kizio806.spectraevents.core.visual.model.ModelId;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -41,17 +44,17 @@ public class AnimationDefinitionRegistry {
     animations.clear();
   }
 
-  public java.util.Collection<CompiledAnimation> all() {
+  public Collection<CompiledAnimation> all() {
     return animations.values();
   }
 
   /** Returns every registered animation for one model, in deterministic display order. */
-  public java.util.List<CompiledAnimation> forModel(ModelId modelId) {
+  public List<CompiledAnimation> forModel(ModelId modelId) {
     Objects.requireNonNull(modelId, "modelId cannot be null");
     return animations.entrySet().stream()
         .filter(entry -> entry.getKey().modelId().equals(modelId))
         .map(Map.Entry::getValue)
-        .sorted(java.util.Comparator.comparing(animation -> animation.definition().id().value()))
+        .sorted(Comparator.comparing(animation -> animation.definition().id().value()))
         .toList();
   }
 

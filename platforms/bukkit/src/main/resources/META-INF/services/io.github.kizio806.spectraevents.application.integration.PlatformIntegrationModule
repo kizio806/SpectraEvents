@@ -1,0 +1,4 @@
+io.github.kizio806.spectraevents.platform.bukkit.integration.PlaceholderAPIIntegration
+io.github.kizio806.spectraevents.platform.bukkit.integration.LuckPermsIntegration
+io.github.kizio806.spectraevents.platform.bukkit.integration.WorldGuardIntegration
+io.github.kizio806.spectraevents.platform.bukkit.integration.VaultIntegration

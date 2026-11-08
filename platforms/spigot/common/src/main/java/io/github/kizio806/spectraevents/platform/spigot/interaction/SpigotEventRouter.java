@@ -4,6 +4,7 @@ import io.github.kizio806.spectraevents.application.config.compiled.ConfiguredTr
 import io.github.kizio806.spectraevents.application.execution.EventExecutionEngine;
 import io.github.kizio806.spectraevents.application.execution.ExecutionContext;
 import io.github.kizio806.spectraevents.application.service.EventOrchestrationService;
+import io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers.CombatDamageTrigger;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.platform.bukkit.metadata.BukkitPdcKeys;
 import java.util.Map;
@@ -54,8 +55,7 @@ public final class SpigotEventRouter implements Listener {
       boolean handled =
           executionEngine.evaluateTrigger(
               instanceId,
-              new io.github.kizio806.spectraevents.core.event.execution.trigger.CoreTriggers
-                  .CombatDamageTrigger(),
+              new CombatDamageTrigger(),
               ExecutionContext.withCombatDamage(player, player.getUniqueId(), finalDamage));
       return handled || handleInteraction(player, entity);
     } catch (IllegalArgumentException ignored) {

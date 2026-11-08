@@ -11,11 +11,14 @@ import io.github.kizio806.spectraevents.application.model.animation.spec.Keyfram
 import io.github.kizio806.spectraevents.application.model.spec.InteractionSpec;
 import io.github.kizio806.spectraevents.application.model.spec.ModelPartSpec;
 import io.github.kizio806.spectraevents.application.model.spec.ModelSpec;
+import io.github.kizio806.spectraevents.application.model.spec.RenderPropertiesSpec;
 import io.github.kizio806.spectraevents.application.model.spec.TransformSpec;
 import io.github.kizio806.spectraevents.core.visual.animation.AnimationId;
+import io.github.kizio806.spectraevents.core.visual.model.BillboardMode;
 import io.github.kizio806.spectraevents.core.visual.model.ModelDefinition;
 import io.github.kizio806.spectraevents.core.visual.model.ModelPartDefinition;
 import io.github.kizio806.spectraevents.core.visual.model.ModelPartId;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -248,8 +251,7 @@ class ModelCompilerTest {
     part.setType("ITEM_DISPLAY");
     part.setItem("minecraft:diamond_sword");
 
-    io.github.kizio806.spectraevents.application.model.spec.RenderPropertiesSpec renderSpec =
-        new io.github.kizio806.spectraevents.application.model.spec.RenderPropertiesSpec();
+    RenderPropertiesSpec renderSpec = new RenderPropertiesSpec();
     renderSpec.setBillboard("VERTICAL");
     renderSpec.setBrightnessBlock(12);
     renderSpec.setBrightnessSky(15);
@@ -275,9 +277,7 @@ class ModelCompilerTest {
     ModelDefinition def = compiler.compile(spec);
     assertNotNull(def);
     var compiledPart = def.findPart(ModelPartId.of("sword")).orElseThrow();
-    assertEquals(
-        io.github.kizio806.spectraevents.core.visual.model.BillboardMode.VERTICAL,
-        compiledPart.renderProperties().billboard());
+    assertEquals(BillboardMode.VERTICAL, compiledPart.renderProperties().billboard());
     assertEquals(12, compiledPart.renderProperties().brightnessBlock());
     assertEquals(15, compiledPart.renderProperties().brightnessSky());
 
@@ -288,8 +288,7 @@ class ModelCompilerTest {
     badPart.setType("ITEM_DISPLAY");
     badPart.setItem("minecraft:stone");
 
-    io.github.kizio806.spectraevents.application.model.spec.RenderPropertiesSpec badRender =
-        new io.github.kizio806.spectraevents.application.model.spec.RenderPropertiesSpec();
+    RenderPropertiesSpec badRender = new RenderPropertiesSpec();
     badRender.setBillboard("BOGUS_BILLBOARD");
     badRender.setShadowRadius(-5.0f); // Invalid negative shadow radius
     badPart.setRender(badRender);
@@ -308,5 +307,284 @@ class ModelCompilerTest {
     assertTrue(
         ex.diagnostics().stream().anyMatch(d -> d.code().equals("INVALID_RENDER_PROPERTIES")));
     assertTrue(ex.diagnostics().stream().anyMatch(d -> d.code().equals("INVALID_EULER_ROTATION")));
+  }
+
+  @Test
+  void testCompileModelWithBlankIdAndNoParts() {
+    // 1. Null and blank id
+    ModelSpec specBlankId = new ModelSpec();
+    specBlankId.setId("   ");
+    ModelPartSpec part = new ModelPartSpec();
+    part.setType("ITEM_DISPLAY");
+    part.setItem("minecraft:stone");
+    specBlankId.setParts(Map.of("core", part));
+
+    ModelCompilerException exId =
+        assertThrows(ModelCompilerException.class, () -> compiler.compile(specBlankId));
+    assertTrue(exId.diagnostics().stream().anyMatch(d -> d.code().equals("MODEL_ID_BLANK")));
+
+    // 2. Null and empty parts
+    ModelSpec specNoParts = new ModelSpec();
+    specNoParts.setId("no_parts");
+    specNoParts.setParts(null);
+
+    ModelCompilerException exNoParts =
+        assertThrows(ModelCompilerException.class, () -> compiler.compile(specNoParts));
+    assertTrue(exNoParts.diagnostics().stream().anyMatch(d -> d.code().equals("MODEL_NO_PARTS")));
+
+    ModelSpec specEmptyParts = new ModelSpec();
+    specEmptyParts.setId("empty_parts");
+    specEmptyParts.setParts(Map.of());
+
+    ModelCompilerException exEmptyParts =
+        assertThrows(ModelCompilerException.class, () -> compiler.compile(specEmptyParts));
+    assertTrue(
+        exEmptyParts.diagnostics().stream().anyMatch(d -> d.code().equals("MODEL_NO_PARTS")));
+  }
+
+  @Test
+  void testCompileModelWithBlankPartAndInteractionAndAnimationIds() {
+    ModelPartSpec part = new ModelPartSpec();
+    part.setType("ITEM_DISPLAY");
+    part.setItem("minecraft:stone");
+
+    // 1. Blank part ID
+    ModelSpec specPart = new ModelSpec();
+    specPart.setId("blank_part");
+    java.util.HashMap<String, ModelPartSpec> parts = new java.util.HashMap<>();
+    parts.put("", part);
+    parts.put("core", part);
+    specPart.setParts(parts);
+
+    ModelCompilerException exPart =
+        assertThrows(ModelCompilerException.class, () -> compiler.compile(specPart));
+    assertTrue(exPart.diagnostics().stream().anyMatch(d -> d.code().equals("PART_ID_BLANK")));
+
+    // 2. Blank interaction ID
+    ModelSpec specInteraction = new ModelSpec();
+    specInteraction.setId("blank_interaction");
+    specInteraction.setParts(Map.of("core", part));
+    java.util.HashMap<String, InteractionSpec> interactions = new java.util.HashMap<>();
+    InteractionSpec iSpec = new InteractionSpec();
+    iSpec.setParent("core");
+    interactions.put("", iSpec);
+    specInteraction.setInteractions(interactions);
+
+    ModelCompilerException exInt =
+        assertThrows(ModelCompilerException.class, () -> compiler.compile(specInteraction));
+    assertTrue(exInt.diagnostics().stream().anyMatch(d -> d.code().equals("INTERACTION_ID_BLANK")));
+
+    // 3. Blank animation ID and null spec
+    ModelSpec specAnim = new ModelSpec();
+    specAnim.setId("blank_animation");
+    specAnim.setParts(Map.of("core", part));
+    java.util.HashMap<String, AnimationSpec> animations = new java.util.HashMap<>();
+    animations.put("", new AnimationSpec());
+    animations.put("null_spec", null);
+    specAnim.setAnimations(animations);
+
+    ModelCompilerException exAnim =
+        assertThrows(ModelCompilerException.class, () -> compiler.compile(specAnim));
+    assertTrue(exAnim.diagnostics().stream().anyMatch(d -> d.code().equals("ANIMATION_ID_BLANK")));
+  }
+
+  @Test
+  void testCompilePartTypeBlankAndTransformModes() {
+    // 1. Blank part type
+    ModelSpec specBlankType = new ModelSpec();
+    specBlankType.setId("blank_type");
+    ModelPartSpec part = new ModelPartSpec();
+    part.setType("   ");
+    specBlankType.setParts(Map.of("p1", part));
+
+    ModelCompilerException exType =
+        assertThrows(ModelCompilerException.class, () -> compiler.compile(specBlankType));
+    assertTrue(exType.diagnostics().stream().anyMatch(d -> d.code().equals("PART_TYPE_BLANK")));
+
+    // 2. Valid and invalid DisplayTransformMode
+    ModelSpec specModes = new ModelSpec();
+    specModes.setId("modes");
+
+    ModelPartSpec pValid = new ModelPartSpec();
+    pValid.setType("ITEM_DISPLAY");
+    pValid.setItem("minecraft:diamond");
+    pValid.setTransformMode("HEAD");
+
+    ModelPartSpec pInvalid = new ModelPartSpec();
+    pInvalid.setType("ITEM_DISPLAY");
+    pInvalid.setItem("minecraft:gold_ingot");
+    pInvalid.setTransformMode("BOGUS_MODE");
+
+    specModes.setParts(Map.of("valid", pValid, "invalid", pInvalid));
+
+    ModelCompilerException exMode =
+        assertThrows(ModelCompilerException.class, () -> compiler.compile(specModes));
+    assertTrue(
+        exMode.diagnostics().stream().anyMatch(d -> d.code().equals("UNKNOWN_TRANSFORM_MODE")));
+
+    // 3. Transform with Quaternion rotation and empty rotation
+    ModelSpec specQuat = new ModelSpec();
+    specQuat.setId("quat_rot_model");
+    ModelPartSpec pQuat = new ModelPartSpec();
+    pQuat.setType("ITEM_DISPLAY");
+    pQuat.setItem("minecraft:iron_sword");
+
+    TransformSpec tQuat = new TransformSpec();
+    TransformSpec.RotationSpec rQuat = new TransformSpec.RotationSpec();
+    rQuat.setQuaternion(List.of(0.0f, 0.0f, 0.0f, 1.0f));
+    tQuat.setRotation(rQuat);
+    pQuat.setTransform(tQuat);
+
+    ModelPartSpec pEmptyRot = new ModelPartSpec();
+    pEmptyRot.setType("ITEM_DISPLAY");
+    pEmptyRot.setItem("minecraft:bow");
+    TransformSpec tEmpty = new TransformSpec();
+    tEmpty.setRotation(new TransformSpec.RotationSpec());
+    pEmptyRot.setTransform(tEmpty);
+
+    specQuat.setParts(Map.of("quat", pQuat, "empty_rot", pEmptyRot));
+    ModelDefinition defQuat = compiler.compile(specQuat);
+    assertEquals(2, defQuat.parts().size());
+  }
+
+  @Test
+  void testCompileTextDisplayProperties() {
+    ModelSpec spec = new ModelSpec();
+    spec.setId("text_model");
+
+    ModelPartSpec textPart = new ModelPartSpec();
+    textPart.setType("TEXT_DISPLAY");
+    textPart.setText("Hello World");
+    textPart.setTextAlignment("LEFT");
+    textPart.setLineWidth(150);
+    textPart.setBackgroundColor(0xFF0000);
+    textPart.setTextOpacity(128);
+    textPart.setShadow(false);
+    textPart.setSeeThrough(true);
+
+    spec.setParts(Map.of("title", textPart));
+
+    ModelDefinition def = compiler.compile(spec);
+    assertEquals(1, def.parts().size());
+    var part = def.findPart(ModelPartId.of("title")).orElseThrow();
+    assertTrue(
+        part.visualAsset()
+            instanceof io.github.kizio806.spectraevents.core.visual.model.TextAssetRef);
+    var textRef =
+        (io.github.kizio806.spectraevents.core.visual.model.TextAssetRef) part.visualAsset();
+    assertEquals("Hello World", textRef.text());
+    assertEquals(
+        io.github.kizio806.spectraevents.core.visual.model.TextAlignment.LEFT, textRef.alignment());
+    assertEquals(150, textRef.lineWidth());
+    assertEquals(0xFF0000, textRef.backgroundColor());
+    assertEquals(128, textRef.textOpacity());
+    assertEquals(false, textRef.shadow());
+    assertEquals(true, textRef.seeThrough());
+  }
+
+  @Test
+  void testCompileModelEdgeCasesAndGuardrails() {
+    // 1. Too many parts (> MAX_PARTS_LIMIT)
+    ModelSpec specTooManyParts = new ModelSpec();
+    specTooManyParts.setId("too_many_parts");
+    Map<String, ModelPartSpec> parts = new HashMap<>();
+    for (int i = 0; i <= ModelDefinition.MAX_PARTS_LIMIT; i++) {
+      ModelPartSpec p = new ModelPartSpec();
+      p.setType("ITEM_DISPLAY");
+      p.setItem("minecraft:stone");
+      parts.put("part_" + i, p);
+    }
+    specTooManyParts.setParts(parts);
+    ModelCompilerException exParts =
+        assertThrows(ModelCompilerException.class, () -> compiler.compile(specTooManyParts));
+    assertTrue(
+        exParts.diagnostics().stream().anyMatch(d -> "MODEL_TOO_MANY_PARTS".equals(d.code())));
+
+    // 2. Too many interactions (> MAX_INTERACTIONS_LIMIT)
+    ModelSpec specTooManyInteractions = new ModelSpec();
+    specTooManyInteractions.setId("too_many_interactions");
+    ModelPartSpec basePart = new ModelPartSpec();
+    basePart.setType("ITEM_DISPLAY");
+    basePart.setItem("minecraft:stone");
+    specTooManyInteractions.setParts(Map.of("base", basePart));
+    Map<String, io.github.kizio806.spectraevents.application.model.spec.InteractionSpec>
+        interactions = new HashMap<>();
+    for (int i = 0; i <= ModelDefinition.MAX_INTERACTIONS_LIMIT; i++) {
+      io.github.kizio806.spectraevents.application.model.spec.InteractionSpec is =
+          new io.github.kizio806.spectraevents.application.model.spec.InteractionSpec();
+      is.setWidth(1.0f);
+      is.setHeight(1.0f);
+      interactions.put("inter_" + i, is);
+    }
+    specTooManyInteractions.setInteractions(interactions);
+    ModelCompilerException exInter =
+        assertThrows(ModelCompilerException.class, () -> compiler.compile(specTooManyInteractions));
+    assertTrue(
+        exInter.diagnostics().stream().anyMatch(d -> "TOO_MANY_INTERACTIONS".equals(d.code())));
+
+    // 3. Hierarchy too deep (> MAX_HIERARCHY_DEPTH)
+    ModelSpec specDeep = new ModelSpec();
+    specDeep.setId("deep_model");
+    Map<String, ModelPartSpec> deepParts = new HashMap<>();
+    for (int i = 0; i <= 35; i++) {
+      ModelPartSpec p = new ModelPartSpec();
+      p.setType("ITEM_DISPLAY");
+      p.setItem("minecraft:stone");
+      if (i > 0) {
+        p.setParent("node_" + (i - 1));
+      }
+      deepParts.put("node_" + i, p);
+    }
+    specDeep.setParts(deepParts);
+    ModelCompilerException exDeep =
+        assertThrows(ModelCompilerException.class, () -> compiler.compile(specDeep));
+    assertTrue(exDeep.diagnostics().stream().anyMatch(d -> "HIERARCHY_TOO_DEEP".equals(d.code())));
+
+    // 4. Invalid transform (zero scale throws in ModelTransform)
+    ModelSpec specZeroScale = new ModelSpec();
+    specZeroScale.setId("zero_scale");
+    ModelPartSpec pZero = new ModelPartSpec();
+    pZero.setType("ITEM_DISPLAY");
+    pZero.setItem("minecraft:stone");
+    TransformSpec tZero = new TransformSpec();
+    tZero.setScale(List.of(0.0f, 1.0f, 1.0f));
+    pZero.setTransform(tZero);
+    specZeroScale.setParts(Map.of("p_zero", pZero));
+    ModelCompilerException exZero =
+        assertThrows(ModelCompilerException.class, () -> compiler.compile(specZeroScale));
+    assertTrue(exZero.diagnostics().stream().anyMatch(d -> "INVALID_TRANSFORM".equals(d.code())));
+
+    // 5. Embedded animation compiler exception propagated
+    ModelSpec specBadAnim = new ModelSpec();
+    specBadAnim.setId("bad_anim_model");
+    ModelPartSpec pValid = new ModelPartSpec();
+    pValid.setType("ITEM_DISPLAY");
+    pValid.setItem("minecraft:stone");
+    specBadAnim.setParts(Map.of("base", pValid));
+    io.github.kizio806.spectraevents.application.model.animation.spec.AnimationSpec badAnim =
+        new io.github.kizio806.spectraevents.application.model.animation.spec.AnimationSpec();
+    badAnim.setDuration("0s"); // invalid duration throws AnimationCompilerException
+    specBadAnim.setAnimations(Map.of("anim1", badAnim));
+    ModelCompilerException exAnim =
+        assertThrows(ModelCompilerException.class, () -> compiler.compile(specBadAnim));
+    assertTrue(
+        exAnim.diagnostics().stream()
+            .anyMatch(d -> "ANIMATION_DURATION_NOT_POSITIVE".equals(d.code())));
+
+    // 6. Interaction defaults and unresponsive flag
+    ModelSpec specInteractionDefaults = new ModelSpec();
+    specInteractionDefaults.setId("inter_defaults");
+    ModelPartSpec basePart2 = new ModelPartSpec();
+    basePart2.setType("ITEM_DISPLAY");
+    basePart2.setItem("minecraft:stone");
+    specInteractionDefaults.setParts(Map.of("base", basePart2));
+    InteractionSpec isDefault = new InteractionSpec();
+    InteractionSpec isUnresponsive = new InteractionSpec();
+    isUnresponsive.setWidth(2.0f);
+    isUnresponsive.setHeight(2.0f);
+    isUnresponsive.setResponsive(false);
+    specInteractionDefaults.setInteractions(Map.of("i_def", isDefault, "i_unresp", isUnresponsive));
+    ModelDefinition defDefaults = compiler.compile(specInteractionDefaults);
+    assertEquals(2, defDefaults.interactions().size());
   }
 }

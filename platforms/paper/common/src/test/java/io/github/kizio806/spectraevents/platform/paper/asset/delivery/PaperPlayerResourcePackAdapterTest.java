@@ -54,7 +54,7 @@ class PaperPlayerResourcePackAdapterTest {
         PlayerResourcePackState.FAILED,
         adapter.mapStatus(PlayerResourcePackStatusEvent.Status.FAILED_RELOAD));
     assertEquals(
-        PlayerResourcePackState.DECLINED,
+        PlayerResourcePackState.DISCARDED,
         adapter.mapStatus(PlayerResourcePackStatusEvent.Status.DISCARDED));
 
     AtomicBoolean packSent = new AtomicBoolean(false);

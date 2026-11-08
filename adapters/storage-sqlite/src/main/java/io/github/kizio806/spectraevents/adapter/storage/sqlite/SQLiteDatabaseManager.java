@@ -237,11 +237,14 @@ public final class SQLiteDatabaseManager implements Closeable {
     return dbPath;
   }
 
+  public boolean isInitialized() {
+    return initialized;
+  }
+
   public void commitOrThrow() {
     try {
-      Connection conn = writerConnection;
-      if (conn != null) {
-        conn.commit();
+      if (writerConnection != null) {
+        writerConnection.commit();
       }
     } catch (SQLException exception) {
       throw new IllegalStateException("Failed to commit SQLite transaction", exception);
@@ -250,9 +253,8 @@ public final class SQLiteDatabaseManager implements Closeable {
 
   public void rollbackQuietly() {
     try {
-      Connection conn = writerConnection;
-      if (conn != null) {
-        conn.rollback();
+      if (writerConnection != null) {
+        writerConnection.rollback();
       }
     } catch (SQLException ignored) {
       // Preserve the original persistence failure.
@@ -270,25 +272,23 @@ public final class SQLiteDatabaseManager implements Closeable {
     if (currentExecutor != null) {
       try {
         currentExecutor.shutdown();
-      } catch (RuntimeException exception) {
+      } catch (IllegalStateException exception) {
         LOGGER.log(
             Level.SEVERE, "Persistence writes did not drain; keeping SQLite open", exception);
       }
     }
 
-    Connection currentWriter;
     synchronized (this) {
-      currentWriter = writerConnection;
-      writerConnection = null;
-    }
-
-    if (currentWriter != null) {
-      try {
-        if (!currentWriter.isClosed()) {
-          currentWriter.close();
+      if (writerConnection != null) {
+        try {
+          if (!writerConnection.isClosed()) {
+            writerConnection.close();
+          }
+        } catch (SQLException e) {
+          LOGGER.log(Level.WARNING, "Error closing writer connection: " + e.getMessage());
+        } finally {
+          writerConnection = null;
         }
-      } catch (SQLException e) {
-        LOGGER.log(Level.WARNING, "Error closing writer connection: " + e.getMessage());
       }
     }
   }

@@ -232,5 +232,115 @@ class BlockbenchJsonSupportTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> BlockbenchJsonSupport.requiredFiniteDouble(obj, "nan", "path"));
+
+    // Escaped string inside assertJsonDepth
+    BlockbenchJsonSupport.assertJsonDepth(
+        "{\"escaped\": \"hello \\\"world\\\" and \\\\ slash\"}", 10);
+
+    // optionalString where property is not a string
+    JsonObject notStrObj = new JsonObject();
+    notStrObj.add("arr", new JsonArray());
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BlockbenchJsonSupport.optionalString(notStrObj, "arr", "fallback"));
+
+    // optionalInt where property is not an int
+    JsonObject notIntObj = new JsonObject();
+    notIntObj.addProperty("invalid_int", "not_an_int");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BlockbenchJsonSupport.optionalInt(notIntObj, "invalid_int", 0, "path"));
+
+    // vector with non-finite float
+    JsonArray nonFiniteVec = new JsonArray();
+    nonFiniteVec.add(Float.POSITIVE_INFINITY);
+    nonFiniteVec.add(0.0f);
+    nonFiniteVec.add(0.0f);
+    assertThrows(
+        IllegalArgumentException.class, () -> BlockbenchJsonSupport.vector(nonFiniteVec, "path"));
+
+    // requiredUv with non-finite double
+    JsonObject faceObj = new JsonObject();
+    JsonArray nonFiniteUv = new JsonArray();
+    nonFiniteUv.add(0.0);
+    nonFiniteUv.add(Double.NaN);
+    nonFiniteUv.add(16.0);
+    nonFiniteUv.add(16.0);
+    faceObj.add("uv", nonFiniteUv);
+    assertThrows(
+        IllegalArgumentException.class, () -> BlockbenchJsonSupport.requiredUv(faceObj, "path"));
+
+    // decodeUtf8 with invalid UTF-8 bytes
+    byte[] invalidUtf8 = new byte[] {(byte) 0xFF, (byte) 0xC0};
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BlockbenchJsonSupport.decodeUtf8(invalidUtf8, "entry.txt"));
+
+    // Additional JsonSupport branches
+    assertThrows(
+        IllegalArgumentException.class, () -> BlockbenchJsonSupport.requireObject(null, "path"));
+
+    JsonObject strObj = new JsonObject();
+    strObj.addProperty("blank", "   ");
+    strObj.addProperty("num", 42);
+    strObj.add("arr", new JsonArray());
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BlockbenchJsonSupport.requiredString(strObj, "missing", "path"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BlockbenchJsonSupport.requiredString(strObj, "blank", "path"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BlockbenchJsonSupport.requiredString(strObj, "num", "path"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BlockbenchJsonSupport.requiredString(strObj, "arr", "path"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BlockbenchJsonSupport.optionalString(strObj, "num", "default"));
+    assertEquals("default", BlockbenchJsonSupport.optionalString(strObj, "missing", "default"));
+
+    strObj.addProperty("too_low", -17.0f);
+    strObj.addProperty("too_high", 17.0f);
+    assertEquals(5.0f, BlockbenchJsonSupport.optionalFiniteFloat(strObj, "missing", 5.0f, "path"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BlockbenchJsonSupport.optionalFiniteFloat(strObj, "too_low", 0f, "path"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BlockbenchJsonSupport.optionalFiniteFloat(strObj, "too_high", 0f, "path"));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BlockbenchJsonSupport.requiredVector(strObj, "missing", "path"));
+    assertEquals(
+        Vector3.ZERO,
+        BlockbenchJsonSupport.optionalVector(strObj, "missing", Vector3.ZERO, "path"));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> BlockbenchJsonSupport.vector(new JsonObject(), "path"));
+    JsonArray fourElemVec = new JsonArray();
+    fourElemVec.add(1);
+    fourElemVec.add(2);
+    fourElemVec.add(3);
+    fourElemVec.add(4);
+    assertThrows(
+        IllegalArgumentException.class, () -> BlockbenchJsonSupport.vector(fourElemVec, "path"));
+
+    JsonObject uvObj = new JsonObject();
+    assertThrows(
+        IllegalArgumentException.class, () -> BlockbenchJsonSupport.requiredUv(uvObj, "path"));
+    uvObj.addProperty("uv", "not_an_array");
+    assertThrows(
+        IllegalArgumentException.class, () -> BlockbenchJsonSupport.requiredUv(uvObj, "path"));
+    JsonArray threeUv = new JsonArray();
+    threeUv.add(0);
+    threeUv.add(0);
+    threeUv.add(16);
+    uvObj.add("uv", threeUv);
+    assertThrows(
+        IllegalArgumentException.class, () -> BlockbenchJsonSupport.requiredUv(uvObj, "path"));
   }
 }
