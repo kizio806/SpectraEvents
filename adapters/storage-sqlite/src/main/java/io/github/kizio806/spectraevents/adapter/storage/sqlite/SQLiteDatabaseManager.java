@@ -237,6 +237,10 @@ public final class SQLiteDatabaseManager implements Closeable {
     return dbPath;
   }
 
+  public boolean isInitialized() {
+    return initialized;
+  }
+
   public void commitOrThrow() {
     try {
       if (writerConnection != null) {

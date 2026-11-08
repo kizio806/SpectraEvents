@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import java.util.logging.Level;
@@ -61,12 +62,12 @@ public abstract class AbstractBukkitActionAdapter extends AbstractPlatformAction
 
   protected final Logger logger = Logger.getLogger(getClass().getName());
   protected final LocaleCatalog locales;
-  protected final List<CustomItemProvider> itemProviders = new ArrayList<>();
+  protected final List<CustomItemProvider> itemProviders = new CopyOnWriteArrayList<>();
 
-  protected ModelRuntimeService modelRuntimeService;
-  protected ModelAnimationActionService modelAnimationActionService;
+  protected volatile ModelRuntimeService modelRuntimeService;
+  protected volatile ModelAnimationActionService modelAnimationActionService;
   protected volatile boolean shuttingDown;
-  protected BiConsumer<EventInstanceId, Throwable> fatalActionHandler =
+  protected volatile BiConsumer<EventInstanceId, Throwable> fatalActionHandler =
       (instanceId, throwable) ->
           logger.severe(
               "Asynchronous action failed for " + instanceId + ": " + throwable.getMessage());
@@ -109,6 +110,16 @@ public abstract class AbstractBukkitActionAdapter extends AbstractPlatformAction
 
   public void registerItemProvider(CustomItemProvider provider) {
     itemProviders.add(Objects.requireNonNull(provider, "provider"));
+  }
+
+  public void unregisterItemProvider(CustomItemProvider provider) {
+    if (provider != null) {
+      itemProviders.remove(provider);
+    }
+  }
+
+  public List<CustomItemProvider> itemProviders() {
+    return List.copyOf(itemProviders);
   }
 
   // --- Abstract Platform Hooks ---

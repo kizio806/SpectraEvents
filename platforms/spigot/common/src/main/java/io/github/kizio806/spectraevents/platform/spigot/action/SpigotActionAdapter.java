@@ -8,7 +8,9 @@ import io.github.kizio806.spectraevents.core.event.execution.action.PlatformActi
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import io.github.kizio806.spectraevents.platform.bukkit.action.AbstractBukkitActionAdapter;
+import io.github.kizio806.spectraevents.platform.bukkit.bossbar.BukkitBossBarProgressCalculator;
 import io.github.kizio806.spectraevents.platform.bukkit.common.EventDisplayPlaceholders;
+import io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge;
 import io.github.kizio806.spectraevents.platform.bukkit.concurrent.AsyncFutures;
 import io.github.kizio806.spectraevents.platform.bukkit.integration.item.ItemsAdderItemProvider;
 import io.github.kizio806.spectraevents.platform.bukkit.integration.item.NexoItemProvider;
@@ -147,7 +149,9 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
             () -> {
               String progressMode = bossBarManager.getProgressMode(instance.id());
               bossBarManager.refreshHud(
-                  instance, state, (float) calculateProgress(state, progressMode));
+                  instance,
+                  state,
+                  BukkitBossBarProgressCalculator.calculateFloat(state, progressMode));
             }));
   }
 
@@ -164,7 +168,10 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
   @Override
   protected void setEntityCustomName(
       Entity entity, String template, EventInstance instance, EventRuntimeState state) {
-    entity.setCustomName(renderLegacyTemplate(template, instance, state));
+    String rendered = renderLegacyTemplate(template, instance, state);
+    Component component =
+        MiniMessage.miniMessage().deserialize(resolveDisplayTemplate(template, instance, state));
+    BukkitPlatformBridge.setCustomName(entity, rendered, component, plugin.getLogger());
     entity.setCustomNameVisible(true);
   }
 
@@ -223,8 +230,11 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
       String titleTemplate,
       EventInstance instance,
       EventRuntimeState state) {
-    return Bukkit.createInventory(
-        holder, size, renderLegacyTemplate(titleTemplate, instance, state));
+    String rendered = renderLegacyTemplate(titleTemplate, instance, state);
+    Component component =
+        MiniMessage.miniMessage()
+            .deserialize(resolveDisplayTemplate(titleTemplate, instance, state));
+    return BukkitPlatformBridge.createInventory(holder, size, rendered, component);
   }
 
   @Override
@@ -286,7 +296,7 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
                 action.color(),
                 action.style(),
                 action.progress(),
-                (float) calculateProgress(state, action.progress())));
+                BukkitBossBarProgressCalculator.calculateFloat(state, action.progress())));
   }
 
   @Override
@@ -305,7 +315,7 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
                 state,
                 action.title(),
                 action.progress(),
-                (float) calculateProgress(state, action.progress())));
+                BukkitBossBarProgressCalculator.calculateFloat(state, action.progress())));
   }
 
   @Override
@@ -355,22 +365,6 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
     Objects.requireNonNull(state, "state");
     Objects.requireNonNull(action, "action");
     return executeSync(() -> scoreboardManager.removeScoreboard(instance.id()));
-  }
-
-  private double calculateProgress(EventRuntimeState state, String progressStr) {
-    if ("hits".equalsIgnoreCase(progressStr) && state.hitCounter() != null) {
-      var counter = state.hitCounter();
-      return (double) counter.current() / (double) counter.maximum();
-    }
-    try {
-      return Double.parseDouble(progressStr);
-    } catch (NumberFormatException ignored) {
-      // Fall through
-    }
-    if (state.maxHealth() > 0) {
-      return (double) state.currentHealth() / (double) state.maxHealth();
-    }
-    return 1.0;
   }
 
   @EventHandler

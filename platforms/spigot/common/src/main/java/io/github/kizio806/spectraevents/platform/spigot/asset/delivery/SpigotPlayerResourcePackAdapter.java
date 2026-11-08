@@ -5,8 +5,10 @@ import io.github.kizio806.spectraevents.application.asset.delivery.PlayerResourc
 import io.github.kizio806.spectraevents.application.asset.delivery.ResourcePackDescriptor;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.platform.bukkit.asset.delivery.AbstractBukkitPlayerResourcePackAdapter;
+import io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge;
 import org.bukkit.entity.Player;
 
+/** Spigot player resource pack delivery adapter with safe platform compatibility dispatch. */
 public class SpigotPlayerResourcePackAdapter extends AbstractBukkitPlayerResourcePackAdapter {
 
   public SpigotPlayerResourcePackAdapter(
@@ -21,15 +23,12 @@ public class SpigotPlayerResourcePackAdapter extends AbstractBukkitPlayerResourc
   @Override
   protected void sendResourcePack(Player player, ResourcePackDescriptor pack) {
     byte[] hashBytes = hexStringToByteArray(pack.sha1());
-    try {
-      player.setResourcePack(pack.url(), hashBytes, service.getPrompt(), service.isRequired());
-    } catch (NoSuchMethodError e) {
-      player.setResourcePack(pack.url(), hashBytes);
-    }
+    BukkitPlatformBridge.sendResourcePack(
+        player, pack.url(), hashBytes, service.getPrompt(), service.isRequired(), null);
   }
 
   @Override
   protected void kickPlayer(Player player, String message) {
-    player.kickPlayer(message);
+    BukkitPlatformBridge.kickPlayer(player, message, null, null);
   }
 }

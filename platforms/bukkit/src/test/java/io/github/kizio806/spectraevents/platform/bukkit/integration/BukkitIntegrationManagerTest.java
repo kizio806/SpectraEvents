@@ -74,6 +74,55 @@ class BukkitIntegrationManagerTest {
     assertDoesNotThrow(() -> manager.initializeModules(dummyPlugin, context));
   }
 
+  @Test
+  void testDetectAllWithMockServer() {
+    io.github.kizio806.spectraevents.platform.bukkit.testutil.MockBukkitSetup.ensureInitialized();
+    IntegrationRegistry registry = new IntegrationRegistry();
+    BukkitIntegrationManager manager = new BukkitIntegrationManager(registry);
+
+    // 1. Enabled plugin in REQUIRES_MODULE_INIT -> AVAILABLE
+    io.github.kizio806.spectraevents.platform.bukkit.testutil.MockBukkitSetup.registerPlugin(
+        "LuckPerms",
+        io.github.kizio806.spectraevents.platform.bukkit.testutil.MockBukkitSetup.createMockPlugin(
+            "LuckPerms", true));
+
+    // 2. Enabled plugin NOT in REQUIRES_MODULE_INIT -> ACTIVE
+    io.github.kizio806.spectraevents.platform.bukkit.testutil.MockBukkitSetup.registerPlugin(
+        "Nexo",
+        io.github.kizio806.spectraevents.platform.bukkit.testutil.MockBukkitSetup.createMockPlugin(
+            "Nexo", true));
+
+    // 3. Disabled plugin -> DEGRADED
+    io.github.kizio806.spectraevents.platform.bukkit.testutil.MockBukkitSetup.registerPlugin(
+        "Vault",
+        io.github.kizio806.spectraevents.platform.bukkit.testutil.MockBukkitSetup.createMockPlugin(
+            "Vault", false));
+
+    try {
+      manager.detectAll();
+
+      assertEquals(IntegrationState.AVAILABLE, registry.get("LuckPerms").orElseThrow().state());
+      assertEquals(IntegrationState.ACTIVE, registry.get("Nexo").orElseThrow().state());
+      assertEquals(IntegrationState.DEGRADED, registry.get("Vault").orElseThrow().state());
+      assertEquals(IntegrationState.ABSENT, registry.get("WorldGuard").orElseThrow().state());
+
+      // Test initializeModules with enabled module
+      io.github.kizio806.spectraevents.platform.bukkit.testutil.MockBukkitSetup.registerPlugin(
+          "PlaceholderAPI",
+          io.github.kizio806.spectraevents.platform.bukkit.testutil.MockBukkitSetup
+              .createMockPlugin("PlaceholderAPI", true));
+
+      Plugin dummyPlugin = createDummyPlugin();
+      IntegrationInitializationContext context =
+          new IntegrationInitializationContext(
+              createDummyApplication(), createDummyRepository(), Logger.getLogger("test"));
+
+      manager.initializeModules(dummyPlugin, context);
+    } finally {
+      io.github.kizio806.spectraevents.platform.bukkit.testutil.MockBukkitSetup.clearPlugins();
+    }
+  }
+
   private Plugin createDummyPlugin() {
     return (Plugin)
         Proxy.newProxyInstance(

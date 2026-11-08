@@ -13,8 +13,8 @@ import io.github.kizio806.spectraevents.application.config.validation.Validation
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.validation.EventReferenceValidator;
 import io.github.kizio806.spectraevents.application.validation.OperationalReadinessValidator;
+import io.github.kizio806.spectraevents.platform.bukkit.asset.delivery.BukkitResourcePackDeliveryBootstrap;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
-import io.github.kizio806.spectraevents.platform.paper.asset.delivery.PaperResourcePackDeliveryBootstrap;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import java.io.IOException;
@@ -158,7 +158,7 @@ public final class DefinitionCommandHandler {
       diagnostics.addAll(
           new OperationalReadinessValidator()
               .validate(
-                  PaperResourcePackDeliveryBootstrap.readSettings(plugin.getDataFolder().toPath()),
+                  BukkitResourcePackDeliveryBootstrap.readSettings(plugin.getDataFolder().toPath()),
                   integrations));
       long diagnosticErrors =
           diagnostics.stream()

@@ -40,6 +40,15 @@ class DamageContributionTest {
     assertEquals(100, top.get(0).getValue());
     assertEquals(p1, top.get(1).getKey());
     assertEquals(50, top.get(1).getValue());
+
+    // Tie-breaker when two players have the exact same damage
+    DamageContribution tied = DamageContribution.empty().addDamage(p1, 50).addDamage(p2, 50);
+    List<Map.Entry<UUID, Integer>> topTied = tied.getTopContributors(2);
+    assertEquals(2, topTied.size());
+
+    // Zero or negative limit returns empty list
+    assertTrue(contrib.getTopContributors(0).isEmpty());
+    assertTrue(contrib.getTopContributors(-1).isEmpty());
   }
 
   @Test

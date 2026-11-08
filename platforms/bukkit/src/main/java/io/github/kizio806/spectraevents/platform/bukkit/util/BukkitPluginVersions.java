@@ -33,9 +33,18 @@ public final class BukkitPluginVersions {
       // Spigot does not declare getPluginMeta(); fallback to getDescription()
     }
     try {
-      return plugin.getDescription().getVersion();
-    } catch (Exception ignored) {
-      return "unknown";
+      Method descMethod = plugin.getClass().getMethod("getDescription");
+      Object desc = descMethod.invoke(plugin);
+      if (desc != null) {
+        Method versionMethod = desc.getClass().getMethod("getVersion");
+        Object version = versionMethod.invoke(desc);
+        if (version != null) {
+          return version.toString();
+        }
+      }
+    } catch (ReflectiveOperationException ignored) {
+      // Fallback exhausted
     }
+    return "unknown";
   }
 }

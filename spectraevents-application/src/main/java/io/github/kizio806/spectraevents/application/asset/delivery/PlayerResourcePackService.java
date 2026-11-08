@@ -40,7 +40,7 @@ public class PlayerResourcePackService {
     return switch (state) {
       case LOADED -> PlayerAssetReadiness.READY;
       case FAILED -> PlayerAssetReadiness.FAILED;
-      case DECLINED -> PlayerAssetReadiness.DECLINED;
+      case DECLINED, DISCARDED -> PlayerAssetReadiness.DECLINED;
       case NOT_REQUESTED, REQUESTED, ACCEPTED, DOWNLOADED -> PlayerAssetReadiness.NOT_READY;
     };
   }

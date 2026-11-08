@@ -1,6 +1,7 @@
 package io.github.kizio806.spectraevents.application.service;
 
 import io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompiler;
+import io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompilerException;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.registry.RegisteredEventDefinition;
 import io.github.kizio806.spectraevents.application.execution.EventExecutionEngine;
@@ -131,7 +132,9 @@ public final class EventOrchestrationService {
                       registered.sourceSpec(), "Definition source is unavailable"),
                   nonNullOverrides);
       return executionEngine.startEventAsync(compiled, platformLocationReference);
-    } catch (IllegalArgumentException | IllegalStateException exception) {
+    } catch (IllegalArgumentException
+        | IllegalStateException
+        | EventDefinitionCompilerException exception) {
       return CompletableFuture.failedFuture(exception);
     }
   }

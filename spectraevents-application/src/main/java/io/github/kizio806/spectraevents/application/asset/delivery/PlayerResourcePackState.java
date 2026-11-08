@@ -8,5 +8,6 @@ public enum PlayerResourcePackState {
   DOWNLOADED,
   LOADED,
   DECLINED,
-  FAILED
+  FAILED,
+  DISCARDED
 }

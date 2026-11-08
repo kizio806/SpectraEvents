@@ -5,8 +5,8 @@ import io.github.kizio806.spectraevents.application.config.loader.DefinitionLoad
 import io.github.kizio806.spectraevents.application.config.validation.ValidationDiagnostic;
 import io.github.kizio806.spectraevents.application.validation.EventReferenceValidator;
 import io.github.kizio806.spectraevents.application.validation.OperationalReadinessValidator;
+import io.github.kizio806.spectraevents.platform.bukkit.asset.delivery.BukkitResourcePackDeliveryBootstrap;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
-import io.github.kizio806.spectraevents.platform.spigot.asset.delivery.SpigotResourcePackDeliveryBootstrap;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,7 +66,7 @@ public final class SpigotDefinitionCommandHandler implements SpigotSubcommandHan
       helper.require(
           sender,
           validateOnly ? "spectraevents.definition.validate" : "spectraevents.definition.reload");
-      if (validateOnly) {
+      if (validateOnly && application.assetPipelineService() != null) {
         application.assetPipelineService().buildAssets();
       }
       DefinitionLoadResult result =
@@ -107,7 +107,7 @@ public final class SpigotDefinitionCommandHandler implements SpigotSubcommandHan
     }
     return new OperationalReadinessValidator()
         .validateResourcePack(
-            SpigotResourcePackDeliveryBootstrap.readSettings(plugin.getDataFolder().toPath()));
+            BukkitResourcePackDeliveryBootstrap.readSettings(plugin.getDataFolder().toPath()));
   }
 
   private static long countErrors(List<ValidationDiagnostic> diagnostics) {

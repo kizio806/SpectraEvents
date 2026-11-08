@@ -1,4 +1,5 @@
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 
 plugins {
     id("spectraevents.java-library")
@@ -27,6 +28,7 @@ dependencies {
     compileOnly(libs.adventure.text.minimessage)
     compileOnly(libs.adventure.text.serializer.legacy)
     testImplementation(libs.spigot.api)
+    testImplementation(libs.placeholderapi)
     testImplementation(libs.adventure.text.minimessage)
     testImplementation(libs.adventure.text.serializer.legacy)
     testImplementation(libs.junit.jupiter)
@@ -35,4 +37,38 @@ dependencies {
 
 tasks.withType<JavaCompile>().configureEach {
     options.release.set(25)
+}
+
+val testJar =
+    tasks.register<Jar>("testJar") {
+        archiveClassifier.set("tests")
+        from(sourceSets.test.get().output)
+    }
+
+configurations {
+    create("testArtifacts") {
+        isCanBeConsumed = true
+        isCanBeResolved = false
+    }
+}
+
+artifacts {
+    add("testArtifacts", testJar)
+}
+
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    violationRules {
+        rule {
+            element = "BUNDLE"
+            limit {
+                counter = "INSTRUCTION"
+                value = "COVEREDRATIO"
+                minimum = "0.75".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn(tasks.named("jacocoTestCoverageVerification"))
 }

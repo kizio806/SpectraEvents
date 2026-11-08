@@ -25,6 +25,7 @@ import io.github.kizio806.spectraevents.core.visual.model.Quaternion;
 import io.github.kizio806.spectraevents.core.visual.model.TextAlignment;
 import io.github.kizio806.spectraevents.core.visual.model.TextAssetRef;
 import io.github.kizio806.spectraevents.core.visual.model.Vector3;
+import io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge;
 import io.github.kizio806.spectraevents.platform.bukkit.integration.item.CustomItemProvider;
 import io.github.kizio806.spectraevents.platform.bukkit.metadata.BukkitPdcKeys;
 import java.util.ArrayList;
@@ -248,7 +249,7 @@ public abstract class AbstractBukkitModelRenderer implements ModelRendererPort {
 
   protected void configureTextDisplay(TextDisplay entity, TextAssetRef textRef) {
     if (textRef.text() != null && !textRef.text().isBlank()) {
-      entity.setText(textRef.text());
+      BukkitPlatformBridge.setText(entity, textRef.text(), null, null);
     }
   }
 

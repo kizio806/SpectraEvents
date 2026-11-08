@@ -16,16 +16,18 @@ import io.github.kizio806.spectraevents.application.integration.IntegrationIniti
 import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.service.EntityReconciliationReport;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
+import io.github.kizio806.spectraevents.platform.bukkit.asset.delivery.BukkitResourcePackDeliveryBootstrap;
 import io.github.kizio806.spectraevents.platform.bukkit.common.BukkitLifecycleReporter;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitScheduleBootstrapHelper;
 import io.github.kizio806.spectraevents.platform.bukkit.gui.AdminGuiController;
 import io.github.kizio806.spectraevents.platform.bukkit.integration.BukkitIntegrationManager;
+import io.github.kizio806.spectraevents.platform.bukkit.lifecycle.BukkitBootstrapLifecycle;
 import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootListener;
 import io.github.kizio806.spectraevents.platform.bukkit.util.BukkitPluginVersions;
 import io.github.kizio806.spectraevents.platform.spigot.action.SpigotActionAdapter;
-import io.github.kizio806.spectraevents.platform.spigot.asset.delivery.SpigotResourcePackDeliveryBootstrap;
+import io.github.kizio806.spectraevents.platform.spigot.asset.delivery.SpigotPlayerResourcePackAdapter;
 import io.github.kizio806.spectraevents.platform.spigot.command.SpigotMainCommand;
 import io.github.kizio806.spectraevents.platform.spigot.interaction.SpigotEventRouter;
 import io.github.kizio806.spectraevents.platform.spigot.lifecycle.SpigotEntityReconciler;
@@ -34,16 +36,20 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /** Composition root for the Spigot/Bukkit distribution. */
-public final class SpigotBootstrap {
+public final class SpigotBootstrap implements BukkitBootstrapLifecycle {
   private final JavaPlugin plugin;
   private final BukkitAudiences adventure;
   private SpectraEventsApplication application;
+  private SQLiteEventInstanceRepository repository;
+  private SpigotActionAdapter actionAdapter;
   private CompletableFuture<Void> resourcePackDelivery;
 
   public SpigotBootstrap(JavaPlugin plugin, BukkitAudiences adventure) {
@@ -51,6 +57,7 @@ public final class SpigotBootstrap {
     this.adventure = Objects.requireNonNull(adventure, "adventure");
   }
 
+  @Override
   public void onEnable() {
     plugin
         .getLogger()
@@ -76,12 +83,11 @@ public final class SpigotBootstrap {
       throw new IllegalStateException(
           "Could not prepare the SpectraEvents locale catalog", exception);
     }
-    SQLiteEventInstanceRepository repository =
-        new SQLiteEventInstanceRepository(dataLayout.databaseFile());
+    repository = new SQLiteEventInstanceRepository(dataLayout.databaseFile());
     repository.initialize();
 
     SpigotModelRenderer renderer = new SpigotModelRenderer(plugin);
-    SpigotActionAdapter actionAdapter = new SpigotActionAdapter(plugin, adventure, locales);
+    actionAdapter = new SpigotActionAdapter(plugin, adventure, locales);
     SpigotEntityReconciler reconciler = new SpigotEntityReconciler(plugin, actionAdapter);
     SpigotEventTaskScheduler scheduler = new SpigotEventTaskScheduler(plugin);
 
@@ -110,8 +116,18 @@ public final class SpigotBootstrap {
                 application.modelDefinitionRegistry(),
                 application.animationDefinitionRegistry())));
     resourcePackDelivery =
-        SpigotResourcePackDeliveryBootstrap.configure(
-            plugin, BukkitPluginVersions.resolveVersion(plugin), assetTargetProfile, locales);
+        BukkitResourcePackDeliveryBootstrap.configure(
+            plugin,
+            BukkitPluginVersions.resolveVersion(plugin),
+            assetTargetProfile,
+            locales,
+            (service, settings) ->
+                new SpigotPlayerResourcePackAdapter(
+                    service,
+                    BukkitPluginVersions.resolveVersion(plugin),
+                    assetTargetProfile,
+                    settings.sourceConfigId(),
+                    locales));
     actionAdapter.setModelRuntimeService(application.modelRuntimeService());
     actionAdapter.setModelAnimationActionService(
         new ModelAnimationActionService(
@@ -209,14 +225,45 @@ public final class SpigotBootstrap {
     return separator < 0 ? bukkitVersion : bukkitVersion.substring(0, separator);
   }
 
+  @Override
   public void onDisable() {
     if (resourcePackDelivery != null) {
       resourcePackDelivery.cancel(true);
       resourcePackDelivery = null;
     }
+    if (actionAdapter != null) {
+      try {
+        actionAdapter.cleanupAll();
+      } catch (Exception exception) {
+        plugin.getLogger().log(Level.WARNING, "Error cleaning up action adapter", exception);
+      }
+      actionAdapter = null;
+    }
     if (application != null) {
-      application.stop();
+      try {
+        application.stop();
+      } catch (Exception exception) {
+        plugin.getLogger().log(Level.WARNING, "Error stopping application", exception);
+      }
       application = null;
+      repository = null;
+    } else if (repository != null) {
+      try {
+        repository.close();
+      } catch (Exception exception) {
+        plugin.getLogger().log(Level.WARNING, "Error closing SQLite repository", exception);
+      }
+      repository = null;
+    }
+    try {
+      HandlerList.unregisterAll(plugin);
+    } catch (Exception exception) {
+      plugin.getLogger().log(Level.WARNING, "Error unregistering Bukkit listeners", exception);
+    }
+    try {
+      Bukkit.getScheduler().cancelTasks(plugin);
+    } catch (Exception exception) {
+      plugin.getLogger().log(Level.WARNING, "Error cancelling Bukkit scheduler tasks", exception);
     }
     plugin.getLogger().info("SpectraEvents disabled cleanly.");
   }

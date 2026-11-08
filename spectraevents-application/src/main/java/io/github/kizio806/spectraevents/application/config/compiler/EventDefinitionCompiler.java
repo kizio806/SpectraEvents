@@ -247,9 +247,11 @@ public class EventDefinitionCompiler {
                   .map(
                       transition ->
                           new TransitionSpec(
-                              new TriggerSpec(
-                                  transition.trigger().type(),
-                                  resolveMap(transition.trigger().parameters(), values)),
+                              transition.trigger() == null
+                                  ? null
+                                  : new TriggerSpec(
+                                      transition.trigger().type(),
+                                      resolveMap(transition.trigger().parameters(), values)),
                               transition.conditions() == null
                                   ? List.of()
                                   : transition.conditions().stream()

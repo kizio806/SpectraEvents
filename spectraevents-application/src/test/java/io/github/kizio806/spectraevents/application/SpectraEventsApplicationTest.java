@@ -17,18 +17,23 @@ import io.github.kizio806.spectraevents.application.port.PlatformCapabilityQuery
 import io.github.kizio806.spectraevents.application.port.PlatformDescriptor;
 import io.github.kizio806.spectraevents.application.port.PlatformEntityReconcilerPort;
 import io.github.kizio806.spectraevents.application.repository.InMemoryEventInstanceRepository;
+import io.github.kizio806.spectraevents.application.schedule.CronExpression;
+import io.github.kizio806.spectraevents.application.schedule.EventSchedule;
 import io.github.kizio806.spectraevents.application.service.EntityReconciliationReport;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinition;
 import io.github.kizio806.spectraevents.core.event.definition.EventDefinitionId;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseDefinition;
 import io.github.kizio806.spectraevents.core.event.phase.PhaseId;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
+import java.lang.reflect.Proxy;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class SpectraEventsApplicationTest {
@@ -89,7 +94,7 @@ class SpectraEventsApplicationTest {
 
           @Override
           public PlatformDescriptor platformDescriptor() {
-            return new PlatformDescriptor("Paper", "Paper", "1.21.4", "1.21.4-R0.1-SNAPSHOT");
+            return new PlatformDescriptor("Paper", "Paper", "26.1.0", "26.1.0-R0.1-SNAPSHOT");
           }
         };
     SpectraEventsApplication app =
@@ -159,6 +164,97 @@ class SpectraEventsApplicationTest {
     app.definitionRegistry().register(sampleDef, "events/meteor.yml");
     var meteorDiagnostics = app.validateEventReadiness("meteor");
     assertNotNull(meteorDiagnostics);
+  }
+
+  @Test
+  void testWiringWithModelRendererAndOverloadedConstructors() {
+    RecordingLifecycleReporter reporter = new RecordingLifecycleReporter();
+    AtomicReference<Runnable> globalTask = new AtomicReference<>();
+    EventTaskScheduler scheduler =
+        new EventTaskScheduler() {
+          @Override
+          public void schedule(EventInstanceId eventId, Duration delay, Runnable task) {}
+
+          @Override
+          public void scheduleGlobal(Duration delay, Runnable task) {
+            globalTask.set(task);
+          }
+
+          @Override
+          public void cancelAll(EventInstanceId eventId) {}
+
+          @Override
+          public void cancelAll() {}
+        };
+
+    PlatformActionPort actionPort =
+        (executionId, action, executionContext) -> CompletableFuture.completedFuture(null);
+    InMemoryEventInstanceRepository repository = new InMemoryEventInstanceRepository();
+    ModelRendererPort modelRenderer =
+        (ModelRendererPort)
+            Proxy.newProxyInstance(
+                ModelRendererPort.class.getClassLoader(),
+                new Class<?>[] {ModelRendererPort.class},
+                (p, m, a) -> {
+                  if (m.getReturnType().equals(boolean.class)) return true;
+                  return null;
+                });
+
+    SpectraEventsApplication app =
+        new SpectraEventsApplication(
+            reporter, scheduler, actionPort, repository, null, null, modelRenderer);
+
+    assertNotNull(app.modelRuntimeService());
+    assertNotNull(app.animationRuntimeService());
+
+    // Test overloaded constructors
+    SpectraEventsApplication app2 =
+        new SpectraEventsApplication(reporter, scheduler, actionPort, repository, null, null);
+    assertNotNull(app2);
+
+    SpectraEventsApplication app3 = new SpectraEventsApplication(reporter, scheduler, actionPort);
+    assertNotNull(app3);
+
+    // Test non-reward repository throws IllegalArgumentException
+    io.github.kizio806.spectraevents.application.port.EventInstanceRepository nonRewardRepo =
+        (io.github.kizio806.spectraevents.application.port.EventInstanceRepository)
+            Proxy.newProxyInstance(
+                io.github.kizio806.spectraevents.application.port.EventInstanceRepository.class
+                    .getClassLoader(),
+                new Class<?>[] {
+                  io.github.kizio806.spectraevents.application.port.EventInstanceRepository.class
+                },
+                (p, m, a) -> null);
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new SpectraEventsApplication(
+                reporter, scheduler, actionPort, nonRewardRepo, null, null, null));
+
+    // Test scheduleService logger diagnostic callback via startSchedules with matching cron
+    PhaseId phase = new PhaseId("p1");
+    EventDefinition sampleDef =
+        new EventDefinition(
+            new EventDefinitionId("meteor"),
+            phase,
+            Map.of(phase, new PhaseDefinition(phase, Set.of())));
+    app.definitionRegistry().register(sampleDef, "events/meteor.yml");
+
+    EventSchedule schedule =
+        new EventSchedule(
+            "test-sched",
+            "meteor",
+            CronExpression.parse("* * * * *"),
+            ZoneId.of("UTC"),
+            new io.github.kizio806.spectraevents.application.execution.EventLocation(
+                "world", 0, 64, 0, 0, 0));
+
+    app.startSchedules(List.of(schedule));
+    if (globalTask.get() != null) {
+      globalTask.get().run();
+    }
+    app.stop();
   }
 
   @Test

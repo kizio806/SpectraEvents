@@ -2,6 +2,7 @@ package io.github.kizio806.spectraevents.platform.bukkit.gui;
 
 import io.github.kizio806.spectraevents.application.config.DurationText;
 import io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompiler;
+import io.github.kizio806.spectraevents.application.config.compiler.EventDefinitionCompilerException;
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.config.spec.EventParameterSpec;
@@ -411,7 +412,9 @@ public final class AdminGuiController implements Listener {
                   Map.of("parameter", parameter, "event", definitionId, "value", adjusted)),
               NamedTextColor.GREEN));
       openConfigurationDetailMenu(player, definitionId);
-    } catch (IllegalArgumentException | IllegalStateException exception) {
+    } catch (EventDefinitionCompilerException
+        | IllegalArgumentException
+        | IllegalStateException exception) {
       GuiText.send(
           player,
           GuiText.component(
@@ -453,7 +456,9 @@ public final class AdminGuiController implements Listener {
           player,
           GuiText.component(locales, "admin.messages.event-cancelled", NamedTextColor.GREEN));
       openActiveEventsMenu(player);
-    } catch (IllegalArgumentException | IllegalStateException exception) {
+    } catch (EventDefinitionCompilerException
+        | IllegalArgumentException
+        | IllegalStateException exception) {
       GuiText.send(
           player,
           GuiText.component(

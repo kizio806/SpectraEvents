@@ -13,11 +13,11 @@ import io.github.kizio806.spectraevents.platform.bukkit.integration.item.ItemsAd
 import io.github.kizio806.spectraevents.platform.bukkit.integration.item.NexoItemProvider;
 import io.github.kizio806.spectraevents.platform.bukkit.integration.item.OraxenItemProvider;
 import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootHolder;
-import io.github.kizio806.spectraevents.platform.paper.bossbar.EventBossBarManager;
+import io.github.kizio806.spectraevents.platform.paper.bossbar.PaperBossBarManager;
 import io.github.kizio806.spectraevents.platform.paper.integration.MiniPlaceholdersIntegration;
 import io.github.kizio806.spectraevents.platform.paper.lifecycle.PaperResourceCleaner;
 import io.github.kizio806.spectraevents.platform.paper.scheduler.RegionTaskScheduler;
-import io.github.kizio806.spectraevents.platform.paper.scoreboard.EventScoreboardManager;
+import io.github.kizio806.spectraevents.platform.paper.scoreboard.PaperScoreboardManager;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -38,27 +38,27 @@ public final class PaperActionAdapter extends AbstractBukkitActionAdapter {
 
   private final RegionTaskScheduler regionScheduler;
   private final PaperResourceCleaner cleaner;
-  private final EventBossBarManager bossBarManager;
-  private final EventScoreboardManager scoreboardManager;
+  private final PaperBossBarManager bossBarManager;
+  private final PaperScoreboardManager scoreboardManager;
 
   public PaperActionAdapter(
       RegionTaskScheduler regionScheduler, PaperResourceCleaner cleaner, LocaleCatalog locales) {
     super(locales);
     this.regionScheduler = Objects.requireNonNull(regionScheduler, "regionScheduler");
     this.cleaner = Objects.requireNonNull(cleaner, "cleaner");
-    this.bossBarManager = new EventBossBarManager(regionScheduler, locales);
-    this.scoreboardManager = new EventScoreboardManager(regionScheduler, locales);
+    this.bossBarManager = new PaperBossBarManager(regionScheduler, locales);
+    this.scoreboardManager = new PaperScoreboardManager(regionScheduler, locales);
 
     registerItemProvider(new NexoItemProvider());
     registerItemProvider(new OraxenItemProvider());
     registerItemProvider(new ItemsAdderItemProvider());
   }
 
-  public EventBossBarManager bossBarManager() {
+  public PaperBossBarManager bossBarManager() {
     return bossBarManager;
   }
 
-  public EventScoreboardManager scoreboardManager() {
+  public PaperScoreboardManager scoreboardManager() {
     return scoreboardManager;
   }
 

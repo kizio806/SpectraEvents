@@ -9,13 +9,16 @@ import io.github.kizio806.spectraevents.application.integration.IntegrationIniti
 import io.github.kizio806.spectraevents.application.integration.IntegrationRegistry;
 import io.github.kizio806.spectraevents.application.model.animation.runtime.ModelAnimationActionService;
 import io.github.kizio806.spectraevents.application.update.UpdateService;
+import io.github.kizio806.spectraevents.platform.bukkit.asset.delivery.BukkitResourcePackDeliveryBootstrap;
 import io.github.kizio806.spectraevents.platform.bukkit.common.BukkitLifecycleReporter;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitDefinitionConfigBootstrap;
 import io.github.kizio806.spectraevents.platform.bukkit.config.BukkitEventSettingsStore;
 import io.github.kizio806.spectraevents.platform.bukkit.gui.AdminGuiController;
 import io.github.kizio806.spectraevents.platform.bukkit.integration.BukkitIntegrationManager;
+import io.github.kizio806.spectraevents.platform.bukkit.lifecycle.BukkitBootstrapLifecycle;
 import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootListener;
 import io.github.kizio806.spectraevents.platform.paper.action.PaperActionAdapter;
+import io.github.kizio806.spectraevents.platform.paper.asset.delivery.PaperPlayerResourcePackAdapter;
 import io.github.kizio806.spectraevents.platform.paper.command.SpectraMainCommand;
 import io.github.kizio806.spectraevents.platform.paper.common.PaperCapabilityQuery;
 import io.github.kizio806.spectraevents.platform.paper.common.PaperStartupLogger;
@@ -34,7 +37,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /** Composition Root for the Paper platform family. */
-public final class PaperBootstrap {
+public final class PaperBootstrap implements BukkitBootstrapLifecycle {
   private final org.bukkit.plugin.java.JavaPlugin plugin;
   private SpectraEventsApplication application;
   private PaperModelRenderer renderer;
@@ -127,9 +130,18 @@ public final class PaperBootstrap {
                 application.animationDefinitionRegistry()));
     application.setAssetPipelineService(assetPipelineService);
     resourcePackDelivery =
-        io.github.kizio806.spectraevents.platform.paper.asset.delivery
-            .PaperResourcePackDeliveryBootstrap.configure(
-            plugin, plugin.getPluginMeta().getVersion(), assetTargetProfile, locales);
+        BukkitResourcePackDeliveryBootstrap.configure(
+            plugin,
+            plugin.getPluginMeta().getVersion(),
+            assetTargetProfile,
+            locales,
+            (service, settings) ->
+                new PaperPlayerResourcePackAdapter(
+                    service,
+                    plugin.getPluginMeta().getVersion(),
+                    assetTargetProfile,
+                    settings.sourceConfigId(),
+                    locales));
     actionAdapter.setModelRuntimeService(application.modelRuntimeService());
     actionAdapter.setModelAnimationActionService(
         new ModelAnimationActionService(
@@ -255,18 +267,26 @@ public final class PaperBootstrap {
             dataLayout.schedulesFile(),
             locales);
 
-    plugin
-        .getLifecycleManager()
-        .registerEventHandler(
-            LifecycleEvents.COMMANDS,
-            event -> {
-              event
-                  .registrar()
-                  .register(
-                      mainCommand.buildCommand().build(),
-                      "SpectraEvents management command",
-                      List.of("se"));
-            });
+    try {
+      plugin
+          .getLifecycleManager()
+          .registerEventHandler(
+              LifecycleEvents.COMMANDS,
+              event -> {
+                event
+                    .registrar()
+                    .register(
+                        mainCommand.buildCommand().build(),
+                        "SpectraEvents management command",
+                        List.of("se"));
+              });
+    } catch (Exception | LinkageError registrationError) {
+      plugin
+          .getLogger()
+          .warning(
+              "Could not register LifecycleEvents.COMMANDS handler: "
+                  + registrationError.getMessage());
+    }
 
     startupLogger.enabled((System.nanoTime() - startedAt) / 1_000_000L);
   }
@@ -289,8 +309,22 @@ public final class PaperBootstrap {
     if (application != null) {
       application.stop();
       application = null;
+      sqliteRepository = null;
+    } else if (sqliteRepository != null) {
+      sqliteRepository.close();
+      sqliteRepository = null;
     }
     plugin.getLogger().info("SpectraEvents disabled cleanly.");
+  }
+
+  @Override
+  public void onEnable() {
+    enable();
+  }
+
+  @Override
+  public void onDisable() {
+    disable();
   }
 
   private void extractBundledTemplates() {

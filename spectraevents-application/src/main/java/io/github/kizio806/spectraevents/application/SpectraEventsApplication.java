@@ -48,7 +48,7 @@ public final class SpectraEventsApplication {
   private final EventOrchestrationService orchestrationService;
   private final EventExecutionEngine executionEngine;
   private final EntityReconciliationService reconciliationService;
-  private EntityReconciliationReport lastReconciliationReport;
+  private volatile EntityReconciliationReport lastReconciliationReport;
   private final PlatformCapabilityQuery capabilityQuery;
   private final EventInstanceRepository repository;
   private final RewardMailboxService rewardMailboxService;
@@ -64,10 +64,10 @@ public final class SpectraEventsApplication {
   private final IntegrationRegistry integrationRegistry = new IntegrationRegistry();
   private final OperationalReadinessValidator operationalReadinessValidator =
       new OperationalReadinessValidator();
-  private ResourcePackDeliveryCoordinator resourcePackCoordinator;
-  private ResourcePackDeliverySettings resourcePackSettings;
-  private AssetTargetProfile assetTargetProfile;
-  private AssetPipelineService assetPipelineService;
+  private volatile ResourcePackDeliveryCoordinator resourcePackCoordinator;
+  private volatile ResourcePackDeliverySettings resourcePackSettings;
+  private volatile AssetTargetProfile assetTargetProfile;
+  private volatile AssetPipelineService assetPipelineService;
 
   /**
    * Creates the application composition root with platform ports.

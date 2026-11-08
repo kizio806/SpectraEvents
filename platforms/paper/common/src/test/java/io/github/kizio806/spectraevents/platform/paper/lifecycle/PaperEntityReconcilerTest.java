@@ -77,4 +77,40 @@ class PaperEntityReconcilerTest {
 
     assertEquals(1, cleaner.resourceCount(instanceId));
   }
+
+  @Test
+  void removeEntitySafelyHandlesNullAndValidEntity() {
+    assertDoesNotThrow(() -> reconciler.removeEntitySafely(null));
+
+    org.bukkit.entity.Display entity =
+        (org.bukkit.entity.Display)
+            Proxy.newProxyInstance(
+                org.bukkit.entity.Display.class.getClassLoader(),
+                new Class<?>[] {org.bukkit.entity.Display.class},
+                (proxy, method, args) -> {
+                  if ("isValid".equals(method.getName())) return true;
+                  if ("getScheduler".equals(method.getName())) {
+                    return Proxy.newProxyInstance(
+                        io.papermc.paper.threadedregions.scheduler.EntityScheduler.class
+                            .getClassLoader(),
+                        new Class<?>[] {
+                          io.papermc.paper.threadedregions.scheduler.EntityScheduler.class
+                        },
+                        (sp, sm, sa) -> {
+                          if ("execute".equals(sm.getName())
+                              && sa != null
+                              && sa.length > 1
+                              && sa[1] instanceof Runnable r) {
+                            r.run();
+                            return true;
+                          }
+                          return null;
+                        });
+                  }
+                  if ("remove".equals(method.getName())) return null;
+                  return null;
+                });
+
+    assertDoesNotThrow(() -> reconciler.removeEntitySafely(entity));
+  }
 }

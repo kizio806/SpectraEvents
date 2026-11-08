@@ -50,7 +50,7 @@ class ModrinthApiClientTest {
         });
 
     ModrinthApiClient apiClient = new ModrinthApiClient(baseUrl, client, "SpectraEvents/Test");
-    String result = apiClient.getProjectVersions("my-pack", "paper", "1.21.1").join();
+    String result = apiClient.getProjectVersions("my-pack", "paper", "26.1").join();
     assertEquals("[{\"version_number\":\"1.0.0\"}]", result);
   }
 
@@ -66,7 +66,7 @@ class ModrinthApiClientTest {
     CompletionException ex =
         assertThrows(
             CompletionException.class,
-            () -> apiClient.getProjectVersions("missing-pack", "paper", "1.21.1").join());
+            () -> apiClient.getProjectVersions("missing-pack", "paper", "26.1").join());
     assertTrue(ex.getCause() instanceof IllegalStateException);
     assertTrue(ex.getCause().getMessage().contains("not found"));
   }
@@ -83,7 +83,7 @@ class ModrinthApiClientTest {
     CompletionException ex =
         assertThrows(
             CompletionException.class,
-            () -> apiClient.getProjectVersions("err-pack", "paper", "1.21.1").join());
+            () -> apiClient.getProjectVersions("err-pack", "paper", "26.1").join());
     assertTrue(ex.getCause() instanceof IllegalStateException);
     assertTrue(ex.getCause().getMessage().contains("status 500"));
   }
@@ -96,7 +96,7 @@ class ModrinthApiClientTest {
     CompletionException ex =
         assertThrows(
             CompletionException.class,
-            () -> apiClient.getProjectVersions("any-pack", "paper", "1.21.1").join());
+            () -> apiClient.getProjectVersions("any-pack", "paper", "26.1").join());
     assertTrue(ex.getCause() instanceof IllegalStateException);
   }
 
@@ -105,5 +105,92 @@ class ModrinthApiClientTest {
     ModrinthApiClient apiClient = new ModrinthApiClient("1.0.0");
     // Verifies constructor succeeds
     org.junit.jupiter.api.Assertions.assertNotNull(apiClient);
+  }
+
+  @Test
+  void testInterruptedClientThrowsIllegalStateException() {
+    try (HttpClient interruptingClient =
+        new HttpClient() {
+          @Override
+          public java.util.Optional<java.net.CookieHandler> cookieHandler() {
+            return java.util.Optional.empty();
+          }
+
+          @Override
+          public java.util.Optional<Duration> connectTimeout() {
+            return java.util.Optional.empty();
+          }
+
+          @Override
+          public Redirect followRedirects() {
+            return Redirect.NEVER;
+          }
+
+          @Override
+          public java.util.Optional<java.net.ProxySelector> proxy() {
+            return java.util.Optional.empty();
+          }
+
+          @Override
+          public javax.net.ssl.SSLContext sslContext() {
+            return null;
+          }
+
+          @Override
+          public javax.net.ssl.SSLParameters sslParameters() {
+            return null;
+          }
+
+          @Override
+          public java.util.Optional<java.net.Authenticator> authenticator() {
+            return java.util.Optional.empty();
+          }
+
+          @Override
+          public Version version() {
+            return Version.HTTP_2;
+          }
+
+          @Override
+          public java.util.Optional<java.util.concurrent.Executor> executor() {
+            return java.util.Optional.empty();
+          }
+
+          @Override
+          public <T> java.net.http.HttpResponse<T> send(
+              java.net.http.HttpRequest request,
+              java.net.http.HttpResponse.BodyHandler<T> responseBodyHandler)
+              throws InterruptedException {
+            throw new InterruptedException("Simulated interruption");
+          }
+
+          @Override
+          public <T>
+              java.util.concurrent.CompletableFuture<java.net.http.HttpResponse<T>> sendAsync(
+                  java.net.http.HttpRequest request,
+                  java.net.http.HttpResponse.BodyHandler<T> responseBodyHandler) {
+            return java.util.concurrent.CompletableFuture.failedFuture(
+                new InterruptedException("Simulated interruption"));
+          }
+
+          @Override
+          public <T>
+              java.util.concurrent.CompletableFuture<java.net.http.HttpResponse<T>> sendAsync(
+                  java.net.http.HttpRequest request,
+                  java.net.http.HttpResponse.BodyHandler<T> responseBodyHandler,
+                  java.net.http.HttpResponse.PushPromiseHandler<T> pushPromiseHandler) {
+            return java.util.concurrent.CompletableFuture.failedFuture(
+                new InterruptedException("Simulated interruption"));
+          }
+        }) {
+      ModrinthApiClient apiClient =
+          new ModrinthApiClient("http://127.0.0.1:8080", interruptingClient, "SpectraEvents/Test");
+      CompletionException ex =
+          assertThrows(
+              CompletionException.class,
+              () -> apiClient.getProjectVersions("my-pack", "paper", "26.1").join());
+      assertTrue(ex.getCause() instanceof IllegalStateException);
+      assertTrue(ex.getCause().getMessage().contains("Interrupted"));
+    }
   }
 }

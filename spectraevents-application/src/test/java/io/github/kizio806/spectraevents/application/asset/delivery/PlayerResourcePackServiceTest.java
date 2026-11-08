@@ -15,11 +15,23 @@ class PlayerResourcePackServiceTest {
     Assertions.assertEquals(PlayerResourcePackState.NOT_REQUESTED, service.getState(player));
     Assertions.assertEquals(PlayerAssetReadiness.NOT_READY, service.getReadiness(player));
 
+    service.updateState(player, PlayerResourcePackState.ACCEPTED);
+    Assertions.assertEquals(PlayerResourcePackState.ACCEPTED, service.getState(player));
+    Assertions.assertEquals(PlayerAssetReadiness.NOT_READY, service.getReadiness(player));
+
+    service.updateState(player, PlayerResourcePackState.DOWNLOADED);
+    Assertions.assertEquals(PlayerResourcePackState.DOWNLOADED, service.getState(player));
+    Assertions.assertEquals(PlayerAssetReadiness.NOT_READY, service.getReadiness(player));
+
     service.updateState(player, PlayerResourcePackState.LOADED);
     Assertions.assertEquals(PlayerResourcePackState.LOADED, service.getState(player));
     Assertions.assertEquals(PlayerAssetReadiness.READY, service.getReadiness(player));
 
     service.updateState(player, PlayerResourcePackState.DECLINED);
+    Assertions.assertEquals(PlayerAssetReadiness.DECLINED, service.getReadiness(player));
+
+    service.updateState(player, PlayerResourcePackState.DISCARDED);
+    Assertions.assertEquals(PlayerResourcePackState.DISCARDED, service.getState(player));
     Assertions.assertEquals(PlayerAssetReadiness.DECLINED, service.getReadiness(player));
 
     service.updateState(player, PlayerResourcePackState.FAILED);

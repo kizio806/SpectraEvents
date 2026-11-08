@@ -12,6 +12,7 @@ import io.github.kizio806.spectraevents.core.event.runtime.EventInstance;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
@@ -71,6 +72,111 @@ class SharedLootClaimServiceTest {
 
     assertEquals(1, state.sharedLootSnapshot().size());
     assertEquals(1, state.sharedLootSnapshot().get(0).amount());
+  }
+
+  @Test
+  void testReserveEmptySlotReturnsEmpty() {
+    InMemoryEventInstanceRepository repository = new InMemoryEventInstanceRepository();
+    SharedLootClaimService service = new SharedLootClaimService(repository);
+    EventRuntimeState state = stateWithOneDiamond();
+
+    Optional<SharedLootClaimService.Reservation> res = service.reserve(state, 99).join();
+    assertTrue(res.isEmpty());
+  }
+
+  @Test
+  void testConsumeReservationAndInactiveRejection() {
+    InMemoryEventInstanceRepository repository = new InMemoryEventInstanceRepository();
+    SharedLootClaimService service = new SharedLootClaimService(repository);
+    EventRuntimeState state = stateWithOneDiamond();
+    SharedLootClaimService.Reservation reservation = service.reserve(state, 0).join().orElseThrow();
+
+    service.consume(reservation);
+
+    // Consuming or retaining again throws IllegalStateException
+    assertThrows(IllegalStateException.class, () -> service.consume(reservation));
+    assertThrows(IllegalStateException.class, () -> service.retain(reservation));
+  }
+
+  @Test
+  void testRetainOverloadRestoresOriginalLoot() {
+    InMemoryEventInstanceRepository repository = new InMemoryEventInstanceRepository();
+    SharedLootClaimService service = new SharedLootClaimService(repository);
+    EventRuntimeState state = stateWithOneDiamond();
+    SharedLootClaimService.Reservation reservation = service.reserve(state, 0).join().orElseThrow();
+
+    service.retain(reservation).join();
+
+    assertEquals(
+        new CoreActions.LootStack("minecraft:diamond", 1),
+        repository.findState(state.instanceId()).orElseThrow().sharedLootSnapshot().get(0));
+  }
+
+  @Test
+  void testRetainFailsWhenSlotAlreadyOccupied() {
+    InMemoryEventInstanceRepository repository = new InMemoryEventInstanceRepository();
+    SharedLootClaimService service = new SharedLootClaimService(repository);
+    EventRuntimeState state = stateWithOneDiamond();
+    SharedLootClaimService.Reservation reservation = service.reserve(state, 0).join().orElseThrow();
+
+    // Re-occupy slot 0 directly in state
+    state.restoreSharedLootSlot(0, new CoreActions.LootStack("minecraft:gold_ingot", 1));
+
+    CompletableFuture<Void> future =
+        service.retain(reservation, new CoreActions.LootStack("minecraft:diamond", 1));
+    java.util.concurrent.ExecutionException ex =
+        assertThrows(java.util.concurrent.ExecutionException.class, future::get);
+    assertTrue(ex.getCause() instanceof IllegalStateException);
+    assertTrue(ex.getCause().getMessage().contains("was occupied while restoring reservation"));
+  }
+
+  @Test
+  void testReservationValidationAndFailedPersistenceSlotOccupied() {
+    EventRuntimeState state = stateWithOneDiamond();
+    CoreActions.LootStack loot = new CoreActions.LootStack("minecraft:diamond", 1);
+    UUID token = UUID.randomUUID();
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new SharedLootClaimService.Reservation(state, -1, loot, token));
+
+    // When persistence fails and the slot is already occupied, restoreInMemory throws
+    // IllegalStateException
+    EventInstanceRepository maliciousRepo =
+        new EventInstanceRepository() {
+          @Override
+          public void save(EventInstance eventInstance) {}
+
+          @Override
+          public Optional<EventInstance> findById(EventInstanceId eventInstanceId) {
+            return Optional.empty();
+          }
+
+          @Override
+          public List<EventInstance> findAll() {
+            return List.of();
+          }
+
+          @Override
+          public boolean remove(EventInstanceId eventInstanceId) {
+            return false;
+          }
+
+          @Override
+          public CompletableFuture<Void> saveStateDurablyAsync(EventRuntimeState s) {
+            s.restoreSharedLootSlot(0, new CoreActions.LootStack("minecraft:emerald", 10));
+            return CompletableFuture.failedFuture(new RuntimeException("disk write error"));
+          }
+        };
+
+    SharedLootClaimService maliciousService = new SharedLootClaimService(maliciousRepo);
+    CompletionException ex =
+        assertThrows(CompletionException.class, () -> maliciousService.reserve(state, 0).join());
+    assertTrue(ex.getCause() instanceof IllegalStateException);
+    assertTrue(
+        ex.getCause()
+            .getMessage()
+            .contains("slot was occupied after failed reservation persistence"));
   }
 
   private static EventRuntimeState stateWithOneDiamond() {

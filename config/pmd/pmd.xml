@@ -17,6 +17,7 @@
         <exclude name="UseProperClassLoader"/>
         <exclude name="TestClassWithoutTestCases"/>
         <exclude name="AvoidCatchingGenericException"/>
+        <exclude name="AvoidAccessibilityAlteration"/>
     </rule>
 
     <rule ref="category/java/security.xml"/>

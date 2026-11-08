@@ -3,6 +3,8 @@ package io.github.kizio806.spectraevents.application.model.animation.runtime;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.kizio806.spectraevents.application.model.animation.compiler.AnimationCompiler;
@@ -286,6 +288,108 @@ class AnimationRuntimeServiceTest {
 
     service.stopAll(mockHandle);
     assertTrue(service.getActivePlaybacks().isEmpty());
+  }
+
+  @Test
+  void testPlayUnregisteredAnimationThrows() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                service.play(
+                    mockHandle, new AnimationId("non_existent_anim"), PlaybackOptions.DEFAULT));
+    assertTrue(ex.getMessage().contains("not registered for model"));
+  }
+
+  @Test
+  void testRestorePlaybackUnregisteredReturnsNull() {
+    AnimationPlaybackState state =
+        new AnimationPlaybackState(
+            AnimationPlaybackId.random(),
+            mockHandle,
+            new AnimationId("unregistered"),
+            PlaybackState.PLAYING,
+            AnimationTime.ZERO,
+            1.0f,
+            LoopMode.ONCE,
+            0,
+            RecoveryPolicy.RESUME);
+    assertNull(service.restorePlayback(state));
+  }
+
+  @Test
+  void testStepAnimationLifecycleAndCompletion() {
+    // Play with LoopMode.ONCE
+    PlaybackOptions options =
+        new PlaybackOptions(1.0f, LoopMode.ONCE, 1, RecoveryPolicy.RESUME, null);
+    AnimationPlaybackId pId = service.play(mockHandle, compiledAnim, options);
+    assertNotNull(pId);
+    assertFalse(activeRegistry.findById(pId).isEmpty());
+
+    // Advance scheduler until completed
+    while (!scheduler.pendingTasks.isEmpty()) {
+      scheduler.runPending();
+    }
+    // Finished playback should be removed from active registry
+    assertTrue(activeRegistry.findById(pId).isEmpty());
+
+    // Test playback stopped while task pending
+    AnimationPlaybackId pId2 = service.play(mockHandle, compiledAnim, options);
+    service.stop(pId2);
+    // Running pending task on stopped animation should gracefully return
+    scheduler.runPending();
+    assertTrue(activeRegistry.findById(pId2).isEmpty());
+  }
+
+  @Test
+  void testComposedAnimationWithModelDefinitionRegistry() {
+    ModelDefinitionRegistry modelReg = new ModelDefinitionRegistry();
+    ModelId modelId = mockHandle.definitionId();
+    ItemAssetRef asset = new ItemAssetRef("minecraft:stick", DisplayTransformMode.NONE);
+    ModelPartDefinition partDef =
+        new ModelPartDefinition(
+            ModelPartId.of("part1"),
+            null,
+            ModelPartType.ITEM_DISPLAY,
+            ModelTransform.IDENTITY,
+            ModelTransform.IDENTITY,
+            ModelRenderProperties.DEFAULT,
+            asset);
+    ModelDefinition modelDef = new ModelDefinition(modelId, List.of(partDef), List.of());
+    modelReg.register(modelDef);
+
+    AnimationRuntimeService composedService =
+        new AnimationRuntimeService(
+            definitionRegistry, modelReg, activeRegistry, modelRenderer, scheduler);
+
+    PlaybackOptions options =
+        new PlaybackOptions(1.0f, LoopMode.ONCE, 1, RecoveryPolicy.RESUME, null);
+    AnimationPlaybackId pId = composedService.play(mockHandle, compiledAnim, options);
+    assertNotNull(pId);
+
+    // Run scheduler pending tasks to advance composed steps
+    while (!scheduler.pendingTasks.isEmpty()) {
+      scheduler.runPending();
+    }
+    assertTrue(activeRegistry.findById(pId).isEmpty());
+
+    // Test with missing definition in model registry
+    ModelId missingModelId = new ModelId("missing_model");
+    RenderedModelHandle handleMissingDef =
+        new RenderedModelHandle(
+            ModelRuntimeId.of("missing_run"),
+            missingModelId,
+            null,
+            mockHandle.anchor(),
+            mockHandle.parts(),
+            Map.of());
+    definitionRegistry.register(missingModelId, compiledAnim);
+
+    AnimationPlaybackId pIdMissing = composedService.play(handleMissingDef, compiledAnim, options);
+    assertNotNull(pIdMissing);
+    while (!scheduler.pendingTasks.isEmpty()) {
+      scheduler.runPending();
+    }
   }
 
   // --- Test Helpers ---

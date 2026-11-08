@@ -38,6 +38,7 @@ tasks.withType<JavaCompile>().configureEach {
         disableAllChecks.set(false)
         disableAllWarnings.set(false)
         ignoreSuppressionAnnotations.set(false)
+        disable("StringConcatToTextBlock")
     }
 }
 

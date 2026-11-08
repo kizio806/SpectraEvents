@@ -246,6 +246,57 @@ val jacocoRootReport =
         }
     }
 
+val jacocoRootCoverageVerification =
+    tasks.register<JacocoCoverageVerification>("jacocoRootCoverageVerification") {
+        group = "verification"
+        description = "Verifies aggregated JaCoCo coverage thresholds across all tested subprojects."
+        dependsOn(jacocoRootReport)
+
+        val testedProjects =
+            subprojects.filter {
+                it.pluginManager.hasPlugin("jacoco") &&
+                    !it.path.startsWith(":distributions")
+            }
+
+        val allExecutionData =
+            files(
+                testedProjects.map { testedProject ->
+                    testedProject.fileTree(testedProject.layout.buildDirectory.dir("jacoco")) {
+                        include("*.exec")
+                    }
+                },
+            )
+        executionData.setFrom(allExecutionData)
+
+        val allSourceSets =
+            testedProjects.mapNotNull { testedProject ->
+                testedProject.extensions.findByType<SourceSetContainer>()?.findByName("main")
+            }
+        sourceDirectories.setFrom(allSourceSets.map { it.allSource.srcDirs })
+        classDirectories.setFrom(allSourceSets.map { it.output })
+
+        violationRules {
+            rule {
+                element = "BUNDLE"
+                limit {
+                    counter = "INSTRUCTION"
+                    value = "COVEREDRATIO"
+                    minimum = "0.90".toBigDecimal()
+                }
+                limit {
+                    counter = "LINE"
+                    value = "COVEREDRATIO"
+                    minimum = "0.90".toBigDecimal()
+                }
+                limit {
+                    counter = "BRANCH"
+                    value = "COVEREDRATIO"
+                    minimum = "0.80".toBigDecimal()
+                }
+            }
+        }
+    }
+
 sonar {
     properties {
         property("sonar.projectKey", "kizio806_SpectraEvents")
@@ -291,6 +342,7 @@ tasks.named("check") {
         validateStructure,
         validateSourceHygiene,
         jacocoRootReport,
+        jacocoRootCoverageVerification,
     )
 }
 

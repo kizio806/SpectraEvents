@@ -48,6 +48,25 @@ class EventInstanceTest {
   }
 
   @Test
+  void transitionPhaseRejectsNullOrUnknownCurrentPhase() {
+    EventInstance withoutPhase =
+        EventInstance.reconstitute(ID, DEF_ID, EventLifecycleState.RUNNING, null);
+    InvalidPhaseTransitionException ex1 =
+        assertThrows(
+            InvalidPhaseTransitionException.class,
+            () -> withoutPhase.transitionPhase(DEFINITION, new PhaseId("impact")));
+    assertTrue(ex1.getMessage().contains("Event has no current phase"));
+
+    EventInstance withUnknownPhase =
+        EventInstance.reconstitute(ID, DEF_ID, EventLifecycleState.RUNNING, new PhaseId("unknown"));
+    InvalidPhaseTransitionException ex2 =
+        assertThrows(
+            InvalidPhaseTransitionException.class,
+            () -> withUnknownPhase.transitionPhase(DEFINITION, new PhaseId("impact")));
+    assertTrue(ex2.getMessage().contains("Current phase is unknown to definition"));
+  }
+
+  @Test
   void rejectsAFactoryCallWithoutAnIdentity() {
     assertThrows(NullPointerException.class, () -> EventInstance.create(null, DEF_ID));
     assertThrows(NullPointerException.class, () -> EventInstance.create(ID, null));

@@ -770,4 +770,345 @@ class EventDefinitionCompilerTest {
               + e.getDiagnostics().stream().map(d -> d.code() + ": " + d.message()).toList());
     }
   }
+
+  @Test
+  void testCompileValidationBasicDiagnostics() {
+    // 1. Blank event ID
+    EventSpec blankId =
+        new EventSpec(
+            "  ", "1.0", "active", Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())));
+    var ex1 = assertThrows(EventDefinitionCompilerException.class, () -> compiler.compile(blankId));
+    assertTrue(ex1.getDiagnostics().stream().anyMatch(d -> d.code().equals("SE-DEF-001")));
+
+    // 2. Blank initial phase
+    EventSpec blankInit =
+        new EventSpec(
+            "id", "1.0", "  ", Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())));
+    var ex2 =
+        assertThrows(EventDefinitionCompilerException.class, () -> compiler.compile(blankInit));
+    assertTrue(ex2.getDiagnostics().stream().anyMatch(d -> d.code().equals("SE-DEF-002")));
+
+    // 3. Empty phases map
+    EventSpec noPhases = new EventSpec("id", "1.0", "active", Map.of());
+    var ex3 =
+        assertThrows(EventDefinitionCompilerException.class, () -> compiler.compile(noPhases));
+    assertTrue(ex3.getDiagnostics().stream().anyMatch(d -> d.code().equals("SE-DEF-004")));
+  }
+
+  @Test
+  void testCompileAllConditionsAndMoneyActions() {
+    List<ConditionSpec> conditions =
+        List.of(
+            new ConditionSpec("not_locked", Map.of()),
+            new ConditionSpec("is_locked", Map.of()),
+            new ConditionSpec("has_permission", Map.of("permission", "spectraevents.vip")),
+            new ConditionSpec("has_group", Map.of("group", "donators")),
+            new ConditionSpec("in_region", Map.of("region", "arena_spawn")),
+            new ConditionSpec("custom_unknown_cond", Map.of()));
+
+    List<ActionSpec> actions =
+        List.of(
+            new ActionSpec("give_money", Map.of("amount", 250.0)),
+            new ActionSpec("take_money", Map.of("amount", 50.0)),
+            new ActionSpec("remove_scoreboard", Map.of()));
+
+    TransitionSpec trans =
+        new TransitionSpec(new TriggerSpec("manual", Map.of()), conditions, "next", actions);
+
+    EventSpec spec =
+        new EventSpec(
+            "conds_and_money",
+            "1.0",
+            "start",
+            Map.of(
+                "start", new PhaseSpec(Set.of("next"), List.of(trans), List.of()),
+                "next", new PhaseSpec(Set.of(), List.of(), List.of())));
+
+    EventDefinition def = compiler.compile(spec);
+    assertNotNull(def);
+    var rule = def.phase(new PhaseId("start")).orElseThrow().rules().getFirst();
+    assertEquals(conditions.size(), rule.conditions().size());
+    assertEquals(actions.size(), rule.actions().size());
+  }
+
+  @Test
+  void testParameterTypeValidationDuringCompilation() {
+    // 1. Duration parameter with zero or negative duration
+    EventSpec specZeroDuration =
+        new EventSpec(
+            "zero_dur",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of(),
+            Map.of(),
+            Map.of(
+                "delay",
+                new EventParameterSpec(
+                    "delay", EventParameterType.DURATION, "0s", null, null, null, false)));
+    assertThrows(EventDefinitionCompilerException.class, () -> compiler.compile(specZeroDuration));
+
+    // 2. Boolean parameter with invalid string
+    EventSpec specBadBool =
+        new EventSpec(
+            "bad_bool",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of(),
+            Map.of(),
+            Map.of(
+                "enabled",
+                new EventParameterSpec(
+                    "enabled",
+                    EventParameterType.BOOLEAN,
+                    "not_a_boolean",
+                    null,
+                    null,
+                    null,
+                    false)));
+    assertThrows(EventDefinitionCompilerException.class, () -> compiler.compile(specBadBool));
+
+    // 3. Integer parameter with bounds check (value < min)
+    EventSpec specOutOfRange =
+        new EventSpec(
+            "out_of_range",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of(),
+            Map.of(),
+            Map.of(
+                "count",
+                new EventParameterSpec(
+                    "count",
+                    EventParameterType.INTEGER,
+                    5,
+                    BigDecimal.valueOf(10),
+                    BigDecimal.valueOf(50),
+                    BigDecimal.valueOf(1),
+                    false)));
+    assertThrows(EventDefinitionCompilerException.class, () -> compiler.compile(specOutOfRange));
+
+    // 4. Decimal parameter valid and bounds check (value > max)
+    EventSpec specDecMax =
+        new EventSpec(
+            "dec_max",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of(),
+            Map.of(),
+            Map.of(
+                "rate",
+                new EventParameterSpec(
+                    "rate",
+                    EventParameterType.DECIMAL,
+                    1.5,
+                    BigDecimal.valueOf(0.1),
+                    BigDecimal.valueOf(1.0),
+                    BigDecimal.valueOf(0.1),
+                    false)));
+    assertThrows(EventDefinitionCompilerException.class, () -> compiler.compile(specDecMax));
+
+    // 5. Valid compilation with overrides
+    EventSpec specValid =
+        new EventSpec(
+            "valid_params",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of(),
+            Map.of(),
+            Map.of(
+                "amount",
+                new EventParameterSpec(
+                    "amount",
+                    EventParameterType.INTEGER,
+                    20,
+                    BigDecimal.valueOf(10),
+                    BigDecimal.valueOf(50),
+                    BigDecimal.valueOf(1),
+                    false),
+                "ratio",
+                new EventParameterSpec(
+                    "ratio",
+                    EventParameterType.DECIMAL,
+                    0.5,
+                    BigDecimal.valueOf(0.1),
+                    BigDecimal.valueOf(1.0),
+                    BigDecimal.valueOf(0.1),
+                    false),
+                "flag",
+                new EventParameterSpec(
+                    "flag", EventParameterType.BOOLEAN, true, null, null, null, false)));
+    EventDefinition def =
+        compiler.compile(specValid, Map.of("amount", 30, "ratio", 0.8, "flag", false));
+    assertNotNull(def);
+  }
+
+  @Test
+  void testCompileParameterOverridesAndReferencesValidation() {
+    EventDefinitionCompiler compiler = new EventDefinitionCompiler();
+
+    EventSpec spec =
+        new EventSpec(
+            "param_tests",
+            "1.0",
+            "active",
+            Map.of(
+                "active",
+                new PhaseSpec(
+                    Set.of(),
+                    List.of(),
+                    List.of(
+                        new ActionSpec(
+                            "message",
+                            Map.of("raw", "${undeclared}", "embedded", "val_${missing}"))))),
+            Map.of(),
+            Map.of(),
+            Map.of(
+                "declared-int",
+                new EventParameterSpec(
+                    "declared-int", EventParameterType.INTEGER, 10, null, null, null, false),
+                "dur-h",
+                new EventParameterSpec(
+                    "dur-h", EventParameterType.DURATION, "2h", null, null, null, false),
+                "dur-m",
+                new EventParameterSpec(
+                    "dur-m", EventParameterType.DURATION, "15m", null, null, null, false),
+                "dur-s",
+                new EventParameterSpec(
+                    "dur-s", EventParameterType.DURATION, "30s", null, null, null, false),
+                "dur-ms",
+                new EventParameterSpec(
+                    "dur-ms", EventParameterType.DURATION, "750ms", null, null, null, false)));
+
+    // Unknown override key throws EventDefinitionCompilerException with SE-DEF-VALUE-001
+    EventDefinitionCompilerException exUnknown =
+        assertThrows(
+            EventDefinitionCompilerException.class,
+            () -> compiler.compile(spec, Map.of("completely-unknown", 123)));
+    assertTrue(
+        exUnknown.getDiagnostics().stream().anyMatch(d -> "SE-DEF-VALUE-001".equals(d.code())));
+
+    // Undeclared single parameter reference throws EventDefinitionCompilerException with
+    // SE-DEF-VALUE-001
+    EventDefinitionCompilerException exUndeclared =
+        assertThrows(
+            EventDefinitionCompilerException.class,
+            () -> compiler.compile(spec, Map.of("declared-int", 20)));
+    assertTrue(
+        exUndeclared.getDiagnostics().stream().anyMatch(d -> "SE-DEF-VALUE-001".equals(d.code())));
+
+    // Test transition trigger is null -> SE-DEF-006
+    EventSpec nullTriggerSpec =
+        new EventSpec(
+            "null_trigger",
+            "1.0",
+            "active",
+            Map.of(
+                "active",
+                new PhaseSpec(
+                    Set.of(),
+                    List.of(new TransitionSpec(null, List.of(), "active", List.of())),
+                    List.of())),
+            Map.of(),
+            Map.of(),
+            Map.of());
+    EventDefinitionCompilerException exTrigger =
+        assertThrows(
+            EventDefinitionCompilerException.class, () -> compiler.compile(nullTriggerSpec));
+    assertTrue(exTrigger.getDiagnostics().stream().anyMatch(d -> "SE-DEF-006".equals(d.code())));
+
+    // Test transition target phase does not exist -> SE-DEF-007
+    EventSpec missingTargetSpec =
+        new EventSpec(
+            "missing_target",
+            "1.0",
+            "active",
+            Map.of(
+                "active",
+                new PhaseSpec(
+                    Set.of(),
+                    List.of(
+                        new TransitionSpec(
+                            new TriggerSpec("timer_elapsed", Map.of("duration", "5s")),
+                            List.of(),
+                            "non_existent_phase",
+                            List.of())),
+                    List.of())),
+            Map.of(),
+            Map.of(),
+            Map.of());
+    EventDefinitionCompilerException exTarget =
+        assertThrows(
+            EventDefinitionCompilerException.class, () -> compiler.compile(missingTargetSpec));
+    assertTrue(exTarget.getDiagnostics().stream().anyMatch(d -> "SE-DEF-007".equals(d.code())));
+
+    // Test unknown encounter setting -> SE-DEF-ENC-001
+    EventSpec unknownEncounterSpec =
+        new EventSpec(
+            "unknown_enc",
+            "1.0",
+            "active",
+            Map.of("active", new PhaseSpec(Set.of(), List.of(), List.of())),
+            Map.of("unknown_setting", 42),
+            Map.of(),
+            Map.of());
+    EventDefinitionCompilerException exEnc =
+        assertThrows(
+            EventDefinitionCompilerException.class, () -> compiler.compile(unknownEncounterSpec));
+    assertTrue(exEnc.getDiagnostics().stream().anyMatch(d -> "SE-DEF-ENC-001".equals(d.code())));
+
+    // Test wave_cleared trigger without wave-id throws IllegalArgumentException
+    EventSpec missingWaveIdSpec =
+        new EventSpec(
+            "missing_wave",
+            "1.0",
+            "active",
+            Map.of(
+                "active",
+                new PhaseSpec(
+                    Set.of(),
+                    List.of(
+                        new TransitionSpec(
+                            new TriggerSpec("wave_cleared", Map.of()),
+                            List.of(),
+                            "active",
+                            List.of())),
+                    List.of())),
+            Map.of(),
+            Map.of(),
+            Map.of());
+    EventDefinitionCompilerException exWave =
+        assertThrows(
+            EventDefinitionCompilerException.class, () -> compiler.compile(missingWaveIdSpec));
+    assertTrue(exWave.getDiagnostics().stream().anyMatch(d -> "SE-DEF-VALUE-001".equals(d.code())));
+
+    // Test has_permission with blank permission throws EventDefinitionCompilerException
+    EventSpec blankPermSpec =
+        new EventSpec(
+            "blank_perm",
+            "1.0",
+            "active",
+            Map.of(
+                "active",
+                new PhaseSpec(
+                    Set.of(),
+                    List.of(
+                        new TransitionSpec(
+                            new TriggerSpec("timer_elapsed", Map.of("duration", "1s")),
+                            List.of(
+                                new ConditionSpec("has_permission", Map.of("permission", "   "))),
+                            "active",
+                            List.of())),
+                    List.of())),
+            Map.of(),
+            Map.of(),
+            Map.of());
+    EventDefinitionCompilerException exPerm =
+        assertThrows(EventDefinitionCompilerException.class, () -> compiler.compile(blankPermSpec));
+    assertTrue(exPerm.getDiagnostics().stream().anyMatch(d -> "SE-DEF-VALUE-001".equals(d.code())));
+  }
 }

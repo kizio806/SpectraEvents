@@ -62,7 +62,10 @@ public class ModelCompiler {
           new ValidationDiagnostic(
               Severity.ERROR, "MODEL_ID_BLANK", "id", "Model ID cannot be null or blank"));
     }
-    ModelId modelId = spec.getId() != null ? new ModelId(spec.getId()) : new ModelId("unknown");
+    ModelId modelId =
+        (spec.getId() != null && !spec.getId().isBlank())
+            ? new ModelId(spec.getId())
+            : new ModelId("unknown");
 
     // 2. Validate Parts map
     if (spec.getParts() == null || spec.getParts().isEmpty()) {
