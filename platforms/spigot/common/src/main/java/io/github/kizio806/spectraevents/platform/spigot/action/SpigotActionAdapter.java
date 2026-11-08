@@ -268,9 +268,7 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
       return future;
     }
     org.bukkit.Server server = org.bukkit.Bukkit.getServer();
-    if (server != null && server.isPrimaryThread()) {
-      runGuarded(null, action, future);
-    } else if (server != null) {
+    if (server != null && !server.isPrimaryThread()) {
       server.getScheduler().runTask(plugin, () -> runGuarded(null, action, future));
     } else {
       runGuarded(null, action, future);

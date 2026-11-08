@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.bukkit.compat;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -176,49 +177,56 @@ class BukkitPlatformBridgeTest {
   @Test
   void handlesJavaPluginLoaderInstantiation() {
     MockBukkitSetup.ensureInitialized();
-    try {
-      BukkitPlatformBridge.createJavaPluginLoader(org.bukkit.Bukkit.getServer());
-    } catch (LinkageError ignored) {
-      // Expected if JavaPluginLoader constructor signature differs or is deprecated in runtime mock
-    }
+    assertDoesNotThrow(
+        () -> {
+          try {
+            BukkitPlatformBridge.createJavaPluginLoader(org.bukkit.Bukkit.getServer());
+          } catch (LinkageError ignored) {
+            // Expected if JavaPluginLoader constructor signature differs or is deprecated in
+            // runtime mock
+          }
+        });
   }
 
   @Test
   void handlesFallbacksAndErrorsInPlatformBridge() {
-    Entity failingEntity =
-        (Entity)
-            Proxy.newProxyInstance(
-                Entity.class.getClassLoader(),
-                new Class<?>[] {Entity.class},
-                (proxy, method, args) -> {
-                  if ("getUniqueId".equals(method.getName())) return UUID.randomUUID();
-                  throw new RuntimeException("Simulated entity error");
-                });
-    BukkitPlatformBridge.setCustomName(failingEntity, "name", null, null);
+    assertDoesNotThrow(
+        () -> {
+          Entity failingEntity =
+              (Entity)
+                  Proxy.newProxyInstance(
+                      Entity.class.getClassLoader(),
+                      new Class<?>[] {Entity.class},
+                      (proxy, method, args) -> {
+                        if ("getUniqueId".equals(method.getName())) return UUID.randomUUID();
+                        throw new RuntimeException("Simulated entity error");
+                      });
+          BukkitPlatformBridge.setCustomName(failingEntity, "name", null, null);
 
-    Player failingPlayer =
-        (Player)
-            Proxy.newProxyInstance(
-                Player.class.getClassLoader(),
-                new Class<?>[] {Player.class},
-                (proxy, method, args) -> {
-                  if ("getName".equals(method.getName())) return "FailingPlayer";
-                  throw new RuntimeException("Simulated player error");
-                });
-    BukkitPlatformBridge.kickPlayer(failingPlayer, "kick", null, null);
-    BukkitPlatformBridge.sendResourcePack(
-        failingPlayer, "https://url.com", new byte[0], "prompt", false, null);
+          Player failingPlayer =
+              (Player)
+                  Proxy.newProxyInstance(
+                      Player.class.getClassLoader(),
+                      new Class<?>[] {Player.class},
+                      (proxy, method, args) -> {
+                        if ("getName".equals(method.getName())) return "FailingPlayer";
+                        throw new RuntimeException("Simulated player error");
+                      });
+          BukkitPlatformBridge.kickPlayer(failingPlayer, "kick", null, null);
+          BukkitPlatformBridge.sendResourcePack(
+              failingPlayer, "https://url.com", new byte[0], "prompt", false, null);
 
-    TextDisplay failingDisplay =
-        (TextDisplay)
-            Proxy.newProxyInstance(
-                TextDisplay.class.getClassLoader(),
-                new Class<?>[] {TextDisplay.class},
-                (proxy, method, args) -> {
-                  if ("getUniqueId".equals(method.getName())) return UUID.randomUUID();
-                  throw new RuntimeException("Simulated text display error");
-                });
-    BukkitPlatformBridge.setText(failingDisplay, "text", null, null);
+          TextDisplay failingDisplay =
+              (TextDisplay)
+                  Proxy.newProxyInstance(
+                      TextDisplay.class.getClassLoader(),
+                      new Class<?>[] {TextDisplay.class},
+                      (proxy, method, args) -> {
+                        if ("getUniqueId".equals(method.getName())) return UUID.randomUUID();
+                        throw new RuntimeException("Simulated text display error");
+                      });
+          BukkitPlatformBridge.setText(failingDisplay, "text", null, null);
+        });
   }
 
   @Test

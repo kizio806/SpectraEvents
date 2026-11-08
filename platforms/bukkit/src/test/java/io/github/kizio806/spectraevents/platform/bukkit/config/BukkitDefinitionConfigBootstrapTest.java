@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.bukkit.config;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -106,7 +107,7 @@ class BukkitDefinitionConfigBootstrapTest {
     DefinitionLoadResult resultWithItems =
         new DefinitionLoadResult(List.of(regDef), List.of(failure));
 
-    bootstrap.logLoadResult(resultWithItems);
+    assertDoesNotThrow(() -> bootstrap.logLoadResult(resultWithItems));
   }
 
   @Test

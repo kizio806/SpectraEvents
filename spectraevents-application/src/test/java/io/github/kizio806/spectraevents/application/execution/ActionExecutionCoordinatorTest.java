@@ -150,9 +150,17 @@ class ActionExecutionCoordinatorTest {
                   pool));
         }
         latch.countDown();
+        long successCount = 0;
         for (CompletableFuture<Boolean> f : futures) {
-          f.join();
+          if (f.join()) {
+            successCount++;
+          }
         }
+        assertEquals(
+            1,
+            successCount,
+            "Exactly one thread should successfully claim the reward in concurrent race");
+        assertTrue(state.isClaimed());
       }
     }
   }

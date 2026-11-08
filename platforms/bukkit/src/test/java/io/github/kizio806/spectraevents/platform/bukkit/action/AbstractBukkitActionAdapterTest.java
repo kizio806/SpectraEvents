@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.bukkit.action;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -1198,7 +1199,7 @@ class AbstractBukkitActionAdapterTest {
       Inventory lootInv =
           MockBukkitSetup.createMockInventory(new BukkitSharedLootHolder(id), 27, "Loot");
       player.openInventory(lootInv);
-      adapter.closeSharedLootInventories(id);
+      assertDoesNotThrow(() -> adapter.closeSharedLootInventories(id));
     } finally {
       MockBukkitSetup.unregisterPlayer(playerId);
     }

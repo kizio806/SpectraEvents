@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.spigot.command;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -61,9 +62,12 @@ class SpigotLocationCommandHandlerTest {
   @Test
   void shouldShowUsageOnEmptyOrHelp() {
     ConsoleCommandSender console = org.bukkit.Bukkit.getConsoleSender();
-    handler.execute(console, new String[0]);
-    handler.execute(console, new String[] {"help"});
-    handler.execute(console, new String[] {"unknown_subcommand"});
+    assertDoesNotThrow(
+        () -> {
+          handler.execute(console, new String[0]);
+          handler.execute(console, new String[] {"help"});
+          handler.execute(console, new String[] {"unknown_subcommand"});
+        });
   }
 
   @Test

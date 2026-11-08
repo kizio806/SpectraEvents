@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.adapter.storage.sqlite;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -235,12 +236,12 @@ class SingleWriterPersistenceExecutorTest {
           Thread.currentThread().interrupt();
           latch.countDown();
         });
-    latch.await();
+    assertTrue(latch.await(2, java.util.concurrent.TimeUnit.SECONDS));
     // Worker breaks out of loop after encountering interrupted poll
     // Give it a moment to terminate
     Thread.sleep(150);
     // Enqueueing further writes will now either sit in queue or after shutdown drain
-    executor.shutdown();
+    assertDoesNotThrow(() -> executor.shutdown());
   }
 
   @Test

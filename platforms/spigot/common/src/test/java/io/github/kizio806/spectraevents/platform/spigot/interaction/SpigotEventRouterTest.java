@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.spigot.interaction;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -219,7 +220,6 @@ class SpigotEventRouterTest {
             (LivingEntity) plainMob,
             mockDamageSource,
             List.of(new ItemStack(Material.ROTTEN_FLESH)));
-    router.onDeath(plainDeath);
 
     // 2. Death with killer and without waveId
     EventInstanceId id = EventInstanceId.generate();
@@ -254,7 +254,11 @@ class SpigotEventRouterTest {
     EntityDeathEvent deathWithKiller =
         new EntityDeathEvent(
             livingMob, mockDamageSource, List.of(new ItemStack(Material.ROTTEN_FLESH)));
-    router.onDeath(deathWithKiller);
+    assertDoesNotThrow(
+        () -> {
+          router.onDeath(plainDeath);
+          router.onDeath(deathWithKiller);
+        });
   }
 
   @Test

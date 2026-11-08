@@ -1,5 +1,6 @@
 package io.github.kizio806.spectraevents.platform.spigot.lifecycle;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -169,10 +170,11 @@ class SpigotEntityReconcilerTest {
       DiscoveredEntity nonUuidDiscovered =
           new DiscoveredEntity("non-uuid-reference", instanceId, "marker", "main");
 
-      reconciler.restoreInstance(instanceId, List.of(validDiscovered, nonUuidDiscovered));
-
-      // Cleanup the event in adapter
-      adapter.cleanupEvent(instanceId);
+      assertDoesNotThrow(
+          () -> {
+            reconciler.restoreInstance(instanceId, List.of(validDiscovered, nonUuidDiscovered));
+            adapter.cleanupEvent(instanceId);
+          });
     }
   }
 }

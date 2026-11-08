@@ -1,6 +1,8 @@
 package io.github.kizio806.spectraevents.platform.paper.interaction;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import io.github.kizio806.spectraevents.application.config.registry.EventDefinitionRegistry;
 import io.github.kizio806.spectraevents.application.execution.EventExecutionEngine;
@@ -89,7 +91,7 @@ class PaperEntityDeathRouterTest {
 
     EntityDeathEvent event =
         new EntityDeathEvent(entity, mockDamageSource, Collections.emptyList());
-    router.onEntityDeath(event);
+    assertDoesNotThrow(() -> router.onEntityDeath(event));
   }
 
   @Test
@@ -106,7 +108,7 @@ class PaperEntityDeathRouterTest {
 
     EntityDeathEvent event =
         new EntityDeathEvent(entity, mockDamageSource, Collections.emptyList());
-    router.onEntityDeath(event);
+    assertDoesNotThrow(() -> router.onEntityDeath(event));
   }
 
   @Test
@@ -177,7 +179,7 @@ class PaperEntityDeathRouterTest {
 
     EntityDeathEvent event =
         new EntityDeathEvent(entity, mockDamageSource, Collections.emptyList());
-    router.onEntityDeath(event);
+    assertDoesNotThrow(() -> router.onEntityDeath(event));
   }
 
   @Test
@@ -213,7 +215,7 @@ class PaperEntityDeathRouterTest {
 
     EntityDeathEvent event =
         new EntityDeathEvent(entity, mockDamageSource, Collections.emptyList());
-    router.onEntityDeath(event);
+    assertDoesNotThrow(() -> router.onEntityDeath(event));
   }
 
   @Test
@@ -267,15 +269,19 @@ class PaperEntityDeathRouterTest {
             PersistentDataType.STRING,
             instanceId.value().toString());
 
-    router.onEntityDeath(
-        new EntityDeathEvent(entityWithKiller, mockDamageSource, Collections.emptyList()));
-    router.onEntityDeath(
-        new EntityDeathEvent(entityWithoutKiller, mockDamageSource, Collections.emptyList()));
+    assertDoesNotThrow(
+        () -> {
+          router.onEntityDeath(
+              new EntityDeathEvent(entityWithKiller, mockDamageSource, Collections.emptyList()));
+          router.onEntityDeath(
+              new EntityDeathEvent(entityWithoutKiller, mockDamageSource, Collections.emptyList()));
+        });
   }
 
   @Test
   void testSecondaryConstructor() {
     PaperEntityDeathRouter minimalRouter = new PaperEntityDeathRouter(orchestrationService);
+    assertNotNull(minimalRouter);
     World world = MockBukkitSetup.createMockWorld("world");
     LivingEntity entity =
         (LivingEntity)
@@ -283,7 +289,7 @@ class PaperEntityDeathRouterTest {
                 EntityType.ZOMBIE, new Location(world, 0, 0, 0));
     EntityDeathEvent event =
         new EntityDeathEvent(entity, mockDamageSource, Collections.emptyList());
-    minimalRouter.onEntityDeath(event);
+    assertDoesNotThrow(() -> minimalRouter.onEntityDeath(event));
 
     EventInstanceId instanceId = EventInstanceId.generate();
     EventInstance instance = EventInstance.create(instanceId, new EventDefinitionId("plain_event"));
@@ -294,6 +300,6 @@ class PaperEntityDeathRouterTest {
             BukkitPdcKeys.EVENT_INSTANCE_ID,
             PersistentDataType.STRING,
             instanceId.value().toString());
-    minimalRouter.onEntityDeath(event);
+    assertDoesNotThrow(() -> minimalRouter.onEntityDeath(event));
   }
 }

@@ -68,9 +68,6 @@ public abstract class AbstractBukkitEntityReconciler implements PlatformEntityRe
 
   @Override
   public void removeEntity(Object platformEntityReference) {
-    if (Bukkit.getServer() == null) {
-      return;
-    }
     if (platformEntityReference instanceof UUID uuid) {
       Entity entity = Bukkit.getEntity(uuid);
       if (entity != null && entity.isValid()) {
