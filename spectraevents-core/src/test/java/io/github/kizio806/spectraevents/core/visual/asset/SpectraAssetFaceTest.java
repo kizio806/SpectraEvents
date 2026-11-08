@@ -14,7 +14,7 @@ class SpectraAssetFaceTest {
     List<Double> sourceUv = new ArrayList<>(List.of(0.0, 1.0, 2.0, 3.0));
     SpectraAssetFace face = new SpectraAssetFace(sourceUv, "texture", 90);
 
-    sourceUv.set(0, 99.0);
+    mutateList(sourceUv, 0, 99.0);
 
     assertEquals(List.of(0.0, 1.0, 2.0, 3.0), face.uv());
     assertEquals("texture", face.textureRef());
@@ -77,5 +77,9 @@ class SpectraAssetFaceTest {
 
     assertEquals(1, texture.data().orElseThrow()[0]);
     assertEquals(2, texture.data().orElseThrow()[1]);
+  }
+
+  private static <T> void mutateList(List<T> list, int index, T value) {
+    list.set(index, value);
   }
 }
