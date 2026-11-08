@@ -177,6 +177,9 @@ public class SingleWriterPersistenceExecutor {
       Thread.currentThread().interrupt();
       throw new IllegalStateException("Interrupted while draining persistence writes", e);
     }
+    if (Thread.currentThread().isInterrupted()) {
+      throw new IllegalStateException("Interrupted while draining persistence writes");
+    }
     if (workerThread.isAlive()) {
       throw new IllegalStateException(
           "Persistence writer did not drain within 15 seconds; connection remains open");
