@@ -52,6 +52,7 @@ class SpigotEventCommandHandlerTest {
   private List<String> messages;
   private SpigotCommandRoutingTest.DummySender sender;
   private AtomicInteger resourceCountStub;
+  private AtomicInteger taskCountStub;
 
   @BeforeEach
   void setUp() {
@@ -75,6 +76,7 @@ class SpigotEventCommandHandlerTest {
     repository = new TestRepository();
 
     resourceCountStub = new AtomicInteger(0);
+    taskCountStub = new AtomicInteger(0);
 
     LifecycleReporter reporter =
         (LifecycleReporter)
@@ -90,7 +92,7 @@ class SpigotEventCommandHandlerTest {
                 new Class<?>[] {EventTaskScheduler.class},
                 (proxy, method, args) -> {
                   if ("pendingTaskCount".equals(method.getName())) {
-                    return 0;
+                    return taskCountStub.get();
                   }
                   return null;
                 });
@@ -379,6 +381,41 @@ class SpigotEventCommandHandlerTest {
     handler.execute(sender, new String[] {"inspect", idTerminalWithResources.toString()});
     assertFalse(messages.isEmpty());
     assertTrue(messages.stream().anyMatch(m -> m.contains("Recovery needed")));
+
+    // Terminal instance with non-zero tasks (resources = 0)
+    messages.clear();
+    resourceCountStub.set(0);
+    taskCountStub.set(2);
+    handler.execute(sender, new String[] {"inspect", idTerminalWithResources.toString()});
+    assertFalse(messages.isEmpty());
+    assertTrue(messages.stream().anyMatch(m -> m.contains("Recovery needed")));
+
+    // Clean terminal instance (0 tasks, 0 resources, null claimant) -> neither guidance sent
+    messages.clear();
+    taskCountStub.set(0);
+    handler.execute(sender, new String[] {"inspect", idTerminalWithResources.toString()});
+    assertFalse(messages.isEmpty());
+    assertFalse(messages.stream().anyMatch(m -> m.contains("Recovery needed")));
+    assertFalse(messages.stream().anyMatch(m -> m.contains("Claim guidance")));
+  }
+
+  @Test
+  void testListWithNonRunningInstancesInRepository() {
+    // Add completed and cancelled instances alongside running
+    repository.save(
+        EventInstance.reconstitute(
+            EventInstanceId.generate(),
+            new EventDefinitionId("meteor"),
+            EventLifecycleState.COMPLETED,
+            null));
+    repository.save(
+        EventInstance.reconstitute(
+            EventInstanceId.generate(),
+            new EventDefinitionId("meteor"),
+            EventLifecycleState.CANCELLED,
+            null));
+    handler.execute(sender, new String[] {"list"});
+    assertFalse(messages.isEmpty());
   }
 
   @Test
@@ -406,5 +443,8 @@ class SpigotEventCommandHandlerTest {
 
     List<String> emptyCompletions = handler.tabComplete(sender, new String[] {"other", "arg"});
     assertTrue(emptyCompletions.isEmpty());
+
+    List<String> triggerArg2 = handler.tabComplete(sender, new String[] {"trigger", "arg"});
+    assertTrue(triggerArg2.isEmpty());
   }
 }

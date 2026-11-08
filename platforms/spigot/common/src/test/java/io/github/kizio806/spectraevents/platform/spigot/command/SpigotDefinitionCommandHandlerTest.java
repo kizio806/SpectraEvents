@@ -227,7 +227,16 @@ class SpigotDefinitionCommandHandlerTest {
     handler.execute(sender, new String[] {"reload"});
     assertFalse(messages.isEmpty());
 
-    // Validate empty
+    // Validate empty (triggers warning SE-READY-PACK-001)
+    messages.clear();
+    handler.execute(sender, new String[] {"validate"});
+    assertFalse(messages.isEmpty());
+
+    // Write resource-pack.yml with required: true and enabled: false to trigger ERROR
+    // SE-READY-PACK-003
+    Files.writeString(
+        tempDir.resolve("resource-pack.yml"),
+        "enabled: false\nrequired: true\nsource: manual\nurl: \"\"\nsha1: \"\"\n");
     messages.clear();
     handler.execute(sender, new String[] {"validate"});
     assertFalse(messages.isEmpty());

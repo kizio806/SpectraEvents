@@ -275,7 +275,10 @@ class ModrinthResourcePackSourceTest {
   void testRemainingBranchConditions() {
     StubClient mockClient = new StubClient("[]");
 
-    // 1. ProjectId starts with '<'
+    // 1. ProjectId starts with '<' or is null
+    Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () -> new ModrinthResourcePackSource(mockClient, null, "26.1"));
     Assertions.assertThrows(
         IllegalArgumentException.class,
         () -> new ModrinthResourcePackSource(mockClient, "<your-project-id>", "26.1"));
@@ -315,5 +318,32 @@ class ModrinthResourcePackSourceTest {
             ExecutionException.class,
             () -> nonZipSource.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_1).get());
     Assertions.assertTrue(exNonZip.getCause().getMessage().contains("must be HTTPS and .zip"));
+
+    // 5. Multiple versions in list where first doesn't match expectedVersion, and multiple files
+    // where first has primary: false
+    String fixtureMultiple =
+        """
+        [
+          {
+            "id": "old-v",
+            "version_number": "0.9.0",
+            "files": []
+          },
+          {
+            "id": "match-v",
+            "version_number": "1.0.0+26.1",
+            "files": [
+              {"url": "https://cdn.modrinth.com/secondary.zip", "primary": false, "size": 100, "hashes": {"sha1": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}},
+              {"url": "https://cdn.modrinth.com/primary.zip", "primary": true, "size": 200, "hashes": {"sha1": "cccccccccccccccccccccccccccccccccccccccc"}}
+            ]
+          }
+        ]
+        """;
+    ModrinthResourcePackSource multiSource =
+        new ModrinthResourcePackSource(new StubClient(fixtureMultiple), "proj-id", "26.1");
+    ResourcePackDescriptor multiDesc =
+        Assertions.assertDoesNotThrow(
+            () -> multiSource.resolve(TEST_PLUGIN_VERSION, AssetTargetProfile.PROFILE_26_1).get());
+    Assertions.assertEquals("https://cdn.modrinth.com/primary.zip", multiDesc.url());
   }
 }

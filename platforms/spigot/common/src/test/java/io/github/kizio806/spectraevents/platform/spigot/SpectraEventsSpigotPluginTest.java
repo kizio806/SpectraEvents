@@ -341,6 +341,14 @@ class SpectraEventsSpigotPluginTest {
   }
 
   @Test
+  void testPluginConstructors() {
+    assertThrows(IllegalStateException.class, () -> new SpectraEventsSpigotPlugin());
+    assertThrows(
+        IllegalStateException.class,
+        () -> new SpectraEventsSpigotPlugin(p -> null, (p, a) -> null));
+  }
+
+  @Test
   void testGettersWhenEnabled() throws Exception {
     AtomicBoolean closed = new AtomicBoolean(false);
     try (BukkitAudiences mockAudience = createMockAudience(closed)) {

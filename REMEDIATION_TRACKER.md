@@ -472,7 +472,7 @@
   6. Uzupełnić testy parserów i archiwów w `adapters:assets-blockbench` oraz operacji na bazie w `adapters:storage-sqlite`.
   7. Przeprowadzić weryfikację gauntletu i przedstawić raport.
 - **Zależności:** Wszystkie poprzednie etapy
-- **Status:** `DONE`
+- **Status:** `IN_PROGRESS`
 - **Zmienione pliki:**
   - `spectraevents-core`: `VisualAndRuntimeCoverageTest.java`, `EventDefinitionTest.java`, `EventInstanceTest.java`, `ModelDefinitionTest.java`
   - `adapters/update-http`: `HttpUpdateAdapterTest.java`
