@@ -28,12 +28,10 @@ class SpigotEventTaskSchedulerTest {
 
   private Plugin plugin;
   private List<Runnable> scheduledTasks;
-  private List<BukkitTask> mockTasks;
 
   @BeforeEach
   void setUp() {
     scheduledTasks = new ArrayList<>();
-    mockTasks = new ArrayList<>();
 
     plugin =
         (Plugin)
@@ -87,7 +85,6 @@ class SpigotEventTaskSchedulerTest {
                   }
                   return null;
                 });
-    mockTasks.add(task);
     return task;
   }
 

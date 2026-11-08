@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 
@@ -43,7 +42,9 @@ public final class AdminGuiHolder implements InventoryHolder {
       int size,
       Component title) {
     AdminGuiHolder holder = new AdminGuiHolder(menuType, extra, slotPayloads);
-    Inventory inventory = Bukkit.createInventory(holder, size, GuiText.legacy(title));
+    Inventory inventory =
+        io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge
+            .createInventory(holder, size, GuiText.legacy(title), title);
     holder.inventory = inventory;
     return inventory;
   }

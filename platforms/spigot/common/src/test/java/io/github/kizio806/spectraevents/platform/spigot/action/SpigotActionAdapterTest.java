@@ -310,7 +310,9 @@ class SpigotActionAdapterTest {
       assertNotNull(inv);
 
       // Player join event
-      PlayerJoinEvent joinEvent = new PlayerJoinEvent(player, "joined");
+      PlayerJoinEvent joinEvent =
+          io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge
+              .createPlayerJoinEvent(player);
       adapter.onPlayerJoin(joinEvent);
     }
   }

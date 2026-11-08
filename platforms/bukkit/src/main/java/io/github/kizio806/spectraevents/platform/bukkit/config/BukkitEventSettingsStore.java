@@ -15,7 +15,7 @@ import java.util.Objects;
 import java.util.Optional;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.plugin.Plugin;
 
 /** Persists global settings, named locations and GUI overrides across Bukkit platform families. */
 public class BukkitEventSettingsStore {
@@ -25,7 +25,7 @@ public class BukkitEventSettingsStore {
   private final YamlConfiguration config;
   private final YamlConfiguration locations;
 
-  public BukkitEventSettingsStore(JavaPlugin plugin) {
+  public BukkitEventSettingsStore(Plugin plugin) {
     this(Objects.requireNonNull(plugin, "plugin").getDataFolder().toPath());
   }
 

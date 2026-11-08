@@ -134,7 +134,7 @@ class PaperEntityDeathRouterTest {
     router.registerDelegate(
         "boss_event",
         (deadEntity, inst) -> {
-          invoked.add(inst.definitionId().value());
+          invoked.add(deadEntity.getType().name() + ":" + inst.definitionId().value());
         });
 
     EntityDeathEvent event =
@@ -142,7 +142,7 @@ class PaperEntityDeathRouterTest {
     router.onEntityDeath(event);
 
     assertEquals(1, invoked.size());
-    assertEquals("boss_event", invoked.get(0));
+    assertEquals(entity.getType().name() + ":boss_event", invoked.get(0));
   }
 
   @Test

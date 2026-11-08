@@ -29,7 +29,6 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -138,8 +137,8 @@ class SpigotEventRouterTest {
     Player player = MockBukkitSetup.createMockPlayer(UUID.randomUUID(), "Warrior");
 
     EntityDamageByEntityEvent event =
-        new EntityDamageByEntityEvent(
-            player, entity, DamageCause.ENTITY_ATTACK, mockDamageSource, 10.0);
+        io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge
+            .createEntityDamageByEntityEvent(player, entity, mockDamageSource, 10.0);
     router.onDamage(event);
     assertTrue(event.isCancelled());
     assertEquals(10, state.contribution().contributions().get(player.getUniqueId()));
@@ -151,16 +150,16 @@ class SpigotEventRouterTest {
     Entity victim = MockBukkitSetup.createMockEntityWithDetails(EntityType.ZOMBIE, null);
 
     EntityDamageByEntityEvent event =
-        new EntityDamageByEntityEvent(
-            damager, victim, DamageCause.ENTITY_ATTACK, mockDamageSource, 5.0);
+        io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge
+            .createEntityDamageByEntityEvent(damager, victim, mockDamageSource, 5.0);
     router.onDamage(event);
     assertFalse(event.isCancelled());
 
     // Also test damage from Player on entity without PDC
     Player player = MockBukkitSetup.createMockPlayer(UUID.randomUUID(), "PlayerWithoutPdcTarget");
     EntityDamageByEntityEvent playerEvent =
-        new EntityDamageByEntityEvent(
-            player, victim, DamageCause.ENTITY_ATTACK, mockDamageSource, 5.0);
+        io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge
+            .createEntityDamageByEntityEvent(player, victim, mockDamageSource, 5.0);
     router.onDamage(playerEvent);
     assertFalse(playerEvent.isCancelled());
   }
@@ -199,8 +198,8 @@ class SpigotEventRouterTest {
 
     // 2. Combat damage with stale event returns true and cancels
     EntityDamageByEntityEvent damageEvent =
-        new EntityDamageByEntityEvent(
-            player, entity, DamageCause.ENTITY_ATTACK, mockDamageSource, 10.0);
+        io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge
+            .createEntityDamageByEntityEvent(player, entity, mockDamageSource, 10.0);
     router.onDamage(damageEvent);
     assertTrue(damageEvent.isCancelled());
 

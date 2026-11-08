@@ -155,8 +155,8 @@ class SpigotBossBarManagerTest {
       manager.updateBossBar(inst4, state4, "Boss 4", "mode", 0.5f);
 
       // 6. Refresh HUD
-      manager.refreshHud(inst1, state1, 0.4f);
-      manager.refreshHud(inst4, state4, 0.4f);
+      manager.refreshHud(inst1, 0.4f);
+      manager.refreshHud(inst4, 0.4f);
 
       // 7. On player join adds to all active boss bars
       Player newPlayer = MockBukkitSetup.createMockPlayer(UUID.randomUUID(), "Joiner");

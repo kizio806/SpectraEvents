@@ -149,9 +149,7 @@ public final class SpigotActionAdapter extends AbstractBukkitActionAdapter imple
             () -> {
               String progressMode = bossBarManager.getProgressMode(instance.id());
               bossBarManager.refreshHud(
-                  instance,
-                  state,
-                  BukkitBossBarProgressCalculator.calculateFloat(state, progressMode));
+                  instance, BukkitBossBarProgressCalculator.calculateFloat(state, progressMode));
             }));
   }
 
