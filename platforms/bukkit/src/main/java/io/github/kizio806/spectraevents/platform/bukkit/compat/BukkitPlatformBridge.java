@@ -1,7 +1,9 @@
 package io.github.kizio806.spectraevents.platform.bukkit.compat;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -9,14 +11,20 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
+import org.bukkit.damage.DamageSource;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPluginLoader;
+import org.bukkit.scoreboard.Objective;
+import org.bukkit.scoreboard.Scoreboard;
 
 /**
  * Architectural compatibility bridge abstracting platform divergence between modern Paper/Folia
@@ -33,10 +41,19 @@ public final class BukkitPlatformBridge {
   private static final boolean HAS_ADVENTURE_CUSTOM_NAME;
   private static final boolean HAS_ADVENTURE_INVENTORY;
   private static final boolean HAS_ADVENTURE_TEXT_DISPLAY;
+  private static final boolean HAS_ADVENTURE_ITEM_META;
   private static final Constructor<PlayerJoinEvent> ADVENTURE_JOIN_CONSTRUCTOR;
   private static final Constructor<PlayerQuitEvent> ADVENTURE_QUIT_CONSTRUCTOR;
 
   static {
+    boolean advItem = false;
+    try {
+      ItemMeta.class.getMethod("displayName", Component.class);
+      advItem = true;
+    } catch (ReflectiveOperationException ignored) {
+      // Paper Adventure ItemMeta unavailable
+    }
+    HAS_ADVENTURE_ITEM_META = advItem;
     boolean advKick = false;
     try {
       Player.class.getMethod("kick", Component.class);
@@ -300,6 +317,162 @@ public final class BukkitPlatformBridge {
       return ctor.newInstance(server);
     } catch (ReflectiveOperationException exception) {
       throw new LinkageError("Failed to reflectively instantiate JavaPluginLoader", exception);
+    }
+  }
+
+  /** Sets the display name on an {@link ItemMeta} using Adventure or legacy string. */
+  public static void setItemDisplayName(ItemMeta meta, Component name) {
+    Objects.requireNonNull(meta, "meta");
+    if (name == null) {
+      return;
+    }
+    if (HAS_ADVENTURE_ITEM_META) {
+      try {
+        Method method = meta.getClass().getMethod("displayName", Component.class);
+        method.invoke(meta, name);
+        return;
+      } catch (ReflectiveOperationException ignored) {
+        // Fallback below
+      }
+    }
+    try {
+      Method legacyMethod = meta.getClass().getMethod("setDisplayName", String.class);
+      legacyMethod.invoke(meta, LegacyComponentSerializer.legacySection().serialize(name));
+    } catch (ReflectiveOperationException ignored) {
+      // Ignore
+    }
+  }
+
+  /** Sets the lore on an {@link ItemMeta} using Adventure or legacy strings. */
+  public static void setItemLore(ItemMeta meta, List<Component> lore) {
+    Objects.requireNonNull(meta, "meta");
+    if (lore == null || lore.isEmpty()) {
+      return;
+    }
+    if (HAS_ADVENTURE_ITEM_META) {
+      try {
+        Method method = meta.getClass().getMethod("lore", List.class);
+        method.invoke(meta, lore);
+        return;
+      } catch (ReflectiveOperationException ignored) {
+        // Fallback below
+      }
+    }
+    try {
+      List<String> legacyLore =
+          lore.stream().map(c -> LegacyComponentSerializer.legacySection().serialize(c)).toList();
+      Method legacyMethod = meta.getClass().getMethod("setLore", List.class);
+      legacyMethod.invoke(meta, legacyLore);
+    } catch (ReflectiveOperationException ignored) {
+      // Ignore
+    }
+  }
+
+  /** Sets the custom name on an {@link Entity} using Adventure or legacy string. */
+  public static void setEntityCustomName(Entity entity, Component name) {
+    Objects.requireNonNull(entity, "entity");
+    if (HAS_ADVENTURE_CUSTOM_NAME) {
+      try {
+        Method method = entity.getClass().getMethod("customName", Component.class);
+        method.invoke(entity, name);
+        return;
+      } catch (ReflectiveOperationException ignored) {
+        // Fallback below
+      }
+    }
+    try {
+      Method method = entity.getClass().getMethod("setCustomName", String.class);
+      method.invoke(
+          entity, name != null ? LegacyComponentSerializer.legacySection().serialize(name) : null);
+    } catch (ReflectiveOperationException ignored) {
+      // Ignore
+    }
+  }
+
+  /** Registers a new scoreboard objective safely across Paper and Spigot. */
+  public static Objective registerNewObjective(
+      Scoreboard scoreboard,
+      String name,
+      String criteriaName,
+      String legacyDisplayName,
+      Component adventureDisplayName) {
+    Objects.requireNonNull(scoreboard, "scoreboard");
+    Objects.requireNonNull(name, "name");
+    if (adventureDisplayName != null) {
+      try {
+        Class<?> criteriaClass = Class.forName("org.bukkit.scoreboard.Criteria");
+        Field dummyField = criteriaClass.getField("DUMMY");
+        Object dummyCriteria = dummyField.get(null);
+        Method modernMethod =
+            scoreboard
+                .getClass()
+                .getMethod("registerNewObjective", String.class, criteriaClass, Component.class);
+        return (Objective)
+            modernMethod.invoke(scoreboard, name, dummyCriteria, adventureDisplayName);
+      } catch (ReflectiveOperationException ignored) {
+        // Fallback below
+      }
+      try {
+        Method modernStringCriteria =
+            scoreboard
+                .getClass()
+                .getMethod("registerNewObjective", String.class, String.class, Component.class);
+        return (Objective)
+            modernStringCriteria.invoke(
+                scoreboard,
+                name,
+                criteriaName != null ? criteriaName : "dummy",
+                adventureDisplayName);
+      } catch (ReflectiveOperationException ignored) {
+        // Fallback below
+      }
+    }
+    try {
+      Method legacyMethod =
+          scoreboard
+              .getClass()
+              .getMethod("registerNewObjective", String.class, String.class, String.class);
+      return (Objective)
+          legacyMethod.invoke(
+              scoreboard,
+              name,
+              criteriaName != null ? criteriaName : "dummy",
+              legacyDisplayName != null ? legacyDisplayName : name);
+    } catch (ReflectiveOperationException exception) {
+      try {
+        Class<?> criteriaClass = Class.forName("org.bukkit.scoreboard.Criteria");
+        Field dummyField = criteriaClass.getField("DUMMY");
+        Object dummyCriteria = dummyField.get(null);
+        Method legacyCriteriaMethod =
+            scoreboard
+                .getClass()
+                .getMethod("registerNewObjective", String.class, criteriaClass, String.class);
+        return (Objective)
+            legacyCriteriaMethod.invoke(
+                scoreboard,
+                name,
+                dummyCriteria,
+                legacyDisplayName != null ? legacyDisplayName : name);
+      } catch (ReflectiveOperationException innerEx) {
+        throw new IllegalStateException(
+            "Failed to register scoreboard objective on this platform", innerEx);
+      }
+    }
+  }
+
+  /** Creates an {@link EntityDamageByEntityEvent} safely across Paper and Spigot versions. */
+  public static EntityDamageByEntityEvent createEntityDamageByEntityEvent(
+      Entity damager, Entity victim, DamageSource damageSource, double damage) {
+    Objects.requireNonNull(damager, "damager");
+    Objects.requireNonNull(victim, "victim");
+    try {
+      Constructor<EntityDamageByEntityEvent> ctor =
+          EntityDamageByEntityEvent.class.getConstructor(
+              Entity.class, Entity.class, DamageCause.class, DamageSource.class, double.class);
+      return ctor.newInstance(damager, victim, DamageCause.ENTITY_ATTACK, damageSource, damage);
+    } catch (ReflectiveOperationException exception) {
+      throw new LinkageError(
+          "Failed to reflectively instantiate EntityDamageByEntityEvent", exception);
     }
   }
 }

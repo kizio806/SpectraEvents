@@ -80,7 +80,8 @@ public final class MainScreen {
     ItemStack item = new ItemStack(material);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.setDisplayName(" ");
+      io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge
+          .setItemDisplayName(meta, Component.text(" "));
       if (!item.setItemMeta(meta)) {
         throw new IllegalStateException("Could not apply filler item metadata");
       }
@@ -92,9 +93,11 @@ public final class MainScreen {
     ItemStack item = new ItemStack(mat);
     ItemMeta meta = item.getItemMeta();
     if (meta != null) {
-      meta.setDisplayName(GuiText.legacy(name));
+      io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge
+          .setItemDisplayName(meta, name);
       if (lore != null && !lore.isEmpty()) {
-        meta.setLore(lore.stream().map(GuiText::legacy).toList());
+        io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge.setItemLore(
+            meta, lore);
       }
       if (!item.setItemMeta(meta)) {
         throw new IllegalStateException("Could not apply GUI item metadata");

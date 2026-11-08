@@ -179,7 +179,8 @@ class PaperInteractionRouterTest {
     router.registerDelegate(
         "meteor",
         (p, inst, phase, modelId) -> {
-          invoked.add(inst.definitionId().value() + ":" + phase + ":" + modelId);
+          invoked.add(
+              p.getName() + ":" + inst.definitionId().value() + ":" + phase + ":" + modelId);
         });
 
     PlayerInteractEntityEvent event =
@@ -188,7 +189,7 @@ class PaperInteractionRouterTest {
 
     assertTrue(event.isCancelled());
     assertEquals(1, invoked.size());
-    assertEquals("meteor:none:meteor_model", invoked.get(0));
+    assertEquals(player.getName() + ":meteor:none:meteor_model", invoked.get(0));
   }
 
   @Test

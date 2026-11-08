@@ -102,7 +102,8 @@ class AbstractBukkitActionAdapterTest {
     @Override
     protected void setEntityCustomName(
         Entity entity, String template, EventInstance instance, EventRuntimeState state) {
-      entity.setCustomName(template);
+      io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge
+          .setEntityCustomName(entity, net.kyori.adventure.text.Component.text(template));
     }
 
     @Override

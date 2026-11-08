@@ -1,5 +1,7 @@
 package io.github.kizio806.spectraevents.core.visual.asset;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -21,13 +23,13 @@ public record SpectraAssetFace(List<Double> uv, String textureRef, int rotation)
     if (textureRef == null || textureRef.isBlank()) {
       throw new IllegalArgumentException("textureRef cannot be null or blank");
     }
-    this.uv = List.copyOf(uv);
+    this.uv = Collections.unmodifiableList(new ArrayList<>(uv));
     this.textureRef = textureRef;
     this.rotation = rotation;
   }
 
   @Override
   public List<Double> uv() {
-    return List.copyOf(uv);
+    return Collections.unmodifiableList(new ArrayList<>(uv));
   }
 }

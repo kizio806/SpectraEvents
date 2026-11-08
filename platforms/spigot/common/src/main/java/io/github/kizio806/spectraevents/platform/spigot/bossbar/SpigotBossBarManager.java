@@ -134,8 +134,8 @@ public final class SpigotBossBarManager {
     return holder != null ? holder.progressMode() : "1.0";
   }
 
-  public void refreshHud(
-      EventInstance instance, EventRuntimeState state, float calculatedProgress) {
+  public void refreshHud(EventInstance instance, float calculatedProgress) {
+    Objects.requireNonNull(instance, "instance");
     BukkitBossBarHolder<BossBar> holder = bossBars.get(instance.id());
     if (holder != null) {
       holder.bossBar().setTitle(templateRenderer.apply(holder.titleTemplate(), instance));

@@ -1,7 +1,6 @@
 package io.github.kizio806.spectraevents.platform.spigot;
 
 import io.github.kizio806.spectraevents.platform.bukkit.lifecycle.BukkitBootstrapLifecycle;
-import java.io.File;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -9,9 +8,7 @@ import java.util.logging.Level;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.plugin.java.JavaPluginLoader;
 
 public final class SpectraEventsSpigotPlugin extends JavaPlugin {
   private final Function<Plugin, BukkitAudiences> audienceFactory;
@@ -27,18 +24,6 @@ public final class SpectraEventsSpigotPlugin extends JavaPlugin {
   SpectraEventsSpigotPlugin(
       Function<Plugin, BukkitAudiences> audienceFactory,
       BiFunction<JavaPlugin, BukkitAudiences, BukkitBootstrapLifecycle> bootstrapFactory) {
-    this.audienceFactory = Objects.requireNonNull(audienceFactory, "audienceFactory");
-    this.bootstrapFactory = Objects.requireNonNull(bootstrapFactory, "bootstrapFactory");
-  }
-
-  SpectraEventsSpigotPlugin(
-      JavaPluginLoader loader,
-      PluginDescriptionFile description,
-      File dataFolder,
-      File file,
-      Function<Plugin, BukkitAudiences> audienceFactory,
-      BiFunction<JavaPlugin, BukkitAudiences, BukkitBootstrapLifecycle> bootstrapFactory) {
-    super(loader, description, dataFolder, file);
     this.audienceFactory = Objects.requireNonNull(audienceFactory, "audienceFactory");
     this.bootstrapFactory = Objects.requireNonNull(bootstrapFactory, "bootstrapFactory");
   }

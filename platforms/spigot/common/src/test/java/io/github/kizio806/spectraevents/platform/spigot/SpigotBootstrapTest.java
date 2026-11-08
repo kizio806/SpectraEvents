@@ -11,7 +11,6 @@ import io.github.kizio806.spectraevents.application.config.locale.FileSystemLoca
 import io.github.kizio806.spectraevents.application.config.locale.LocaleCatalog;
 import io.github.kizio806.spectraevents.application.port.LifecycleReporter;
 import io.github.kizio806.spectraevents.core.event.runtime.EventInstanceId;
-import io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge;
 import io.github.kizio806.spectraevents.platform.bukkit.loot.BukkitSharedLootListener;
 import io.github.kizio806.spectraevents.platform.bukkit.testutil.MockBukkitSetup;
 import io.github.kizio806.spectraevents.platform.spigot.action.SpigotActionAdapter;
@@ -36,7 +35,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.PluginDescriptionFile;
-import org.bukkit.plugin.java.JavaPluginLoader;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -66,7 +65,6 @@ class SpigotBootstrapTest {
 
   private SpectraEventsSpigotPlugin createPlugin(Path dataDir, BukkitAudiences mockAudiences)
       throws Exception {
-    JavaPluginLoader pluginLoader = BukkitPlatformBridge.createJavaPluginLoader(Bukkit.getServer());
     String pluginYml =
         """
         name: SpectraEvents
@@ -82,8 +80,58 @@ class SpigotBootstrapTest {
     File dataFolder = dataDir.toFile();
     File file = tempDir.resolve("plugin.jar").toFile();
 
-    return new SpectraEventsSpigotPlugin(
-        pluginLoader, description, dataFolder, file, p -> mockAudiences, SpigotBootstrap::new);
+    Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
+    Field f = unsafeClass.getDeclaredField("theUnsafe");
+    f.setAccessible(true);
+    Object unsafe = f.get(null);
+    Method allocateInstance = unsafeClass.getMethod("allocateInstance", Class.class);
+    SpectraEventsSpigotPlugin plugin =
+        (SpectraEventsSpigotPlugin)
+            allocateInstance.invoke(unsafe, SpectraEventsSpigotPlugin.class);
+
+    Field serverField = JavaPlugin.class.getDeclaredField("server");
+    serverField.setAccessible(true);
+    serverField.set(plugin, Bukkit.getServer());
+
+    Field dfField = JavaPlugin.class.getDeclaredField("dataFolder");
+    dfField.setAccessible(true);
+    dfField.set(plugin, dataFolder);
+
+    Field fileField = JavaPlugin.class.getDeclaredField("file");
+    fileField.setAccessible(true);
+    fileField.set(plugin, file);
+
+    Field descField = JavaPlugin.class.getDeclaredField("description");
+    descField.setAccessible(true);
+    descField.set(plugin, description);
+
+    Field clField = JavaPlugin.class.getDeclaredField("classLoader");
+    clField.setAccessible(true);
+    clField.set(plugin, SpectraEventsSpigotPlugin.class.getClassLoader());
+
+    Field logField = JavaPlugin.class.getDeclaredField("logger");
+    logField.setAccessible(true);
+    logField.set(plugin, new org.bukkit.plugin.PluginLogger(plugin));
+
+    Field audField = SpectraEventsSpigotPlugin.class.getDeclaredField("audienceFactory");
+    audField.setAccessible(true);
+    audField.set(
+        plugin,
+        (java.util.function.Function<org.bukkit.plugin.Plugin, BukkitAudiences>)
+            p -> mockAudiences);
+
+    Field bootField = SpectraEventsSpigotPlugin.class.getDeclaredField("bootstrapFactory");
+    bootField.setAccessible(true);
+    bootField.set(
+        plugin,
+        (java.util.function.BiFunction<
+                JavaPlugin,
+                BukkitAudiences,
+                io.github.kizio806.spectraevents.platform.bukkit.lifecycle
+                    .BukkitBootstrapLifecycle>)
+            SpigotBootstrap::new);
+
+    return plugin;
   }
 
   private BukkitAudiences createMockAudiences() {

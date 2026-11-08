@@ -10,7 +10,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
@@ -31,11 +30,15 @@ public final class SpigotScoreboardManager {
     Objects.requireNonNull(state, "state");
 
     Scoreboard board = scoreboardManager().getNewScoreboard();
+    String renderedTitle = templateRenderer.apply(title, instance);
     Objective obj =
-        board.registerNewObjective(
-            "event_" + instance.id().toString().substring(0, 8),
-            Criteria.DUMMY,
-            templateRenderer.apply(title, instance));
+        io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge
+            .registerNewObjective(
+                board,
+                "event_" + instance.id().toString().substring(0, 8),
+                "dummy",
+                renderedTitle,
+                net.kyori.adventure.text.Component.text(renderedTitle));
     obj.setDisplaySlot(DisplaySlot.SIDEBAR);
 
     List<String> safeLines = lines != null ? lines : List.of();

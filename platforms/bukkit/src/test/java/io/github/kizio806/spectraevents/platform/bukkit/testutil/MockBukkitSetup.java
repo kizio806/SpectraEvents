@@ -461,23 +461,30 @@ public final class MockBukkitSetup {
               return switch (method.getName()) {
                 case "getSize" -> size;
                 case "getHolder" -> holder;
+                case "getTitle" -> title != null ? title : "";
                 case "getContents", "getStorageContents" -> contents.clone();
                 case "getItem" -> {
-                  int slot = (Integer) args[0];
-                  yield (slot >= 0 && slot < size) ? contents[slot] : null;
+                  if (args != null && args.length > 0 && args[0] instanceof Integer slot) {
+                    yield (slot >= 0 && slot < size) ? contents[slot] : null;
+                  }
+                  yield null;
                 }
                 case "setItem" -> {
-                  int slot = (Integer) args[0];
-                  ItemStack item = (ItemStack) args[1];
-                  if (slot >= 0 && slot < size) {
-                    contents[slot] = item;
+                  if (args != null && args.length > 1 && args[0] instanceof Integer slot) {
+                    ItemStack item = (ItemStack) args[1];
+                    if (slot >= 0 && slot < size) {
+                      contents[slot] = item;
+                    }
                   }
                   yield null;
                 }
                 case "setContents" -> {
-                  ItemStack[] newContents = (ItemStack[]) args[0];
-                  for (int i = 0; i < size; i++) {
-                    contents[i] = i < newContents.length ? newContents[i] : null;
+                  if (args != null
+                      && args.length > 0
+                      && args[0] instanceof ItemStack[] newContents) {
+                    for (int i = 0; i < size; i++) {
+                      contents[i] = i < newContents.length ? newContents[i] : null;
+                    }
                   }
                   yield null;
                 }
@@ -813,53 +820,59 @@ public final class MockBukkitSetup {
             (proxy, method, args) -> {
               return switch (method.getName()) {
                 case "getSize" -> size;
+                case "getHolder" -> playerId != null ? Bukkit.getPlayer(playerId) : null;
                 case "getContents", "getStorageContents" -> contents.clone();
                 case "getItem" -> {
-                  int slot = (Integer) args[0];
-                  yield (slot >= 0 && slot < size) ? contents[slot] : null;
+                  if (args != null && args.length > 0 && args[0] instanceof Integer slot) {
+                    yield (slot >= 0 && slot < size) ? contents[slot] : null;
+                  }
+                  yield null;
                 }
                 case "setItem" -> {
-                  int slot = (Integer) args[0];
-                  ItemStack item = (ItemStack) args[1];
-                  if (slot >= 0 && slot < size) {
-                    contents[slot] = item;
+                  if (args != null && args.length > 1 && args[0] instanceof Integer slot) {
+                    ItemStack item = (ItemStack) args[1];
+                    if (slot >= 0 && slot < size) {
+                      contents[slot] = item;
+                    }
                   }
                   yield null;
                 }
                 case "addItem" -> {
-                  ItemStack[] toAdd = (ItemStack[]) args[0];
-                  Map<Integer, ItemStack> leftovers = new HashMap<>();
-                  for (int i = 0; i < toAdd.length; i++) {
-                    ItemStack stack = toAdd[i];
-                    if (stack == null || stack.getType().isAir()) {
-                      continue;
-                    }
-                    int remaining = stack.getAmount();
-                    for (int slot = 0; slot < size && remaining > 0; slot++) {
-                      ItemStack existing = contents[slot];
-                      if (existing != null && existing.isSimilar(stack)) {
-                        int space = existing.getMaxStackSize() - existing.getAmount();
-                        int move = Math.min(space, remaining);
-                        existing.setAmount(existing.getAmount() + move);
-                        remaining -= move;
+                  if (args != null && args.length > 0 && args[0] instanceof ItemStack[] toAdd) {
+                    Map<Integer, ItemStack> leftovers = new HashMap<>();
+                    for (int i = 0; i < toAdd.length; i++) {
+                      ItemStack stack = toAdd[i];
+                      if (stack == null || stack.getType().isAir()) {
+                        continue;
+                      }
+                      int remaining = stack.getAmount();
+                      for (int slot = 0; slot < size && remaining > 0; slot++) {
+                        ItemStack existing = contents[slot];
+                        if (existing != null && existing.isSimilar(stack)) {
+                          int space = existing.getMaxStackSize() - existing.getAmount();
+                          int move = Math.min(space, remaining);
+                          existing.setAmount(existing.getAmount() + move);
+                          remaining -= move;
+                        }
+                      }
+                      for (int slot = 0; slot < size && remaining > 0; slot++) {
+                        if (contents[slot] == null || contents[slot].getType().isAir()) {
+                          int move = Math.min(stack.getMaxStackSize(), remaining);
+                          ItemStack placed = stack.clone();
+                          placed.setAmount(move);
+                          contents[slot] = placed;
+                          remaining -= move;
+                        }
+                      }
+                      if (remaining > 0) {
+                        ItemStack leftover = stack.clone();
+                        leftover.setAmount(remaining);
+                        leftovers.put(i, leftover);
                       }
                     }
-                    for (int slot = 0; slot < size && remaining > 0; slot++) {
-                      if (contents[slot] == null || contents[slot].getType().isAir()) {
-                        int move = Math.min(stack.getMaxStackSize(), remaining);
-                        ItemStack placed = stack.clone();
-                        placed.setAmount(move);
-                        contents[slot] = placed;
-                        remaining -= move;
-                      }
-                    }
-                    if (remaining > 0) {
-                      ItemStack leftover = stack.clone();
-                      leftover.setAmount(remaining);
-                      leftovers.put(i, leftover);
-                    }
+                    yield leftovers;
                   }
-                  yield leftovers;
+                  yield new HashMap<Integer, ItemStack>();
                 }
                 case "clear" -> {
                   Arrays.fill(contents, null);
@@ -906,34 +919,46 @@ public final class MockBukkitSetup {
                 }
                 case "playSound", "spawnParticle" -> null;
                 case "spawnEntity" -> {
-                  Location loc = (Location) args[0];
-                  EntityType entityType = (EntityType) args[1];
-                  Entity entity = createMockEntityWithDetails(entityType, loc);
-                  worldEntities.add(entity);
-                  yield entity;
+                  if (args != null
+                      && args.length >= 2
+                      && args[0] instanceof Location loc
+                      && args[1] instanceof EntityType entityType) {
+                    Entity entity = createMockEntityWithDetails(entityType, loc);
+                    worldEntities.add(entity);
+                    yield entity;
+                  }
+                  yield null;
                 }
                 case "dropItem", "dropItemNaturally" -> {
-                  Location loc = (Location) args[0];
-                  ItemStack item = (ItemStack) args[1];
-                  Item dropped = createMockItemEntity(item, loc);
-                  worldEntities.add(dropped);
-                  yield dropped;
+                  if (args != null
+                      && args.length >= 2
+                      && args[0] instanceof Location loc
+                      && args[1] instanceof ItemStack item) {
+                    Item dropped = createMockItemEntity(item, loc);
+                    worldEntities.add(dropped);
+                    yield dropped;
+                  }
+                  yield null;
                 }
                 case "spawn" -> {
-                  Location loc = (Location) args[0];
-                  Class<?> entityClass = (Class<?>) args[1];
-                  Entity entity = createMockEntity(entityClass, loc);
-                  worldEntities.add(entity);
-                  if (args.length > 2 && args[2] != null) {
-                    try {
-                      Method acceptMethod = Consumer.class.getMethod("accept", Object.class);
-                      acceptMethod.invoke(args[2], entity);
-                    } catch (ReflectiveOperationException e) {
-                      java.util.logging.Logger.getLogger("MockBukkitSetup")
-                          .log(java.util.logging.Level.FINEST, "World spawn consumer failed", e);
+                  if (args != null
+                      && args.length >= 2
+                      && args[0] instanceof Location loc
+                      && args[1] instanceof Class<?> entityClass) {
+                    Entity entity = createMockEntity(entityClass, loc);
+                    worldEntities.add(entity);
+                    if (args.length > 2 && args[2] != null) {
+                      try {
+                        Method acceptMethod = Consumer.class.getMethod("accept", Object.class);
+                        acceptMethod.invoke(args[2], entity);
+                      } catch (ReflectiveOperationException e) {
+                        java.util.logging.Logger.getLogger("MockBukkitSetup")
+                            .log(java.util.logging.Level.FINEST, "World spawn consumer failed", e);
+                      }
                     }
+                    yield entity;
                   }
-                  yield entity;
+                  yield null;
                 }
                 case "equals" ->
                     isSameInstance(proxy, args != null && args.length > 0 ? args[0] : null);
@@ -1015,12 +1040,16 @@ public final class MockBukkitSetup {
                 case "getType" -> entityType;
                 case "getPersistentDataContainer" -> pdc;
                 case "setCustomName" -> {
-                  customName[0] = (String) args[0];
+                  if (args != null && args.length > 0 && args[0] instanceof String s) {
+                    customName[0] = s;
+                  }
                   yield null;
                 }
                 case "getCustomName" -> customName[0];
                 case "setCustomNameVisible" -> {
-                  nameVisible[0] = (Boolean) args[0];
+                  if (args != null && args.length > 0 && args[0] instanceof Boolean b) {
+                    nameVisible[0] = b;
+                  }
                   yield null;
                 }
                 case "isCustomNameVisible" -> nameVisible[0];
@@ -1054,7 +1083,9 @@ public final class MockBukkitSetup {
                 case "getType" -> EntityType.ITEM;
                 case "getItemStack" -> itemHolder[0];
                 case "setItemStack" -> {
-                  itemHolder[0] = (ItemStack) args[0];
+                  if (args != null && args.length > 0 && args[0] instanceof ItemStack stack) {
+                    itemHolder[0] = stack;
+                  }
                   yield null;
                 }
                 case "getPersistentDataContainer" -> pdc;
@@ -1141,10 +1172,12 @@ public final class MockBukkitSetup {
             (proxy, method, args) -> {
               return switch (method.getName()) {
                 case "registerNewObjective" -> {
-                  String name = (String) args[0];
-                  Objective obj = createMockObjective(name, proxy, entries);
-                  objectives.put(name, obj);
-                  yield obj;
+                  if (args != null && args.length > 0 && args[0] instanceof String name) {
+                    Objective obj = createMockObjective(name, proxy, entries);
+                    objectives.put(name, obj);
+                    yield obj;
+                  }
+                  yield null;
                 }
                 case "getObjective" -> {
                   if (args != null && args.length > 0) {
@@ -1194,7 +1227,9 @@ public final class MockBukkitSetup {
                 case "getName" -> name;
                 case "getDisplayName" -> displayName.get();
                 case "setDisplayName" -> {
-                  displayName.set((String) args[0]);
+                  if (args != null && args.length > 0 && args[0] != null) {
+                    displayName.set(String.valueOf(args[0]));
+                  }
                   yield null;
                 }
                 case "setDisplaySlot" -> null;

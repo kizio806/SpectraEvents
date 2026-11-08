@@ -140,15 +140,17 @@ class BukkitEventSettingsStoreTest {
   @Test
   void initializesFromJavaPluginSuccessfully() {
     io.github.kizio806.spectraevents.platform.bukkit.testutil.MockBukkitSetup.ensureInitialized();
-    org.bukkit.plugin.java.JavaPluginLoader loader =
-        io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge
-            .createJavaPluginLoader(org.bukkit.Bukkit.getServer());
-    org.bukkit.plugin.PluginDescriptionFile description =
-        new org.bukkit.plugin.PluginDescriptionFile(
-            "TestPlugin", "1.0.0", "io.github.test.TestPlugin");
-    org.bukkit.plugin.java.JavaPlugin plugin =
-        new org.bukkit.plugin.java.JavaPlugin(
-            loader, description, temporaryDirectory.toFile(), temporaryDirectory.toFile()) {};
+    org.bukkit.plugin.Plugin plugin =
+        (org.bukkit.plugin.Plugin)
+            java.lang.reflect.Proxy.newProxyInstance(
+                org.bukkit.plugin.Plugin.class.getClassLoader(),
+                new Class<?>[] {org.bukkit.plugin.Plugin.class},
+                (proxy, method, args) -> {
+                  if ("getDataFolder".equals(method.getName())) {
+                    return temporaryDirectory.toFile();
+                  }
+                  return null;
+                });
 
     BukkitEventSettingsStore store = new BukkitEventSettingsStore(plugin);
     assertNotNull(store);

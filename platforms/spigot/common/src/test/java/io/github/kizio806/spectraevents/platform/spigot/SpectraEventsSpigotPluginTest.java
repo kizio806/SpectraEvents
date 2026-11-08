@@ -7,10 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.github.kizio806.spectraevents.platform.bukkit.compat.BukkitPlatformBridge;
 import io.github.kizio806.spectraevents.platform.bukkit.lifecycle.BukkitBootstrapLifecycle;
 import io.github.kizio806.spectraevents.platform.bukkit.testutil.MockBukkitSetup;
 import java.io.File;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -18,7 +19,7 @@ import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.PluginManager;
-import org.bukkit.plugin.java.JavaPluginLoader;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -33,7 +34,6 @@ class SpectraEventsSpigotPluginTest {
   private static final AtomicBoolean DISABLED_PLUGIN_CALLED = new AtomicBoolean(false);
   private static final AtomicBoolean CANCELLED_TASKS_CALLED = new AtomicBoolean(false);
 
-  private JavaPluginLoader pluginLoader;
   private PluginDescriptionFile description;
 
   @BeforeAll
@@ -73,7 +73,6 @@ class SpectraEventsSpigotPluginTest {
     MockBukkitSetup.setCustomPluginManager(mockPluginManager);
     MockBukkitSetup.setCustomScheduler(mockScheduler);
 
-    pluginLoader = BukkitPlatformBridge.createJavaPluginLoader(Bukkit.getServer());
     description =
         new PluginDescriptionFile(
             "SpectraEvents", "0.1.0", SpectraEventsSpigotPlugin.class.getName());
@@ -84,15 +83,46 @@ class SpectraEventsSpigotPluginTest {
     MockBukkitSetup.resetCustomDelegates();
   }
 
+  private static void setField(Class<?> clazz, Object target, String name, Object value)
+      throws ReflectiveOperationException {
+    Field f = clazz.getDeclaredField(name);
+    f.setAccessible(true);
+    f.set(target, value);
+  }
+
   private SpectraEventsSpigotPlugin createPlugin(
       java.util.function.Function<org.bukkit.plugin.Plugin, BukkitAudiences> audienceFactory,
       java.util.function.BiFunction<
               org.bukkit.plugin.java.JavaPlugin, BukkitAudiences, BukkitBootstrapLifecycle>
           bootstrapFactory) {
-    File dataFolder = tempDir.resolve("data").toFile();
-    File file = tempDir.resolve("test.jar").toFile();
-    return new SpectraEventsSpigotPlugin(
-        pluginLoader, description, dataFolder, file, audienceFactory, bootstrapFactory);
+    try {
+      Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
+      Field f = unsafeClass.getDeclaredField("theUnsafe");
+      f.setAccessible(true);
+      Object unsafe = f.get(null);
+      Method allocateInstance = unsafeClass.getMethod("allocateInstance", Class.class);
+      SpectraEventsSpigotPlugin plugin =
+          (SpectraEventsSpigotPlugin)
+              allocateInstance.invoke(unsafe, SpectraEventsSpigotPlugin.class);
+
+      File dataFolder = tempDir.resolve("data").toFile();
+      File file = tempDir.resolve("test.jar").toFile();
+      setField(JavaPlugin.class, plugin, "server", Bukkit.getServer());
+      setField(JavaPlugin.class, plugin, "dataFolder", dataFolder);
+      setField(JavaPlugin.class, plugin, "file", file);
+      setField(JavaPlugin.class, plugin, "description", description);
+      setField(
+          JavaPlugin.class,
+          plugin,
+          "classLoader",
+          SpectraEventsSpigotPlugin.class.getClassLoader());
+      setField(JavaPlugin.class, plugin, "logger", new org.bukkit.plugin.PluginLogger(plugin));
+      setField(SpectraEventsSpigotPlugin.class, plugin, "audienceFactory", audienceFactory);
+      setField(SpectraEventsSpigotPlugin.class, plugin, "bootstrapFactory", bootstrapFactory);
+      return plugin;
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private BukkitAudiences createMockAudience(AtomicBoolean closedFlag) {
@@ -258,18 +288,9 @@ class SpectraEventsSpigotPluginTest {
 
   @Test
   void testConstructorsNullValidation() {
-    File folder = tempDir.resolve("data").toFile();
-    File file = tempDir.resolve("plugin.jar").toFile();
     assertThrows(
-        NullPointerException.class,
-        () ->
-            new SpectraEventsSpigotPlugin(
-                pluginLoader, description, folder, file, null, (p, a) -> null));
-    assertThrows(
-        NullPointerException.class,
-        () ->
-            new SpectraEventsSpigotPlugin(
-                pluginLoader, description, folder, file, p -> null, null));
+        IllegalStateException.class, () -> new SpectraEventsSpigotPlugin(null, (p, a) -> null));
+    assertThrows(IllegalStateException.class, () -> new SpectraEventsSpigotPlugin(p -> null, null));
   }
 
   @Test

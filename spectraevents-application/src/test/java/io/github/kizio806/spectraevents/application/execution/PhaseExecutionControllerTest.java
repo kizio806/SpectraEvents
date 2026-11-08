@@ -657,7 +657,7 @@ class PhaseExecutionControllerTest {
     assertTrue(fired);
 
     for (CompletableFuture<?> f : context.getOrCreateObservedActionCompletions(instance.id())) {
-      f.handle((ok, ex) -> null).join();
+      f.handle((res, ex) -> ex != null ? ex.getMessage() : res).join();
     }
 
     EventInstance updated = context.repository().findById(instance.id()).orElseThrow();

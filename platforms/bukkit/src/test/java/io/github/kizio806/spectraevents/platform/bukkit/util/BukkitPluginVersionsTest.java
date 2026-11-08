@@ -34,7 +34,7 @@ class BukkitPluginVersionsTest {
     assertEquals("1.2.3", BukkitPluginVersions.resolveVersion(plugin));
   }
 
-  interface PluginWithMeta extends Plugin {
+  interface HasPluginMeta {
     Object getPluginMeta();
   }
 
@@ -45,11 +45,11 @@ class BukkitPluginVersionsTest {
   @Test
   void resolvesVersionFromPluginMetaOnPaper() {
     MetaWithVersion meta = () -> "2.3.4";
-    PluginWithMeta plugin =
-        (PluginWithMeta)
+    Plugin plugin =
+        (Plugin)
             Proxy.newProxyInstance(
-                PluginWithMeta.class.getClassLoader(),
-                new Class<?>[] {PluginWithMeta.class},
+                Plugin.class.getClassLoader(),
+                new Class<?>[] {Plugin.class, HasPluginMeta.class},
                 (proxy, method, args) -> {
                   if ("getPluginMeta".equals(method.getName())) {
                     return meta;
@@ -60,21 +60,21 @@ class BukkitPluginVersionsTest {
     assertEquals("2.3.4", BukkitPluginVersions.resolveVersion(plugin));
 
     // When meta returns null
-    PluginWithMeta nullMetaPlugin =
-        (PluginWithMeta)
+    Plugin nullMetaPlugin =
+        (Plugin)
             Proxy.newProxyInstance(
-                PluginWithMeta.class.getClassLoader(),
-                new Class<?>[] {PluginWithMeta.class},
+                Plugin.class.getClassLoader(),
+                new Class<?>[] {Plugin.class, HasPluginMeta.class},
                 (proxy, method, args) -> null);
     assertEquals("unknown", BukkitPluginVersions.resolveVersion(nullMetaPlugin));
 
     // When meta version is null
     MetaWithVersion nullVerMeta = () -> null;
-    PluginWithMeta nullVerPlugin =
-        (PluginWithMeta)
+    Plugin nullVerPlugin =
+        (Plugin)
             Proxy.newProxyInstance(
-                PluginWithMeta.class.getClassLoader(),
-                new Class<?>[] {PluginWithMeta.class},
+                Plugin.class.getClassLoader(),
+                new Class<?>[] {Plugin.class, HasPluginMeta.class},
                 (proxy, method, args) -> {
                   if ("getPluginMeta".equals(method.getName())) {
                     return nullVerMeta;
