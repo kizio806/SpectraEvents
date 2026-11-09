@@ -122,7 +122,9 @@ class PaperTemplateCommandHandlerTest {
           }
         };
 
-    handler = new TemplateCommandHandler(mockPlugin, application, configBootstrap, scheduler);
+    handler =
+        new TemplateCommandHandler(
+            mockPlugin, application, configBootstrap, scheduler, Runnable::run);
     messages = new ArrayList<>();
     CommandSender sender = PaperCommandTestSupport.createRecordingSender(messages);
     source = PaperCommandTestSupport.createMockSource(sender, null);
@@ -187,7 +189,8 @@ class PaperTemplateCommandHandlerTest {
         };
 
     TemplateCommandHandler failHandler =
-        new TemplateCommandHandler(mockPlugin, application, failingReloadBootstrap, scheduler);
+        new TemplateCommandHandler(
+            mockPlugin, application, failingReloadBootstrap, scheduler, Runnable::run);
     CommandDispatcher<CommandSourceStack> failDispatcher =
         PaperCommandTestSupport.createDispatcher();
     failDispatcher.register(failHandler.build());
@@ -234,7 +237,8 @@ class PaperTemplateCommandHandlerTest {
                   return null;
                 });
     TemplateCommandHandler badHandler =
-        new TemplateCommandHandler(badPlugin, application, configBootstrap, scheduler);
+        new TemplateCommandHandler(
+            badPlugin, application, configBootstrap, scheduler, Runnable::run);
     CommandDispatcher<CommandSourceStack> badDispatcher =
         PaperCommandTestSupport.createDispatcher();
     badDispatcher.register(badHandler.build());

@@ -13,7 +13,10 @@ import io.papermc.paper.command.brigadier.Commands;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
@@ -27,16 +30,27 @@ final class TemplateCommandHandler {
   private final SpectraEventsApplication application;
   private final BukkitDefinitionConfigBootstrap definitions;
   private final RegionTaskScheduler scheduler;
+  private final Executor asyncExecutor;
 
   TemplateCommandHandler(
       Plugin plugin,
       SpectraEventsApplication application,
       BukkitDefinitionConfigBootstrap definitions,
       RegionTaskScheduler scheduler) {
-    this.plugin = plugin;
-    this.application = application;
-    this.definitions = definitions;
-    this.scheduler = scheduler;
+    this(plugin, application, definitions, scheduler, ForkJoinPool.commonPool());
+  }
+
+  TemplateCommandHandler(
+      Plugin plugin,
+      SpectraEventsApplication application,
+      BukkitDefinitionConfigBootstrap definitions,
+      RegionTaskScheduler scheduler,
+      Executor asyncExecutor) {
+    this.plugin = Objects.requireNonNull(plugin, "plugin");
+    this.application = Objects.requireNonNull(application, "application");
+    this.definitions = Objects.requireNonNull(definitions, "definitions");
+    this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
+    this.asyncExecutor = Objects.requireNonNull(asyncExecutor, "asyncExecutor");
   }
 
   LiteralArgumentBuilder<CommandSourceStack> build() {
@@ -93,7 +107,8 @@ final class TemplateCommandHandler {
                   } catch (IOException | RuntimeException exception) {
                     throw new IllegalStateException("Could not install template " + id, exception);
                   }
-                })
+                },
+                asyncExecutor)
             .whenComplete(
                 (ignored, failure) ->
                     scheduler.executeGlobal(

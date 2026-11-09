@@ -44,31 +44,26 @@ jobs:
           validate-wrappers: true
 
       - name: Disable SonarCloud Automatic Analysis
+        if: env.SONAR_TOKEN != ''
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          if [ -n "${SONAR_TOKEN:-}" ]; then
-            curl -s -u "${SONAR_TOKEN}:" -X POST "https://sonarcloud.io/api/autoscan/activation" \
-              -d "projectKey=kizio806_SpectraEvents" \
-              -d "enable=false" || true
-          fi
+          curl -s -u "${SONAR_TOKEN}:" -X POST "https://sonarcloud.io/api/autoscan/activation" \
+            -d "projectKey=kizio806_SpectraEvents" \
+            -d "enable=false" || true
 
       - name: Run Tests, JaCoCo, and SonarCloud Analysis
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           EVENT_NAME: ${{ github.event_name }}
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          BASE_REPO: ${{ github.repository }}
         run: |
           if [ -n "${SONAR_TOKEN:-}" ]; then
             ./gradlew --no-daemon clean check jacocoRootReport sonar
+          elif [ "$EVENT_NAME" = "pull_request" ]; then
+            echo "::notice ::SONAR_TOKEN is unavailable for this pull request. Running clean check and JaCoCo coverage reports locally."
+            ./gradlew --no-daemon clean check jacocoRootReport
           else
-            if [ "$EVENT_NAME" = "pull_request" ] && [ "$HEAD_REPO" != "$BASE_REPO" ]; then
-              echo "::notice ::SONAR_TOKEN is unavailable for fork PR. Running clean check and JaCoCo coverage reports locally."
-              ./gradlew --no-daemon clean check jacocoRootReport
-            else
-              echo "::error ::SONAR_TOKEN is required for repository branches and internal pull requests."
-              exit 1
-            fi
+            echo "::error ::SONAR_TOKEN is required for repository branches and internal pushes."
+            exit 1
           fi

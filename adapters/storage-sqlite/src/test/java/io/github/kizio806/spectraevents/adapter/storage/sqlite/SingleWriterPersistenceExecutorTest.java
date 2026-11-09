@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -245,13 +246,26 @@ class SingleWriterPersistenceExecutorTest {
   }
 
   @Test
-  void testShutdownThrowsWhenCallerThreadIsInterrupted() {
-    Thread.currentThread().interrupt();
+  void testShutdownThrowsWhenCallerThreadIsInterrupted() throws Exception {
+    CountDownLatch blockLatch = new CountDownLatch(1);
+    CountDownLatch startedLatch = new CountDownLatch(1);
+    executor.enqueue(
+        () -> {
+          startedLatch.countDown();
+          try {
+            blockLatch.await();
+          } catch (InterruptedException ignored) {
+            // Worker thread interrupted during shutdown as expected
+          }
+        });
     try {
+      assertTrue(startedLatch.await(2, TimeUnit.SECONDS));
+      Thread.currentThread().interrupt();
       IllegalStateException ex =
           assertThrows(IllegalStateException.class, () -> executor.shutdown());
       assertTrue(ex.getMessage().contains("Interrupted while draining persistence writes"));
     } finally {
+      blockLatch.countDown();
       Thread.interrupted(); // Clear interrupted status for JUnit thread
     }
   }

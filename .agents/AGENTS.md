@@ -14,6 +14,7 @@ Future AI agents working in this repository must operate as **experienced senior
 - **Prefer Maintainable & Simple Solutions:** Do not introduce global singletons, service locators, NMS, reflection hacks, or giant manager classes when clean, testable hexagonal architectures suffice.
 - **Explain Trade-offs Explicitly:** When proposing changes, outline the pros, cons, and performance implications (e.g., pure Java in `core` and `application` targeting Java 21 baseline, with platform adapters targeting Java 25 on Paper/Spigot).
 - **Avoid Shortcuts:** Never bypass `./gradlew clean check build`, never disable quality gates, never suppress compiler warnings or SpotBugs checks, and never leave uncommitted scratch files.
+- **Mandatory 100% Green Verification Before Commit & Push:** Never commit changes, push commits, or request PR merges without ensuring 100% green verification. Every quality gate — local unit & integration tests, Checkstyle, SpotBugs, PMD, JaCoCo instruction coverage (≥85% domain modules, ≥80% patch coverage on Codecov), release dry-runs, GitHub Actions CI workflows, CodeQL analysis (0 open alerts), and SonarCloud Quality Gate (Rating A, 0 issues) — must pass cleanly without a single failure or warning.
 
 ### Critical "Do NOT" Rules
 - **Do NOT blindly copy current architecture:** Maintain the strict dependency direction: `platform -> application -> core`.
@@ -116,6 +117,8 @@ Before concluding any work, an AI agent must run the complete verification gaunt
 - [ ] Run `git diff` to review every changed line against project standards.
 - [ ] Ensure `scripts/verification/validate-source-hygiene.sh` passes cleanly (0 `@SuppressWarnings`, no `TODO`/`FIXME`).
 - [ ] Ensure `scripts/verification/validate-structure.sh` passes cleanly (canonical docs, no orphaned sources).
+- [ ] Execute `./gradlew clean check build` and confirm 100% GREEN (zero test failures, zero lint warnings, ≥85% coverage).
+- [ ] For every pull request, watch `gh pr checks <PR> --watch` to verify that 100% of CI, CodeQL, SonarCloud, and Codecov checks turn GREEN before merging.
 - [ ] Update `CHANGELOG.md` under the appropriate version heading if changes are user-visible.
 
 ---

@@ -5,9 +5,10 @@ The repository enforces a strict zero-tolerance quality pipeline (`check` and `b
 
 ## Standard
 - **Strict Compiler Settings:** All Java subprojects compile with `-Xlint:all` and `-Werror`. No compiler warnings (unchecked conversions, deprecations, raw types, or missing serial IDs) may be left unresolved.
-- **Coverage Minimum:** Maintain at least 85% instruction coverage on `spectraevents-core` and `spectraevents-application`. Enforced automatically by `jacocoTestCoverageVerification` during `./gradlew check`.
+- **Coverage Minimum:** Maintain at least 85% instruction coverage on `spectraevents-core` and `spectraevents-application` (enforced by `jacocoTestCoverageVerification`) and ensure at least 80% patch coverage on new code for Codecov.
 - **Domain & Boundary Testing:** Every meaningful business rule, 3D calculation, phase transition, and reward aggregate requires unit tests.
-- **Static Analysis:** Zero SpotBugs, Checkstyle, and PMD violations. Global blanket exclusions in `spotbugs-exclude.xml` are prohibited.
+- **Static Analysis & Security Scans:** Zero SpotBugs, Checkstyle, and PMD violations. Global blanket exclusions in `spotbugs-exclude.xml` are prohibited. Achieve 0 open CodeQL security alerts and a Grade A SonarCloud Reliability, Security, and Maintainability rating.
+- **Mandatory 100% Green CI Pre-Commit / Pre-Merge Requirement:** An engineer or AI agent must verify that all local checks pass (`./gradlew clean check build`) and monitor PR checks (`gh pr checks <PR> --watch`) until 100% of workflows are GREEN before merging.
 
 ## Do:
 ```java
