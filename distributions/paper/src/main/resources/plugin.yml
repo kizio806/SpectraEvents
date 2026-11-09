@@ -5,6 +5,7 @@ description: Modular, data-driven 3D event engine for Paper servers.
 authors:
   - kizio806
 website: https://github.com/kizio806/SpectraEvents
+icon: icon.png
 api-version: '26.1'
 folia-supported: true
 load: POSTWORLD
