@@ -6,10 +6,10 @@
 [![GitHub Release](https://img.shields.io/github/v/release/kizio806/SpectraEvents?sort=semver&logo=github)](https://github.com/kizio806/SpectraEvents/releases)
 [![Modrinth Assets](https://img.shields.io/badge/Modrinth-SpectraEvents%20Assets-00AF5C?logo=modrinth)](https://modrinth.com/resourcepack/spectraevents-assets)
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-blue.svg)](LICENSE)
-[![Platform: Paper](https://img.shields.io/badge/Platform-Paper%2026.3-blue?logo=paper)](https://papermc.io/)
-[![Platform: Purpur](https://img.shields.io/badge/Platform-Purpur%2026.3-purple)](https://purpurmc.org/)
+[![Platform: Paper](https://img.shields.io/badge/Platform-Paper%2026.1--26.3-blue?logo=paper)](https://papermc.io/)
+[![Platform: Purpur](https://img.shields.io/badge/Platform-Purpur%2026.1--26.3-purple)](https://purpurmc.org/)
 [![Platform: Folia](https://img.shields.io/badge/Platform-Folia%2026.1--26.3-cyan)](https://papermc.io/software/folia)
-[![Platform: Spigot](https://img.shields.io/badge/Platform-Spigot%2026.3-orange)](https://www.spigotmc.org/)
+[![Platform: Spigot](https://img.shields.io/badge/Platform-Spigot%2026.1--26.3-orange)](https://www.spigotmc.org/)
 
 **SpectraEvents** is a high-performance, data-driven 3D event engine for modern Minecraft servers. Rather than hardcoding static mini-games, SpectraEvents empowers server operators and creators to author dynamic, multiplayer world encounters entirely through declarative YAML definitions, smooth Blockbench 3D display entities, and deterministic phase state machines.
 
@@ -34,7 +34,7 @@
 
 - 🪐 **Data-Driven Event Architecture:** Compose complete world events using modular YAML definitions—phases, triggers, conditions, actions, and limits—without writing a single line of Java code.
 - 🧊 **Real-Time 3D Blockbench Engine:** Render, translate, and animate complex 3D models using vanilla Minecraft display entities and interaction hitboxes. Zero client-side mods required.
-- ⚡ **Multi-Platform & Regional Threading:** Engineered for modern Paper 26.3, Purpur 26.3, Spigot 26.3, and regional multithreading on Folia 26.1–26.3. Free of global singletons, service locators, NMS, or reflection hacks.
+- ⚡ **Multi-Platform & Regional Threading:** Engineered for modern Paper, Purpur, Spigot, and CraftBukkit, plus native regional multithreading on Folia across **Minecraft 26.1–26.3**. Free of global singletons, service locators, NMS, or reflection hacks.
 - 💾 **Transactional Mailbox & Crash Recovery:** Fully persistent SQLite runtime state. Offline player rewards are stored in transactional mailboxes; active event instances seamlessly reconcile and recover upon server restarts.
 - 🕒 **Timezone-Calibrated Schedules:** Schedule recurring world events with timezone precision, Cron expressions, and parameter overrides (`schedules.yml`).
 - 📦 **Automated Modrinth Asset CDN:** Official resource-pack bundles are version-matched and delivered securely via Modrinth CDN with SHA-1 checksum validation, or hosted independently on custom server URLs.
