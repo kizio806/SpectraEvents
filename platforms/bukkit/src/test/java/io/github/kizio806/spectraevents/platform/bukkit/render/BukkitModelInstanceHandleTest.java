@@ -55,11 +55,15 @@ class BukkitModelInstanceHandleTest {
     mutableMap.put("arm", UUID.randomUUID());
 
     BukkitModelInstanceHandle handle = new BukkitModelInstanceHandle(instanceId, mutableMap, null);
-    mutableMap.put("leg", UUID.randomUUID());
+    mutateMap(mutableMap, "leg", UUID.randomUUID());
 
     assertEquals(1, handle.partEntities().size());
     assertThrows(
         UnsupportedOperationException.class,
         () -> handle.partEntities().put("extra", UUID.randomUUID()));
+  }
+
+  private static <K, V> void mutateMap(Map<K, V> map, K key, V value) {
+    map.put(key, value);
   }
 }
