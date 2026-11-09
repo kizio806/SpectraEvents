@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-09
+
 ### Added
 - **Paper Command Decomposition & Architecture Parity**: Extracted `ScheduleCommandHandler` and `RewardsCommandHandler` in `:platforms:paper:common:command`, achieving architectural symmetry with Spigot and removing cross-platform translation key coupling (`command.paper.*` keys added across all 6 locales).
 - **Spec Math Deduplication**: Extracted `SpecMathParser` in `:spectraevents-application:model:compiler`, eliminating identical 3D vector, euler rotation, and quaternion parsing logic between `ModelCompiler` and `AnimationCompiler`.

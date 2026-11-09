@@ -68,11 +68,12 @@ This curated document is read directly by `.github/workflows/release.yml` and in
 
 ## 4. Release Branches & SemVer Strategy
 
-- Releases must originate from `main` or active `release/*` branches.
-- Version numbers strictly follow Semantic Versioning (`MAJOR.MINOR.PATCH` with optional `-beta.<N>` suffixes):
+- Releases must originate from `main` or active `support/mc-<gen>` backport branches.
+- Version numbers strictly follow Semantic Versioning (`MAJOR.MINOR.PATCH` with optional `-rc.<N>` pre-release identifiers).
   - `PATCH`: Bug fixes, minor adjustments, compatibility metadata updates.
   - `MINOR`: New actions, conditions, triggers, event templates, or platform integrations (backwards compatible).
   - `MAJOR`: Breaking changes to definition YAML schema or database storage layout.
+- See [Versioning Strategy](versioning.md) for full branch lifecycle, backport strategy, and Minecraft generation support details.
 
 ---
 
