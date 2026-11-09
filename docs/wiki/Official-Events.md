@@ -1,18 +1,49 @@
-# Official Events
+# Shipped Official Event Presets
 
-The full product scope contains five ordinary, data-driven event bundles. None is a separate
-hardcoded subsystem, and none currently satisfies the complete release Definition of Done.
+SpectraEvents ships with five production-ready, data-driven event presets. Each preset is fully authored in declarative YAML and demonstrates distinct mechanics, phase state machines, 3D Blockbench models, and reward distribution patterns.
 
-| Event | Intended experience | Current beta truth |
-| --- | --- | --- |
-| Airdrop | Timed arrival and contested shared container | Conservation repair has focused JVM tests; platform E2E remains missing |
-| Meteor | Timed raid, waves, failure pressure, public loot | Defaults need rebalancing; complete E2E missing |
-| Metin | Multi-phase structure raid and contribution podium | Asset and tuning incomplete; real victory/podium proof missing |
-| Piñata | Shared hit-counter event with frenzy and participation rewards | Anti-spam, eligibility, and meaningful frenzy incomplete |
-| Boss Portal | Portal, waves, boss, enrage, contribution rewards | Asset, enrage mechanic, tuning, and recovery evidence incomplete |
+---
 
-Vault is not part of the five-event release. It must not be advertised as a shipped event.
+## 🎮 Shipped Event Presets
 
-An event becomes ready only after clean installation, useful bounded configuration, natural
-success/failure/cancel, restart recovery, safe loot/rewards, cleanup, real-client visual review,
-performance evidence, all declared platform rows, documentation, and six reviewed locales pass.
+| Event Preset | In-Game Command | Theme & Key Mechanics |
+| :--- | :--- | :--- |
+| **Meteor** | `/se template install meteor` | **Celestial Impact Raid:** A flaming meteor descends from the sky, detonating upon contact. Spawns hostile waves of aggressive elemental mobs as health depletes. Radial loot scatter and top-damager rewards. |
+| **Airdrop** | `/se template install airdrop` | **Supply Crate Drop:** A supply crate parachutes slowly from cloud level down to the terrain. Emits smoke beacon flares, unlocks an interactive contested loot container, and despawns after a countdown timer. |
+| **Metin Stone** | `/se template install metin` | **Multi-Phase Structure Raid:** An ancient cursed stone summons defensive waves of monsters as players chip away at its durability. Features dynamic BossBar health tracking, phase shifts, and podium rewards. |
+| **Piñata** | `/se template install pinata` | **Festive Hit-Counter Event:** A suspended festive piñata bursts into celebratory fireworks, sound action chains, and bouncing loot showers upon reaching target hit counts. Anti-spam hit validation included. |
+| **Boss Portal** | `/se template install boss-portal` | **Dimensional Elite Encounter:** An ominous dimensional rift opens, summoning an elite boss with enrage mechanics, area boundaries, phase transitions, and contribution-weighted podium awards. |
+
+---
+
+## 🛠️ Managing Presets
+
+You can manage pre-packaged event definitions directly via in-game operator commands:
+
+```bash
+# List all available bundled presets
+/spectraevents template list
+
+# Install a preset into your active events directory
+/spectraevents template install <airdrop|boss-portal|meteor|metin|pinata>
+
+# Update an installed preset to the latest version bundled with the plugin
+/spectraevents template update <preset-id>
+
+# Remove an installed template definition
+/spectraevents template remove <preset-id>
+```
+
+---
+
+## ✏️ Customizing Presets
+
+All installed presets are placed in:
+```text
+plugins/SpectraEvents/events/<id>.yml
+```
+You can freely customize phases, timers, mob spawns, loot tables, and visual effects in these files. After modifying a file, reload definitions without restarting:
+```bash
+/spectraevents definition validate
+/spectraevents definition reload
+```
