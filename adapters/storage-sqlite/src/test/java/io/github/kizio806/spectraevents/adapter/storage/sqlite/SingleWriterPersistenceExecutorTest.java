@@ -253,7 +253,7 @@ class SingleWriterPersistenceExecutorTest {
         () -> {
           startedLatch.countDown();
           try {
-            blockLatch.await(5, TimeUnit.SECONDS);
+            blockLatch.await();
           } catch (InterruptedException ignored) {
             // Worker thread interrupted during shutdown as expected
           }
