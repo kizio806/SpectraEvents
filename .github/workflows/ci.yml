@@ -196,7 +196,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: spectraevents-${{ matrix.platform }}
-          path: distributions/${{ matrix.platform }}/build/libs/SpectraEvents-*.jar
+          path: distributions/${{ matrix.platform }}/build/libs/spectra-events-*.jar
           if-no-files-found: error
 
   runtime-smoke:
@@ -253,7 +253,7 @@ jobs:
           python3 scripts/runtime-smoke/runtime_workflow.py \
             --server "${{ matrix.server }}" \
             --version "${{ matrix.version }}" \
-            --artifact distributions/${{ matrix.family }}/build/libs/SpectraEvents-*-"${{ matrix.family }}".jar
+            --artifact distributions/${{ matrix.family }}/build/libs/spectra-events-*.jar
 
   release-readiness:
     name: CI / Release Readiness
