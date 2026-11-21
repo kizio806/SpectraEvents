@@ -18,8 +18,8 @@ SpectraEvents follows the **Golden Packaging Invariant** — every release build
 
 | Server Software | Distribution JAR | Description |
 | :--- | :--- | :--- |
-| **Paper**, **Purpur**, **Folia** | `SpectraEvents-1.0.0-paper.jar` | Full feature set, native Adventure MiniMessage, asynchronous chunk loading, Folia `RegionTaskScheduler`, and Admin GUI. |
-| **Spigot**, **CraftBukkit** | `SpectraEvents-1.0.0-spigot.jar` | Spigot task scheduling, Spigot PDC persistence keys, Bukkit Admin GUI, and modular administration subcommands. |
+| **Paper**, **Purpur**, **Folia** | `spectra-events-1.0.0-mc26.x-paper-purpur-folia.jar` | Full feature set, native Adventure MiniMessage, asynchronous chunk loading, Folia `RegionTaskScheduler`, and Admin GUI. |
+| **Spigot**, **CraftBukkit** | `spectra-events-1.0.0-mc26.x-spigot-bukkit.jar` | Spigot task scheduling, Spigot PDC persistence keys, Bukkit Admin GUI, and modular administration subcommands. |
 
 > ⚠️ **Important:** Place **only one** matching JAR in your server's `plugins/` directory. Never run both simultaneously.
 

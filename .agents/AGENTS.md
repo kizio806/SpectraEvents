@@ -81,9 +81,10 @@ Before touching any code, an AI agent must complete four distinct analysis steps
 
 ### 3. Change Safety & Packaging Contract
 - **Golden Packaging Invariant:** Every release builds **EXACTLY TWO production JARs** built via `./gradlew build`:
-  1. **EXACTLY ONE Paper JAR** (`SpectraEvents-<version>-paper.jar`)
-  2. **EXACTLY ONE Spigot JAR** (`SpectraEvents-<version>-spigot.jar`)
+  1. **EXACTLY ONE Paper JAR** (`spectra-events-<base>-<range>-paper-purpur-folia.jar`)
+  2. **EXACTLY ONE Spigot JAR** (`spectra-events-<base>-<range>-spigot-bukkit.jar`)
 - **Platform Publication Parity:** Modrinth and release assets always publish matching Paper and Spigot distributions.
+- **Versioning Policy:** Strict `MAJOR.MINOR.PATCH+mc<RANGE>` (see `.agents/rules/versioning-and-releases.md`).
 
 ---
 
@@ -127,6 +128,8 @@ Before concluding any work, an AI agent must run the complete verification gaunt
 
 Customizations and operational instructions are organized as follows:
 - **`AGENTS.md` / `.agents/AGENTS.md`**: Main instruction and architecture guide (this document).
+- **`.agents/roles/`**: Operational roles (`architect.md`, `qa-engineer.md`, `plugin-specialist.md`, `security-auditor.md`).
+- **`.agents/context/`**: Architecture diagrams, technology stack, and domain model specifications.
 - **`.agents/rules/`**: Specialized rules detailing standards, DOs, DON'Ts, and verification procedures.
 - **`.agents/skills/`**: Procedures for auditing, quality gate validation, asset pipelines, and platform adaptation.
 - **`.agents/workflows/`**: Process lifecycles for New Features, Bug Fixes, and Releases.

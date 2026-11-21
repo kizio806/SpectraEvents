@@ -161,21 +161,41 @@ val verifyCompatibilityMatrix =
 
 val paperDistributionDirectory = project(":distributions:paper").layout.buildDirectory.dir("libs")
 val spigotDistributionDirectory = project(":distributions:spigot").layout.buildDirectory.dir("libs")
-val distributionVersion = version.toString()
+
+val verifySemverVersion =
+    tasks.register("verifySemverVersion") {
+        group = "verification"
+        description = "Validates that the project version conforms to Semantic Versioning with Minecraft compatibility build metadata."
+        doLast {
+            val v = version.toString()
+            val semverPattern = Regex("""^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?\+mc[0-9A-Za-z.-]+$""")
+            if (!semverPattern.matches(v)) {
+                throw GradleException(
+                    "Version '$v' does not conform to required standard MAJOR.MINOR.PATCH+mc<MINECRAFT_RANGE> (e.g. 1.0.0+mc26.x)",
+                )
+            }
+            println("SemVer validation passed for version: $v")
+        }
+    }
 
 val verifyDistributionArtifacts =
     tasks.register("verifyDistributionArtifacts") {
         group = "verification"
-        description = "Validates that exactly 2 public distribution artifacts (paper, spigot) exist."
+        description = "Validates that exactly 2 public distribution artifacts (paper-purpur-folia, spigot-bukkit) exist."
         dependsOn(
             ":distributions:paper:verifyPluginArtifact",
             ":distributions:spigot:verifyPluginArtifact",
         )
         doLast {
+            val fullVersion = version.toString()
+            val baseVersion = fullVersion.substringBefore('+')
+            val mcRange = if (fullVersion.contains('+')) fullVersion.substringAfter('+') else "mc26.x"
+            val artifactBaseName = providers.gradleProperty("spectraevents.artifactBaseName").getOrElse("spectra-events")
+
             val expected =
                 setOf(
-                    "SpectraEvents-$distributionVersion-paper.jar",
-                    "SpectraEvents-$distributionVersion-spigot.jar",
+                    "$artifactBaseName-$baseVersion-$mcRange-paper-purpur-folia.jar",
+                    "$artifactBaseName-$baseVersion-$mcRange-spigot-bukkit.jar",
                 )
             val artifacts =
                 listOf(
@@ -184,7 +204,7 @@ val verifyDistributionArtifacts =
                 ).flatMap { directory ->
                     directory
                         .listFiles { file ->
-                            file.name.startsWith("SpectraEvents-") && file.extension == "jar"
+                            file.name.startsWith("$artifactBaseName-") && file.extension == "jar"
                         }?.toList()
                         .orEmpty()
                 }
@@ -336,6 +356,7 @@ subprojects {
 
 tasks.named("check") {
     dependsOn(
+        verifySemverVersion,
         verifyPlatformBoundaries,
         verifyCompatibilityMatrix,
         verifyDistributionArtifacts,

@@ -50,5 +50,7 @@ generated-resource-packs/
 *.tmp
 *.log
 __pycache__/
+*.pyc
+**/*.pyc
 .cache/
 .kotlin/

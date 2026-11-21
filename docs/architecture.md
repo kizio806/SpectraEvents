@@ -44,7 +44,7 @@ SpectraEvents enforces a strict **Single JAR per Server Family** architectural i
 - **Module Separation:** Domain logic (`core`) and application services (`application`) reside exclusively as pure Java (Java 21 baseline). No Bukkit, Paper, or Minecraft classes may be imported in these modules.
 - **Shared Bukkit Presentation:** `:platforms:bukkit` unifies Display entity tracking (`BukkitPdcKeys`), shared container listeners (`BukkitSharedLootListener`), and custom item providers across server implementations.
 - **Thin Platform Adapters:** `:platforms:paper:common` and `:platforms:spigot:common` provide only platform-specific event routing, scheduler bridges (`RegionTaskScheduler`), and chat/component serialization.
-- **Single-JAR Platform Packaging:** Rather than fragmenting releases into multiple patch-specific JARs, each distribution module compiles a single production artifact (`SpectraEvents-<version>-paper.jar` and `SpectraEvents-<version>-spigot.jar`).
+- **Single-JAR Platform Packaging:** Rather than fragmenting releases into multiple patch-specific JARs, each distribution module compiles a single production artifact (`spectra-events-<base>-<range>-paper-purpur-folia.jar` and `spectra-events-<base>-<range>-spigot-bukkit.jar`).
 - **Platform Publication Parity:** Modrinth and GitHub Releases always publish matching Paper and Spigot artifacts per release tag.
 
 ## Technical Strengths

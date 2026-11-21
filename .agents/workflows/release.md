@@ -51,8 +51,8 @@ flowchart TD
   ```
 - **Verify Artifacts:**
   - Confirm the existence of:
-    - `distributions/paper/build/libs/SpectraEvents-<version>-paper.jar`
-    - `distributions/spigot/build/libs/SpectraEvents-<version>-spigot.jar`
+    - `distributions/paper/build/libs/spectra-events-<base>-<range>-paper-purpur-folia.jar`
+    - `distributions/spigot/build/libs/spectra-events-<base>-<range>-spigot-bukkit.jar`
 
 ---
 

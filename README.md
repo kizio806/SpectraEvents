@@ -58,12 +58,12 @@ Dependency flow is strictly unidirectional: `platform -> application -> core`.
 
 ## 📦 Supported Platforms & Distributions
 
-SpectraEvents targets **Java 25** for server execution (platform-neutral code targets Java 21). We produce two distinct distribution artifacts:
+SpectraEvents targets **Java 25** for server execution (platform-neutral code targets Java 21), governed by our synchronized [Release Management & Versioning Policy](docs/releases.md). We produce two distinct distribution artifacts:
 
 | Distribution JAR | Target Server Families | Minecraft Compatibility | Notes |
 | :--- | :--- | :---: | :--- |
-| **`SpectraEvents-<version>-paper.jar`** | **Paper**, **Purpur**, **Folia** | **26.1 – 26.3** | Full feature set, asynchronous chunk loading, native Adventure MiniMessage, Folia regional multithreading via `RegionTaskScheduler`, and Admin GUI. |
-| **`SpectraEvents-<version>-spigot.jar`** | **Spigot**, **CraftBukkit** | **26.1 – 26.3** | Dedicated Spigot task scheduling, Spigot PDC persistence keys, Bukkit Admin GUI, and modular administration subcommands. |
+| **`spectra-events-<base>-<range>-paper-purpur-folia.jar`** | **Paper**, **Purpur**, **Folia** | **26.1 – 26.3** (`mc26.x`) | Full feature set, asynchronous chunk loading, native Adventure MiniMessage, Folia regional multithreading via `RegionTaskScheduler`, and Admin GUI. |
+| **`spectra-events-<base>-<range>-spigot-bukkit.jar`** | **Spigot**, **CraftBukkit** | **26.1 – 26.3** (`mc26.x`) | Dedicated Spigot task scheduling, Spigot PDC persistence keys, Bukkit Admin GUI, and modular administration subcommands. |
 
 > [!IMPORTANT]
 > Install **exactly one** matching JAR in your server's `plugins/` directory. Do not substitute the Paper artifact for Spigot or vice-versa.
@@ -198,7 +198,7 @@ For in-depth guides and developer documentation, visit our wiki and reference do
   - [Assets & Resource Packs](docs/wiki/Assets-and-Resource-Packs.md)
   - [Operations & Recovery](docs/wiki/Operations-and-Recovery.md)
   - [Known Limitations](docs/wiki/Known-Limitations.md)
-- **Technical Documentation:**
+- **Technical Documentation & Governance:**
   - [Architecture Assessment](docs/architecture.md)
   - [Development Guidelines](docs/development.md)
   - [Installation Guide](docs/installation.md)
@@ -206,7 +206,13 @@ For in-depth guides and developer documentation, visit our wiki and reference do
   - [Releases Guide](docs/releases.md)
   - [Modrinth Publishing Guide](docs/modrinth.md)
   - [Troubleshooting & FAQ](docs/troubleshooting.md)
+  - [Roadmap](ROADMAP.md)
+  - [Support Policy](SUPPORT.md)
+  - [Contributing Guidelines](CONTRIBUTING.md)
+  - [Code of Conduct](CODE_OF_CONDUCT.md)
+  - [Security Policy](SECURITY.md)
   - [Changelog](CHANGELOG.md)
+  - [AI Guidelines & Architecture Manual](AGENTS.md)
 
 ---
 

@@ -57,8 +57,8 @@ SpectraEvents strictly follows the **Golden Packaging Invariant**—every releas
 
 | Distribution JAR | Target Server Platforms | Minecraft Versions | Features & Architecture |
 | :--- | :--- | :---: | :--- |
-| **`SpectraEvents-<version>-paper.jar`** | **Paper**, **Purpur**, **Folia** | **26.1 – 26.3** | Full feature set, asynchronous chunk loading, native Adventure MiniMessage, Folia regional multithreading via `RegionTaskScheduler`, Admin GUI. |
-| **`SpectraEvents-<version>-spigot.jar`** | **Spigot**, **CraftBukkit** | **26.1 – 26.3** | Dedicated Spigot task scheduling, Spigot PDC persistence keys, Bukkit Admin GUI, and modular administration subcommands. |
+| **`spectra-events-<base>-<range>-paper-purpur-folia.jar`** | **Paper**, **Purpur**, **Folia** | **26.1 – 26.3** (`mc26.x`) | Full feature set, asynchronous chunk loading, native Adventure MiniMessage, Folia regional multithreading via `RegionTaskScheduler`, Admin GUI. |
+| **`spectra-events-<base>-<range>-spigot-bukkit.jar`** | **Spigot**, **CraftBukkit** | **26.1 – 26.3** (`mc26.x`) | Dedicated Spigot task scheduling, Spigot PDC persistence keys, Bukkit Admin GUI, and modular administration subcommands. |
 
 > ⚠️ **Important:** Install **only one** matching JAR in your server's `plugins/` directory. Do not place both JARs on the same server.
 
@@ -72,7 +72,7 @@ SpectraEvents strictly follows the **Golden Packaging Invariant**—every releas
 - *(Optional)* [PlaceholderAPI](https://placeholderapi.com/) for leaderboard and event status placeholders.
 
 ### 2. Installation
-1. Download the matching JAR (`SpectraEvents-<version>-paper.jar` or `SpectraEvents-<version>-spigot.jar`).
+1. Download the matching JAR (`spectra-events-<base>-<range>-paper-purpur-folia.jar` or `spectra-events-<base>-<range>-spigot-bukkit.jar`).
 2. Place the JAR into your server's `plugins/` folder.
 3. Start the server. SpectraEvents will generate all default directories and configurations.
 4. Install an official template (e.g. Metin Stone):

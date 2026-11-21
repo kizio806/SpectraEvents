@@ -8,8 +8,8 @@ SpectraEvents compiles exactly two production distribution JARs targeting modern
 
 | Distribution Artifact | Target Server Platforms | Declared Minecraft Band | Feature & Scheduling Support |
 | :--- | :--- | :---: | :--- |
-| **`SpectraEvents-1.0.0-paper.jar`** | **Paper**, **Purpur**, **Folia** | **26.1–26.3** | Full feature set, native Adventure MiniMessage, asynchronous chunk loading, Folia regional multithreading (`RegionTaskScheduler`), and Admin GUI. |
-| **`SpectraEvents-1.0.0-spigot.jar`** | **Spigot**, **CraftBukkit** | **26.1–26.3** | Dedicated Spigot task scheduling, Spigot PDC persistence keys, Bukkit Admin GUI, and modular administration subcommands. |
+| **`spectra-events-1.0.0-mc26.x-paper-purpur-folia.jar`** | **Paper**, **Purpur**, **Folia** | **26.1–26.3** (`mc26.x`) | Full feature set, native Adventure MiniMessage, asynchronous chunk loading, Folia regional multithreading (`RegionTaskScheduler`), and Admin GUI. |
+| **`spectra-events-1.0.0-mc26.x-spigot-bukkit.jar`** | **Spigot**, **CraftBukkit** | **26.1–26.3** (`mc26.x`) | Dedicated Spigot task scheduling, Spigot PDC persistence keys, Bukkit Admin GUI, and modular administration subcommands. |
 
 All 15 server runtime combinations (Paper, Purpur, Folia, Spigot, CraftBukkit across 26.1, 26.2, 26.3) pass automated lifecycle, recovery, reward durability, and cleanup qualification.
 

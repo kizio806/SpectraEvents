@@ -111,14 +111,17 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-artifacts/resource-packs
-          cp "distributions/paper/build/libs/SpectraEvents-${VERSION}-paper.jar" release-artifacts/
-          cp "distributions/spigot/build/libs/SpectraEvents-${VERSION}-spigot.jar" release-artifacts/
+          BASE_VERSION="${VERSION%%+*}"
+          MC_RANGE="${VERSION#*+}"
+          ARTIFACT_BASE="spectra-events"
+          cp "distributions/paper/build/libs/${ARTIFACT_BASE}-${BASE_VERSION}-${MC_RANGE}-paper-purpur-folia.jar" release-artifacts/
+          cp "distributions/spigot/build/libs/${ARTIFACT_BASE}-${BASE_VERSION}-${MC_RANGE}-spigot-bukkit.jar" release-artifacts/
           ./gradlew --no-daemon :adapters:assets-blockbench:buildReleaseResourcePacks \
             -PreleaseResourcePackOutputDir="$GITHUB_WORKSPACE/release-artifacts/resource-packs" \
             --console=plain
-          test "$(find release-artifacts -maxdepth 1 -name 'SpectraEvents-*.jar' | wc -l)" -eq 2
+          test "$(find release-artifacts -maxdepth 1 -name "${ARTIFACT_BASE}-*.jar" | wc -l)" -eq 2
           test "$(find release-artifacts/resource-packs -maxdepth 1 -name 'spectraevents-profile_*.zip' | wc -l)" -eq 3
-          (cd release-artifacts && find . -type f \( -name 'SpectraEvents-*.jar' -o -name 'spectraevents-profile_*.zip' \) -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt)
+          (cd release-artifacts && find . -type f \( -name "${ARTIFACT_BASE}-*.jar" -o -name 'spectraevents-profile_*.zip' \) -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt)
           (cd release-artifacts && sha256sum -c SHA256SUMS.txt)
 
       - name: Upload verified release inputs
@@ -176,7 +179,7 @@ jobs:
           python3 scripts/runtime-smoke/runtime_workflow.py \
             --server "${{ matrix.server }}" \
             --version "${{ matrix.version }}" \
-            --artifact release-artifacts/SpectraEvents-*-${{ matrix.family }}.jar
+            --artifact release-artifacts/spectra-events-*-${{ matrix.family }}*.jar
 
   release-eligibility:
     name: Release / Required Runtime Availability
@@ -300,7 +303,7 @@ jobs:
           curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID || vars.CURSEFORGE_PROJECT_ID }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           name: SpectraEvents ${{ needs.build.outputs.version }} — Paper, Purpur, and Folia
-          version: ${{ needs.build.outputs.version }}+paper
+          version: ${{ needs.build.outputs.version }}.paper
           version-type: ${{ needs.build.outputs.modrinth_type }}
           game-versions: |
             26.1
@@ -314,7 +317,7 @@ jobs:
           java: 25
           environment: server
           modrinth-featured: false
-          files: release-artifacts/SpectraEvents-*-paper.jar
+          files: release-artifacts/spectra-events-*-paper-purpur-folia.jar
           changelog-file: release-notes.md
 
       - name: Publish Spigot and CraftBukkit distribution to Modrinth & CurseForge
@@ -326,7 +329,7 @@ jobs:
           curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID || vars.CURSEFORGE_PROJECT_ID }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           name: SpectraEvents ${{ needs.build.outputs.version }} — Spigot and CraftBukkit
-          version: ${{ needs.build.outputs.version }}+spigot
+          version: ${{ needs.build.outputs.version }}.spigot
           version-type: ${{ needs.build.outputs.modrinth_type }}
           game-versions: |
             26.1
@@ -339,7 +342,7 @@ jobs:
           java: 25
           environment: server
           modrinth-featured: false
-          files: release-artifacts/SpectraEvents-*-spigot.jar
+          files: release-artifacts/spectra-events-*-spigot-bukkit.jar
           changelog-file: release-notes.md
 
       - name: Create GitHub Release after all Modrinth versions exist
@@ -358,11 +361,13 @@ jobs:
           else
             EXTRA_FLAGS+=(--latest)
           fi
+          BASE_VERSION="${VERSION%%+*}"
+          MC_RANGE="${VERSION#*+mc}"
           gh release create "$TAG_NAME" \
-            --title "SpectraEvents v$VERSION" \
+            --title "v${BASE_VERSION} — Minecraft ${MC_RANGE}" \
             --notes-file release-notes.md \
             "${EXTRA_FLAGS[@]}" \
-            release-artifacts/SpectraEvents-*.jar \
+            release-artifacts/spectra-events-*.jar \
             release-artifacts/SHA256SUMS.txt
 
       - name: Remove newly published public versions if this release fails
