@@ -31,11 +31,14 @@ tasks.processResources {
     }
 }
 
+val fullVersion = project.version.toString()
+val baseVersion = fullVersion.substringBefore('+')
+val mcRange = if (fullVersion.contains('+')) fullVersion.substringAfter('+') else "mc26.x"
+val artifactBaseName = providers.gradleProperty("spectraevents.artifactBaseName").getOrElse("spectra-events")
+
 val shadowJar =
     tasks.named<ShadowJar>("shadowJar") {
-        archiveBaseName.set("SpectraEvents")
-        archiveVersion.set(project.version.toString())
-        archiveClassifier.set("spigot")
+        archiveFileName.set("$artifactBaseName-$baseVersion-$mcRange-spigot-bukkit.jar")
         isPreserveFileTimestamps = false
         isReproducibleFileOrder = true
         manifest {

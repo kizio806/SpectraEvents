@@ -85,8 +85,11 @@ echo "--- 2. Running strict verification and test quality gates ---"
 echo "--- 3. Building release distributions ---"
 ./gradlew --no-daemon :distributions:paper:build :distributions:spigot:build
 
-PAPER_JAR="distributions/paper/build/libs/SpectraEvents-${VERSION}-paper.jar"
-SPIGOT_JAR="distributions/spigot/build/libs/SpectraEvents-${VERSION}-spigot.jar"
+BASE_VERSION="${VERSION%%+*}"
+MC_RANGE="${VERSION#*+}"
+ARTIFACT_BASE="spectra-events"
+PAPER_JAR="distributions/paper/build/libs/${ARTIFACT_BASE}-${BASE_VERSION}-${MC_RANGE}-paper-purpur-folia.jar"
+SPIGOT_JAR="distributions/spigot/build/libs/${ARTIFACT_BASE}-${BASE_VERSION}-${MC_RANGE}-spigot-bukkit.jar"
 
 echo "--- 4. Verifying built distribution artifacts ---"
 if [[ ! -f "$PAPER_JAR" ]]; then

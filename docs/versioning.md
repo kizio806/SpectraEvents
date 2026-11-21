@@ -28,12 +28,12 @@ Pre-release suffixes follow the pattern `-rc.N` (release candidates):
 
 ## 2. Minecraft Generation Support Model
 
-SpectraEvents supports a **range of Minecraft versions** within a single release build. One plugin version covers an entire Minecraft generation (e.g. `26.1–26.3`).
+SpectraEvents supports a **range of Minecraft versions** within a single release build. One plugin version covers an entire Minecraft generation (e.g. `26.1–26.3`, tagged `mc26.x`).
 
-```
-SpectraEvents 1.0.0
-  ├── SpectraEvents-1.0.0-paper.jar   →  Paper / Purpur / Folia 26.1, 26.2, 26.3
-  └── SpectraEvents-1.0.0-spigot.jar  →  Spigot / CraftBukkit  26.1, 26.2, 26.3
+```text
+SpectraEvents 1.0.0+mc26.x
+  ├── spectra-events-1.0.0-mc26.x-paper-purpur-folia.jar   →  Paper / Purpur / Folia 26.1, 26.2, 26.3
+  └── spectra-events-1.0.0-mc26.x-spigot-bukkit.jar        →  Spigot / CraftBukkit  26.1, 26.2, 26.3
 ```
 
 When a new Minecraft generation is released (e.g. `27.x`), a new `main` branch cycle begins targeting that generation.

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Unified Global Versioning Standard**: Migrated versioning architecture to synchronized Semantic Versioning with Minecraft compatibility build metadata (`1.0.0+mc26.x`).
+- **Deterministic Release Artifact Naming**: Standardized distribution JAR outputs to `spectra-events-1.0.0-mc26.x-paper-purpur-folia.jar` and `spectra-events-1.0.0-mc26.x-spigot-bukkit.jar`.
+- **Legacy Release Historical Clarification**: Documented legacy `v1.0.0` release context and retirement path upon first published synchronized release in `docs/releases.md`.
+
 ## [1.0.0] - 2026-11-09
 
 ### Added

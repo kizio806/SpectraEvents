@@ -31,8 +31,8 @@ flowchart TD
     end
 
     subgraph Distributions ["distributions/"]
-        DistPaper["distributions:paper (SpectraEvents-<version>-paper.jar)"]
-        DistSpigot["distributions:spigot (SpectraEvents-<version>-spigot.jar)"]
+        DistPaper["distributions:paper (spectra-events-<base>-<range>-paper-purpur-folia.jar)"]
+        DistSpigot["distributions:spigot (spectra-events-<base>-<range>-spigot-bukkit.jar)"]
     end
 
     Platforms --> Application

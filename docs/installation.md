@@ -18,8 +18,8 @@ Download the matching artifact for your server software from [GitHub Releases](h
 
 | Server Software | Artifact to Download |
 |---|---|
-| **Paper / Purpur / Folia** | `SpectraEvents-<version>-paper.jar` |
-| **Spigot / CraftBukkit** | `SpectraEvents-<version>-spigot.jar` |
+| **Paper / Purpur / Folia** | `spectra-events-<base>-<range>-paper-purpur-folia.jar` |
+| **Spigot / CraftBukkit** | `spectra-events-<base>-<range>-spigot-bukkit.jar` |
 
 > ⚠️ **Important:** Do not place both JARs on the same server. Install exactly one JAR matching your server platform.
 
@@ -28,7 +28,7 @@ Download the matching artifact for your server software from [GitHub Releases](h
 ## 🚀 Step-by-Step Installation
 
 1. Stop your Minecraft server cleanly.
-2. Place the downloaded `SpectraEvents-<version>-<platform>.jar` into your server's `plugins/` directory.
+2. Place the downloaded matching distribution JAR into your server's `plugins/` directory.
 3. Start the server and check the console logs for the SpectraEvents startup banner.
 4. Verify the installation by running in console or in-game:
    ```text
