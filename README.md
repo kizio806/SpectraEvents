@@ -198,7 +198,7 @@ For in-depth guides and developer documentation, visit our wiki and reference do
   - [Assets & Resource Packs](docs/wiki/Assets-and-Resource-Packs.md)
   - [Operations & Recovery](docs/wiki/Operations-and-Recovery.md)
   - [Known Limitations](docs/wiki/Known-Limitations.md)
-- **Technical Documentation:**
+- **Technical Documentation & Governance:**
   - [Architecture Assessment](docs/architecture.md)
   - [Development Guidelines](docs/development.md)
   - [Installation Guide](docs/installation.md)
@@ -206,7 +206,13 @@ For in-depth guides and developer documentation, visit our wiki and reference do
   - [Releases Guide](docs/releases.md)
   - [Modrinth Publishing Guide](docs/modrinth.md)
   - [Troubleshooting & FAQ](docs/troubleshooting.md)
+  - [Roadmap](ROADMAP.md)
+  - [Support Policy](SUPPORT.md)
+  - [Contributing Guidelines](CONTRIBUTING.md)
+  - [Code of Conduct](CODE_OF_CONDUCT.md)
+  - [Security Policy](SECURITY.md)
   - [Changelog](CHANGELOG.md)
+  - [AI Guidelines & Architecture Manual](AGENTS.md)
 
 ---
 

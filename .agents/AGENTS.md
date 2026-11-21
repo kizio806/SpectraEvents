@@ -127,6 +127,8 @@ Before concluding any work, an AI agent must run the complete verification gaunt
 
 Customizations and operational instructions are organized as follows:
 - **`AGENTS.md` / `.agents/AGENTS.md`**: Main instruction and architecture guide (this document).
+- **`.agents/roles/`**: Operational roles (`architect.md`, `qa-engineer.md`, `plugin-specialist.md`, `security-auditor.md`).
+- **`.agents/context/`**: Architecture diagrams, technology stack, and domain model specifications.
 - **`.agents/rules/`**: Specialized rules detailing standards, DOs, DON'Ts, and verification procedures.
 - **`.agents/skills/`**: Procedures for auditing, quality gate validation, asset pipelines, and platform adaptation.
 - **`.agents/workflows/`**: Process lifecycles for New Features, Bug Fixes, and Releases.
