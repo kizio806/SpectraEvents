@@ -206,7 +206,6 @@ For in-depth guides and developer documentation, visit our wiki and reference do
   - [Releases Guide](docs/releases.md)
   - [Modrinth Publishing Guide](docs/modrinth.md)
   - [Troubleshooting & FAQ](docs/troubleshooting.md)
-  - [Roadmap](ROADMAP.md)
   - [Support Policy](SUPPORT.md)
   - [Contributing Guidelines](CONTRIBUTING.md)
   - [Code of Conduct](CODE_OF_CONDUCT.md)
